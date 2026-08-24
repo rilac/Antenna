@@ -1,0 +1,47 @@
+name: antenna
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: antenna-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-antenna}
+      POSTGRES_USER: ${DB_USER:-antenna}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-antenna}
+      # 공공데이터 일자·종가 정렬이 로케일에 흔들리지 않도록 C 콜레이션 고정
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=ko-KR --encoding=UTF8"
+      TZ: Asia/Seoul
+      PGTZ: Asia/Seoul
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      # postgres 18+ 이미지는 /var/lib/postgresql 통째로 마운트해야 한다 (data 하위가 아님)
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-antenna} -d ${DB_NAME:-antenna}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    container_name: antenna-redis
+    restart: unless-stopped
+    # 캐시 용도라 AOF는 끄고 메모리 상한 + LRU 축출만 건다
+    command: >
+      redis-server
+      --appendonly no
+      --save ""
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

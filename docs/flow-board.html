@@ -1,0 +1,610 @@
+<title>엔테나 유저 플로우</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#F6F7FB; --surface:#FFFFFF; --surface-2:#EEF0F7;
+  --ink:#14141B; --body:#33333B; --muted:#64748B; --faint:#9CA0AC;
+  --rule:#DDE1EC; --rule-strong:#C2C8DA;
+  --ind:#5457E8; --ind-ink:#4144C9; --ind-soft:#E9E9FD; --ind-softer:#F4F4FE;
+  --coral:#D64545; --coral-soft:#FCEBEA;
+  --shadow:0 1px 2px rgba(20,20,27,.05), 0 10px 28px -14px rgba(20,20,27,.16);
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1117; --surface:#171A23; --surface-2:#1D2130;
+    --ink:#ECEDF4; --body:#C6C9D6; --muted:#8B93A8; --faint:#6A7186;
+    --rule:#2A2F41; --rule-strong:#3A4157;
+    --ind:#9C9EF8; --ind-ink:#B4B6FA; --ind-soft:#23264A; --ind-softer:#1B1E38;
+    --coral:#F08A82; --coral-soft:#3A2224;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1117; --surface:#171A23; --surface-2:#1D2130;
+  --ink:#ECEDF4; --body:#C6C9D6; --muted:#8B93A8; --faint:#6A7186;
+  --rule:#2A2F41; --rule-strong:#3A4157;
+  --ind:#9C9EF8; --ind-ink:#B4B6FA; --ind-soft:#23264A; --ind-softer:#1B1E38;
+  --coral:#F08A82; --coral-soft:#3A2224;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 12px 30px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--body);font-family:var(--sans);font-size:15.5px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1480px;margin:0 auto;padding:0 32px 120px}
+
+header{padding:56px 0 28px;border-bottom:2px solid var(--ink);display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px}
+header h1{margin:0;font-size:clamp(30px,4.4vw,44px);font-weight:700;letter-spacing:-.03em;color:var(--ink);line-height:1.1;text-wrap:balance}
+header .sub{margin:10px 0 0;font-size:15px;color:var(--muted);max-width:58ch}
+.stamp{font-family:var(--mono);font-size:11.5px;line-height:1.9;color:var(--muted);text-align:right;white-space:nowrap}
+.stamp b{color:var(--ind);font-weight:600}
+
+nav.jump{display:flex;flex-wrap:wrap;gap:8px;padding:18px 0 0}
+nav.jump a{font-family:var(--mono);font-size:12.5px;color:var(--muted);text-decoration:none;border:1px solid var(--rule);border-radius:20px;padding:5px 14px;background:var(--surface)}
+nav.jump a:hover{color:var(--ind);border-color:var(--ind)}
+nav.jump a:focus-visible{outline:2px solid var(--ind);outline-offset:2px}
+
+section{scroll-margin-top:24px;margin-top:60px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ind);margin-bottom:8px}
+h2{margin:0 0 10px;font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--ink);text-wrap:balance}
+p.lede{font-size:16px;color:var(--muted);max-width:72ch;margin:0 0 6px}
+p.lede b{color:var(--ink)}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);border:1px solid var(--rule);border-radius:4px;padding:1px 6px;color:var(--ink)}
+
+figure.board{margin:20px 0 0;padding:10px 6px 4px;background:var(--surface);border:1px solid var(--rule);border-radius:14px;box-shadow:var(--shadow);overflow-x:auto}
+figure.board svg{display:block;min-width:960px;max-width:100%;height:auto;margin:0 auto}
+figure.board figcaption{padding:12px 20px 14px;border-top:1px solid var(--rule);margin-top:8px;font-size:13.5px;color:var(--muted)}
+figure.board figcaption b{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-right:10px}
+
+svg .zone{fill:none;stroke:var(--rule-strong);stroke-width:1.6}
+svg .zone-dash{fill:none;stroke:var(--rule-strong);stroke-width:1.6;stroke-dasharray:8 7}
+svg .zone-ind{fill:var(--ind-softer);stroke:var(--ind);stroke-width:1.6;stroke-dasharray:8 7}
+svg .card{fill:var(--surface);stroke:var(--rule-strong);stroke-width:1.5}
+svg .card-soft{fill:var(--surface-2);stroke:var(--rule-strong);stroke-width:1.5}
+svg .card-ind{fill:var(--ind-soft);stroke:var(--ind);stroke-width:1.6}
+svg .card-coral{fill:var(--surface);stroke:var(--coral);stroke-width:2.4}
+svg .card-coral-soft{fill:var(--coral-soft);stroke:var(--coral);stroke-width:1.4}
+svg .pill{fill:var(--ink);stroke:none}
+svg .chip{fill:#FFFFFF;stroke:var(--rule-strong);stroke-width:1}
+svg .t{fill:var(--ink);font-family:var(--sans);font-weight:700}
+svg .tp{fill:var(--ground);font-family:var(--sans);font-weight:700}
+svg .tm2{fill:var(--ink);font-family:var(--mono);font-weight:600}
+svg .ts{fill:var(--muted);font-family:var(--sans);font-weight:400}
+svg .tz{fill:var(--faint);font-family:var(--mono);font-weight:500;letter-spacing:.08em}
+svg .tz-ind{fill:var(--ind);font-family:var(--mono);font-weight:600;letter-spacing:.08em}
+svg .tz-coral{fill:var(--coral);font-family:var(--mono);font-weight:600;letter-spacing:.08em}
+svg .lbl{fill:var(--muted);font-family:var(--mono);font-weight:500}
+svg .lbl-ind{fill:var(--ind-ink);font-family:var(--mono);font-weight:600}
+svg .lbl-coral{fill:var(--coral);font-family:var(--mono);font-weight:600}
+svg .ln{stroke:var(--rule-strong);stroke-width:2.2;fill:none}
+svg .ln-dash{stroke:var(--rule-strong);stroke-width:2.2;fill:none;stroke-dasharray:7 6}
+svg .ln-ind{stroke:var(--ind);stroke-width:2.6;fill:none}
+svg .ln-coral{stroke:var(--coral);stroke-width:2.6;fill:none}
+svg .life{stroke:var(--rule-strong);stroke-width:1.6;stroke-dasharray:4 5}
+svg .axis{stroke:var(--rule-strong);stroke-width:2.5}
+svg .dot{fill:var(--surface);stroke:var(--rule-strong);stroke-width:2.5}
+svg .dot-ind{fill:var(--ind);stroke:var(--ind)}
+svg .mk-g{fill:var(--rule-strong)}
+svg .mk-i{fill:var(--ind)}
+svg .mk-c{fill:var(--coral)}
+
+footer{margin-top:80px;padding-top:24px;border-top:1px solid var(--rule);font-size:13px;color:var(--faint);display:flex;flex-wrap:wrap;gap:8px 24px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>엔테나 유저 플로우</h1>
+    <p class="sub">읽기는 대부분 열려 있다 — 로그인은 토큰이 움직이는 곳과 구독 게이팅에만, 지갑(SSAFY WALLET)은 예측 등록과 토큰 이동에만.</p>
+  </div>
+  <div class="stamp">
+    작성 2026.08.24<br>
+    SSAFY 15기 · <b>S15P21A507</b><br>
+    기획서 v2 기준 · 플로우 8종
+  </div>
+</header>
+
+<nav class="jump">
+  <a href="#ladder">인증 사다리</a>
+  <a href="#onboard">온보딩</a>
+  <a href="#lifecycle">예측 라이프사이클</a>
+  <a href="#subscribe">구독 결제</a>
+  <a href="#gate">근거 게이팅</a>
+  <a href="#verify">제3자 검증</a>
+  <a href="#season">리플레이 시즌</a>
+  <a href="#demo">시연 5분</a>
+</nav>
+
+<!-- ═══ 1. 인증 사다리 ═══ -->
+<section id="ladder">
+  <div class="eyebrow">1 — Access ladder</div>
+  <h2>인증 등급 — 지갑 벽의 위치</h2>
+  <p class="lede">OAuth를 도입한 이유가 온보딩 허들 완화다. 로그인 직후 지갑을 요구하면 그 목적이 무너진다 — <b>심사위원도 지갑 없이 시연 대부분을 볼 수 있어야 한다.</b></p>
+
+  <figure class="board">
+    <svg viewBox="0 0 1560 300" role="img" aria-label="인증 3등급 사다리. 비로그인 공개 구역에서 OAuth 로그인으로 JWT 구역에, 지갑 연동 한 번으로 서명 구역에 도달한다.">
+      <defs>
+        <marker id="lg" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-g"/></marker>
+        <marker id="lc" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-c"/></marker>
+      </defs>
+
+      <rect class="card" x="40" y="40" width="440" height="220" rx="16"/>
+      <text class="tz" x="64" y="76" font-size="13">공개 — 비로그인</text>
+      <text class="t" x="64" y="112" font-size="15.5">피드 · 랭킹 · 예측 내용</text>
+      <text class="t" x="64" y="144" font-size="15.5">예측자 프로필 · 통계</text>
+      <text class="t" x="64" y="176" font-size="15.5">커밋 원장 탐색 · 리빌 검증</text>
+      <text class="ts" x="64" y="216" font-size="12.5">방향·목표가·직전 종가·판정 — 누구나 본다</text>
+      <text class="ts" x="64" y="236" font-size="12.5">(가려버리면 랭킹을 외부 검증할 수 없다)</text>
+
+      <rect class="card" x="560" y="40" width="440" height="220" rx="16"/>
+      <text class="tz" x="584" y="76" font-size="13">JWT — OAuth 로그인</text>
+      <text class="t" x="584" y="112" font-size="15.5">근거 열람 (구독 필요)</text>
+      <text class="t" x="584" y="144" font-size="15.5">내 프로필 · 토큰 잔액</text>
+      <text class="t" x="584" y="176" font-size="15.5">시즌 주문 (매수 · 매도)</text>
+      <text class="ts" x="584" y="216" font-size="12.5">access 15~30분 stateless · refresh는 Redis 회전</text>
+      <text class="ts" x="584" y="236" font-size="12.5">구글·SSAFY — 이메일 자동 병합 없음</text>
+
+      <rect class="card-coral" x="1080" y="40" width="440" height="220" rx="16"/>
+      <text class="tz-coral" x="1104" y="76" font-size="13">서명 — SSAFY WALLET</text>
+      <text class="t" x="1104" y="112" font-size="15.5">예측 등록 (EIP-712)</text>
+      <text class="t" x="1104" y="144" font-size="15.5">구독 결제 · 증명서 발급</text>
+      <text class="t" x="1104" y="176" font-size="15.5">백테스트 · 시즌 참가</text>
+      <text class="ts" x="1104" y="216" font-size="12.5">토큰이 움직이는 곳 전부 — 부인방지</text>
+      <text class="ts" x="1104" y="236" font-size="12.5">MetaMask 기반 · 가스는 SSAFY 지급 토큰</text>
+
+      <line class="ln" x1="480" y1="150" x2="554" y2="150" marker-end="url(#lg)"/>
+      <text class="lbl" x="517" y="136" font-size="12.5" text-anchor="middle">OAuth 로그인</text>
+      <line class="ln-coral" x1="1000" y1="150" x2="1074" y2="150" marker-end="url(#lc)"/>
+      <text class="lbl-coral" x="1037" y="136" font-size="12.5" text-anchor="middle">지갑 연동 · 1회</text>
+    </svg>
+    <figcaption><b>Fig 1</b>지갑 벽(빨간 테두리)은 사다리의 맨 끝, 토큰이 움직이는 곳 앞에만 서 있다. 왼쪽 두 칸만으로 서비스의 대부분을 쓴다.</figcaption>
+  </figure>
+</section>
+
+<!-- ═══ 2. 온보딩 ═══ -->
+<section id="onboard">
+  <div class="eyebrow">2 — Onboarding</div>
+  <h2>온보딩</h2>
+
+  <figure class="board">
+    <svg viewBox="0 0 1560 640" role="img" aria-label="온보딩 플로우. 방문 후 비로그인으로 구경하다가, 근거를 보거나 예측을 남기려 할 때 OAuth 로그인을 거치고, 예측 등록 직전에만 SSAFY WALLET 연동을 요구한다.">
+      <defs>
+        <marker id="og" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-g"/></marker>
+        <marker id="oc" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-c"/></marker>
+        <marker id="oi" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-i"/></marker>
+      </defs>
+
+      <rect class="pill" x="40" y="80" width="140" height="56" rx="28"/>
+      <text class="tp" x="110" y="115" font-size="16" text-anchor="middle">방문</text>
+
+      <rect class="card" x="240" y="60" width="260" height="100" rx="12"/>
+      <text class="t" x="370" y="102" font-size="16" text-anchor="middle">피드 · 랭킹 구경</text>
+      <text class="ts" x="370" y="128" font-size="12.5" text-anchor="middle">비로그인 — 전부 공개</text>
+
+      <rect class="card" x="560" y="60" width="310" height="100" rx="12"/>
+      <rect class="chip" x="582" y="80" width="50" height="50" rx="9"/>
+      <image href="data:image/png;base64,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" x="588" y="86" width="38" height="38"/>
+      <rect class="chip" x="642" y="80" width="50" height="50" rx="9"/>
+      <image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYQAAAEUCAMAAAAcBbGiAAAAmVBMVEUAAAD///8AuvclJSXW1tYoKCjExMTx8fGVlZUAwv/c3Nx3d3fn5+dlZWV6enqoqKhqampYWFggICBDQ0MxMTFgYGCdnZ09PT3MzMwPDw9KSkq7u7sAERdSUlL4+Piurq6EhIQAp94AJjMZGRmMjIwAWXYAHSYAbpMAj74AUGsAnNAACQwAM0QAY4MAOk4AsesAgKoAyP8ARVzf9G/TAAAYe0lEQVR4nO2da2PaOgyGnXJJgZRyJ0AJbLDed9rt//+4E0u+JyGUBqp0fj9sJQmh9UNsS7Yk1mBeWTWDS4p5CHnyEAjIQyAgD4GAPAQC8hAIyEMgIA+BgDwEAvIQCMhDICAPgYA8BALyEAjIQyAgD4GAPAQC8hAIyEMgIA+BgDwEAvIQCMhDICAPgYBoQrir+K9cELyTIXIQXh/fOlzP/2VO7a75PRLjyJQfCOfOdT1+tCterNsJfHQ8xNeTDX/LXl475A0QTVljA/fe67ssY36mZ3z8NoY7Je1B6V/xMVGD8Ni5Euq8uRgmIbT5Wh8ZBmZ7y4PQ6k18y0p/eAQYJrf8x628eM0btjlkjVu4JtZAl21+a9Xe87bxdySz3fFNXC5iEH4oBhzDo30SmzzZHDqSthZ+XwHCsmt9/IqVQQj0rWwIM+cvCfsfbupi0YKAzwHvjRDDm3lyJBoi1IeG4shN9ioOYb5yPr+5K4MQqcY1IUzcG6WafaLVHZGC8BcZ/Hr9+fsZfnwyz86xcw/CoTokIASRvmogDnEIfbx+Ox7v4ZGIBqVPQtCWHY0BoaEYJM1mIn+ujgIlCC+PvOF/4Iv/1E9SN/IubXVIQghieWQdiiNN+SCIEWOQBPGIlUNIbsUZA8IGT3XxgVtc42eYo/jnRArClfnt/+mMCI2NvIvujxSE8BoP6OEzhTCMAqN/meI3twxC0J3iGQ3hGj9CvYe18FOa04+2doFIQYAu6GfB2Tk2RWAOigpCEMG0ZrdXB1IIU35xd2nfphSCfNAUhDE0eWSNxPwZa65ZRSIF4SozDmgtoLPvQp+kOh+AkEDvAL0OXJPA35R5EoQOQQj5G+RTpSDs+SgQ2n3PPA57rDKRggBjQsGjAINjsoXnIZSDJ0CIAEySzj+X0IjtqYAgvsJj6z4HIczgeYjhHQoCTLdWjmHQqNJQoASBPeHs6Pk15xy2/qLFWajuGSB0sdMOpziJifB5SCEstvipsdkjHYSwn8IsitsTCsLINrHPIVIQ2A9hpXWefztnsEGbbGH5JPBJYHP4K0L4GkdTBYGtla3WVJ3HQQjXyBNOSwgwx4qdkaVa0YLw8iYt5pSD1S21+C+a9OUTIbwLAgJbqsl7MmMaAhuG+rOFR6IEAk5r2y0NYco/eTUSv8Z121BckdlMCwJj73/yvRZj/nY+N4X+KLm2ISgTDcZsDQGvlgKXRAkE1gNutxrClh/YCO+pYzpXZK9Rg8DuH/8o/5G21tCBCpNHaGJhKigI0lkRqSua4p1jw/HGCZVBwHE4bXwLwurfgpDq7/uV4PAsD034vCcE8xW8FyFOeRQEOSyATWtB4K9Vy62OgABH0ivHAsKQv15NxO9hQajKZqYIIdVf4U6V3uw1fzd+/cFyFs4FDQGuEO5UF0KqHg7R3WE5BAZTgGQ2MQdmaRxPTIe2aUR/SkQhMPYbKLzjix3vI5KVaDd+J2x5AwJv+qb6yYXAFtDLpOxgUecghB0aCz3e+NxO4C/lIMRGLdCoz6nGQ1aJyEJgj0Z/NAndO6Er1YTQuJU2XB4EOe1hLftJGGYh4Hwo6PIz2lhzfnMAtaloyZwahHv1E1huYmgeZu6Ej4UJgS3kXN6EoD4Qh/YYh3Dp72PsBr7RcwuC8NhxcQgDfoljrcHaZ2XObGIQ3tQyzsuDfhJGt9lbQdNbEJQ0hGVXLX224Asds8Ue/xeCASBu2RAmymELXlQ0Ai2bAC6Iq/LgkYLwakxL7670mDDJuRVMlUog3CS6uad8UsXHczC55QL+Gv7+NrMhsF4kPgUg4HzJGIUnuIJ6yyoSJQi/wVB7AzfqKy5vwuwIHaiJtlShiXjrHoSwE+sAMLEdgE2dzo5kk8IXe4gLbnsXglpSxkWdfWK8SO+LI1R77H7wqSIE4WdHeix+PAtDAXsjdKAanTKYz9GuBIKyooOuXJOEx0KsOSSbWVcfdSBIE0+0uxokkmZb+qO6N+7nnixCENj9lSvcBIbuoom+cMJ/a949HO6Oponz8d2J2cBS0DU5ENjW+vLLZ8G8V3UMSEFgL88diwG6tNFxajb1TrhUy8aEpf3XRWJaP43Mo2gCuBBwNNZbXob25pkKl9UYMQjpvPSto/yo0mcBDtTg2rxsyY+kz8YBCDgt2hrf4JW6wHTrdbE1G5ZJxsTWPGPzF85Uhdzluk+KGIR0ZHj4AdsgH9X+u0mcjsW2sdSa8UMDNuanNu4t1vyonLqMb+F7n2ysFYER7oFJbuXgutvGcEetHtzbtIlHvRUfkpt7d9/lZ0UOAugyG4LPsrn3FNGE8I/JQyAgD4GAPAQC8hAIyEMgIA+BgOhBuPv78P7+8NvchccXFM13LnJetyoNYLqsqEG4f8YwnU7nTe0MbjnLWBOxH0K95h65ZFtxy1xQxCA86b1fV503sQdvARE32kUEniPj9Zo7iCL/JFQE4b8/lhdVbpNX2+9A6FU1ojgNh109RQrCnVzVkZGDYq0Tt37JuBjhA1VxTSO+5BJe592wJiIF4QGa/vk+HRoejF1HYtuR8osK97T87kPMbFSlf//SogTh5c3YavTy3NExOxD2EZkv+OsWvl6bJ2spUhA65s5HYwuStcAp9/7K7Q84RLRZjUUPQl6YDkxScdsEm+vID3jdgN1cFUaQXV6kIEB39JhzBiepaBnwCWrS5SSwCxrDj63KW+aCIgXhHaZEjzmRg7iozH+CRf5wCzMi2PAg4tbqLEoQ2H84Me38cCPWcEcwBEmBuRzteMQm7EcFKEmFiSa+QKQgqEQ7nc6jHc6Mk9Qtkxu/8NHg/RGEbUQV7VH/ItGCYKY7urIeB4hVbootkcm1aPuxiBms9QSVHAT298rIOmUMDjhJlZu0xjhU831CYDXExTesg6hBYOzpWUcOago4SV2LiDUmTLSu8FlUuxfr4qIHgXEOAoMRvsm38abjL58LQWgaRApGLfRZVL0b68IiCSHVwx/TjcqYHInhi8+tNqAS9tUAXWdRhcBe/5guPDlJxf3YcAAHA/5vUlm0xheJLAQzXIprhNum+V3QXTEGKt9ggkoOwstf9aMZOMilsq+JYbilAtnq3hsRg/Aq40KkD0M/CSLzF4eAfiKxwBbUfoJKDAIErQkvKrowHvRJXO4P9Bd/KaGcNRfRJUQIwovIivp4n/6MQYRXxpqCzG+n/EQyz0Q0yb1djUQIwv2bNJXVGrPl1l7jPUId1yEgnK91LiRCEJwkzVduYlSRW0En5EQqSSZSp3YiBUGaaELP9kmM6zfaHNfYwgrDKL9ItCCkc6I/oityvKhcGFOu48pwtTkiE/V0sohBSPXfw8P74+N7TnrU0bbf75uLyZP0db/qYgZfIHoQ/kF5CATkIRCQh0BAHgIBeQgE5CEQkIdAQAQh/P2V6t46tJhzMy03BGHU4wbbKO/UetYMgzCe5ZwdTfm7DPfrYt1H9Ya2U3Yy6FtK34RvdjcXLIbp0ZsWm3KTcmgEb/GrrQMZ0YNwD46Ld+sYbgjO9dShLyO7DXJnZpCMXW831p3SsYestTEuj2b6+r6TkrXLE/zAm517Yo7tG5HEcKuOQ67t4OCmHHIQXjA18JV1EFbRct2lDYxWyLiz9/YHJ3Y01Q7fFetfp+Vk/WzLL3ovsk80b2T+Nhv8Fq7j6ZztdJ07DD3NfVSlyEG4e7NiBlHFEETlhMguMpGTSDU2/XyYEdKsrOlCUBvKiiFYmbJFpjcOYWxlKtvANs3Dnl5yEF7FmoK1nlMMQaR8tM/lFQgMukavLJaDjPieDAT58LgQeHckMhmaqbLFJ0Jic0jZGaFjEXPnlSzAUoOAO13c/qgQgurKzf5IBVRFs+l8PJCX6BZvyAv0WNHCwka7+XDblpUN9wpCvG60hBoLnU5yo54uiRCzy8P5TUv9uCrJoEoOghvDfBiCXOy3HnjxdDRlt75DDHqP2FRGXEXqK9oys0FORd8ylBDsQVjn9JR9zlY+LggBCwVs05/2cKIslosaBNhk0XHX1Yog4KwJpL/nouqgMfXBYbqpxo1t9l2tvAzB/BYHIYhBZa1aUdRZkGNz44hRmZGDgLuNfsPgbGQjLIIAWS0iaGLdH+GDYIVzLvbmzm2sY7Hif3pTdhQOhMWtbNKDEDBV80IPQQICliO+PmpUZuQg3MEiMw4MxvJmEQQMYYbaIip+Ezt8J4htMjUmRze8XZtrK4e/A0GkRb0thiBSP/MuDoua38YaAo7N4e0xozIjBwGKAT9jp2TstSiAAMXXkhV+9+U+vGVOuQNbmK4f/5MPjAtBlK44AOFGFpRHa2w2NiEw/bCUjcqMGgQs/PiExoIRqFMAAWIUwhuR5kVE0cKe1e6BkNq5KCEIX/ammGZmIIhZUeHsqHuDGX+619CEq7kN4UaO/ckREda0IGBvxCeqHWsPZAEEmaUZik5I2ym3mIspyOLfnOBMVk6ZMhDWoppLkZ2Q/t/Xp1KrAEZnXR1YToxnR6QAogUBdmJzMw1NNnU8HwKESsFRs+Fhn/CBPcJYSoR3Q1vjygwEjEzcFlrMqtoOaM9cCKLQRfeYms2kILw8SwPhjlfhfFNpLvIhwOYvSO+yBBt1chQEaEKobIRf9pt8CC3RaR2CIO1kGJ6XVnckxuYjRmVGDMK9+v6jG0+5UhHCyrlc535pGTOdsu6oJ3ojWesI0WYgQDWqbi/bHZkQsL4RTlRdCOBCOq4IGCkIv2VvJMqKqCpHuRAaRp8Oo3Gkf+wWbsvDlsdbgakXgymVgQBWc1N4psNYlZK5XRsQ0FRGk82FsDTH/cOiBOEFKgGL+IRnsz/KhTA2+qA5NAaYxFB5NirsiqGkpvCuYb8PTZiBgBXBxmKKao2uBgRwGolK5t8DAhbVeUT9MF2puRDMckcxb3lc2sH6XE7+o91S+izg2y++2TF0NXBbFwLeZXPAThDbL1fSjfdNIDw4O+N1f5QHwVoLQ4GZjOWznaLwN0nQhoYczTLvils5EKAECTf5yiAM92L55ptAcBHIcl/5EJbZ22MY5xq+35bfAhckNyPpjrDf1c9CGMA92o1yCPr3+RYQXjMPgnKl5kBYDLK3xyvwUTAX29CfBlOmfvZd0HXZELCYFMxj/zEI4EDtaMGj8FIEIX/1DP98dBmo1f89rtXzwbqV7Y3QlWpCkE8LTF5LBubvBgGXcu6lfsL86FcRBMwFNhSleVujIcyP0PIayh0S3XbclfWloIVhOSfq63dB3pK9gJCsetuZDBIN2iMFoXCK+t0g/HU8p+yXPpCFgH2O0fHvlDeC5ZS5k0vGpqcCJMvOZ9eYxdLnQWPt20EAB6oRt8zuuTfv7T4fwkR+hZXAfpar+Uun6cSazsSoao7qQdGuZQaC2iNz0G3x7SCAA9XMQXinsWQh4HKO6bAGN4FaP1vYnX8X15sHvMm7ZsOAdyIdPWwIya0aBI6G4DjwagnhF99492YeeXmCvXjQpEZKThBO9y0PEfhUjQ5qslF752LRYOhAtf1Kola2YXV0Z+YmpqIdeFHmSeBNaVTkXPPh5ygnKh0IMBjf5RzD5oNhVJ9ZNJw6FlxurQu2GA8H/Z7eNLoYObeRd24s2E6s2bi/10It56hFHbjNyPVOuUfzr8oVGQj/sjwEAvIQCMhDICAPgYA8BALyEAiodhB29U/qkhEpCHd/OpYe7NPzmdjWFhvWakP7J6J2v55PGi0IzrKOBWFhLSCoPdbordAgjvITEFNtIAydW0knkQOB79CtneoC4TpzrxB9Qi6EOlYVIQghZ0xY6IjYpnIth+DszEBwIzlrIIIQck6IRX25Z0u0e8id/lhAAfsgEWtWu5prtYAgMjRv1YEdxmDwlQHcmi26oBGsCnR32VuQVh0gYIaExMxMMAIK4dCBILZn1y03YR0gQEEpZ7xtwS/edSFY4SK1UQ0guDWxUXKR2YaAI0Td5kc1gADBwInbxUBV5vQ7b0NoWCGZdRFBCL9/SeHO+Al/Z5hZ0hUbMGwIEEge1a0aKkEIeh8k2gmyxJojUXPThgCxUlF50CotEYTgWsyi0KMrUVfKgoAlXw6FbpJUXSBknwQLwu2uNVnv8Y+pnw+PIISPdEeR9x2dB0L+wJzJ+yeyIngv6lkguEeholHm+y13BLvrCXWsuVYDCGisuf0RBjHP/aLOZSAI/50dsTYBj3Yk3RbtXr+3h8XPOhaKrwMETKAJdcmlhANvIB0VYCPDBLV2jiNWDwjSlW2UNMKVHeXKRggYe1zDR6EWEOSijigkNREBHSHf5G5AwHHCT1HPBGGhRt8kd3lTQMBwm25Z3j9yqgeEsoV+6Tcd8oDBTDYY8qoLBF0JWMja8iIh4Hy1dtXiaUH4UwxBrisL2Zu/VKwlZMOrXW1gUhBeIL9L4enxTIwHbWOFZ9eL2+2VXEHYDXjY96ZmvmxSEI6R3xBMAMJ3lIdAQB4CAXkIBOQhEJCHQEAeAgHRgXCv04kYR37aF82Hg8HSzgjPM4M01D5sSOvBk4C0shrhxS29afsDSUDOKToQXiFqUFfSuXvjr037eS/T4QcrvZKMnlO18RHS4IQ3LCdNYdBkDUiypn3dy9ykORcXHQiYFlVlPBJF7/TpoZVSTQWCOLtPcR/kNBdCLC42IGAlhKoa81QRgsCsODVIvnb1S510c9QlYkXfQ/ioDkN4Mr77mHtNVZjaxZl7iQ1GHsJHVTI7gvIJOApgplo5LCsG4e3+Wv6MFAogLM0c2l18MfMQjoDwE7ogvu8Oilio+gmyoqxsPVHXjEdLFUEQgigGXWPLQyiHwN7F2OyMypgWOzGmpiITMyuDAMke9fTHQzgCAhZ9/M3u4X85XcW6fYkVkwkUeAJOD6FqCHJsfu+YozKEpyX2JlMMlo08hDNAwGIiPwCFtJ53OdlMZejI2EOoHoIYm81RmbWghKC727oh0ryfAEHHFc49hDy9vMtoHXUI4xPcC7F+QvsECEGkUsDDDNZDyOhOMNBOpMOROidAcOQhZPXkVmMWwWmuxGEP4aM6BsILFD991QcKAgcxpN9D+LCOgYAVH411hPwxwXdHp+o0CFBta+1cBhPXZHXK7EiHFkJhHg8hqwyE0SrI2WoNcSJhLx+CalZvJ1QEASejoVP2AFO/7NhonwNBGRUeQkUQsD9yTGb06cWyRLyKpFrDzF9tCPYQqoIgqteZHRIGrUGcCDwnagYLr3QNWg+hKgg4PzLrGCEVXGhG954gBOnXjPgED6EyCGgqpFqtG63WZCvCFLCDwpjNIOaebrHMoLPleQjVQcC4TEeyC1K5g+WOGCOI1kPI6mQIOTVn1UC9c4IKzZxTHkJWp0MQeRS0jLKBDasyc2hmt/AQsjoKAt95d5WBoEZjUNeqzctudEU626gDsyFUOfEAgt+BV/4bvTzxVEd3eaeWs2ba2t1Vr5U5Nd/HYRBt3C/1aNjv9weK2GKZvuzp7qoxtU5/lehB+AflIRCQh0BAHgIBeQgE5CEQkIdAQB4CAXkIBOQhEJCHQEAeAgF5CATkIRCQh0BAF4ZQu7yxF1G3vOWqhJBdjfFirBeWN12FEIyk416Gtkl541UHwUjI4mVqfzEMDP6tWy26C2lT0njVQgiCL99kQlK71UUhuKHhXqhJNpnNGSEEQfTlG01Ianx+m4GZL5recsvTMCpqvXNAMHKoeZkanNdsYO6B2/Jf6V/UWc2GDIQgqGGVxkvo+nwYciAEwfar/2CaOpvZkAshW/rdi8uuX3NuCDmh4l5c87PMV4sg1LCk+2W0PoOXuxhCajb4tYY8TSufrx6C4M2GAlW92nAYgjcbCrS/KASdf9bLkpsp/LwQvNlQoOrc3MdA8GZDvkZVubmPguDNhgLNq5mvHgkhCLp1KyR7GVXi5j4agl9tKFAFbu4PQPBmQ4H6n/WvfgiCNxsK9Emz4YMQ/CalAn3Kzf1hCEHSL/+V/kV9wmz4OIQUg9+klKfTzYZTIJgZNr0MnWo2nAbBmw0FGp40Xz0VQhDEfrUhT4MT5qunQ3BTenkJbctbrkII3mwo0HV5y1UIwW9SKtDHzIbPQvCrDflafGR3zOchBKFfbcjT5PjdMRVASM0Gv9qQp/Gxbu5KIHizoUDT4+arFUFIzQYfYpKnvCrU54PgzYYCHeHmrhCCNxsKVLo7plIIfrWhQCVu7ooh+NWGfB02G6qGkJoNfrUhT4fMhuoheLOhQMVmwzkgmBW9vAwVmQ3ngZCaDT6FT556F4WQmg27r/6LSSrPbDgfBG82FChrNpwTQpD41YZcuWbDWSGkGHwmpTwt7N0xZ4bgVxsKZNVHOzsEv0mpQEM9X70AhCBoerMhT6py5kUg+NWGAvUuCsGbDQW6vigEbzYUaHNRCEFy7Z+GPLX/B9SJ+5/8xj7CAAAAAElFTkSuQmCC" x="645" y="90" width="44" height="31"/>
+      <text class="t" x="712" y="100" font-size="15.5">OAuth 로그인</text>
+      <text class="ts" x="712" y="124" font-size="12">구글 or SSAFY</text>
+
+      <rect class="card-soft" x="930" y="60" width="210" height="100" rx="12"/>
+      <text class="t" x="1035" y="102" font-size="15.5" text-anchor="middle">첫 로그인?</text>
+      <text class="ts" x="1035" y="128" font-size="12" text-anchor="middle">user_oauth 조회</text>
+
+      <rect class="card-ind" x="1200" y="60" width="320" height="100" rx="12"/>
+      <text class="t" x="1360" y="100" font-size="15.5" text-anchor="middle">계정 생성 + 가입 보너스</text>
+      <text class="ts" x="1360" y="126" font-size="12" text-anchor="middle">PRT mint — 온체인</text>
+
+      <rect class="card" x="930" y="240" width="210" height="80" rx="12"/>
+      <text class="t" x="1035" y="274" font-size="16" text-anchor="middle">홈</text>
+      <text class="ts" x="1035" y="298" font-size="12" text-anchor="middle">JWT 발급 완료</text>
+
+      <rect class="card" x="560" y="240" width="300" height="80" rx="12"/>
+      <text class="t" x="710" y="274" font-size="15" text-anchor="middle">근거 열람 → 구독 결제</text>
+      <text class="ts" x="710" y="298" font-size="12" text-anchor="middle">§4 구독 플로우</text>
+
+      <rect class="card-soft" x="920" y="400" width="230" height="90" rx="12"/>
+      <text class="t" x="1035" y="438" font-size="15.5" text-anchor="middle">지갑 연동됨?</text>
+      <text class="ts" x="1035" y="462" font-size="12" text-anchor="middle">user_wallet 확인</text>
+
+      <rect class="card-coral" x="530" y="395" width="330" height="100" rx="12"/>
+      <text class="t" x="695" y="430" font-size="15.5" text-anchor="middle">SSAFY WALLET 연동</text>
+      <text class="ts" x="695" y="454" font-size="12" text-anchor="middle">① nonce 발급 ② SIWE 서명 ③ 주소 등록</text>
+      <text class="ts" x="695" y="474" font-size="12" text-anchor="middle">1회만 — 이후엔 서명만 붙는다</text>
+
+      <rect class="card-ind" x="920" y="540" width="230" height="80" rx="12"/>
+      <text class="t" x="1035" y="574" font-size="15.5" text-anchor="middle">예측 등록</text>
+      <text class="ts" x="1035" y="598" font-size="12" text-anchor="middle">§3 라이프사이클</text>
+
+      <line class="ln" x1="180" y1="110" x2="234" y2="110" marker-end="url(#og)"/>
+      <line class="ln" x1="500" y1="110" x2="554" y2="110" marker-end="url(#og)"/>
+      <text class="lbl" x="527" y="96" font-size="11.5" text-anchor="middle">근거·예측</text>
+      <line class="ln" x1="870" y1="110" x2="924" y2="110" marker-end="url(#og)"/>
+      <line class="ln-ind" x1="1140" y1="110" x2="1194" y2="110" marker-end="url(#oi)"/>
+      <text class="lbl-ind" x="1167" y="96" font-size="11.5" text-anchor="middle">예</text>
+
+      <polyline class="ln" points="1360,160 1360,280 1146,280" marker-end="url(#og)"/>
+      <line class="ln" x1="1035" y1="160" x2="1035" y2="234" marker-end="url(#og)"/>
+      <text class="lbl" x="1049" y="204" font-size="11.5">아니오</text>
+
+      <line class="ln" x1="924" y1="280" x2="866" y2="280" marker-end="url(#og)"/>
+      <text class="lbl" x="895" y="266" font-size="11.5" text-anchor="middle">근거</text>
+      <line class="ln" x1="1035" y1="320" x2="1035" y2="394" marker-end="url(#og)"/>
+      <text class="lbl" x="1049" y="362" font-size="11.5">예측 등록</text>
+
+      <polyline class="ln-coral" points="920,445 866,445" marker-end="url(#oc)"/>
+      <text class="lbl-coral" x="893" y="431" font-size="11.5" text-anchor="middle">아니오</text>
+      <polyline class="ln-coral" points="695,495 695,580 914,580" marker-end="url(#oc)"/>
+      <line class="ln" x1="1035" y1="490" x2="1035" y2="534" marker-end="url(#og)"/>
+      <text class="lbl" x="1049" y="516" font-size="11.5">예</text>
+    </svg>
+    <figcaption><b>Fig 2</b>같은 사람이 구글·SSAFY 양쪽으로 로그인하면 계정이 둘로 갈린다 — 이메일 자동 병합은 없고, 로그인 상태에서의 명시적 계정 연동으로만 합친다.</figcaption>
+  </figure>
+</section>
+
+<!-- ═══ 3. 예측 라이프사이클 ═══ -->
+<section id="lifecycle">
+  <div class="eyebrow">3 — Prediction lifecycle</div>
+  <h2>예측 라이프사이클</h2>
+
+  <figure class="board">
+    <svg viewBox="0 0 1560 580" role="img" aria-label="예측 7단계. 서명 등록, 커밋, 머클 앵커, 기준가 확정, 만기 판정, salt 리빌, 랭킹 반영 순서로 진행되며 등록과 판정 사이에 내용은 바꿀 수 없다.">
+      <defs>
+        <marker id="fg" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-g"/></marker>
+      </defs>
+
+      <rect class="card-coral" x="40" y="60" width="330" height="130" rx="12"/>
+      <text class="tz-coral" x="62" y="92" font-size="12">① 등록 — 서명</text>
+      <text class="t" x="62" y="122" font-size="15.5">종목 · 방향 · 목표가 · 기간</text>
+      <text class="ts" x="62" y="148" font-size="12.5">EIP-712 서명 — 작성자 부인방지</text>
+      <text class="ts" x="62" y="168" font-size="12.5">일 3건 초과 시 2,000 PRT 소각</text>
+
+      <rect class="card" x="410" y="60" width="330" height="130" rx="12"/>
+      <text class="tz" x="432" y="92" font-size="12">② 커밋 — BASE</text>
+      <text class="tm2" x="432" y="122" font-size="14">hash(종목|방향|목표가|기간|salt)</text>
+      <text class="ts" x="432" y="148" font-size="12.5">salt는 비공개 — 근거는 유료인데</text>
+      <text class="ts" x="432" y="168" font-size="12.5">조작 불가는 증명된다</text>
+
+      <rect class="card-ind" x="780" y="60" width="330" height="130" rx="12"/>
+      <text class="tz-ind" x="802" y="92" font-size="12">③ 머클 앵커 — 13:30 배치</text>
+      <text class="t" x="802" y="122" font-size="15.5">커밋들 → 트리 → root 1건</text>
+      <text class="ts" x="802" y="148" font-size="12.5">온체인 tx 1건으로 수천 커밋 봉인</text>
+      <text class="ts" x="802" y="168" font-size="12.5">앵커 대기 → 앵커 완료 배지</text>
+
+      <rect class="card" x="1150" y="60" width="330" height="130" rx="12"/>
+      <text class="tz" x="1172" y="92" font-size="12">④ 기준가 확정 — OPEN</text>
+      <text class="t" x="1172" y="122" font-size="15.5">다음 영업일 종가 = 기준가</text>
+      <text class="ts" x="1172" y="148" font-size="12.5">등록 시점에 정하지 않는다</text>
+      <text class="ts" x="1172" y="168" font-size="12.5">— 장중 정보 우위 제거</text>
+
+      <rect class="card" x="1150" y="290" width="330" height="130" rx="12"/>
+      <text class="tz" x="1172" y="322" font-size="12">⑤ 만기 판정 — HIT / MISS</text>
+      <text class="t" x="1172" y="352" font-size="15.5">만기일 종가 vs 방향·목표가</text>
+      <text class="ts" x="1172" y="378" font-size="12.5">목표가 오차 산출 — 신뢰도 입력값</text>
+      <text class="ts" x="1172" y="398" font-size="12.5">시세 없으면 판정 보류 (오판 &lt; 지연)</text>
+
+      <rect class="card-ind" x="780" y="290" width="330" height="130" rx="12"/>
+      <text class="tz-ind" x="802" y="322" font-size="12">⑥ salt 리빌 — 온체인</text>
+      <text class="t" x="802" y="352" font-size="15.5">누구나 해시 재계산 검증</text>
+      <text class="ts" x="802" y="378" font-size="12.5">payload + salt → commitHash 대조</text>
+      <text class="ts" x="802" y="398" font-size="12.5">GET /api/ledger/verify/{id}</text>
+
+      <rect class="card" x="410" y="290" width="330" height="130" rx="12"/>
+      <text class="tz" x="432" y="322" font-size="12">⑦ 랭킹 반영 — 13:40</text>
+      <text class="t" x="432" y="352" font-size="15.5">트랙 × 필터 신뢰도 재계산</text>
+      <text class="ts" x="432" y="378" font-size="12.5">(적중률×0.7 + 정확도×0.3) × 표본 가중</text>
+      <text class="ts" x="432" y="398" font-size="12.5">REPLAY는 REAL에 절대 안 섞인다</text>
+
+      <line class="ln" x1="370" y1="125" x2="404" y2="125" marker-end="url(#fg)"/>
+      <line class="ln" x1="740" y1="125" x2="774" y2="125" marker-end="url(#fg)"/>
+      <line class="ln" x1="1110" y1="125" x2="1144" y2="125" marker-end="url(#fg)"/>
+      <polyline class="ln" points="1315,190 1315,284" marker-end="url(#fg)"/>
+      <text class="lbl" x="1332" y="242" font-size="12">만기 도래</text>
+      <line class="ln" x1="1144" y1="355" x2="1116" y2="355" marker-end="url(#fg)"/>
+      <line class="ln" x1="774" y1="355" x2="746" y2="355" marker-end="url(#fg)"/>
+
+      <rect class="card-coral-soft" x="40" y="480" width="1440" height="70" rx="12"/>
+      <text class="t" x="760" y="522" font-size="15.5" text-anchor="middle">①과 ⑤ 사이 — 예측 내용은 한 글자도 못 바꾼다. 커밋 해시가 이미 온체인에 있으므로 고치면 재계산 해시가 어긋난다. 이것이 구독 모델의 전제.</text>
+    </svg>
+    <figcaption><b>Fig 3</b>인디고 카드(③⑥)가 온체인 접점 — 나머지는 서버 배치가 처리한다. 리플레이 트랙도 같은 7단계를 돈다(MarketClock).</figcaption>
+  </figure>
+</section>
+
+<!-- ═══ 4. 구독 결제 ═══ -->
+<section id="subscribe">
+  <div class="eyebrow">4 — Subscribe</div>
+  <h2>구독 결제 — 즉시 완료가 아니다</h2>
+
+  <figure class="board">
+    <svg viewBox="0 0 1400 660" role="img" aria-label="구독 결제 시퀀스. 구독자의 서명 요청을 서버가 컨트랙트로 릴레이하고 202 PENDING으로 응답한다. 블록 확정 후 컨트랙트가 70대 30을 배분하고 이벤트를 발행하면 인덱서가 구독을 ACTIVE로 바꾸고 폴링이 이를 확인한다.">
+      <defs>
+        <marker id="sg2" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-g"/></marker>
+        <marker id="si2" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-i"/></marker>
+        <marker id="sc2" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-c"/></marker>
+      </defs>
+
+      <rect class="card" x="70" y="30" width="220" height="60" rx="12"/>
+      <text class="t" x="180" y="66" font-size="15" text-anchor="middle">구독자 · SPA</text>
+      <rect class="card" x="450" y="30" width="220" height="60" rx="12"/>
+      <text class="t" x="560" y="66" font-size="15" text-anchor="middle">Spring 릴레이어</text>
+      <rect class="card-ind" x="830" y="30" width="220" height="60" rx="12"/>
+      <text class="tm2" x="940" y="66" font-size="15" text-anchor="middle">PredictToken</text>
+      <rect class="card" x="1140" y="30" width="220" height="60" rx="12"/>
+      <text class="t" x="1250" y="66" font-size="15" text-anchor="middle">체인 인덱서</text>
+
+      <line class="life" x1="180" y1="90" x2="180" y2="620"/>
+      <line class="life" x1="560" y1="90" x2="560" y2="620"/>
+      <line class="life" x1="940" y1="90" x2="940" y2="620"/>
+      <line class="life" x1="1250" y1="90" x2="1250" y2="620"/>
+
+      <line class="ln-coral" x1="180" y1="140" x2="554" y2="140" marker-end="url(#sc2)"/>
+      <text class="lbl-coral" x="367" y="126" font-size="13" text-anchor="middle">SSAFY WALLET 서명 + POST /api/subscriptions</text>
+
+      <rect class="card-soft" x="460" y="165" width="200" height="44" rx="9"/>
+      <text class="ts" x="560" y="192" font-size="12" text-anchor="middle">서명 검증 · 잔액 확인</text>
+
+      <line class="ln-ind" x1="560" y1="250" x2="934" y2="250" marker-end="url(#si2)"/>
+      <text class="lbl-ind" x="747" y="236" font-size="13" text-anchor="middle">subscribe() 릴레이 tx</text>
+
+      <line class="ln-dash" x1="554" y1="310" x2="186" y2="310" marker-end="url(#sg2)"/>
+      <text class="lbl" x="367" y="296" font-size="13" text-anchor="middle">202 Accepted — PENDING · 근거 아직 잠김</text>
+
+      <rect class="card-ind" x="830" y="350" width="220" height="52" rx="9"/>
+      <text class="ts" x="940" y="374" font-size="12" text-anchor="middle">블록 확정 — 수납 후</text>
+      <text class="tm2" x="940" y="392" font-size="12.5" text-anchor="middle">예측자 70 : 플랫폼 30 배분</text>
+
+      <line class="ln-ind" x1="940" y1="440" x2="1244" y2="440" marker-end="url(#si2)"/>
+      <text class="lbl-ind" x="1092" y="426" font-size="13" text-anchor="middle">Subscribed 이벤트</text>
+
+      <rect class="card-soft" x="1140" y="465" width="220" height="52" rx="9"/>
+      <text class="ts" x="1250" y="489" font-size="12" text-anchor="middle">chain_events 기록</text>
+      <text class="ts" x="1250" y="507" font-size="12" text-anchor="middle">subscriptions → ACTIVE</text>
+
+      <line class="ln" x1="180" y1="560" x2="554" y2="560" marker-end="url(#sg2)"/>
+      <text class="lbl" x="367" y="546" font-size="13" text-anchor="middle">GET /api/subscriptions/{id} 폴링</text>
+      <line class="ln" x1="554" y1="600" x2="186" y2="600" marker-end="url(#sg2)"/>
+      <text class="lbl" x="367" y="590" font-size="13" text-anchor="middle">200 ACTIVE — 근거 잠금 해제</text>
+    </svg>
+    <figcaption><b>Fig 4</b>배분율 70:30은 컨트랙트가 집행한다 — 플랫폼이 몰래 바꿀 수 없고, 바꾸려면 온체인에 흔적이 남는다. PENDING 동안의 화면 언어는 예측 커밋의 "앵커 대기"와 동일 패턴.</figcaption>
+  </figure>
+</section>
+
+<!-- ═══ 5. 근거 게이팅 ═══ -->
+<section id="gate">
+  <div class="eyebrow">5 — Note gating</div>
+  <h2>근거 열람 게이팅</h2>
+
+  <figure class="board">
+    <svg viewBox="0 0 1560 400" role="img" aria-label="근거 열람 판정. 예측 내용 자체는 누구에게나 공개되고, 분석 근거만 로그인과 구독 상태를 차례로 검사해 열람이 결정된다. 미구독은 404가 아니라 403이다.">
+      <defs>
+        <marker id="gg" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-g"/></marker>
+        <marker id="gi" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-i"/></marker>
+      </defs>
+
+      <rect class="card" x="40" y="130" width="240" height="100" rx="12"/>
+      <text class="t" x="160" y="172" font-size="15.5" text-anchor="middle">예측 카드 클릭</text>
+      <text class="ts" x="160" y="198" font-size="12" text-anchor="middle">피드 · 프로필</text>
+
+      <rect class="card" x="360" y="30" width="340" height="80" rx="12"/>
+      <text class="t" x="530" y="64" font-size="15" text-anchor="middle">방향 · 목표가 · 판정 — 공개</text>
+      <text class="ts" x="530" y="90" font-size="12" text-anchor="middle">가리면 랭킹을 외부 검증할 수 없다</text>
+
+      <rect class="card-soft" x="360" y="180" width="220" height="90" rx="12"/>
+      <text class="t" x="470" y="218" font-size="15" text-anchor="middle">로그인?</text>
+      <text class="ts" x="470" y="242" font-size="12" text-anchor="middle">JWT 검증</text>
+
+      <rect class="card-soft" x="680" y="180" width="260" height="90" rx="12"/>
+      <text class="t" x="810" y="218" font-size="15" text-anchor="middle">구독 ACTIVE?</text>
+      <text class="ts" x="810" y="242" font-size="12" text-anchor="middle">본인 예측이면 통과</text>
+
+      <rect class="card-ind" x="1040" y="180" width="240" height="90" rx="12"/>
+      <text class="t" x="1160" y="218" font-size="15.5" text-anchor="middle">근거 본문 표시</text>
+      <text class="ts" x="1160" y="242" font-size="12" text-anchor="middle">prediction_notes.body</text>
+
+      <rect class="card" x="360" y="310" width="220" height="60" rx="12"/>
+      <text class="ts" x="470" y="346" font-size="13" text-anchor="middle">로그인 유도</text>
+
+      <rect class="card-coral-soft" x="680" y="310" width="260" height="60" rx="12"/>
+      <text class="tm2" x="810" y="338" font-size="13" text-anchor="middle">403 SUBSCRIPTION_REQUIRED</text>
+      <text class="ts" x="810" y="358" font-size="11.5" text-anchor="middle">404 아님 — 존재는 공개</text>
+
+      <polyline class="ln" points="280,160 320,160 320,70 354,70" marker-end="url(#gg)"/>
+      <line class="ln" x1="280" y1="212" x2="354" y2="212" marker-end="url(#gg)"/>
+      <text class="lbl" x="318" y="200" font-size="11.5" text-anchor="middle">근거</text>
+      <line class="ln" x1="580" y1="225" x2="674" y2="225" marker-end="url(#gg)"/>
+      <text class="lbl" x="627" y="212" font-size="11.5" text-anchor="middle">예</text>
+      <line class="ln-ind" x1="940" y1="225" x2="1034" y2="225" marker-end="url(#gi)"/>
+      <text class="lbl-ind" x="987" y="212" font-size="11.5" text-anchor="middle">예</text>
+      <line class="ln" x1="470" y1="270" x2="470" y2="304" marker-end="url(#gg)"/>
+      <text class="lbl" x="484" y="292" font-size="11.5">아니오</text>
+      <line class="ln" x1="810" y1="270" x2="810" y2="304" marker-end="url(#gg)"/>
+      <text class="lbl" x="824" y="292" font-size="11.5">아니오</text>
+    </svg>
+    <figcaption><b>Fig 5</b>잠기는 것은 근거·리포트뿐 — 예측 내용은 미구독자에게도 공개한다. 그래야 "적중률 78%"를 아무나 검산할 수 있다.</figcaption>
+  </figure>
+</section>
+
+<!-- ═══ 6. 제3자 검증 ═══ -->
+<section id="verify">
+  <div class="eyebrow">6 — Third-party verify</div>
+  <h2>제3자 검증 — 플랫폼 신뢰 불필요</h2>
+
+  <figure class="board">
+    <svg viewBox="0 0 1560 240" role="img" aria-label="제3자 검증 3단계. 공개 API가 내려준 payload와 salt로 해시를 재계산하고, 머클 증명으로 루트를 복원해 온체인 값과 대조하고, 만기 종가를 공공데이터포털 원본과 비교한다.">
+      <defs>
+        <marker id="vg" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-g"/></marker>
+        <marker id="vi" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-i"/></marker>
+      </defs>
+
+      <rect class="card" x="40" y="50" width="320" height="130" rx="12"/>
+      <text class="tm2" x="200" y="94" font-size="13.5" text-anchor="middle">GET /api/ledger/verify/{id}</text>
+      <text class="ts" x="200" y="120" font-size="12.5" text-anchor="middle">공개 — 비로그인</text>
+      <text class="ts" x="200" y="142" font-size="12.5" text-anchor="middle">payload · salt · 머클 증명 · tx 일체</text>
+
+      <rect class="card-soft" x="420" y="50" width="300" height="130" rx="12"/>
+      <text class="tz" x="442" y="82" font-size="12">① 해시 재계산</text>
+      <text class="tm2" x="442" y="112" font-size="13.5">hash(payload+salt)</text>
+      <text class="tm2" x="442" y="136" font-size="13.5">== commitHash ?</text>
+
+      <rect class="card-soft" x="780" y="50" width="300" height="130" rx="12"/>
+      <text class="tz" x="802" y="82" font-size="12">② 머클 증명</text>
+      <text class="tm2" x="802" y="112" font-size="13.5">proof → root 복원</text>
+      <text class="tm2" x="802" y="136" font-size="13.5">== 온체인 root ?</text>
+
+      <rect class="card-soft" x="1140" y="50" width="300" height="130" rx="12"/>
+      <text class="tz" x="1162" y="82" font-size="12">③ 종가 대조</text>
+      <text class="tm2" x="1162" y="112" font-size="13.5">actualClose ==</text>
+      <text class="tm2" x="1162" y="136" font-size="13.5">공공데이터 원본 ?</text>
+
+      <line class="ln" x1="360" y1="115" x2="414" y2="115" marker-end="url(#vg)"/>
+      <line class="ln" x1="720" y1="115" x2="774" y2="115" marker-end="url(#vg)"/>
+      <line class="ln" x1="1080" y1="115" x2="1134" y2="115" marker-end="url(#vg)"/>
+    </svg>
+    <figcaption><b>Fig 6</b>세 대조가 모두 맞으면 "플랫폼이 조작하지 않았다"가 증명된다. 적중 판정 자체는 온체인으로 못 옮기지만(종가 오라클 부재) 판정 입력값이 앵커에 있어 누구나 사후 적발할 수 있다.</figcaption>
+  </figure>
+</section>
+
+<!-- ═══ 7. 리플레이 시즌 ═══ -->
+<section id="season">
+  <div class="eyebrow">7 — Replay season</div>
+  <h2>리플레이 시즌</h2>
+
+  <figure class="board">
+    <svg viewBox="0 0 1560 500" role="img" aria-label="리플레이 시즌 루프. 연습 또는 랭킹 시즌에 입장해 게임일마다 차트 확인, 종가 매매, 예측 등록, 게임일 진행을 반복하고, 시즌 종료 시 랭킹 확정과 블라인드 해제가 일어난다.">
+      <defs>
+        <marker id="rg" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-g"/></marker>
+        <marker id="rc" viewBox="0 0 10 8" refX="8.5" refY="4" markerWidth="7.5" markerHeight="6.5" orient="auto"><polygon points="0,0 10,4 0,8" class="mk-c"/></marker>
+      </defs>
+
+      <rect class="card" x="40" y="90" width="330" height="110" rx="12"/>
+      <text class="t" x="205" y="130" font-size="15.5" text-anchor="middle">연습 PRACTICE</text>
+      <text class="ts" x="205" y="156" font-size="12.5" text-anchor="middle">무료 · 실제 구간 그대로 · 종목명 공개</text>
+      <text class="ts" x="205" y="176" font-size="12.5" text-anchor="middle">학습 + 시연용</text>
+
+      <rect class="card-coral" x="40" y="260" width="330" height="110" rx="12"/>
+      <text class="t" x="205" y="300" font-size="15.5" text-anchor="middle">랭킹 RANKED</text>
+      <text class="ts" x="205" y="326" font-size="12.5" text-anchor="middle">참가비 1,000 PRT 소각 (서명)</text>
+      <text class="ts" x="205" y="346" font-size="12.5" text-anchor="middle">블록 부트스트랩 · 종목 블라인드 A사~</text>
+
+      <rect class="zone-dash" x="480" y="40" width="620" height="420" rx="16"/>
+      <text class="tz" x="504" y="74" font-size="13">게임 루프 — 게임일마다 · MarketClock</text>
+
+      <rect class="card" x="560" y="100" width="460" height="70" rx="12"/>
+      <text class="t" x="790" y="130" font-size="15" text-anchor="middle">차트 · 포지션 확인</text>
+      <text class="ts" x="790" y="154" font-size="12" text-anchor="middle">가격은 시즌 합성 종가 — season_prices</text>
+
+      <rect class="card" x="560" y="200" width="220" height="90" rx="12"/>
+      <text class="t" x="670" y="234" font-size="14.5" text-anchor="middle">매수 · 매도</text>
+      <text class="ts" x="670" y="258" font-size="11.5" text-anchor="middle">당일 종가 체결 (JWT)</text>
+      <text class="ts" x="670" y="276" font-size="11.5" text-anchor="middle">부분 체결 없음</text>
+
+      <rect class="card-coral" x="800" y="200" width="220" height="90" rx="12"/>
+      <text class="t" x="910" y="234" font-size="14.5" text-anchor="middle">예측 등록</text>
+      <text class="ts" x="910" y="258" font-size="11.5" text-anchor="middle">서명 — 같은 커밋·앵커</text>
+      <text class="ts" x="910" y="276" font-size="11.5" text-anchor="middle">§3 과 동일 로직</text>
+
+      <rect class="card-soft" x="560" y="330" width="460" height="70" rx="12"/>
+      <text class="t" x="790" y="360" font-size="15" text-anchor="middle">게임일 진행 — tick</text>
+      <text class="ts" x="790" y="384" font-size="12" text-anchor="middle">시연은 수동 버튼 · POST /seasons/{id}/advance</text>
+
+      <line class="ln" x1="370" y1="145" x2="510" y2="145"/>
+      <polyline class="ln" points="510,145 510,120 554,120" marker-end="url(#rg)"/>
+      <polyline class="ln-coral" points="370,315 510,315 510,150" />
+      <line class="ln" x1="700" y1="170" x2="670" y2="194" marker-end="url(#rg)"/>
+      <line class="ln" x1="880" y1="170" x2="910" y2="194" marker-end="url(#rg)"/>
+      <line class="ln" x1="670" y1="290" x2="720" y2="324" marker-end="url(#rg)"/>
+      <line class="ln" x1="910" y1="290" x2="860" y2="324" marker-end="url(#rg)"/>
+      <polyline class="ln-dash" points="556,365 520,365 520,135 554,135" marker-end="url(#rg)"/>
+      <text class="lbl" x="508" y="250" font-size="11.5" text-anchor="middle" transform="rotate(-90 508 250)">다음 게임일</text>
+
+      <rect class="card" x="1180" y="100" width="340" height="110" rx="12"/>
+      <text class="t" x="1350" y="140" font-size="15.5" text-anchor="middle">시즌 종료</text>
+      <text class="ts" x="1350" y="166" font-size="12.5" text-anchor="middle">랭킹 확정 · 상금 분배</text>
+      <text class="ts" x="1350" y="186" font-size="12.5" text-anchor="middle">블라인드 해제 — 정답 종목 공개</text>
+
+      <rect class="card-ind" x="1180" y="270" width="340" height="100" rx="12"/>
+      <text class="t" x="1350" y="308" font-size="14.5" text-anchor="middle">랭킹은 트랙 분리 집계</text>
+      <text class="ts" x="1350" y="334" font-size="12" text-anchor="middle">합성 데이터 실적이 실전 신뢰도를</text>
+      <text class="ts" x="1350" y="352" font-size="12" text-anchor="middle">오염시키면 안 된다</text>
+
+      <line class="ln" x1="1100" y1="150" x2="1174" y2="150" marker-end="url(#rg)"/>
+      <text class="lbl" x="1137" y="136" font-size="11.5" text-anchor="middle">Day 종료</text>
+      <line class="ln" x1="1350" y1="210" x2="1350" y2="264" marker-end="url(#rg)"/>
+    </svg>
+    <figcaption><b>Fig 7</b>랭킹 시즌만 20일 블록 부트스트랩(변동성·클러스터링 보존, 역사적 시점 소멸 — 검색 커닝 차단). 연습 시즌은 실제 역사를 그대로 둔다 — 교육적 가치.</figcaption>
+  </figure>
+</section>
+
+<!-- ═══ 8. 시연 타임라인 ═══ -->
+<section id="demo">
+  <div class="eyebrow">8 — Demo timeline</div>
+  <h2>시연 시나리오 — 5분</h2>
+
+  <figure class="board">
+    <svg viewBox="0 0 1560 340" role="img" aria-label="5분 시연 타임라인. 리플레이 연습 시즌에서 예측 등록, 구독, 시간 가속 검증, 랭킹, 원장 리빌, 변조 탐지를 보여준 뒤 4분 지점에서 실전 트랙으로 전환하고 백테스트로 마친다.">
+      <line class="axis" x1="60" y1="170" x2="1500" y2="170"/>
+
+      <circle class="dot" cx="60" cy="170" r="7"/>
+      <text class="tm2" x="60" y="120" font-size="14" text-anchor="middle">0:00</text>
+      <text class="ts" x="60" y="98" font-size="12" text-anchor="middle">연습 시즌</text>
+      <text class="ts" x="60" y="80" font-size="12" text-anchor="middle">Day 30/120</text>
+
+      <circle class="dot" cx="240" cy="170" r="7"/>
+      <text class="tm2" x="240" y="222" font-size="14" text-anchor="middle">0:30</text>
+      <text class="ts" x="240" y="246" font-size="12" text-anchor="middle">예측 등록</text>
+      <text class="ts" x="240" y="264" font-size="12" text-anchor="middle">커밋 · 앵커 대기</text>
+
+      <circle class="dot" cx="420" cy="170" r="7"/>
+      <text class="tm2" x="420" y="120" font-size="14" text-anchor="middle">1:00</text>
+      <text class="ts" x="420" y="98" font-size="12" text-anchor="middle">구독 결제</text>
+      <text class="ts" x="420" y="80" font-size="12" text-anchor="middle">PENDING→ACTIVE</text>
+
+      <circle class="dot" cx="600" cy="170" r="7"/>
+      <text class="tm2" x="600" y="222" font-size="14" text-anchor="middle">1:30</text>
+      <text class="ts" x="600" y="246" font-size="12" text-anchor="middle">시간 가속</text>
+      <text class="ts" x="600" y="264" font-size="12" text-anchor="middle">기준가→만기→적중</text>
+
+      <circle class="dot" cx="780" cy="170" r="7"/>
+      <text class="tm2" x="780" y="120" font-size="14" text-anchor="middle">2:30</text>
+      <text class="ts" x="780" y="98" font-size="12" text-anchor="middle">랭킹 갱신</text>
+      <text class="ts" x="780" y="80" font-size="12" text-anchor="middle">신뢰도 변동</text>
+
+      <circle class="dot" cx="960" cy="170" r="7"/>
+      <text class="tm2" x="960" y="222" font-size="14" text-anchor="middle">3:00</text>
+      <text class="ts" x="960" y="246" font-size="12" text-anchor="middle">커밋 원장</text>
+      <text class="ts" x="960" y="264" font-size="12" text-anchor="middle">앵커→salt→리빌</text>
+
+      <circle class="dot" cx="1140" cy="170" r="7"/>
+      <text class="tm2" x="1140" y="120" font-size="14" text-anchor="middle">3:30</text>
+      <text class="ts" x="1140" y="98" font-size="12" text-anchor="middle">변조 시도</text>
+      <text class="ts" x="1140" y="80" font-size="12" text-anchor="middle">해시·머클 동시 탐지</text>
+
+      <circle class="dot dot-ind" cx="1320" cy="170" r="10"/>
+      <rect class="card-ind" x="1220" y="210" width="200" height="76" rx="12"/>
+      <text class="tm2" x="1320" y="240" font-size="15" text-anchor="middle">4:00 ★</text>
+      <text class="t" x="1320" y="264" font-size="13.5" text-anchor="middle">실전 트랙 전환</text>
+      <text class="ts" x="1320" y="281" font-size="10.5" text-anchor="middle">같은 화면 · 같은 로직 · 실제 영업일</text>
+
+      <circle class="dot" cx="1500" cy="170" r="7"/>
+      <text class="tm2" x="1500" y="120" font-size="14" text-anchor="middle">4:30</text>
+      <text class="ts" x="1500" y="98" font-size="12" text-anchor="middle">백테스트</text>
+      <text class="ts" x="1500" y="80" font-size="12" text-anchor="middle">"따라 샀으면 +N%"</text>
+    </svg>
+    <figcaption><b>Fig 8</b>4:00 전환이 핵심 — 리플레이로 전체 사이클을 30초 안에 보여준 뒤 실전 트랙을 비추면, 시연용으로 만든 것이 아님이 증명된다. MarketClock 설계의 결과물.</figcaption>
+  </figure>
+</section>
+
+<footer>
+  <span>엔테나(Antenna) · SSAFY 15기 S15P21A507</span>
+  <span>원본: docs/03-user-flow.md · 「엔테나 구현 기획서」 5장</span>
+</footer>
+
+</div>
