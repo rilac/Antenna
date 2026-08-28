@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANTENA 유저 플로우차트 v2 (기능명세 v4 대조)</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1d21; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #2563eb; --warn: #b45309; --bad: #dc2626; --ok: #15803d; --card: #f9fafb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px 140px; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
+    line-height: 1.7;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  h2 {
+    font-size: 21px; margin: 60px 0 8px; padding-top: 22px;
+    border-top: 1px solid var(--line); letter-spacing: -0.01em;
+  }
+  h3 { font-size: 16px; margin: 34px 0 6px; font-weight: 700; }
+  p, li { font-size: 14px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 28px; }
+  .note {
+    background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    padding: 12px 16px; font-size: 13px; border-radius: 4px; margin: 14px 0 22px;
+  }
+  .note.warn { border-left-color: var(--warn); }
+  .note.bad { border-left-color: var(--bad); }
+  .diagram {
+    position: relative;
+    border: 1px solid var(--line); border-radius: 8px; padding: 16px 16px 16px;
+    margin: 16px 0 8px; overflow: hidden; background: var(--card);
+  }
+  .fsbtn {
+    position: absolute; top: 8px; right: 8px; z-index: 5;
+    font: 600 12px/1 inherit; font-family: inherit;
+    color: var(--muted); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 5px;
+    padding: 6px 10px; cursor: pointer; opacity: 0.55;
+  }
+  .fsbtn:hover { opacity: 1; color: var(--fg); border-color: var(--muted); }
+  .diagram:fullscreen {
+    background: var(--bg); border: 0; border-radius: 0;
+    padding: 0; margin: 0;
+    width: 100vw; height: 100vh; overflow: hidden;
+  }
+  /* 전체화면에서는 .mermaid 하나만 스크롤러. flex 중앙정렬은 넘치는 쪽이 잘려서 쓰지 않음 */
+  .diagram:fullscreen .mermaid {
+    display: block; width: 100vw; height: 100vh;
+    overflow: auto; padding: 56px 32px 32px;
+  }
+  .diagram:fullscreen .mermaid svg { margin: 0 auto; }
+  .diagram:fullscreen .fsbtn { top: 16px; right: 24px; opacity: 1; }
+  .mermaid { display: block; overflow: auto; overscroll-behavior-x: contain; }
+  .mermaid.pan { cursor: grab; }
+  .mermaid.pan.dragging { cursor: grabbing; }
+  .mermaid svg { display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 12px 0 24px; }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--card); font-weight: 600; }
+  code {
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 1px 5px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .legend {
+    border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    padding: 14px 18px; margin: 8px 0 30px;
+  }
+  .legend h4 { margin: 0 0 10px; font-size: 13px; font-weight: 700; letter-spacing: -0.01em; }
+  .legend dl {
+    display: grid; grid-template-columns: 96px auto; gap: 8px 14px;
+    align-items: center; margin: 0;
+  }
+  .legend dt { margin: 0; }
+  .legend dd { margin: 0; font-size: 13px; }
+  .legend dd b { font-weight: 600; }
+  .legend dd span { color: var(--muted); }
+  .sw {
+    display: block; width: 96px; height: 30px; border-radius: 5px;
+    font-size: 10px; font-weight: 600; line-height: 26px; text-align: center;
+  }
+  .sw.done { background: #eff6ff; border: 2px solid #2563eb; color: #1e3a8a; }
+  .sw.todo { background: #fff;    border: 2px dashed #dc2626; color: #dc2626; }
+  .sw.pend { background: #fffbeb; border: 2px dashed #b45309; color: #78350f; }
+  .sw.dead { background: #f3f4f6; border: 2px dashed #9ca3af; color: #6b7280; }
+  .sw.neu  { background: #eee;    border: 1px solid #999;    color: #333; }
+  .edgekey { margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 13px; }
+  .edgekey b { font-weight: 600; }
+  .edgekey span { color: var(--muted); }
+  .bad { color: var(--bad); font-weight: 600; }
+  .ok { color: var(--ok); font-weight: 600; }
+  .wn { color: var(--warn); font-weight: 600; }
+  .tocbox { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 12px 18px; margin: 0 0 32px; }
+  .tocbox ol { margin: 4px 0; padding-left: 20px; }
+  .tocbox li { font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>ANTENA 유저 플로우차트 v2</h1>
+<p class="sub">
+  근거 ① Figma <code>j6hf8bls</code> / &ldquo;상민 와이어프레임&rdquo; 14화면 (2026-08-27 조회)<br>
+  근거 ② <code>엔테나_기능명세_v4.xlsx</code> &mdash; 기능 80행 + 논의목록 D1~D19 (작성 08-26, 팀 합의 전)<br>
+  근거 ③ 팀 결정 &mdash; <b>D2: 비로그인은 전 기능 차단</b> (2026-08-27, 명세 결정 칸에 없는 확정 사항)<br>
+  <b>충돌 시 기능명세 v4를 우선</b>했고, 와이어프레임에만 있는 요소는 삭제 후보로 표시함. v1은 와이어프레임만 보고 그린 것이라 이 문서로 대체됨.
+</p>
+
+<div class="legend">
+  <h4>노드 색 범례</h4>
+  <dl>
+    <dt><span class="sw done">파란 실선</span></dt>
+    <dd><b>와이어프레임 있음</b> &mdash; <span>이미 그려진 화면. 그대로 개발 가능</span></dd>
+
+    <dt><span class="sw todo">빨간 점선</span></dt>
+    <dd><b>명세에 있는데 화면이 없음</b> &mdash; <span>기능명세 v4에는 있으나 와이어프레임 미작성. 그려야 할 것</span></dd>
+
+    <dt><span class="sw pend">노란 점선</span></dt>
+    <dd><b>D1~D19 미결</b> &mdash; <span>팀 합의 전. 결정에 따라 경로·화면이 바뀌거나 사라짐</span></dd>
+
+    <dt><span class="sw dead">회색 점선</span></dt>
+    <dd><b>와이어프레임에만 있음</b> &mdash; <span>명세에 근거 없음. 삭제 후보</span></dd>
+
+    <dt><span class="sw neu">회색 실선</span></dt>
+    <dd><b>화면 아님</b> &mdash; <span>분기·입력 단계·처리 등 화면으로 세지 않는 중간 노드</span></dd>
+  </dl>
+  <p class="edgekey">
+    <b>화살표</b> &mdash; <span>실선 = 양쪽 소스에서 확인된 이동 · 점선 = 추론이거나 조건부(라벨에 D번호 표기)</span>
+  </p>
+</div>
+
+<div class="tocbox">
+  <ol>
+    <li>v1에서 뒤집힌 것 &mdash; 정정 8건</li>
+    <li>전체 화면 맵 v2</li>
+    <li>온보딩 &mdash; 로그인 + 지갑 연동 <b>(신규)</b></li>
+    <li>예측 등록 &mdash; 커밋·리빌 정정 <b>(핵심)</b></li>
+    <li>온체인 검증 &mdash; 원장 · 3단 검산 (회원 전용) <b>(신규)</b></li>
+    <li>모의투자 트레이딩 <b>(신규)</b></li>
+    <li>채널 · 구독 · 근거 게이팅</li>
+    <li>토큰 획득 · 소모 흐름</li>
+    <li>커뮤니티 (D8 조건부)</li>
+    <li>전체 대조표</li>
+    <li>화면 갭 목록 (명세 ID 기준)</li>
+    <li>D1~D19 미결이 플로우에 주는 영향</li>
+  </ol>
+</div>
+
+<h2>1. v1에서 뒤집힌 것 &mdash; 정정 8건</h2>
+
+<table>
+  <tr><th>#</th><th>v1 (와이어프레임 기준)</th><th>v2 (명세 v4 기준)</th><th>근거</th></tr>
+  <tr>
+    <td>1</td>
+    <td>예측 등록하기 → <b>블록 기록 중 모달</b> → 성공/실패. 즉시 온체인 기록</td>
+    <td><b>커밋·리빌 + 머클 앵커 배치.</b> 등록 시엔 커밋 해시만 생성, 온체인 앵커는 매 영업일 배치가 당일 봉인분을 <b>머클루트 1건</b>으로 묶어 올림. 응답은 <code>202 PENDING</code> + 폴링</td>
+    <td>-301, -902, -906</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td>지갑 개념 없음</td>
+    <td><b>SSAFY 지갑 1회 연동이 필수 온보딩 단계</b>(중요도 상). 예측 등록·결제 등 토큰이 움직이는 모든 요청에 <b>지갑 서명</b>이 붙음</td>
+    <td>-105, -106</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td>와이어프레임 &ldquo;리서치&rdquo; = 리포트 피드로 해석</td>
+    <td>맞음. 단 <b>명세의 &ldquo;종목 리서치&rdquo;는 완전히 다른 화면</b>(종목 요약 헤더·IR/뉴스 요약·긍정/위험/확인 포인트). 그리고 <b>이 화면이 예측 등록의 정상 진입 경로</b>(근거 선택 → 예측 시작)</td>
+    <td>-211, -213, -214, -215</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td>리플레이 5화면으로 플로우 구성, &ldquo;리플레이 예측 등록&rdquo; 노드를 추론으로 삽입</td>
+    <td>추론 자체가 틀림. 리플레이/모의투자에서 하는 행위는 예측이 아니라 <b>매수·매도 주문</b>이고, 그 <b>트레이딩 화면이 와이어프레임에 없음</b>. 중요도 상 기능 다수(-701~-705)</td>
+    <td>-701~-710</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td>모의투자·모의투자 리그·알림·설정을 &ldquo;우선도 낮음&rdquo;으로 분류</td>
+    <td>틀림. 모의투자는 <b>명세 행 수가 가장 많은 대분류</b>이고 중요도 상이 4건. 알림(-207)·설정(-851)도 중요도 중</td>
+    <td>-207, -851, -701~-711</td>
+  </tr>
+  <tr>
+    <td>6</td>
+    <td>ANT 잔고 부족 → <b>충전하기 → 충전·결제 화면</b></td>
+    <td><b>경로 자체가 무효일 수 있음.</b> D3에서 프로토타입·ERD안은 <b>전송·환금·충전 불가 + 소각 모델</b>. 획득은 보상(가입·출석·퀴즈·랭킹)뿐. 명칭도 ANT ↔ PRT 미정</td>
+    <td>D3, D4</td>
+  </tr>
+  <tr>
+    <td>7</td>
+    <td>&ldquo;미로그인 → 로그인 → 전부&rdquo; 단일 관문</td>
+    <td>맞음, 예외 없음. <b>D2 결정 &mdash; 비로그인은 전 기능 차단</b>(2026-08-27). 원장·검산도 회원 전용. 회원가입 화면도 없음(OAuth 최초 로그인 시 계정 자동 생성)</td>
+    <td>D2 (결정), -101</td>
+  </tr>
+  <tr>
+    <td>8</td>
+    <td>예측 4스텝 = 방향 · 목표가 · 기간 · 내 판단</td>
+    <td>스텝 3개 누락 &mdash; <b>확신도 입력</b>, <b>공개/비공개 설정</b>, <b>무료 슬롯 3건 초과 시 소각 확인</b>. 기간 옵션도 <b>5/10/20/60영업일</b>(와이어프레임은 10/20/직접입력)</td>
+    <td>D5, D4</td>
+  </tr>
+</table>
+
+<h2>2. 전체 화면 맵 v2</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  V(["방문"]) --> GATE{"로그인 상태?"}
+  GATE -->|"미로그인 &mdash; 전 기능 차단"| LOGIN["로그인<br/>SSAFY OAuth 단일"]
+  GATE -->|로그인| HOME
+  LEDGER["온체인 원장 탐색 · 검산<br/>회원 전용"]
+  LOGIN -.D1 논의.-> GOOG["Google 로그인"]
+  LOGIN --> WALLET["지갑 1회 연동<br/>nonce → 서명 → 검증 → 등록"]
+  GOOG --> WALLET
+  WALLET --> HOME["홈 대시보드"]
+
+  HOME --> NAV{{"글로벌 내비"}}
+
+  NAV --> A1["종목 탐색"]
+  A1 --> A2["종목 리서치"]
+  A2 --> A3["예측 등록"]
+  A3 --> A4["내 예측 목록 · 상세"]
+  A4 --> LEDGER
+  A4 --> A5["예측 포트폴리오"]
+
+  NAV --> B1["리포트 피드"]
+  B1 --> B2["리포트 상세"]
+  NAV --> B3["예측가 프로필 · 채널"]
+  B3 --> B4["채널 피드"]
+  B4 --> B5["게시글 상세 · 댓글"]
+  B3 --> B6["백테스트 따라 샀다면"]
+
+  NAV --> C1["모의투자"]
+  C1 --> C2["시즌 · 시나리오 선택"]
+  C2 --> C3["트레이딩 화면<br/>주문 · 게임일 진행"]
+  C3 --> C4["게임 기록"]
+  C4 --> C5["AI 복기 리포트"]
+  C1 --> C6["모의투자 리그"]
+
+  NAV --> D1["랭킹<br/>실전 / 리플레이 트랙 분리"]
+  NAV --> D2X["알림함"]
+  NAV --> D3X["설정"]
+  NAV --> D4X["지갑 · 잔액 · 거래 내역"]
+  NAV -.-> D5X["관리자"]
+
+  classDef todo fill:#fff,stroke:#dc2626,stroke-dasharray:4 3,color:#dc2626
+  classDef pend fill:#fffbeb,stroke:#b45309,stroke-dasharray:3 3,color:#78350f
+  classDef done fill:#eff6ff,stroke:#2563eb,color:#1e3a8a
+  class HOME,LOGIN,A1,A3,B1,B3,B5,C4,C5,D1 done
+  class WALLET,LEDGER,A2,A4,B2,C1,C3,C6,D2X,D3X,D4X todo
+  class GOOG,A5,B4,B6,C2,D5X pend
+</pre>
+</div>
+
+<div class="note">
+  파란 노드 = 와이어프레임 있음 · 빨간 점선 = 명세에 있으나 화면 없음 · 노란 점선 = D1~D19 미결. <b>빨간 점선이 10개</b>&mdash;이게 이번 대조의 핵심 결과다.
+</div>
+
+<h2>3. 온보딩 &mdash; 로그인 + 지갑 연동 <span class="bad">(신규)</span></h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  A(["서비스 진입"]) --> B["SSAFY OAuth 인가 코드 방식"]
+  B -.D1 논의.-> B2["Google OAuth"]
+  B --> C{"최초 로그인?"}
+  C -->|예| C1["회원 계정 자동 생성 · 연동<br/>프로바이더 계정 1:1<br/>이메일 자동 병합 없음"]
+  C -->|아니오| C2["기존 계정 연동"]
+  C1 --> C3["가입 보너스 온체인 mint"]
+  C3 --> D
+  C2 --> D["JWT Access · Refresh 발급<br/>Refresh는 Redis 회전 관리"]
+
+  D --> E{"지갑 연동됨?"}
+  E -->|아니오| W1["nonce 발급"]
+  W1 --> W2["SSAFY 지갑 서명"]
+  W2 --> W3["서버 서명 검증"]
+  W3 --> W4{"이미 다른 계정에<br/>연동된 주소?"}
+  W4 -->|예| W5["거부"]
+  W4 -->|아니오| W6["주소 등록<br/>계정당 지갑 1개"]
+  W6 --> F
+  E -->|예| F["홈 대시보드"]
+
+  F --> G["로그아웃<br/>서버 Refresh 무효화 + 클라이언트 토큰 폐기"]
+
+  H["Access 만료"] -.401 + WWW-Authenticate.-> H2["Refresh로 자동 갱신"]
+  H2 -.재사용 탐지.-> H3["전체 폐기"]
+
+  classDef todo fill:#fff,stroke:#dc2626,stroke-dasharray:4 3,color:#dc2626
+  classDef pend fill:#fffbeb,stroke:#b45309,stroke-dasharray:3 3,color:#78350f
+  class W1,W2,W3,W4,W5,W6 todo
+  class B2 pend
+</pre>
+</div>
+
+<div class="note bad">
+  <b>지갑 연동 화면이 없다.</b> 명세 -105 비고에 &ldquo;화면설계에 지갑 연동 화면 없음 &mdash; 화면 추가 필요&rdquo;라고 이미 적혀 있음. 중요도 상이고, 이게 없으면 예측 등록(-106 서명 검증)이 성립하지 않으므로 <b>가장 먼저 그려야 할 화면</b>.
+</div>
+
+<h2>4. 예측 등록 &mdash; 커밋·리빌 정정 <span class="bad">(핵심)</span></h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  S1["종목 탐색<br/>검색 · 섹터 · 필터"] --> S2["종목 리서치<br/>요약 헤더 · IR/뉴스 요약<br/>긍정/위험/확인 포인트"]
+  S2 --> S3["내 근거로 선택<br/>출처 태그 NEWS · DART · IR"]
+  S3 --> S4["선택 근거 요약 확인"]
+  S4 --> R0["예측 등록"]
+  S1 -.와이어프레임 경로.-> R0
+
+  R0 --> SL{"오늘 무료 슬롯<br/>남았나 (3건)"}
+  SL -->|아니오| SLB["초과분 토큰 소각 확인"]
+  SLB --> F1
+  SL -->|예| F1["방향 &mdash; 상승 / 하락"]
+  F1 --> F2["목표가"]
+  F2 --> F3["기간 &mdash; 5 / 10 / 20 / 60 영업일"]
+  F3 --> F4["확신도"]
+  F4 --> F5["내 판단 작성 + 선택 근거"]
+  F5 --> F6["공개 · 비공개 설정"]
+  F6 --> SG["지갑 서명 EIP-712"]
+  SG --> SGV{"복원 주소 =<br/>연동 지갑?"}
+  SGV -->|아니오| SGX["401 거부"]
+  SGV -->|예| CM
+
+  CM["커밋 생성<br/>hash 예측원문 + 비공개 salt"] --> ACC["202 접수 · 상태 PENDING"]
+  ACC --> POLL["상태 폴링<br/>화면 문구: 앵커 대기"]
+  POLL --> BAT["영업일 배치<br/>당일 봉인분 → 머클루트 1건 온체인 앵커"]
+  BAT --> BX{"앵커 성공?"}
+  BX -->|아니오| BR["다음 회차 재시도"]
+  BR --> BAT
+  BX -->|예| CF["CONFIRMED<br/>블록 번호 · 머클루트 확정"]
+
+  CF --> BP["기준가 확정<br/>= 다음 영업일 종가"]
+  BP --> WT["만기까지 대기<br/>수정 · 삭제 불가 append-only"]
+  WT --> JG["만기일 종가로 판정<br/>적중 / 실패 + 목표가 오차"]
+  JG -.시세 미수신.-> JH["판정 보류<br/>오판보다 지연"]
+  JG --> RV["salt 리빌<br/>누구나 재검증 가능"]
+  RV --> LD["온체인 원장 검산"]
+  JG --> MY["내 예측 목록<br/>전체 / 대기 / 적중 / 실패"]
+
+  XMODAL["와이어프레임: 블록 기록 중 모달<br/>= 트랜잭션 즉시 완료 UI"]
+
+  classDef todo fill:#fff,stroke:#dc2626,stroke-dasharray:4 3,color:#dc2626
+  classDef pend fill:#fffbeb,stroke:#b45309,stroke-dasharray:3 3,color:#78350f
+  classDef dead fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:2 2,color:#6b7280
+  class S2,S3,SG,SGV,CM,ACC,POLL,MY,LD todo
+  class SL,SLB,F4,F6 pend
+  class XMODAL dead
+</pre>
+</div>
+
+<div class="note bad">
+  <b>모달 하나로 끝나지 않는다.</b> 와이어프레임의 &ldquo;블록 기록 중&rdquo; 모달은 트랜잭션이 그 자리에서 완료되는 UI인데, 명세는 <b>등록 → PENDING → 영업일 배치 앵커 → CONFIRMED</b> 3단 상태 전이다. 즉 유저는 등록 직후 &ldquo;아직 온체인에 안 올라간&rdquo; 예측을 보게 된다.<br><br>
+  화면에 필요한 것: ① 봉인 접수 완료 화면(모달을 닫아도 진행되는 상태) ② 내 예측 목록에서 <code>앵커 대기 / 앵커 완료 / 판정 대기 / 판정 완료</code> 상태 표시 ③ 실패 시 &ldquo;다음 배치 재시도 중&rdquo; 문구. 명세 -906 비고에도 &ldquo;화면 언어(앵커 대기→완료, 블록 확정 대기) 공통화&rdquo;로 적혀 있음.
+</div>
+
+<h2>5. 온체인 검증 &mdash; 원장 · 3단 검산 (회원 전용) <span class="bad">(신규)</span></h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  A(["로그인 회원 전용<br/>비로그인 접근 차단"]) --> B["온체인 원장 탐색"]
+  B --> C["앵커 배치 목록<br/>머클루트 · 포함 커밋 수 · 블록 번호 · 확정 상태"]
+  C --> D["배치 상세"]
+  B --> E["예측 단위 검산 3단계"]
+
+  E --> V1["① 해시 재계산<br/>payload + salt = 커밋 해시"]
+  V1 --> V2["② 머클 증명으로 루트 복원<br/>→ 온체인 루트 대조"]
+  V2 --> V3["③ 판정 종가<br/>↔ 공공데이터 원본 대조"]
+  V3 --> R{"3단 전부 일치?"}
+  R -->|예| OK["검증 통과"]
+  R -->|아니오| NG["불일치 표시"]
+
+  E -.만기 전.-> HID["salt · 판정 비공개<br/>검산 불가"]
+
+  F["예측 상세 화면"] --> F1["커밋 해시 · 머클 앵커 블록<br/>salt 공개 상태 · 작성자 서명"]
+  F1 --> B
+
+  classDef todo fill:#fff,stroke:#dc2626,stroke-dasharray:4 3,color:#dc2626
+  class B,C,D,E,V1,V2,V3,OK,NG,F,F1 todo
+</pre>
+</div>
+
+<div class="note bad">
+  <b>이 트랙 전체가 화면 0개다.</b> 기능 자체는 확정(-401 · -402, 중요도 상, Jira ID 부여됨)인데 와이어프레임 14화면 어디에도 원장·검산 화면이 없다. 발표에서 &ldquo;블록체인 트랙&rdquo;을 증명하는 화면이 바로 이것이므로 우선도 최상.<br><br>
+  <b>D2 결정 &mdash; 비로그인은 전 기능 차단</b>(2026-08-27). 원장·검산도 로그인 회원만 접근한다. 명세의 프로토타입·ERD안(&ldquo;원장·검산은 비로그인 공개 &mdash; 제3자 검증이 존재 이유&rdquo;)은 채택되지 않았다.<br><br>
+  <b>남는 사실 하나</b> &mdash; 회원 전용이면 &ldquo;제3자 검증&rdquo;은 서비스 안에서만 가능하다. 명세 -402의 &ldquo;검증에 필요한 데이터 일체를 API로 제공&rdquo;도 인증이 붙는다. 온체인 머클루트 자체는 체인에 공개돼 있으므로 <b>체인 익스플로러로는 여전히 외부 검증이 가능</b>하고, 서비스가 제공하는 건 그 편의 도구다 &mdash; 발표 때 이 구분을 짚으면 D2 결정과 &ldquo;검증 가능성&rdquo;이 충돌하지 않는다.
+</div>
+
+<h2>6. 모의투자 트레이딩 <span class="bad">(신규)</span></h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  A["모의투자 진입"] --> M{"모드 구성 &mdash; D14 미결"}
+  M -->|화면설계안| M1["모의투자 / 리플레이 / 모의투자 리그"]
+  M -->|프로토타입안| M2["학습 / 챌린지 / 자유"]
+
+  M1 --> SC{"시나리오 &mdash; D13 미결"}
+  M2 --> SC
+  SC -->|화면설계안| SC1["역사 위기 시즌제<br/>2008 · 2003 · 2020 등"]
+  SC -->|프로토타입안| SC2["2024 실데이터 120게임일"]
+
+  SC1 --> FE{"참가 방식 &mdash; D15 정반대"}
+  SC2 --> FE
+  FE -->|프로토타입안| FE1["참가비 1,000 소각"]
+  FE -->|화면설계안| FE2["시즌 참가 시 +50 지급"]
+  FE1 --> T
+  FE2 --> T["트레이딩 화면"]
+
+  T --> VW{"뷰 토글"}
+  VW -->|초보| VW1["요약 시황 · 행동 선택 중심"]
+  VW -->|고급| VW2["MA 5/20/60 · 볼린저 · RSI · MACD<br/>+ 기술적 해설"]
+
+  T --> OR["매수 · 매도 주문<br/>게임일 종가 단일가 · 부분 체결 없음<br/>수량 +10 / +100 / +1,000"]
+  OR --> CK["예수금 · 보유 수량 검증"]
+  CK --> NX["다음 영업일 진행"]
+  NX --> UP["시세 · 뉴스 · 평가금액 갱신"]
+  UP --> IN["당시 뉴스 · 공시 · IR · 경제지표<br/>+ 역사적 사건 타임라인"]
+  IN --> OR
+  T --> HD["보유 현황 · 손익<br/>예수금 · 총자산 · 평가금액 · 누적손익"]
+  NX -.중단.-> RS["이어하기 &mdash; 중단 게임일 저장"]
+  RS --> T
+
+  T --> AI{"AI 개입 수준 &mdash; D16 정반대"}
+  AI -->|화면설계안| AI1["확률 직접 제시<br/>예: 하락 68%"]
+  AI -->|프로토타입안| AI2["생각해볼 것 안내만<br/>진행 중 AI 판단 금지"]
+
+  UP --> EN{"시즌 종료?"}
+  EN -->|아니오| OR
+  EN -->|예| RP["AI 복기 리포트<br/>수익률 · 승률 · 최대낙폭 · 손익비<br/>잘한 판단 / 아쉬운 판단"]
+  RP --> HS["게임 기록<br/>시나리오 · 기간 · 수익률 · 점수 · 등급"]
+  HS --> RK["시즌 랭킹 · 티어 · 보상<br/>백분위 · 랭크 변동 · 친구 비교"]
+  RP --> BG["배지 · 업적"]
+  RP -.D8 채택 시.-> PF["채널 피드에 복기 게시"]
+
+  M1 --> LG["모의투자 리그<br/>실시간 09:00~18:00<br/>실제 1시간 = 1게임일 · 원본에 노이즈"]
+  LG --> LG2["동일 시드 · 동일 구간 경쟁<br/>실시간 순위 · 상위 보상"]
+
+  ISO["리플레이 실적은 실전 랭킹 ·<br/>신뢰도에 절대 반영 안 함"]
+
+  classDef todo fill:#fff,stroke:#dc2626,stroke-dasharray:4 3,color:#dc2626
+  classDef pend fill:#fffbeb,stroke:#b45309,stroke-dasharray:3 3,color:#78350f
+  classDef done fill:#eff6ff,stroke:#2563eb,color:#1e3a8a
+  class T,OR,CK,NX,UP,IN,HD,RS,VW1,VW2,LG,LG2 todo
+  class M1,M2,SC1,SC2,FE1,FE2,AI1,AI2 pend
+  class HS,RP,RK,BG done
+</pre>
+</div>
+
+<div class="note bad">
+  와이어프레임의 리플레이 5화면(홈 · 랭크 · 게임 기록 · 리서치 · 대시보드)은 전부 <b>결과 · 랭킹 · 자료 화면</b>이다. 실제로 사고 파는 <b>트레이딩 화면이 없다</b>&mdash;명세 중요도 상 4건(-701 주문 / -702 게임일 진행 / -703 보유 현황 / 그리고 -704 뷰 토글)이 여기 걸려 있다. v1에서 이 자리를 &ldquo;리플레이 예측 등록&rdquo;으로 추론했는데, 모의투자에서 하는 행위는 예측이 아니라 <b>주문</b>이다.
+</div>
+
+<h2>7. 채널 · 구독 · 근거 게이팅</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  A["예측가 프로필 · 채널"] --> A1["소개 · 전문 분야 · 외부 채널"]
+  A --> A2["실적 통계<br/>적중률 · 판정 수 · 평균 오차"]
+  A2 -.D11 미결.-> A3["신뢰도 산식<br/>적중률 0.7 + 목표가정확도 0.3<br/>× 표본 가중"]
+  A --> A4["최근 예측 목록"]
+  A -.D9 미결.-> A5["따라 샀다면 백테스트<br/>+N% · 코스피 대비 · 최대낙폭<br/>토큰 소각"]
+  A -.D10 미결.-> A6["증명서 SBT<br/>판정 20건 이상 ERC-721"]
+
+  A4 --> G{"열람 대상"}
+  G -->|"예측 내용<br/>종목 · 방향 · 목표가"| G1["전체 공개"]
+  G -->|"근거 본문"| G2{"구독 중?"}
+  G2 -->|예| G3["전문 열람"]
+  G2 -->|아니오| G4["3줄 미리보기<br/>+ 구독 유도<br/>API는 403 · 존재는 공개"]
+  G4 --> S
+
+  A --> S["유료 구독"]
+  S --> S1["결제 요청"]
+  S1 --> S2["컨트랙트 배분<br/>예측가 70 : 플랫폼 30"]
+  S2 --> S3["PENDING &mdash; 온체인 확정 전"]
+  S3 --> S4["ACTIVE &mdash; 확정 후"]
+  S4 --> S5["구독 중 탭 · 근거 본문 해제"]
+
+  P["예측가: 구독료 변경"] --> P1["차기 결제 주기부터 적용<br/>소급 없음"]
+  P1 --> P2["기존 구독자 알림<br/>유지 / 해지 선택"]
+
+  W["와이어프레임: 월 290 ANT 구독"]
+  W2["명세 D6: 월 구독 예 14,900"]
+
+  classDef todo fill:#fff,stroke:#dc2626,stroke-dasharray:4 3,color:#dc2626
+  classDef pend fill:#fffbeb,stroke:#b45309,stroke-dasharray:3 3,color:#78350f
+  classDef dead fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:2 2,color:#6b7280
+  class G4,S2,S3,S4,P,P1,P2 todo
+  class A3,A5,A6,S,S1,S5 pend
+  class W,W2 dead
+</pre>
+</div>
+
+<div class="note warn">
+  구독료 단위가 안 맞는다 &mdash; 와이어프레임 <code>버튼/월 290 ANT 구독</code>, 명세 D6은 <code>월 14,900</code>. 토큰 결제인지 원화 결제인지 먼저 정해야 하고, 이건 D3(토큰 충전 가능 여부)에 종속된다. 충전 불가 모델이면 <b>구독료를 토큰으로 받을 수 없다</b>&mdash;유저가 토큰을 살 방법이 없으므로.
+</div>
+
+<h2>8. 토큰 획득 · 소모 흐름</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  subgraph ACQ["획득"]
+    Q1["가입 보너스 mint"]
+    Q2["출석 · 환율 퀴즈"]
+    Q3["모의투자 랭킹 · 시즌 성과"]
+  end
+
+  W["지갑 잔액<br/>원천 = 온체인<br/>DB는 조회용 캐시"]
+
+  subgraph USE["소모 · 소각"]
+    U1["예측 슬롯 초과"]
+    U2["백테스트 실행"]
+    U3["증명서 SBT 발급"]
+    U4["확성기 낙찰 &mdash; 전액 소각"]
+    U5["시즌 참가비"]
+    U6["닉네임 변경"]
+  end
+
+  Q1 --> W
+  Q2 --> W
+  Q3 --> W
+  W --> U1
+  W --> U2
+  W --> U3
+  W --> U4
+  W --> U5
+  W --> U6
+
+  X["와이어프레임 14화면 전부<br/>버튼/ANT 충전하기 미결1"] -.D3 미결.-> W
+  W --> V["잔액 · 획득 내역 · 사용 내역 조회"]
+
+  classDef todo fill:#fff,stroke:#dc2626,stroke-dasharray:4 3,color:#dc2626
+  classDef pend fill:#fffbeb,stroke:#b45309,stroke-dasharray:3 3,color:#78350f
+  classDef dead fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray:2 2,color:#6b7280
+  class V,U1,U2,U3,U4,U5,U6 todo
+  class Q2,Q3 pend
+  class X dead
+</pre>
+</div>
+
+<div class="note warn">
+  D3 결정에 따라 <b>&ldquo;ANT 충전하기&rdquo; 버튼 14개가 통째로 삭제 대상</b>이 된다. 소각 모델이면 획득 경로가 보상 3종뿐이므로, 유저가 토큰이 부족할 때 갈 곳이 없다 &mdash; 부족 시 문구를 &ldquo;충전하기&rdquo;에서 &ldquo;출석·퀴즈로 획득하기&rdquo;로 바꿔야 한다. 명세에 &ldquo;환율 퀴즈 / 출석 보상 / 모의투자 랭킹 &lt;- 지급수단&rdquo;으로 적혀 있는 게 이 뜻으로 읽힌다.
+</div>
+
+<h2>9. 커뮤니티 (D8 조건부)</h2>
+<p>D8 미채택 시 이 다이어그램 전체와 와이어프레임 &ldquo;커뮤니티 게시글 상세&rdquo; 화면이 삭제된다. 명세에서 이 블록 전체가 <b>중요도 하 · 상태 논의</b>다.</p>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+  A["예측가: 리포트 · 예측 작성"] --> B{"공개 설정"}
+  B -->|공개| B1["전문 노출"]
+  B -->|비공개| B2["3줄 보기 + 구독 유도창"]
+  B1 --> C["채널 피드<br/>글 · 표 · 이미지 · 차트 첨부<br/>예측 카드 연동"]
+  B2 --> C
+  C --> D["리포트 페이지 &mdash; 읽기 전용<br/>잠금은 근거 게이팅 D6 정책 준용"]
+  D --> E["회원: 자유 피드 리포스팅 · 의견"]
+  C --> F["공감 · 좋아요"]
+  C --> G["댓글 · 댓글 좋아요 · 답글"]
+  C --> H["공유"]
+  H --> I["게시글 상세<br/>언급 종목 카드 · 토론 보기"]
+  G --> J["신고"]
+  J --> K["신고 누적 · 운영자 판단<br/>→ 블라인드 처리"]
+  K -.D19 미결.-> L["관리자 화면"]
+
+  M["복기 리포트 게시<br/>모의투자 → 채널 피드"] --> C
+
+  classDef pend fill:#fffbeb,stroke:#b45309,stroke-dasharray:3 3,color:#78350f
+  classDef todo fill:#fff,stroke:#dc2626,stroke-dasharray:4 3,color:#dc2626
+  class A,B,B1,B2,C,D,E,F,G,H,J,K,M pend
+  class L,I todo
+</pre>
+</div>
+
+<h2>10. 전체 대조표</h2>
+<p>판정 &mdash; <span class="ok">일치</span> / <span class="bad">불일치·화면없음</span> / <span class="wn">미결</span> / <span style="color:#6b7280;font-weight:600">삭제후보</span></p>
+
+<table>
+  <tr><th>영역</th><th>와이어프레임</th><th>기능명세 v4</th><th>판정</th></tr>
+
+  <tr><td>로그인 수단</td><td>SSAFY + Google 2버튼</td><td>SSAFY OAuth 단일 확정, Google은 논의</td><td class="wn">미결 D1</td></tr>
+  <tr><td>회원가입</td><td>없음 (소셜만)</td><td>OAuth 최초 로그인 시 자동 생성</td><td class="ok">일치</td></tr>
+  <tr><td>지갑 연동</td><td>화면 없음</td><td>-105 필수 온보딩, 중요도 상</td><td class="bad">화면 없음</td></tr>
+  <tr><td>온체인 서명</td><td>없음</td><td>-106 토큰 이동 요청 전부 서명 동반</td><td class="bad">화면 없음</td></tr>
+  <tr><td>비로그인 공개 범위</td><td>구분 없음 (로그인 회원 전용 전제)</td><td>D2 결정 &mdash; <b>비로그인 전 기능 차단</b>. 원장·검산 포함</td><td class="ok">일치 · 결정됨</td></tr>
+
+  <tr><td>홈 시장 Overview</td><td>코스피·코스닥·환율 + 스파크라인</td><td>-201 동일</td><td class="ok">일치</td></tr>
+  <tr><td>관심 종목</td><td>홈 관심종목 카드 5종목</td><td>-203 동일</td><td class="ok">일치</td></tr>
+  <tr><td>통합 검색</td><td>사이드바 검색바 · 상단 검색 아이콘</td><td>-202, 결과 화면 명세만</td><td class="bad">결과 화면 없음</td></tr>
+  <tr><td>현재가 표시</td><td>관심종목·전광판에 현재가</td><td>D17: 일봉 종가만, &ldquo;현재가는 시스템 어디에도 없다&rdquo;</td><td class="wn">미결 D17</td></tr>
+
+  <tr><td>종목 탐색</td><td>섹터 칩·상세 필터·정렬·예측 바</td><td>-206 종목·일봉 조회</td><td class="ok">일치</td></tr>
+  <tr><td>종목 상세 / 종목 리서치</td><td>화면 없음</td><td>-211 · -213 · -214 · -215, 예측 진입 경로</td><td class="bad">화면 없음</td></tr>
+  <tr><td>리서치 화면 의미</td><td>리포트 피드 (예측가 글 목록)</td><td>&ldquo;리서치&rdquo; = 종목 분석 화면 &mdash; 다른 것</td><td class="bad">명칭 충돌</td></tr>
+  <tr><td>DART 연동</td><td>근거 카드/DART 요약, 리플레이 DART 탭</td><td>-213 · -214에 있음, 단 &ldquo;확정 필요&rdquo;</td><td class="wn">있으나 미확정</td></tr>
+
+  <tr><td>예측 방향</td><td>UP / DOWN 2지선다</td><td>상승 / 하락 2지선다</td><td class="ok">일치</td></tr>
+  <tr><td>예측 기간</td><td>10 / 20영업일 / 직접입력</td><td>5 / 10 / 20 / 60영업일</td><td class="bad">불일치</td></tr>
+  <tr><td>확신도 입력</td><td>없음 (결과 화면엔 &ldquo;평균 확신도&rdquo; KPI 존재)</td><td>D5 필수 항목</td><td class="bad">입력 UI 없음</td></tr>
+  <tr><td>공개·비공개 설정</td><td>없음</td><td>명세 예측 슬롯 행에 명시</td><td class="bad">없음</td></tr>
+  <tr><td>무료 슬롯 제한</td><td>없음</td><td>하루 3건, 초과 시 소각 (D4 금액 미정)</td><td class="wn">미결 D4</td></tr>
+  <tr><td>온체인 기록 방식</td><td>등록 즉시 모달로 트랜잭션 완료</td><td>-301 커밋·리빌 + 영업일 배치 머클 앵커, -906 202+폴링</td><td class="bad">근본 불일치</td></tr>
+  <tr><td>기준가</td><td>종목 헤더 카드의 현재가로 오해 유발</td><td>-302 다음 영업일 종가</td><td class="bad">불일치</td></tr>
+  <tr><td>수정·삭제</td><td>명시 없음</td><td>-306 불가, append-only &mdash; 전 소스 일치</td><td class="wn">화면 반영 필요</td></tr>
+  <tr><td>내 예측 목록·상세</td><td>화면 없음 (&ldquo;내 예측 내역으로&rdquo; 버튼만)</td><td>-304 · -305 상태 필터·검증 근거</td><td class="bad">화면 없음</td></tr>
+  <tr><td>온체인 원장·검산</td><td>화면 없음</td><td>-401 · -402, 중요도 상, 존재 이유</td><td class="bad">화면 없음</td></tr>
+  <tr><td>예측 포트폴리오</td><td><b>화면 있음</b> &mdash; KPI 5종·레이더·Calibration</td><td>D18 &ldquo;기능 정의·화면 설계 필요&rdquo;</td><td class="wn">명세가 뒤처짐</td></tr>
+
+  <tr><td>토큰 명칭·충전</td><td>ANT, &ldquo;충전하기&rdquo; 14화면 전부</td><td>D3 PRT + 충전·전송·환금 불가 소각 모델</td><td class="wn">정반대 D3</td></tr>
+  <tr><td>구독료 단위</td><td>월 290 ANT</td><td>D6 월 14,900 + 70:30 배분</td><td class="bad">불일치</td></tr>
+  <tr><td>근거 게이팅</td><td>잠금 UI 없음</td><td>D6 근거 본문만 구독자 전용, 403</td><td class="bad">없음</td></tr>
+  <tr><td>백테스트</td><td>없음</td><td>D9 프로토타입 온리</td><td class="wn">미결 D9</td></tr>
+  <tr><td>증명서 SBT</td><td>없음</td><td>D10 ERC-721, 판정 20건+</td><td class="wn">미결 D10</td></tr>
+  <tr><td>레벨 · EXP</td><td>Lv.18 · 뱃지/레벨 다수</td><td>D12 프로토타입에 없음 &mdash; 명세 행 자체 없음</td><td style="color:#6b7280;font-weight:600">삭제후보</td></tr>
+  <tr><td>랭킹 지표</td><td>적중률% + Lv 중심, 프로필에 &ldquo;신뢰도&rdquo; KPI</td><td>D11 신뢰도 산식 = 적중률 0.7 + 목표가 정확도 0.3</td><td class="wn">미결 D11</td></tr>
+  <tr><td>랭킹 트랙 분리</td><td>실전 / 리플레이 랭크 화면 분리됨</td><td>-801 트랙 분리, 리플레이는 실전에 절대 미반영</td><td class="ok">일치</td></tr>
+  <tr><td>광고</td><td>스폰서 카드 + &ldquo;지금 홍보하기&rdquo;</td><td>D7 확성기 슬롯 경매, 신뢰도 70+ 입찰, 전액 소각</td><td class="wn">미결 D7</td></tr>
+
+  <tr><td>모의투자 트레이딩</td><td>화면 없음</td><td>-701~-705, 중요도 상 다수</td><td class="bad">화면 없음</td></tr>
+  <tr><td>모드 구성</td><td>모의투자 / 리플레이 / 모의투자 리그 (사이드바)</td><td>D14 학습 / 챌린지 / 자유 단일 축</td><td class="wn">미결 D14</td></tr>
+  <tr><td>시나리오</td><td>시즌 히어로 카드 · 시즌 3~7</td><td>D13 2024 실데이터 120게임일</td><td class="wn">미결 D13</td></tr>
+  <tr><td>시즌 참가</td><td>+50 ANT 지급 방향</td><td>D15 참가비 1,000 소각 &mdash; 정반대</td><td class="wn">미결 D15</td></tr>
+  <tr><td>게임 기록 · AI 복기</td><td>리플레이 게임 기록 · AI 복기 보기</td><td>-707 · -708 일치</td><td class="ok">일치</td></tr>
+  <tr><td>초보 / 고급 뷰</td><td>없음</td><td>-704 양 소스 일치라고 명세가 기록</td><td class="bad">화면 없음</td></tr>
+  <tr><td>리그 실시간 규칙</td><td>화면 없음</td><td>09:00~18:00, 1시간 = 1게임일, 노이즈 부여</td><td class="bad">화면 없음</td></tr>
+  <tr><td>AI 개입 수준</td><td>AI 브리핑·근거·한줄요약·대표 Forecast 다수</td><td>D16 프로토타입: AI는 복기만, 진행 중엔 안내만</td><td class="wn">정반대 D16</td></tr>
+
+  <tr><td>커뮤니티 전체</td><td>게시글 상세 1화면</td><td>D8 전체 논의, 미채택 시 삭제</td><td class="wn">미결 D8</td></tr>
+  <tr><td>알림함</td><td>사이드바 · 상단 벨 + 카운트 뱃지</td><td>-207 중요도 중</td><td class="bad">화면 없음</td></tr>
+  <tr><td>설정</td><td>사이드바 항목</td><td>-851 알림 on/off · 닉네임 변경(토큰 소모) · 구독 정보</td><td class="bad">화면 없음</td></tr>
+  <tr><td>지갑 · 거래 내역</td><td>홈 &ldquo;내 자산 현황&rdquo; 요약만</td><td>-602 획득·사용 내역 조회</td><td class="bad">전용 화면 없음</td></tr>
+  <tr><td>관리자</td><td>없음</td><td>D19 범위 정의 필요</td><td class="wn">미결 D19</td></tr>
+</table>
+
+<h2>11. 화면 갭 목록 &mdash; 명세 ID 기준</h2>
+<p>v1의 갭 표는 와이어프레임만 보고 만든 것이라 우선도가 틀렸다. 명세 중요도로 다시 정렬함.</p>
+
+<table>
+  <tr><th>#</th><th>필요 화면</th><th>명세 근거</th><th>중요도</th><th>왜 지금인가</th></tr>
+  <tr><td>1</td><td>지갑 연동</td><td>-105</td><td>상</td><td>없으면 예측 등록(-106 서명)이 성립 불가. 명세 비고에 &ldquo;화면 추가 필요&rdquo; 명시</td></tr>
+  <tr><td>2</td><td>온체인 원장 탐색 + 3단 검산</td><td>-401 · -402</td><td>상</td><td>블록체인 트랙의 증명 화면. 회원 전용(D2 결정)</td></tr>
+  <tr><td>3</td><td>모의투자 트레이딩 (주문·게임일 진행·보유 현황)</td><td>-701 · -702 · -703</td><td>상</td><td>모의투자 대분류의 실제 플레이 화면이 통째로 없음</td></tr>
+  <tr><td>4</td><td>봉인 접수 + 상태 전이 UI (앵커 대기 / 완료 / 판정)</td><td>-301 · -906</td><td>상</td><td>현재 모달은 즉시 완료 전제. 명세와 동작이 다름</td></tr>
+  <tr><td>5</td><td>종목 리서치 (요약 헤더 · IR/뉴스 요약 · 포인트 · 근거 선택)</td><td>-211 · -213 · -214 · -215</td><td>중</td><td>예측 등록의 정상 진입 경로. 지금은 종목 탐색에서 바로 점프</td></tr>
+  <tr><td>6</td><td>내 예측 목록 + 예측 상세</td><td>-304 · -305</td><td>중</td><td>&ldquo;내 예측 내역으로&rdquo; 버튼의 목적지. 검증 근거 표시 위치</td></tr>
+  <tr><td>7</td><td>지갑 · 잔액 · 거래 내역</td><td>-602</td><td>중</td><td>홈 요약만 있고 전용 화면 없음</td></tr>
+  <tr><td>8</td><td>알림함</td><td>-207</td><td>중</td><td>사이드바·상단 양쪽에 진입점이 이미 있음</td></tr>
+  <tr><td>9</td><td>설정</td><td>-851</td><td>중</td><td>닉네임 변경이 토큰 소모 &mdash; 토큰 플로우와 연결</td></tr>
+  <tr><td>10</td><td>검색 결과</td><td>-202</td><td>중</td><td>검색 입구 2개, 결과 화면 0개</td></tr>
+  <tr><td>11</td><td>초보 / 고급 뷰 토글</td><td>-704</td><td>중</td><td>명세가 &ldquo;양 소스 일치&rdquo;로 적었으나 상민 와이어프레임에는 없음</td></tr>
+  <tr><td>12</td><td>모의투자 리그 (실시간)</td><td>리그 진행 규칙 · -709</td><td>중</td><td>사이드바 메뉴만 존재</td></tr>
+  <tr><td>13</td><td>리포트 상세 · 리포트 작성</td><td>리포트 페이지 (D8 종속)</td><td>중</td><td>3곳에서 진입하나 화면 없음. D8 결정 대기</td></tr>
+  <tr><td>14</td><td>관리자</td><td>D19</td><td>미정</td><td>신고 처리·시즌 운영·배치 모니터링 주체</td></tr>
+  <tr><td>15</td><td>토큰 획득 화면 (출석·환율 퀴즈)</td><td>D3 · D4</td><td>미정</td><td>충전 불가 모델이면 유일한 획득 경로</td></tr>
+</table>
+
+<h2>12. D1~D19 미결이 플로우에 주는 영향</h2>
+<p>결정 전에는 그릴 수 없는 것들. 회의 우선순위 판단용으로 &ldquo;플로우 영향&rdquo; 열을 붙였다.</p>
+
+<table>
+  <tr><th>D</th><th>주제</th><th>플로우 영향</th><th>영향도</th></tr>
+  <tr><td>D3</td><td>토큰 명칭·충전</td><td>충전 불가면 &ldquo;ANT 충전하기&rdquo; 버튼 14개 삭제 + 잔액 부족 분기 전면 재작성 + 구독료를 토큰으로 받을 수 없음</td><td>최대</td></tr>
+  <tr><td>D5</td><td>예측 입력 스키마</td><td>예측 등록 화면의 스텝 수가 바뀜. 확신도·공개설정 추가, 기간 옵션 4종</td><td>최대</td></tr>
+  <tr><td>D16</td><td>AI 개입 수준</td><td>프로토타입안 채택 시 AI 브리핑·AI 근거·AI 한줄요약·대표 Forecast 등 <b>와이어프레임의 AI 요소 대부분 삭제</b>. 복기 리포트만 생존</td><td>최대</td></tr>
+  <tr><td>D8</td><td>피드·커뮤니티</td><td>미채택 시 커뮤니티 게시글 상세 화면 + 9번 다이어그램 전체 삭제</td><td>큼</td></tr>
+  <tr><td>D14</td><td>모의투자 모드 구성</td><td>사이드바 메뉴 3개(모의투자·리플레이·리그)의 구조가 바뀜 &mdash; 내비 자체가 흔들림</td><td>큼</td></tr>
+  <tr><td>D6</td><td>수익 모델</td><td>구독 없으면 프로필의 구독 버튼·게이팅 분기 전부 삭제, 팔로우로 축소</td><td>큼</td></tr>
+  <tr><td>D17</td><td>시세 실시간성</td><td>일봉 종가만이면 홈 전광판·관심종목의 &ldquo;현재가&rdquo; 표기를 모두 &ldquo;전일 종가&rdquo;로 교체</td><td>중간</td></tr>
+  <tr><td>D4</td><td>수수료·보상표</td><td>슬롯 초과 확인 모달의 금액, 보상 안내 문구</td><td>중간</td></tr>
+  <tr><td>D11</td><td>랭킹 지표</td><td>홈 위젯·프로필·랭킹 화면의 표시 지표(신뢰도 vs 적중률+Lv)</td><td>중간</td></tr>
+  <tr><td>D12</td><td>레벨·EXP</td><td>미채택 시 사이드바 유저 카드·예측가 순위의 Lv 뱃지 전부 삭제</td><td>중간</td></tr>
+  <tr><td>D13</td><td>시나리오 데이터</td><td>리플레이 홈의 시즌 카드 내용·개수</td><td>중간</td></tr>
+  <tr><td>D15</td><td>시즌 참가 방식</td><td>참가 버튼 앞에 결제 확인 모달이 붙는지, 보상 안내가 붙는지 &mdash; 방향 정반대</td><td>중간</td></tr>
+  <tr><td>D7</td><td>광고 모델</td><td>경매안 채택 시 확성기 입찰 화면 신규 + 신뢰도 70+ 자격 분기</td><td>중간</td></tr>
+  <tr><td>D1</td><td>로그인 방식</td><td>Google 버튼 유지 여부</td><td>작음</td></tr>
+  <tr><td>D9 · D10</td><td>백테스트 · SBT</td><td>프로필 화면에 섹션 2개 추가 여부</td><td>작음</td></tr>
+  <tr><td>D18</td><td>포트폴리오</td><td><b>이미 와이어프레임이 있음</b> &mdash; 명세를 갱신하면 닫히는 항목</td><td>해소 가능</td></tr>
+  <tr><td>D19</td><td>관리자</td><td>별도 트랙. 유저 플로우와 분리</td><td>별건</td></tr>
+  <tr><td>D2</td><td>커밋 원장 공개 범위</td><td><b>결정 완료(2026-08-27) &mdash; 비로그인 전 기능 차단.</b> 로그인 관문이 단일 경로가 되고, 원장·검산은 로그인 이후 내부 화면. 2·5번 다이어그램에 반영함</td><td>반영 완료</td></tr>
+</table>
+
+</div>
+
+<script>
+  document.querySelectorAll('.diagram').forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'fsbtn';
+    b.textContent = '전체화면';
+    b.addEventListener('click', () => {
+      if (document.fullscreenElement === d) document.exitFullscreen();
+      else d.requestFullscreen();
+    });
+    d.appendChild(b);
+  });
+  // 드래그로 패닝 (가로 휠이 없는 마우스 대응)
+  document.querySelectorAll('.mermaid').forEach(m => {
+    let down = false, sx = 0, sy = 0, sl = 0, st = 0;
+    m.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      down = true; sx = e.clientX; sy = e.clientY; sl = m.scrollLeft; st = m.scrollTop;
+      m.classList.add('dragging');
+      m.setPointerCapture(e.pointerId);
+    });
+    m.addEventListener('pointermove', e => {
+      if (!down) return;
+      m.scrollLeft = sl - (e.clientX - sx);
+      m.scrollTop = st - (e.clientY - sy);
+    });
+    const up = e => { down = false; m.classList.remove('dragging'); try { m.releasePointerCapture(e.pointerId); } catch (_) {} };
+    m.addEventListener('pointerup', up);
+    m.addEventListener('pointercancel', up);
+  });
+
+  // 실제로 넘칠 때만 grab 커서를 준다
+  const markPannable = () => document.querySelectorAll('.mermaid').forEach(m =>
+    m.classList.toggle('pan', m.scrollWidth > m.clientWidth || m.scrollHeight > m.clientHeight));
+  addEventListener('resize', markPannable);
+  new MutationObserver(markPannable).observe(document.body, {subtree: true, childList: true});
+  markPannable();
+
+  document.addEventListener('fullscreenchange', () => {
+    document.querySelectorAll('.fsbtn').forEach(b => {
+      b.textContent = b.parentElement === document.fullscreenElement ? '닫기 (Esc)' : '전체화면';
+    });
+    markPannable();
+  });
+</script>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'neutral',
+    flowchart: { curve: 'basis', nodeSpacing: 45, rankSpacing: 55, useMaxWidth: false },
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif'
+  });
+</script>
+</body>
+</html>

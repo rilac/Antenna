@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>엔테나 테이블 맵</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#F4F6F9; --card:#FFFFFF; --ink:#1B222E; --muted:#5D6675; --note:#8A93A2; --line:#D8DEE7; --uq-bg:#F6F8FB;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#14171D; --card:#1C2129; --ink:#E7EAF0; --muted:#97A0AE; --note:#6E7889; --line:#2B323D; --uq-bg:#181D25;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"IBM Plex Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+  }
+  .wrap{max-width:1400px; margin:0 auto; padding:36px 28px 64px}
+  h1{font-size:24px; font-weight:700; margin:0 0 30px; letter-spacing:-.01em}
+
+  section{margin-bottom:44px}
+  section h2{
+    display:flex; align-items:baseline; gap:10px;
+    margin:0 0 14px; padding-left:12px; border-left:4px solid var(--dc);
+    font-size:17px; font-weight:700;
+  }
+  section h2 .cnt{
+    font-family:"JetBrains Mono",monospace; font-size:12px; font-weight:500; color:var(--muted);
+  }
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px}
+
+  article{
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+    overflow:hidden; display:flex; flex-direction:column;
+  }
+  article > header{
+    background:var(--dc); color:#fff;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:7px 12px;
+  }
+  article > header h3{
+    margin:0; font-family:"JetBrains Mono",monospace;
+    font-size:13px; font-weight:700; letter-spacing:.01em;
+  }
+  .v3{
+    font-family:"JetBrains Mono",monospace; font-size:9.5px; font-weight:700;
+    border:1px solid rgba(255,255,255,.7); border-radius:4px;
+    padding:1px 5px; letter-spacing:.06em;
+  }
+  ul{list-style:none; margin:0; padding:8px 0}
+  li{padding:3px 12px}
+  li + li{border-top:1px solid color-mix(in srgb, var(--line) 45%, transparent)}
+  .row{
+    display:flex; align-items:baseline; gap:8px;
+    font-family:"JetBrains Mono",monospace; font-size:12px;
+  }
+  .k{
+    flex:none; width:26px; text-align:center;
+    font-size:9px; font-weight:700; letter-spacing:.05em;
+    border-radius:4px; padding:1.5px 0; line-height:1.5;
+  }
+  .k.pk{background:var(--dc); color:#fff}
+  .k.fk{border:1px solid var(--dc); color:var(--dc)}
+  .k.uq{border:1px dashed var(--muted); color:var(--muted)}
+  .k.no{visibility:hidden}
+  .c{min-width:0; overflow-wrap:anywhere}
+  .c em{font-style:normal; color:var(--muted); font-size:10.5px}
+  .c .nv{color:var(--muted); font-size:9px; font-weight:700; vertical-align:super}
+  .t{margin-left:auto; flex:none; color:var(--muted); font-size:10.5px; font-variant-numeric:tabular-nums}
+  .note{
+    padding-left:34px; margin-top:1px;
+    font-size:10.5px; line-height:1.45; color:var(--note);
+  }
+  .uqrow{
+    margin-top:auto; border-top:1px solid var(--line); background:var(--uq-bg);
+    padding:5px 12px; font-family:"JetBrains Mono",monospace;
+    font-size:10.5px; color:var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>엔테나 테이블 맵</h1>
+
+<!-- ── 계정 ── -->
+<section style="--dc:#435268">
+  <h2>계정 · 인증 <span class="cnt">5</span></h2>
+  <div class="grid">
+
+  <article><header><h3>users</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div><div class="note">계정 식별자 · 모든 도메인이 이 값으로 참조</div></li>
+      <li><div class="row"><span class="k uq">UQ</span><span class="c">nickname</span><span class="t">varchar(30)</span></div><div class="note">화면 표시 이름이자 유일한 공개 식별자 · 중복 검사</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">introduce</span><span class="t">varchar(200)</span></div><div class="note">프로필 소개 문구 · 구독 판단 근거</div></li>
+      <li><div class="row"><span class="k uq">UQ</span><span class="c">wallet_address</span><span class="t">varchar(42)</span></div><div class="note">MetaMask 기반 SSAFY WALLET 연동 주소 · 소문자 정규화 · NULL이면 예측 불가</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">role <span class="nv">V4</span></span><span class="t">varchar(10)</span></div><div class="note">USER / ADMIN · 관리자 화면 접근과 신고 처리 권한</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status <span class="nv">V4</span></span><span class="t">varchar(10)</span></div><div class="note">ACTIVE / BANNED · 영구 차단만 · BANNED면 로그인 거부, 해제는 관리자 수동 · 기존 예측·원장은 그대로 남는다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">가입 시각</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">updated_at</span><span class="t">timestamptz</span></div><div class="note">프로필·지갑 변경 시각</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>user_oauth</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">소유 계정 · 구글·SSAFY 동시 연결 가능(1:N)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">provider</span><span class="t">varchar(16)</span></div><div class="note">GOOGLE / SSAFY</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">provider_user_id</span><span class="t">varchar(128)</span></div><div class="note">프로바이더 발급 불변 ID · 로그인 매칭 키(이메일 아님)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">email</span><span class="t">varchar(255)</span></div><div class="note">표시용 · 인증 판단에 쓰지 않음(자동 병합 금지)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">연동 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (provider, provider_user_id)</div>
+  </article>
+
+  <article><header><h3>user_settings</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">user_id <em>→users 1:1</em></span><span class="t">int</span></div><div class="note">공유 PK · 행이 없으면 전부 기본값</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">notify_verdict</span><span class="t">boolean</span></div><div class="note">판정 결과(HIT/MISS) 알림 on/off</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">notify_season</span><span class="t">boolean</span></div><div class="note">시즌 진행·종료·보상 알림 on/off</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">notify_social</span><span class="t">boolean</span></div><div class="note">구독 발생·구독료 변경 알림 on/off</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">chart_view</span><span class="t">varchar(10)</span></div><div class="note">BEGINNER / ADVANCED · 트레이딩 기본 뷰</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">updated_at</span><span class="t">timestamptz</span></div><div class="note">설정 변경 시각</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>user_interests</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">소유 계정</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">sector</span><span class="t">varchar(30)</span></div><div class="note">관심 섹터 · stocks.sector와 같은 어휘 사용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">등록 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (user_id, sector)</div>
+  </article>
+
+  <article><header><h3>user_channels</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">채널 소유 예측자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">platform</span><span class="t">varchar(16)</span></div><div class="note">YOUTUBE / BLOG / X / ETC · 화면 아이콘 결정</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">url</span><span class="t">varchar(300)</span></div><div class="note">채널 주소 · https만 허용(피싱 차단)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">등록 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (user_id, url)</div>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 관심·알림 ── -->
+<section style="--dc:#A97A18">
+  <h2>관심 · 알림 <span class="cnt">2</span></h2>
+  <div class="grid">
+
+  <article><header><h3>watchlist_items</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">소유 계정</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">관심 종목 · 시세·미니차트는 daily_quotes에서 파생</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">목록 정렬 키(최근 담은 순)</div></li>
+    </ul>
+    <div class="uqrow">UQ (user_id, stock_code)</div>
+  </article>
+
+  <article><header><h3>notifications</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">수신자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">type</span><span class="t">varchar(24)</span></div><div class="note">알림 종류 · 아이콘·문구 템플릿 분기 키</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">title</span><span class="t">varchar(100)</span></div><div class="note">목록 한 줄 · 발송 시점 문장을 굳혀 저장</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">varchar(300)</span></div><div class="note">보조 설명</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">link_path</span><span class="t">varchar(200)</span></div><div class="note">누르면 이동할 앱 내 경로 · 대상별 FK 대신 문자열</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">read_at</span><span class="t">timestamptz</span></div><div class="note">확인 시각 · NULL 개수 = 미확인 뱃지 숫자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">발송 시각 · 목록 정렬 키</div></li>
+    </ul>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 시세 ── -->
+<section style="--dc:#2A6FB0">
+  <h2>시세 <span class="cnt">3</span></h2>
+  <div class="grid">
+
+  <article><header><h3>stocks</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">code</span><span class="t">varchar(6)</span></div><div class="note">6자리 종목코드 · 불변 자연키</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">name</span><span class="t">varchar(60)</span></div><div class="note">종목명 · 표시 전용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">sector</span><span class="t">varchar(30)</span></div><div class="note">섹터 · KRX 업종분류 CSV 시드</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">listed</span><span class="t">boolean</span></div><div class="note">상장 여부 · 폐지 시 false, 행은 유지</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>daily_quotes</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">대상 종목</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">trade_date</span><span class="t">date</span></div><div class="note">시세가 속한 영업일 · 판정 날짜 매칭 키 · 만기일이 휴장이면 이 값 &gt;= settle_date인 첫 행이 판정 대상</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">open <span class="nv">V4</span></span><span class="t">numeric(14,2)</span></div><div class="note">시가 · 캔들 몸통의 한쪽 끝 · 판정에는 쓰지 않음</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">high <span class="nv">V4</span></span><span class="t">numeric(14,2)</span></div><div class="note">고가 · 캔들 위꼬리</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">low <span class="nv">V4</span></span><span class="t">numeric(14,2)</span></div><div class="note">저가 · 캔들 아래꼬리</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">close</span><span class="t">numeric(14,2)</span></div><div class="note">종가 · 판정·표시·부트스트랩이 쓰는 유일한 판정 가격</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">volume <span class="nv">V4</span></span><span class="t">bigint</span></div><div class="note">거래량(주) · 거래대금은 저장하지 않음 · 주봉·월봉은 이 표를 GROUP BY로 집계(별도 테이블 없음)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">collected_at</span><span class="t">timestamptz</span></div><div class="note">수집(upsert) 시각 · 장애 추적</div></li>
+    </ul>
+    <div class="uqrow">UQ (stock_code, trade_date)</div>
+  </article>
+
+  <article><header><h3>index_quotes</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">index_code</span><span class="t">varchar(16)</span></div><div class="note">KOSPI / KOSDAQ / USDKRW · 마스터 테이블 없이 CHECK</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">trade_date</span><span class="t">date</span></div><div class="note">값이 속한 영업일</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">close</span><span class="t">numeric(14,4)</span></div><div class="note">종가 또는 종가 환율 · scale 4는 환율 때문</div></li>
+    </ul>
+    <div class="uqrow">UQ (index_code, trade_date)</div>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 예측 ── -->
+<section style="--dc:#7A4FC0">
+  <h2>예측 <span class="cnt">4</span></h2>
+  <div class="grid">
+
+  <article><header><h3>predictions</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div><div class="note">검증 API가 외부에 공개하는 참조값</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">작성자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">track</span><span class="t">varchar(8)</span></div><div class="note">REAL / REPLAY · 랭킹 분리 축</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">REAL 트랙 대상 · 아래와 둘 중 하나만 NOT NULL</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">season_ticker_id <em>→season_tickers</em></span><span class="t">int</span></div><div class="note">REPLAY 트랙 대상(블라인드 종목)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">direction</span><span class="t">varchar(4)</span></div><div class="note">UP / DOWN · 판정 1차 조건 · 보합은 두지 않는다(방향을 안 거는 예측은 예측이 아니다)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">target_price</span><span class="t">numeric(14,2)</span></div><div class="note">만기 목표가 · 커밋 payload 구성 요소라 등록 후 불변</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">ref_close</span><span class="t">numeric(14,2)</span></div><div class="note">등록 때 본 직전 종가 박제 · 표시용, 기준가 아님</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">horizon</span><span class="t">smallint</span></div><div class="note">만기까지의 기간 · REAL은 캘린더 일수 7/14/30/90(영업일 아님), REPLAY는 게임일 수 · 단위가 트랙마다 다르다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">base_date</span><span class="t">date</span></div><div class="note">기준가 확정 영업일 · REAL 전용 · 등록 시 NULL, 배치가 채움</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">base_game_day <span class="nv">V4</span></span><span class="t">int</span></div><div class="note">기준가 확정 게임일 · REPLAY 전용 · 등록 다음 게임일 · 시즌 시세엔 실제 날짜가 없어 date 컬럼을 못 쓴다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">base_price</span><span class="t">numeric(14,2)</span></div><div class="note">기준일 종가 = 판정 출발점(사후 조작 불가) · 두 트랙 공용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">settle_date</span><span class="t">date</span></div><div class="note">만기일 · REAL 전용 · base_date + horizon 일 · 등록 즉시 확정되므로 D-day 표시가 정확</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">settle_game_day <span class="nv">V4</span></span><span class="t">int</span></div><div class="note">만기 게임일 · REPLAY 전용 · base_game_day + horizon · 게임일 진행이 이 값을 넘기면 판정</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">settle_price</span><span class="t">numeric(14,2)</span></div><div class="note">판정 입력 · REAL은 settle_date 종가(휴장이면 그 이후 첫 거래일), REPLAY는 settle_game_day 종가</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(8)</span></div><div class="note">BASE→OPEN→HIT/MISS · REAL은 영업일 배치가, REPLAY는 게임일 진행이 전이시킨다 · 공개 게이팅 판정값: HIT/MISS는 내용 전체 공개, BASE/OPEN은 구독자만(비구독자는 존재·커밋만)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">error_rate</span><span class="t">numeric(6,3)</span></div><div class="note">목표가 오차 % · 랭킹 점수의 30%</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">등록 시각 · 피드 정렬 키이자 커밋의 시간 증거</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">updated_at</span><span class="t">timestamptz</span></div><div class="note">마지막 상태 전이 시각(내용 변경 아님)</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>prediction_commits</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">prediction_id <em>→predictions 1:1</em></span><span class="t">int</span></div><div class="note">공유 PK(@MapsId) · salt가 본체에 안 실리게 분리</div></li>
+      <li><div class="row"><span class="k uq">UQ</span><span class="c">commit_hash</span><span class="t">varchar(66)</span></div><div class="note">hash(payload|salt) · 머클 트리의 잎</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">salt</span><span class="t">varchar(64)</span></div><div class="note">hex 난수 · 리빌 전 어떤 응답에도 미노출</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">signature</span><span class="t">varchar(255)</span></div><div class="note">EIP-712 서명 · 작성자 부인방지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">signer_address</span><span class="t">varchar(42)</span></div><div class="note">서명 복원 주소 · 연동 지갑과 불일치 시 401</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">anchor_batch_id <em>→anchor_batches</em></span><span class="t">int</span></div><div class="note">소속 앵커 배치 · NULL = 앵커 대기</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">revealed_at</span><span class="t">timestamptz</span></div><div class="note">salt 공개 시각 · NULL이면 비공개</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>prediction_notes</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">prediction_id <em>→predictions 1:1</em></span><span class="t">int</span></div><div class="note">공유 PK · 게이팅 쿼리가 조인 하나로 끝나게 분리</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">예측 근거 · 구독자 전용(미구독 403) · 5000자 상한</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>prediction_evidences</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">prediction_id <em>→predictions</em></span><span class="t">int</span></div><div class="note">근거를 붙인 예측 · 봉인 후 추가·삭제 불가</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">point_id <em>→research_points</em></span><span class="t">int</span></div><div class="note">"내 근거로 선택"한 리서치 포인트</div></li>
+    </ul>
+    <div class="uqrow">UQ (prediction_id, point_id)</div>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 리서치·AI ── -->
+<section style="--dc:#2E8A96">
+  <h2>리서치 · AI <span class="cnt">3</span></h2>
+  <div class="grid">
+
+  <article><header><h3>research_documents</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">대상 종목 · NULL이면 시장 전체 뉴스</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">source</span><span class="t">varchar(8)</span></div><div class="note">NEWS / DART / IR · 화면 출처 태그 그대로</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">external_id</span><span class="t">varchar(100)</span></div><div class="note">원천 발급 고유 ID(DART 접수번호 등) · 재수집 멱등 키</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">title</span><span class="t">varchar(200)</span></div><div class="note">원문 제목</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">origin_url</span><span class="t">varchar(500)</span></div><div class="note">원문 보기 링크 · 본문은 저장 안 함(저작권)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">published_at</span><span class="t">timestamptz</span></div><div class="note">원문 발행 시각 · 목록 정렬 키</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">summary</span><span class="t">text</span></div><div class="note">AI 요약 카드 본문 · NULL이면 아직 요약 전</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">summarized_at</span><span class="t">timestamptz</span></div><div class="note">요약 생성 시각</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">prompt_version <span class="nv">V4</span></span><span class="t">varchar(16)</span></div><div class="note">생성에 쓴 프롬프트·모델 버전 태그 · 프롬프트를 고치면 이 값이 옛것인 행만 골라 재생성</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">collected_at</span><span class="t">timestamptz</span></div><div class="note">수집 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (source, external_id)</div>
+  </article>
+
+  <article><header><h3>research_points</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">대상 종목</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">target_date</span><span class="t">date</span></div><div class="note">어느 영업일 기준으로 뽑은 포인트인지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">kind</span><span class="t">varchar(8)</span></div><div class="note">POSITIVE / RISK / CHECK · 화면 3열 축</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">varchar(300)</span></div><div class="note">포인트 한 줄</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">document_id <em>→research_documents</em></span><span class="t">int</span></div><div class="note">"근거 보기" 원문 · 출처 태그는 여기서 파생 · NULL = 종합</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">생성 시각</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>ai_briefings</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">scope</span><span class="t">varchar(8)</span></div><div class="note">MARKET(홈 시장 요약) / STOCK(종목 브리핑)</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">STOCK일 때만 채움 · MARKET이면 NULL(CHECK)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">target_date</span><span class="t">date</span></div><div class="note">어느 영업일 기준 브리핑인가 · 생성 시각과 분리</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">headline</span><span class="t">varchar(200)</span></div><div class="note">카드에 보이는 한 줄(오늘의 핵심 포인트)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">상세 보기 본문 · 5000자 상한</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">prompt_version <span class="nv">V4</span></span><span class="t">varchar(16)</span></div><div class="note">생성에 쓴 프롬프트·모델 버전 태그 · 섞인 세대를 구분하는 유일한 값</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">생성 시각</div></li>
+    </ul>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 온체인 ── -->
+<section style="--dc:#B06A21">
+  <h2>온체인 <span class="cnt">3</span></h2>
+  <div class="grid">
+
+  <article><header><h3>chain_events</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">tx_hash</span><span class="t">varchar(66)</span></div><div class="note">이벤트가 담긴 트랜잭션</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">log_index</span><span class="t">int</span></div><div class="note">tx 내 로그 순번 · UQ로 중복 인덱싱 차단</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">contract_address</span><span class="t">varchar(42)</span></div><div class="note">발신 컨트랙트 · 동명 이벤트 구분</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">event_name</span><span class="t">varchar(32)</span></div><div class="note">Subscribed / Burned / Anchored 등 · 처리 분기 키</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">block_number</span><span class="t">bigint</span></div><div class="note">인덱서 재시작 커서 · max부터 이어 읽음</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">payload</span><span class="t">jsonb</span></div><div class="note">ABI 디코딩 인자 원본 · 재처리용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">processed_at</span><span class="t">timestamptz</span></div><div class="note">후속 반영 완료 시각 · NULL = 저장됐으나 미반영</div></li>
+    </ul>
+    <div class="uqrow">UQ (tx_hash, log_index)</div>
+  </article>
+
+  <article><header><h3>anchor_batches</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k uq">UQ</span><span class="c">merkle_root</span><span class="t">varchar(66)</span></div><div class="note">회차 커밋들의 머클 루트 · 온체인에 올리는 값</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">commit_count</span><span class="t">int</span></div><div class="note">포함 커밋 수 · 증명 검증·모니터링용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">tx_hash</span><span class="t">varchar(66)</span></div><div class="note">앵커 트랜잭션 · 전송 전 NULL</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">block_number</span><span class="t">bigint</span></div><div class="note">확정 블록 · 확정 전 NULL</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(12)</span></div><div class="note">PENDING→CONFIRMED/FAILED · 실패는 다음 회차 재시도</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">배치 생성 시각</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">confirmed_at</span><span class="t">timestamptz</span></div><div class="note">블록 확정 시각</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>token_ledger</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">증감 대상 계정</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">delta</span><span class="t">numeric(30,0)</span></div><div class="note">부호 있는 wei 증감 · 잔액 = SUM(delta)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">reason</span><span class="t">varchar(32)</span></div><div class="note">토큰 사용처 · 환금·충전 값은 목록에 없음(규제 대응)</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">chain_event_id <em>→chain_events</em></span><span class="t">int</span></div><div class="note">근거 온체인 이벤트 · tx로 역추적</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">기입 시각 · 내역 정렬 키</div></li>
+    </ul>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 수익화 ── -->
+<section style="--dc:#B83A5E">
+  <h2>수익화 <span class="cnt">5</span></h2>
+  <div class="grid">
+
+  <article><header><h3>subscriptions</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">subscriber_id <em>→users</em></span><span class="t">int</span></div><div class="note">결제자</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">publisher_id <em>→users</em></span><span class="t">int</span></div><div class="note">구독 대상 예측자 · 자기 구독 CHECK 금지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">fee</span><span class="t">numeric(30,0)</span></div><div class="note">결제 시점 가격 박제(wei) · 이후 가격이 바뀌어도 불변</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">PENDING→ACTIVE→EXPIRED · 근거 열람 게이팅 판정값</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">tx_hash</span><span class="t">varchar(66)</span></div><div class="note">결제 트랜잭션 · 70:30 배분 확인 증빙</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">started_at</span><span class="t">timestamptz</span></div><div class="note">구독 개시 · ACTIVE 전환 시 채움</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">expires_at</span><span class="t">timestamptz</span></div><div class="note">개시 +30일 · 자동 해제(EXPIRED) 기준 · 갱신은 연장이 아니라 새 행</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">auto_renew <span class="nv">V4</span></span><span class="t">boolean</span></div><div class="note">true면 만료 배치가 다음 주기 결제를 자동 개시 · 인상 시에는 알림 후 한 달 유예</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">canceled_at <span class="nv">V4</span></span><span class="t">timestamptz</span></div><div class="note">자동 갱신 해지 시각 · 남은 기간은 유지하고 다음 주기부터 미결제</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">요청 접수 시각</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">updated_at</span><span class="t">timestamptz</span></div><div class="note">마지막 상태 전이 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (subscriber_id, publisher_id) WHERE status IN ('PENDING','ACTIVE') — 부분 유니크 · 만료 후 재구독·자동 갱신 허용</div>
+  </article>
+
+  <article><header><h3>publisher_fees</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">publisher_id <em>→users</em></span><span class="t">int</span></div><div class="note">가격을 정한 예측자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">fee</span><span class="t">numeric(30,0)</span></div><div class="note">새 구독료(wei) · 현재가 = 최신 행</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">effective_from</span><span class="t">timestamptz</span></div><div class="note">적용 시각 · 기존 구독은 만료까지 옛 가격</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">변경 시각 · 구독자 알림 발송 근거</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>reports</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">작성 예측자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">title</span><span class="t">varchar(100)</span></div><div class="note">목록은 미구독자에게도 공개 · 구독 유인</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">본문 · 20000자 상한</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">is_public <span class="nv">V4</span></span><span class="t">boolean</span></div><div class="note">true면 본문 전체 공개 · false면 미구독자에게 앞 3줄만 노출하고 구독 유도</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">발행 시각 · 목록 정렬 키</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>certificates</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">발급 대상</div></li>
+      <li><div class="row"><span class="k uq">UQ</span><span class="c">token_id</span><span class="t">int</span></div><div class="note">ERC-721(SBT) tokenId · 컨트랙트가 순차 발행</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">verified_count</span><span class="t">int</span></div><div class="note">발급 시점 판정 완료 수 · 스냅샷</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">hit_rate</span><span class="t">numeric(5,2)</span></div><div class="note">발급 시점 적중률 % · 스냅샷</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">avg_error</span><span class="t">numeric(6,3)</span></div><div class="note">발급 시점 평균 오차 % · 스냅샷</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">tx_hash</span><span class="t">varchar(66)</span></div><div class="note">민팅 트랜잭션</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">발급 시각</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>ad_banners</h3><span class="v3">V4</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">advertiser_id <em>→users</em></span><span class="t">int</span></div><div class="note">배너를 산 회원 · 토큰 결제자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">image_url</span><span class="t">varchar(500)</span></div><div class="note">배너 이미지 · https만 허용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">link_url</span><span class="t">varchar(500)</span></div><div class="note">클릭 시 이동 주소 · https만 허용(피싱 차단)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">starts_at</span><span class="t">timestamptz</span></div><div class="note">게재 시작 · 메인 배너 자리는 1개라 기간 중복은 앱에서 차단</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">ends_at</span><span class="t">timestamptz</span></div><div class="note">게재 종료 · 지나면 노출 쿼리에서 자동 제외</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">PENDING→ACTIVE/REJECTED→ENDED · 관리자 승인 후에만 노출</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">tx_hash</span><span class="t">varchar(66)</span></div><div class="note">게재료 소각 트랜잭션</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">신청 시각</div></li>
+    </ul>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 커뮤니티 ── -->
+<section style="--dc:#C24A2E">
+  <h2>커뮤니티 <span class="cnt">5</span></h2>
+  <div class="grid">
+
+  <article><header><h3>feed_posts</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">작성자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">본문 · 5000자 상한</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">report_id <em>→reports</em></span><span class="t">int</span></div><div class="note">리포스팅 원본 · 구독 게이팅은 원본에서 판정</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">prediction_id <em>→predictions</em></span><span class="t">int</span></div><div class="note">함께 붙인 예측 카드</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">VISIBLE / BLOCKED · 신고 처리로 가림, 행은 안 지움</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">작성 시각 · 피드 정렬 키</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>post_comments</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">post_id <em>→feed_posts</em></span><span class="t">int</span></div><div class="note">대상 글</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">작성자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">varchar(500)</span></div><div class="note">댓글 본문 · 대댓글 없음(필요 시 parent_id 추가)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">VISIBLE / BLOCKED</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">작성 시각 · 정렬 키</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>post_likes</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">post_id <em>→feed_posts</em></span><span class="t">int</span></div><div class="note">대상 글 · 좋아요 수 = count(*)</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">누른 사람</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">누른 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (post_id, user_id)</div>
+  </article>
+
+  <article><header><h3>comment_likes</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">comment_id <em>→post_comments</em></span><span class="t">int</span></div><div class="note">대상 댓글</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">누른 사람</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">누른 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (comment_id, user_id)</div>
+  </article>
+
+  <article><header><h3>abuse_reports</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">reporter_id <em>→users</em></span><span class="t">int</span></div><div class="note">신고자</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">target_post_id <em>→feed_posts</em></span><span class="t">int</span></div><div class="note">신고 대상 글 · 대상 셋 중 정확히 하나만(CHECK)</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">target_comment_id <em>→post_comments</em></span><span class="t">int</span></div><div class="note">신고 대상 댓글</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">target_user_id <em>→users</em></span><span class="t">int</span></div><div class="note">신고 대상 유저 · 자기 신고 금지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">reason</span><span class="t">varchar(12)</span></div><div class="note">SPAM / ABUSE / FRAUD / ETC</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">detail</span><span class="t">varchar(300)</span></div><div class="note">상세 사유 · 선택 입력</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">PENDING→ACCEPTED(대상 BLOCKED)/REJECTED</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">handled_by <em>→users</em></span><span class="t">int</span></div><div class="note">처리한 관리자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">handled_at</span><span class="t">timestamptz</span></div><div class="note">처리 시각</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">접수 시각</div></li>
+    </ul>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 모의투자 ── -->
+<section style="--dc:#237A52">
+  <h2>모의투자 시즌 <span class="cnt">10</span></h2>
+  <div class="grid">
+
+  <article><header><h3>seasons</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">mode</span><span class="t">varchar(10)</span></div><div class="note">PRACTICE / COMPETITION / DEMO · 부트스트랩·블라인드·보상 결정</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">length_days</span><span class="t">int</span></div><div class="note">총 게임일(120) · 종료 조건</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">initial_cash</span><span class="t">numeric(14,2)</span></div><div class="note">초기 예수금 · 전원 공통 출발선</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">seed</span><span class="t">bigint</span></div><div class="note">블록 부트스트랩 시드 · 시즌 가격 전체의 재현 근거</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">current_day</span><span class="t">int</span></div><div class="note">대회 공용 진행일 · 공개 가능한 가격·뉴스의 상한</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">SCHEDULED→RUNNING→CLOSED · CLOSED 전 정답 비공개</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">opens_at <span class="nv">V3</span></span><span class="t">timestamptz</span></div><div class="note">대회 시작 시각(09:00) · 대회 외 모드는 NULL</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">closes_at <span class="nv">V3</span></span><span class="t">timestamptz</span></div><div class="note">대회 종료 시각(18:00)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">day_interval_minutes <span class="nv">V3</span></span><span class="t">int</span></div><div class="note">1게임일이 흐르는 실시간 간격 · 대회 60분 = 1게임일</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>season_tickers</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">season_id <em>→seasons</em></span><span class="t">int</span></div><div class="note">소속 시즌</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">display_name</span><span class="t">varchar(20)</span></div><div class="note">참가자에게 보이는 이름 · 블라인드면 "A사"</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">real_stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">정답 원본 종목 · CLOSED 전까지 응답 금지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">sector</span><span class="t">varchar(30)</span></div><div class="note">블라인드에도 공개하는 힌트 · 정답 누수 차단용 복제</div></li>
+    </ul>
+    <div class="uqrow">UQ (season_id, display_name)</div>
+  </article>
+
+  <article><header><h3>season_prices</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">ticker_id <em>→season_tickers</em></span><span class="t">int</span></div><div class="note">대상 종목</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">game_day</span><span class="t">int</span></div><div class="note">게임일 인덱스 · 실제 날짜 아님(커닝 차단)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">close</span><span class="t">numeric(14,2)</span></div><div class="note">그 게임일 종가 · 시작 시 seed로 일괄 생성 후 읽기 전용</div></li>
+    </ul>
+    <div class="uqrow">UQ (ticker_id, game_day)</div>
+  </article>
+
+  <article><header><h3>season_news</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">season_id <em>→seasons</em></span><span class="t">int</span></div><div class="note">소속 시즌</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">ticker_id <em>→season_tickers</em></span><span class="t">int</span></div><div class="note">대상 종목 · NULL이면 시장 전체 뉴스</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">game_day</span><span class="t">int</span></div><div class="note">공개 게임일 · 진행일 초과분은 응답 금지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">kind</span><span class="t">varchar(12)</span></div><div class="note">NEWS / DISCLOSURE / IR / EVENT(역사적 사건) / AI_HINT(AI 힌트) · AI_HINT만 생성물이고 나머지는 당시 실제 정보</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">title</span><span class="t">varchar(200)</span></div><div class="note">제목</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">종목명·연도 치환한 본문(블라인드 누수 차단) · 3000자 · AI_HINT는 그 게임일 사건 요약 + "생각해볼 것" 질문, 확률 수치는 넣지 않는다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">prompt_version <span class="nv">V4</span></span><span class="t">varchar(16)</span></div><div class="note">AI_HINT 생성에 쓴 프롬프트·모델 버전 · 나머지 kind는 NULL · 시즌 만들 때 게임일별로 미리 생성해 둔다</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>season_indicators</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">season_id <em>→seasons</em></span><span class="t">int</span></div><div class="note">소속 시즌</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">game_day</span><span class="t">int</span></div><div class="note">공개 게임일</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">code</span><span class="t">varchar(16)</span></div><div class="note">KOSPI / USDKRW / RATE(금리) / OIL / VIX</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">value</span><span class="t">numeric(14,4)</span></div><div class="note">그 게임일 값 · 차트 재료</div></li>
+    </ul>
+    <div class="uqrow">UQ (season_id, game_day, code)</div>
+  </article>
+
+  <article><header><h3>season_participants</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">season_id <em>→seasons</em></span><span class="t">int</span></div><div class="note">소속 시즌</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">참가자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">attempt_no <span class="nv">V4</span></span><span class="t">smallint</span></div><div class="note">시도 회차 · 대회(COMPETITION)는 1만 허용, 연습·시연은 증가 · 회차별 기록이 따로 남는다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">cash</span><span class="t">numeric(14,2)</span></div><div class="note">현재 예수금 · 매수 감소, 매도 증가</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">current_day <span class="nv">V3</span></span><span class="t">int</span></div><div class="note">개인 진행 게임일 · 연습 모드 이어하기 저장점</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">entry_tx_hash</span><span class="t">varchar(66)</span></div><div class="note">참가비 소각 tx · 연습(PRACTICE)은 NULL</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">참가 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (season_id, user_id, attempt_no) — 대회는 앱에서 attempt_no=1로 고정</div>
+  </article>
+
+  <article><header><h3>season_positions</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">participant_id <em>→season_participants</em></span><span class="t">int</span></div><div class="note">참가자</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">ticker_id <em>→season_tickers</em></span><span class="t">int</span></div><div class="note">보유 종목 · 참가자·종목 조합당 1행</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">qty</span><span class="t">int</span></div><div class="note">보유 수량 · 전량 매도로 0이 되면 행 삭제</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">avg_price</span><span class="t">numeric(14,2)</span></div><div class="note">평균 매입단가 · 실현손익 계산 기준</div></li>
+    </ul>
+    <div class="uqrow">UQ (participant_id, ticker_id)</div>
+  </article>
+
+  <article><header><h3>season_trades</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">participant_id <em>→season_participants</em></span><span class="t">int</span></div><div class="note">참가자 · append-only(수정·삭제 없음)</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">ticker_id <em>→season_tickers</em></span><span class="t">int</span></div><div class="note">체결 종목</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">side</span><span class="t">varchar(4)</span></div><div class="note">BUY / SELL</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">qty</span><span class="t">int</span></div><div class="note">체결 수량 · 0 초과</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">price</span><span class="t">numeric(14,2)</span></div><div class="note">체결가 = 그 게임일 종가 · 슬리피지 없음</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">game_day</span><span class="t">int</span></div><div class="note">체결 게임일</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">요청 시각 · 같은 게임일 안의 순서</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>season_results</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">participant_id <em>→season_participants 1:1</em></span><span class="t">int</span></div><div class="note">공유 PK · 시즌 종료 시 1회 생성, 이후 불변</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">final_asset</span><span class="t">numeric(14,2)</span></div><div class="note">종료 시 총자산(예수금 + 평가금액)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">return_rate</span><span class="t">numeric(8,3)</span></div><div class="note">최종 수익률 %</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">benchmark_return</span><span class="t">numeric(8,3)</span></div><div class="note">같은 구간 벤치마크 수익률 % · 비교 차트 재료</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">max_drawdown</span><span class="t">numeric(8,3)</span></div><div class="note">최대 낙폭 %</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">win_rate</span><span class="t">numeric(5,2)</span></div><div class="note">승률 %</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">profit_factor</span><span class="t">numeric(8,3)</span></div><div class="note">손익비 · 손실 0이면 정의 불가라 NULL</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">avg_holding_days</span><span class="t">numeric(6,2)</span></div><div class="note">평균 보유일(게임일 기준)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">score</span><span class="t">numeric(8,3)</span></div><div class="note">랭킹 점수 · rankings가 읽는 입력값</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">grade</span><span class="t">varchar(2)</span></div><div class="note">S~D 등급 · 산정 기준은 코드에</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">review_body</span><span class="t">text</span></div><div class="note">AI 복기 리포트 본문 · NULL이면 생성 전</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">reviewed_at</span><span class="t">timestamptz</span></div><div class="note">복기 생성 시각</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">prompt_version <span class="nv">V4</span></span><span class="t">varchar(16)</span></div><div class="note">복기 생성에 쓴 프롬프트·모델 버전 태그</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">closed_at</span><span class="t">timestamptz</span></div><div class="note">시즌 종료 확정 시각</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>user_badges</h3><span class="v3">V3</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">획득자</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">badge_code</span><span class="t">varchar(24)</span></div><div class="note">배지 코드 · 이름·설명·달성 조건은 앱 상수</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">season_id <em>→seasons</em></span><span class="t">int</span></div><div class="note">처음 딴 시즌 기록 · 실전 트랙 배지는 NULL · 배지는 계정당 평생 1회라 재획득 시 행이 늘지 않는다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">pinned</span><span class="t">boolean</span></div><div class="note">프로필 전시 여부</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">획득 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (user_id, badge_code)</div>
+  </article>
+
+  </div>
+</section>
+
+<!-- ── 랭킹·배치 ── -->
+<section style="--dc:#55606E">
+  <h2>랭킹 · 배치 <span class="cnt">2</span></h2>
+  <div class="grid">
+
+  <article><header><h3>rankings</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">track</span><span class="t">varchar(8)</span></div><div class="note">REAL / REPLAY · 리플레이 실적은 실전에 미반영</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">filter_key</span><span class="t">varchar(30)</span></div><div class="note">기간·섹터·시즌 필터 조합 키</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">집계 대상</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">score</span><span class="t">numeric(8,3)</span></div><div class="note">종합 점수 · 입력은 아래 done_count·hit_rate·avg_error 3종 · 구독자 수는 넣지 않는다(인기투표 회귀) · 가중치 비율은 미정</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">hit_rate</span><span class="t">numeric(5,2)</span></div><div class="note">적중률 % · HIT/(HIT+MISS)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">avg_error</span><span class="t">numeric(6,3)</span></div><div class="note">평균 목표가 오차 %</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">done_count</span><span class="t">int</span></div><div class="note">판정 완료 수 · 표본 부족 가중 판단</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">rank</span><span class="t">int</span></div><div class="note">사전 계산 순위 · 저장이 존재 이유</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">computed_at</span><span class="t">timestamptz</span></div><div class="note">배치 산출 시각</div></li>
+    </ul>
+    <div class="uqrow">UQ (track, filter_key, user_id)</div>
+  </article>
+
+  <article><header><h3>batch_runs</h3></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
+      <li><div class="row"><span class="k uq">UQ</span><span class="c">business_date</span><span class="t">date</span></div><div class="note">영업일당 1회 실행 · 중복 실행 방지 키</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">opened_count</span><span class="t">int</span></div><div class="note">기준가 확정(OPEN 전환) 건수</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">verified_count</span><span class="t">int</span></div><div class="note">만기 판정 건수</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">hit_count</span><span class="t">int</span></div><div class="note">적중 건수</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">anchor_batch_id <em>→anchor_batches</em></span><span class="t">int</span></div><div class="note">그날의 머클 앵커</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(12)</span></div><div class="note">실행 결과 · 실패분은 다음 회차 재시도</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">started_at</span><span class="t">timestamptz</span></div><div class="note">배치 시작 시각</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">finished_at</span><span class="t">timestamptz</span></div><div class="note">배치 종료 시각</div></li>
+    </ul>
+  </article>
+
+  </div>
+</section>
+
+</div>
+</body>
+</html>
