@@ -15,3 +15,6 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.lnk
+
+# local tooling
+.erd-render/
