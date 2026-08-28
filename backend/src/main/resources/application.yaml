@@ -2,6 +2,12 @@ spring:
   application:
     name: backend
 
+  # compose 와 같은 .env 한 벌을 서버도 읽는다. 실제 환경변수가 있으면 그쪽이 이긴다.
+  config:
+    import:
+      - optional:file:./.env[.properties]
+      - optional:file:../.env[.properties]
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:antenna}
     username: ${DB_USER:antenna}
@@ -9,7 +15,7 @@ spring:
 
   jpa:
     hibernate:
-      # 스키마 확정 전까지만. 설계 끝나면 Flyway 로 옮긴다.
+      # 엔티티가 스키마의 단일 진실 원천. JPA 가 테이블을 만든다.
       ddl-auto: update
     open-in-view: false
     properties:

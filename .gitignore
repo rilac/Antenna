@@ -18,3 +18,7 @@ $RECYCLE.BIN/
 
 # local tooling
 .erd-render/
+
+# 대외비 문서 (커밋 금지)
+docs/토큰증권_API_명세.md
+docs/금융망_API_명세.md
