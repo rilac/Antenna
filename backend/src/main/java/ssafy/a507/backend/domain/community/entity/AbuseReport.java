@@ -84,4 +84,36 @@ public class AbuseReport {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /*
+     * 대상별 정적 팩터리 셋. 생성 경로를 셋으로 나눠두면
+     * "대상 셋 중 정확히 하나"를 런타임 검사 없이 타입 수준에서 지킬 수 있다.
+     */
+
+    public static AbuseReport againstPost(User reporter, FeedPost post, Reason reason, String detail) {
+        AbuseReport report = newPending(reporter, reason, detail);
+        report.targetPost = post;
+        return report;
+    }
+
+    public static AbuseReport againstComment(User reporter, PostComment comment, Reason reason, String detail) {
+        AbuseReport report = newPending(reporter, reason, detail);
+        report.targetComment = comment;
+        return report;
+    }
+
+    public static AbuseReport againstUser(User reporter, User target, Reason reason, String detail) {
+        AbuseReport report = newPending(reporter, reason, detail);
+        report.targetUser = target;
+        return report;
+    }
+
+    private static AbuseReport newPending(User reporter, Reason reason, String detail) {
+        AbuseReport report = new AbuseReport();
+        report.reporter = reporter;
+        report.reason = reason;
+        report.detail = detail;
+        report.status = Status.PENDING;
+        return report;
+    }
 }
