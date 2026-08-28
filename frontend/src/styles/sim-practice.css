@@ -1,0 +1,124 @@
+/* ANTENA prototype — 모의 투자 연습하기 모드 (sim-practice.html) */
+
+.practice{display:flex;flex-direction:column;gap:20px;max-width:1420px}
+.pr-card{background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow)}
+
+/* 난이도별 표시 */
+body[data-level="basic"] .pro-only{display:none !important}
+body[data-level="pro"] .basic-only{display:none !important}
+
+/* ── 헤더 ───────────────────────────────────────────── */
+.pr-head{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.pr-head h1{margin:0 0 8px;color:#0e1330;font-size:34px;font-weight:850;letter-spacing:-.04em}
+.pr-head p{margin:0;color:#79809c;font-size:15px;font-weight:650}
+.pr-levels{display:flex;gap:6px;margin-left:auto;padding:5px;border:1px solid var(--rule);border-radius:14px;background:var(--surface)}
+.pr-levels button{display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 24px;border-radius:11px;color:#79809c;font-size:15px;font-weight:750}
+.pr-levels button:hover{color:var(--ink)}
+.pr-levels button.on{border:1px solid var(--brand);background:#f5f4fe;color:var(--brand-ink)}
+.pr-levels button.on svg{color:var(--brand)}
+
+/* ── 요약 스트립 ────────────────────────────────────── */
+.pr-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:0}
+.pr-stat{display:flex;align-items:center;gap:20px;padding:24px 28px;border-left:1px solid var(--rule)}
+.pr-stat:first-child{border-left:0}
+.pr-ring{position:relative;width:78px;height:78px;flex:none}
+.pr-ring svg{transform:rotate(-90deg)}
+.pr-ring span{position:absolute;inset:0;display:grid;place-content:center;color:#16a06a;font:850 15px var(--mono)}
+.pr-stat > i{display:grid;place-items:center;width:70px;height:70px;flex:none;border-radius:50%}
+.pr-tone-v{background:#eeecfd;color:#6355e8}
+.pr-tone-o{background:#fdf1e6;color:#ef7f1a}
+.pr-stat div{min-width:0}
+.pr-stat dt{margin:0 0 8px;color:#5b6280;font-size:15px;font-weight:800}
+.pr-stat dd{margin:0;color:#0e1330;font:850 27px var(--mono);letter-spacing:-.03em}
+.pr-stat dd.brand{color:var(--brand)}
+.pr-stat dd.hot{color:#ef7f1a}
+.pr-stat small{display:block;margin-top:7px;color:#8a90ab;font-size:13.5px;line-height:1.55;font-weight:650}
+
+/* ── 본문 2열 ───────────────────────────────────────── */
+.pr-body{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(0,1fr);gap:20px;align-items:start}
+.pr-col{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+.pr-panel{padding:22px 24px}
+.pr-panel-head{display:flex;align-items:center;gap:11px;margin:0 0 18px}
+.pr-panel-head h2{margin:0;color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em}
+.pr-num{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;background:var(--brand);color:#fff;font:800 13px var(--mono)}
+.pr-more{margin-left:auto;color:#8a93ad;font-size:13.5px;font-weight:700;white-space:nowrap}
+.pr-more:hover{color:var(--brand)}
+
+/* 오늘의 연습 코스 */
+.pr-courses{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.pr-course{display:flex;flex-direction:column;padding:20px;border:1px solid var(--rule);border-radius:16px}
+.pr-course > i{display:grid;place-items:center;width:52px;height:52px;margin-bottom:16px;border-radius:15px}
+.pr-course b{display:block;margin-bottom:10px;color:#161c37;font-size:17px;font-weight:850;letter-spacing:-.02em;word-break:keep-all}
+.pr-course p{margin:0 0 20px;color:#79809c;font-size:13.5px;line-height:1.65;font-weight:650;word-break:keep-all}
+.pr-start{display:flex;align-items:center;justify-content:center;gap:10px;height:48px;margin-top:auto;border:1px solid #cdc9f7;border-radius:12px;color:var(--brand);font-size:14.5px;font-weight:800}
+.pr-start:hover{background:var(--brand-softer);border-color:var(--brand)}
+.pr-start em{font-style:normal;font-size:17px}
+
+/* 추천 시나리오 */
+.pr-scenarios{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.pr-scenario{display:flex;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--rule);border-radius:16px;transition:border-color .14s,background .14s}
+.pr-scenario:hover{border-color:#cdc9f7;background:#fbfbff}
+.pr-scenario > i{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:15px}
+.pr-scenario div{flex:1;min-width:0}
+.pr-scenario b{display:block;margin-bottom:6px;color:#161c37;font-size:16.5px;font-weight:850;letter-spacing:-.02em}
+.pr-scenario small{color:#79809c;font-size:13.5px;font-weight:650;word-break:keep-all}
+.pr-scenario em{flex:none;font-style:normal;color:#b3b9c9;font-size:19px}
+.pr-scenario:hover em{color:var(--brand)}
+
+/* 나의 연습 성과 */
+.pr-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--rule);border-radius:16px;overflow:hidden}
+.pr-result{padding:20px;border-left:1px solid var(--rule)}
+.pr-result:first-child{border-left:0}
+.pr-result dt{display:flex;align-items:center;gap:10px;margin:0 0 14px;color:#5b6280;font-size:14.5px;font-weight:800}
+.pr-result dt i{display:grid;place-items:center;width:32px;height:32px;flex:none;border-radius:10px;background:#eeecfd;color:#6355e8}
+.pr-result dd{margin:0;color:#0e1330;font:850 26px var(--mono);letter-spacing:-.03em;white-space:nowrap}
+.pr-result dd.brand{color:var(--brand)}
+.pr-result dd span{margin-left:6px;color:#16a06a;font-size:14px;font-weight:800}
+.pr-result small{display:block;margin-top:8px;color:#8a90ab;font-size:13px;font-weight:700}
+.pr-spark{padding:20px;border-left:1px solid var(--rule)}
+.pr-spark p{display:flex;align-items:baseline;gap:8px;margin:0 0 10px;color:#5b6280;font-size:14px;font-weight:800}
+.pr-spark p small{color:#98a0b6;font-size:12.5px;font-weight:650}
+.pr-spark svg{display:block;width:100%;height:auto}
+
+/* AI 가이드 */
+.pr-ai{position:relative;overflow:hidden;padding:22px 24px;border:1px solid #dedbf8;border-radius:18px;background:linear-gradient(135deg,#f4f3fe 0%,#f8f8ff 58%,#f0effd 100%)}
+.pr-ai-inner{position:relative;z-index:1;max-width:64%;padding:22px 24px;background:rgba(255,255,255,.86);border:1px solid #e6e4f7;border-radius:16px}
+.pr-ai-inner b{display:block;margin-bottom:12px;color:var(--brand-ink);font-size:19px;font-weight:850;letter-spacing:-.025em;word-break:keep-all}
+.pr-ai-inner p{margin:0 0 20px;color:#5b6280;font-size:14px;line-height:1.7;font-weight:650;word-break:keep-all}
+.pr-hint{display:inline-flex;align-items:center;justify-content:center;gap:9px;width:100%;height:50px;border:1px solid #cdc9f7;border-radius:12px;background:var(--surface);color:var(--brand);font-size:14.5px;font-weight:800}
+.pr-hint:hover{background:var(--brand-softer);border-color:var(--brand)}
+.pr-ai-art{position:absolute;right:6px;bottom:0;width:210px;margin:0;pointer-events:none}
+.pr-ai-art img{display:block;width:100%;height:auto;filter:drop-shadow(0 18px 26px rgba(70,66,229,.22))}
+
+/* 시작 버튼 */
+.pr-cta{display:flex;justify-content:flex-end}
+.pr-cta a{display:inline-flex;align-items:center;justify-content:center;gap:14px;min-width:340px;height:66px;padding:0 34px;border-radius:14px;background:var(--brand);color:#fff;font-size:19px;font-weight:850;letter-spacing:-.02em;box-shadow:0 14px 30px -16px rgba(70,66,229,.7)}
+.pr-cta a:hover{background:var(--brand-ink)}
+.pr-cta a:active{transform:translateY(1px)}
+.pr-cta em{font-style:normal;font-size:22px}
+
+@media(max-width:1180px){
+  .pr-body{grid-template-columns:minmax(0,1fr)}
+  .pr-ai-inner{max-width:100%}
+  .pr-ai-art{display:none}
+}
+@media(max-width:900px){
+  .pr-stats{grid-template-columns:minmax(0,1fr)}
+  .pr-stat{border-left:0;border-top:1px solid var(--rule)}
+  .pr-stat:first-child{border-top:0}
+  .pr-courses{grid-template-columns:minmax(0,1fr)}
+  .pr-results{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pr-result:nth-child(3),.pr-spark{border-top:1px solid var(--rule)}
+  .pr-result:nth-child(odd){border-left:0}
+  .pr-spark{border-left:1px solid var(--rule)}
+}
+@media(max-width:640px){
+  .pr-head h1{font-size:26px}
+  .pr-levels{width:100%;margin-left:0}
+  .pr-levels button{flex:1;justify-content:center;padding:0 12px}
+  .pr-results{grid-template-columns:minmax(0,1fr)}
+  .pr-result,.pr-spark{border-left:0;border-top:1px solid var(--rule)}
+  .pr-result:first-child{border-top:0}
+  .pr-cta a{width:100%;min-width:0}
+}

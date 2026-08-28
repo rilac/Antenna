@@ -1,0 +1,72 @@
+/* ANTENA prototype — 로그인 / 회원가입 (SSO) */
+.auth{
+  min-height:100vh;display:grid;place-items:center;padding:42px;
+  background:
+    radial-gradient(circle at 18% 16%,rgba(160,139,255,.24),transparent 34%),
+    radial-gradient(circle at 82% 82%,rgba(116,180,255,.18),transparent 32%),
+    linear-gradient(145deg,#f6f5ff 0%,#f9faff 45%,#eef1ff 100%);
+}
+.auth-shell{
+  display:grid;grid-template-columns:minmax(0,1.35fr) minmax(380px,.72fr);
+  width:min(1240px,100%);min-height:660px;overflow:hidden;
+  border:1px solid rgba(213,217,240,.9);border-radius:30px;background:#fff;
+  box-shadow:0 34px 90px -50px rgba(41,44,112,.5);
+}
+.auth-intro{
+  position:relative;display:flex;flex-direction:column;gap:26px;min-width:0;
+  padding:38px 34px 34px 40px;
+  background:linear-gradient(135deg,#efedff,#f8f8ff 58%,#e7ecff);
+}
+.intro-brand{display:flex;align-items:center;gap:11px;flex:none}
+.intro-brand .mark{width:26px;height:26px;flex:none;color:var(--brand)}
+.intro-brand .name{font-size:19px;font-weight:800;letter-spacing:.01em;color:var(--ink)}
+.intro-brand .sep{width:1px;height:16px;background:#c7cae2;margin:0 3px}
+.intro-brand .tag{font-size:12.5px;font-weight:600;color:var(--muted)}
+
+.intro-body{
+  flex:1;display:grid;align-items:center;gap:8px;min-height:0;
+  grid-template-columns:minmax(0,1fr) minmax(0,.8fr);
+}
+.intro-copy{min-width:0}
+.intro-copy .eyebrow{margin:0 0 10px;font-size:13px;font-weight:800;letter-spacing:.08em;color:var(--brand)}
+.intro-copy h1{margin:0 0 14px;font-size:30px;line-height:1.32;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+.intro-copy .lead{margin:0 0 26px;font-size:13.5px;line-height:1.72;color:var(--muted)}
+
+.feats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px}
+.feat{display:flex;align-items:flex-start;gap:13px}
+.feat-ic{
+  width:42px;height:42px;flex:none;border-radius:13px;display:grid;place-items:center;
+  background:#fff;color:var(--brand);
+  box-shadow:0 1px 2px rgba(20,20,27,.05),0 8px 20px -14px rgba(58,60,140,.55);
+}
+.feat h3{margin:1px 0 4px;font-size:14px;font-weight:700;color:var(--ink)}
+.feat p{margin:0;font-size:12px;line-height:1.6;color:var(--muted)}
+
+.intro-art{position:relative;margin:0;align-self:stretch;min-width:0}
+.intro-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:center bottom}
+.intro-art:after{content:"";position:absolute;inset:auto 14% 6%;height:26px;border-radius:50%;background:rgba(78,67,180,.13);filter:blur(18px)}
+.character-glow{position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.68);box-shadow:0 0 36px rgba(107,98,235,.2)}
+.glow-one{left:2%;top:12%;width:54px;height:54px}
+.glow-two{right:4%;bottom:16%;width:30px;height:30px}
+
+.sso{position:relative;display:flex;justify-content:center;flex-direction:column;padding:64px 48px;background:#fff}
+.auth-back{position:absolute;left:48px;top:34px;color:#7a85a0;font-size:13px;font-weight:700;transition:color .15s}.auth-back:hover{color:var(--brand)}
+.sso h2{margin:0 0 12px;text-align:center;color:var(--ink);font-size:28px;font-weight:850;letter-spacing:-.025em}
+.sso .sub{margin:0 0 38px;text-align:center;color:var(--muted);font-size:14px}
+.sso-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:62px;border-radius:14px;font-size:16px;font-weight:750;letter-spacing:-.01em;transition:background .15s,border-color .15s,transform .06s,box-shadow .15s}
+.sso-btn+.sso-btn{margin-top:14px}.sso-btn:active{transform:translateY(1px)}.sso-btn svg{flex:none}
+.sso-btn.ssafy{background:linear-gradient(135deg,#5850f4,#393df0);box-shadow:0 10px 22px rgba(70,66,229,.2);color:#fff}.sso-btn.ssafy:hover{background:linear-gradient(135deg,#4a43e8,#3035dd)}
+.sso-btn.google{border:1px solid var(--rule);background:#fff;color:var(--ink)}.sso-btn.google:hover{border-color:#bfc4da;background:#fbfbff}
+.sso-foot{margin:30px 0 0;text-align:center;color:var(--faint);font-size:11.5px;line-height:1.75}.sso-foot a{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+
+@media(max-width:900px){
+  .auth{align-items:start;padding:22px}.auth-shell{grid-template-columns:1fr;min-height:0;border-radius:24px}.intro-body{grid-template-columns:minmax(0,1fr);gap:0}.intro-art{display:none}.sso{padding:72px 34px 42px}.auth-back{left:34px;top:27px}
+}
+@media(max-width:520px){
+  .auth{padding:0;background:#fff}.auth-shell{width:100%;border:0;border-radius:0;box-shadow:none}.auth-intro{padding:26px 22px}.intro-copy h1{font-size:25px}.feats{gap:13px}.sso{padding:58px 22px 32px}.auth-back{left:22px;top:22px}.sso h2{font-size:24px}.sso .sub{margin-bottom:28px}.sso-btn{height:58px}.sso-foot{margin-top:24px}
+}
+
+@media(max-width:1080px) and (min-width:901px){
+  .intro-body{grid-template-columns:minmax(0,1fr)}
+  .intro-art{display:none}
+}

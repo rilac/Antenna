@@ -1,0 +1,120 @@
+/* ANTENA prototype — 모의 투자 리서치 (sim-research.html) */
+
+.sim-research{display:flex;flex-direction:column;gap:20px;max-width:1440px}
+.rs-card{background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow)}
+
+/* ── 시나리오 바 ────────────────────────────────────── */
+.rs-scenario{display:flex;align-items:center;gap:0;flex-wrap:wrap;padding:20px 24px}
+.rs-block{display:flex;flex-direction:column;gap:7px;padding:0 26px;border-left:1px solid var(--rule)}
+.rs-block:first-child{padding-left:0;border-left:0}
+.rs-flag{align-self:flex-start;padding:5px 12px;border-radius:8px;background:var(--brand-soft);color:#6355e8;font-size:12.5px;font-weight:800}
+.rs-title{display:flex;align-items:center;gap:10px;margin:0;color:#0e1330;font-size:24px;font-weight:850;letter-spacing:-.035em}
+.rs-info{display:grid;place-items:center;width:17px;height:17px;flex:none;border-radius:50%;background:#e7eaf3;color:#8d95ab;font:800 10px/1 var(--sans);font-style:normal;cursor:help}
+.rs-block dt{margin:0;color:#8a90ab;font-size:13.5px;font-weight:700}
+.rs-block dd{margin:0;color:#0e1330;font:850 21px var(--mono);letter-spacing:-.02em;white-space:nowrap}
+.rs-block dd small{margin-left:4px;color:#8a90ab;font-size:14px;font-weight:700}
+.rs-day{align-items:center;text-align:center}
+.rs-day dd{font-size:23px}
+
+.rs-mood{flex:1;min-width:220px;display:flex;align-items:center;gap:14px;padding:0 26px;border-left:1px solid var(--rule)}
+.rs-mood svg{flex:none}
+.rs-mood b{display:block;margin-bottom:6px;color:#141a3c;font-size:17px;font-weight:850;letter-spacing:-.02em}
+.rs-mood span{color:#79809c;font-size:14px;font-weight:650}
+.rs-guide{flex:none;display:inline-flex;align-items:center;height:52px;padding:0 26px;border-radius:12px;background:var(--brand);color:#fff;font-size:15.5px;font-weight:800}
+.rs-guide:hover{background:var(--brand-ink)}
+
+/* ── 출처 탭 ────────────────────────────────────────── */
+.rs-sources{display:flex;flex-wrap:wrap;gap:14px}
+.rs-source{display:inline-flex;align-items:center;justify-content:center;gap:12px;flex:1 1 180px;max-width:270px;height:72px;padding:0 22px;border:1px solid var(--rule);border-radius:16px;background:var(--surface);color:#5b6280;font-size:17px;font-weight:800;letter-spacing:-.01em;transition:border-color .14s,background .14s,color .14s}
+.rs-source svg{flex:none;color:#8a93ad}
+.rs-source:hover{border-color:#cdc9f7;color:var(--ink)}
+.rs-source.on{border-color:var(--brand);background:#f4f3fe;color:var(--brand-ink)}
+.rs-source.on svg{color:var(--brand)}
+
+/* ── 패널 공통 ──────────────────────────────────────── */
+.rs-grid{display:grid;grid-template-columns:minmax(0,.86fr) minmax(0,1.12fr) minmax(0,1fr);gap:20px;align-items:start}
+.rs-panel{display:flex;flex-direction:column;padding:22px 24px}
+.rs-panel-head{display:flex;align-items:center;gap:9px;margin:0 0 20px}
+.rs-panel-head h2{display:flex;align-items:center;gap:11px;margin:0;color:var(--ink);font-size:18px;font-weight:850;letter-spacing:-.025em}
+.rs-panel-head h2 svg{color:var(--brand)}
+.rs-panel-head h2 small{color:#98a0b6;font-size:14px;font-weight:650}
+.rs-more{margin-left:auto;color:var(--brand);font-size:13.5px;font-weight:750;white-space:nowrap}
+.rs-more:hover{color:var(--brand-ink)}
+
+/* AI 브리핑 */
+.rs-bullets{list-style:none;margin:0 0 22px;padding:0;display:flex;flex-direction:column;gap:18px}
+.rs-bullets li{display:flex;align-items:flex-start;gap:12px;color:#3b4159;font-size:15px;line-height:1.55;font-weight:650}
+.rs-bullets i{display:grid;place-items:center;width:22px;height:22px;flex:none;margin-top:1px;border-radius:50%;background:var(--brand);color:#fff}
+.rs-detail{display:flex;align-items:center;justify-content:center;height:54px;margin-top:auto;border:1px solid #ddd9f8;border-radius:12px;background:#faf9ff;color:var(--brand);font-size:15px;font-weight:800}
+.rs-detail:hover{background:var(--brand-softer);border-color:var(--brand)}
+
+/* 뉴스 */
+.rs-news{list-style:none;margin:0;padding:0}
+.rs-news li{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:center;gap:18px;padding:16px 0}
+.rs-news li + li{border-top:1px solid #f0f2f7}
+.rs-news dl{margin:0}
+.rs-news dt{color:#79809c;font-size:13.5px;font-weight:750}
+.rs-news dd{margin:4px 0 0;color:#a2a9bd;font:650 12.5px var(--mono)}
+.rs-news a{color:#2c3350;font-size:15px;font-weight:750;line-height:1.5;word-break:keep-all}
+.rs-news a:hover{color:var(--brand)}
+
+/* 경제지표 */
+.rs-metrics{list-style:none;margin:0;padding:0}
+.rs-metrics li{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:14px 0}
+.rs-metrics li + li{border-top:1px solid #f0f2f7}
+.rs-metrics i{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;font-style:normal}
+.rs-metrics b{color:#2c3350;font-size:15px;font-weight:750}
+.rs-metrics .val{color:#141a3c;font:800 15.5px var(--mono);white-space:nowrap}
+.rs-metrics .chg{width:78px;text-align:right;font:800 15px var(--mono);white-space:nowrap}
+
+/* ── 하단 2열 ───────────────────────────────────────── */
+.rs-bottom{display:grid;grid-template-columns:minmax(0,.76fr) minmax(0,1.24fr);gap:20px;align-items:start}
+
+/* 기업 브리핑 */
+.rs-company{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+.rs-logo{display:grid;place-items:center;width:116px;height:44px;flex:none;border-radius:999px;background:#0b3c88;color:#fff;font:800 15px/1 var(--sans);letter-spacing:.04em}
+.rs-company b{color:#141a3c;font-size:24px;font-weight:850;letter-spacing:-.03em}
+.rs-company span{color:#98a0b6;font:700 15px var(--mono)}
+.rs-asof{margin:0 0 20px;color:#98a0b6;font:650 13.5px var(--mono)}
+.rs-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 0 20px}
+.rs-figures div{padding:0 16px;border-left:1px solid var(--rule)}
+.rs-figures div:first-child{padding-left:0;border-left:0}
+.rs-figures dt{margin:0 0 9px;color:#8a90ab;font-size:13.5px;font-weight:700}
+.rs-figures dd{margin:0;color:#0e1330;font:850 21px var(--mono);letter-spacing:-.02em;white-space:nowrap}
+.rs-figures dd small{display:block;margin-top:5px;font-size:14px;font-weight:750}
+.rs-note{margin:0;padding-top:20px;border-top:1px solid #f0f2f7;color:#5b6280;font-size:14.5px;line-height:1.6;font-weight:650}
+
+/* 타임라인 */
+.rs-timeline{list-style:none;margin:0;padding:0 0 0 4px}
+.rs-event{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:16px;padding:14px 0 14px 34px}
+.rs-event:before{content:"";position:absolute;left:9px;top:0;bottom:0;width:2px;background:#e7eaf3}
+.rs-event:first-child:before{top:50%}
+.rs-event:last-child:before{bottom:50%}
+.rs-dot{position:absolute;left:2px;top:50%;transform:translateY(-50%);width:16px;height:16px;border:2.5px solid #c8cddb;border-radius:50%;background:#fff}
+.rs-event.now .rs-dot{border-color:var(--brand);background:var(--brand)}
+.rs-event-body{min-width:0;padding:10px 16px;border-radius:12px}
+.rs-event.now .rs-event-body{background:#f2f1fd}
+.rs-event b{display:block;margin-bottom:5px;color:#2c3350;font-size:15.5px;font-weight:800;letter-spacing:-.01em;word-break:keep-all}
+.rs-event.now b{color:var(--brand-ink)}
+.rs-event small{color:#8a90ab;font-size:13.5px;font-weight:650;word-break:keep-all}
+.rs-event time{flex:none;color:#98a0b6;font:650 13.5px var(--mono);white-space:nowrap}
+
+@media(max-width:1240px){
+  .rs-grid{grid-template-columns:minmax(0,1fr)}
+  .rs-bottom{grid-template-columns:minmax(0,1fr)}
+  .rs-detail{margin-top:0}
+}
+@media(max-width:900px){
+  .rs-scenario{gap:18px}
+  .rs-block,.rs-mood{padding:0;border-left:0}
+  .rs-day{align-items:flex-start;text-align:left}
+  .rs-guide{width:100%;justify-content:center}
+}
+@media(max-width:640px){
+  .rs-title{font-size:20px}
+  .rs-source{flex:1 1 100%;max-width:none}
+  .rs-news li{grid-template-columns:minmax(0,1fr);gap:8px}
+  .rs-figures{grid-template-columns:minmax(0,1fr);gap:16px}
+  .rs-figures div{padding:0;border-left:0}
+  .rs-event{grid-template-columns:minmax(0,1fr);gap:6px}
+}

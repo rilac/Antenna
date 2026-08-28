@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 300" width="460" height="300" role="img" aria-label="네트워크 구체 옆에서 손을 흔드는 ANTENA 마스코트">
+  <defs>
+    <linearGradient id="pbSuit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a4b"/><stop offset="1" stop-color="#1b1b26"/>
+    </linearGradient>
+    <linearGradient id="pbHelm" x1=".2" y1="0" x2=".8" y2="1">
+      <stop offset="0" stop-color="#43435a"/><stop offset="1" stop-color="#1d1d29"/>
+    </linearGradient>
+    <radialGradient id="pbFace" cx=".42" cy=".36" r=".72">
+      <stop offset="0" stop-color="#fff7ec"/><stop offset="1" stop-color="#f6e2cd"/>
+    </radialGradient>
+    <radialGradient id="pbOrb" cx=".38" cy=".32" r=".72">
+      <stop offset="0" stop-color="#b9b6ff" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#6c63e8" stop-opacity=".22"/>
+    </radialGradient>
+    <radialGradient id="pbGlow" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#c3bffb" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#c3bffb" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <circle cx="230" cy="160" r="150" fill="url(#pbGlow)"/>
+
+  <!-- 네트워크 구체 -->
+  <g transform="translate(86 186)">
+    <circle r="70" fill="url(#pbOrb)"/>
+    <circle r="70" fill="none" stroke="#9a95f2" stroke-width="1.2" opacity=".55"/>
+    <ellipse rx="70" ry="26" fill="none" stroke="#9a95f2" stroke-width="1" opacity=".4"/>
+    <ellipse rx="70" ry="50" fill="none" stroke="#9a95f2" stroke-width="1" opacity=".3"/>
+    <ellipse rx="26" ry="70" fill="none" stroke="#9a95f2" stroke-width="1" opacity=".4"/>
+    <ellipse rx="50" ry="70" fill="none" stroke="#9a95f2" stroke-width="1" opacity=".3"/>
+    <g fill="#8d87ef">
+      <circle cx="-48" cy="-26" r="3.4"/><circle cx="8" cy="-56" r="3"/><circle cx="52" cy="-14" r="3.4"/>
+      <circle cx="-22" cy="30" r="3"/><circle cx="34" cy="46" r="3.4"/><circle cx="-60" cy="18" r="2.6"/>
+    </g>
+    <g stroke="#8d87ef" stroke-width="1.1" opacity=".65" fill="none">
+      <path d="M-48-26 8-56 52-14M-48-26-22 30 34 46M8-56 52-14 34 46M-60 18-22 30"/>
+    </g>
+  </g>
+
+  <!-- 마스코트 -->
+  <g>
+    <!-- 더듬이 -->
+    <path d="M212 62c-6-16-14-26-22-32" stroke="#2c2c3a" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <path d="M286 60c7-15 16-24 25-29" stroke="#2c2c3a" stroke-width="7" stroke-linecap="round" fill="none"/>
+    <circle cx="187" cy="27" r="15" fill="#a78bfa"/>
+    <circle cx="182" cy="21" r="5" fill="#d9ccff" opacity=".85"/>
+    <circle cx="313" cy="29" r="15" fill="#5cb4f5"/>
+    <circle cx="308" cy="23" r="5" fill="#c7e6ff" opacity=".85"/>
+
+    <!-- 다리 -->
+    <path d="M222 262v18a16 16 0 0 0 32 0v-18z" fill="#23232f"/>
+    <path d="M256 262v18a16 16 0 0 0 32 0v-18z" fill="#23232f"/>
+    <ellipse cx="238" cy="286" rx="24" ry="12" fill="#2c2c3a"/>
+    <ellipse cx="272" cy="286" rx="24" ry="12" fill="#2c2c3a"/>
+
+    <!-- 몸통 -->
+    <ellipse cx="252" cy="228" rx="56" ry="50" fill="url(#pbSuit)"/>
+    <path d="M252 212l14 8v16l-14 8-14-8v-16z" fill="none" stroke="#8f8bf2" stroke-width="3.4" stroke-linejoin="round"/>
+
+    <!-- 손 흔드는 팔 -->
+    <path d="M204 214c-24-8-40-30-44-56" stroke="#26262f" stroke-width="20" stroke-linecap="round" fill="none"/>
+    <circle cx="158" cy="150" r="20" fill="#2c2c3a"/>
+    <g fill="#2c2c3a">
+      <rect x="142" y="120" width="9" height="26" rx="4.5"/>
+      <rect x="153" y="115" width="9" height="31" rx="4.5"/>
+      <rect x="164" y="118" width="9" height="28" rx="4.5"/>
+      <rect x="175" y="126" width="9" height="22" rx="4.5"/>
+    </g>
+
+    <!-- 구체를 잡은 팔 -->
+    <path d="M300 220c14 2 24 10 28 20" stroke="#26262f" stroke-width="19" stroke-linecap="round" fill="none"/>
+
+    <!-- 머리 -->
+    <ellipse cx="250" cy="140" rx="82" ry="78" fill="url(#pbHelm)"/>
+    <ellipse cx="252" cy="144" rx="58" ry="56" fill="url(#pbFace)"/>
+    <ellipse cx="176" cy="146" rx="15" ry="21" fill="#3a3a4d"/>
+    <ellipse cx="176" cy="146" rx="8" ry="13" fill="none" stroke="#9b93f5" stroke-width="2.6"/>
+    <ellipse cx="326" cy="146" rx="15" ry="21" fill="#3a3a4d"/>
+    <ellipse cx="326" cy="146" rx="8" ry="13" fill="none" stroke="#9b93f5" stroke-width="2.6"/>
+
+    <!-- 눈썹 · 눈 · 볼 · 입 -->
+    <path d="M214 116q11-8 22-1" stroke="#43384a" stroke-width="4.6" stroke-linecap="round" fill="none"/>
+    <path d="M272 115q11-7 22 1" stroke="#43384a" stroke-width="4.6" stroke-linecap="round" fill="none"/>
+    <ellipse cx="226" cy="144" rx="16" ry="20" fill="#2f2740"/>
+    <ellipse cx="282" cy="144" rx="16" ry="20" fill="#2f2740"/>
+    <circle cx="220" cy="136" r="6" fill="#fff"/><circle cx="231" cy="152" r="3" fill="#fff" opacity=".8"/>
+    <circle cx="276" cy="136" r="6" fill="#fff"/><circle cx="287" cy="152" r="3" fill="#fff" opacity=".8"/>
+    <ellipse cx="205" cy="167" rx="13" ry="8" fill="#f5aebb" opacity=".8"/>
+    <ellipse cx="303" cy="167" rx="13" ry="8" fill="#f5aebb" opacity=".8"/>
+    <path d="M240 172q14 20 28 0z" fill="#c9455a"/>
+    <path d="M240 172q14 5 28 0" stroke="#fff" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

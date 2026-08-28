@@ -1,0 +1,121 @@
+/* ANTENA prototype — 모의 투자 홈 (sim-index.html) */
+
+.sim-home{display:flex;flex-direction:column;gap:18px;max-width:1400px}
+
+/* ── 히어로 ─────────────────────────────────────────── */
+.sh-hero{
+  position:relative;overflow:hidden;
+  display:grid;grid-template-columns:minmax(0,50%);
+  align-content:center;gap:16px;padding:26px 32px;
+  border:1px solid #e6e5f7;border-radius:22px;
+  /* 배너: assets/sim-home-banner.png */
+  background:
+    linear-gradient(100deg,rgba(255,255,255,.86) 0%,rgba(255,255,255,.5) 34%,rgba(255,255,255,0) 56%),
+    url("/assets/sim-home-banner.png") right bottom / cover no-repeat,
+    linear-gradient(115deg,#f4f3fd 0%,#f7f7fe 44%,#eeeefb 100%);
+}
+.sh-hero-copy{position:relative;z-index:1}
+.sh-flag{display:inline-block;margin-bottom:10px;padding:5px 13px;border-radius:8px;background:var(--brand-soft);color:#6355e8;font-size:13px;font-weight:750}
+.sh-title{display:flex;align-items:center;gap:10px;margin:0 0 8px;color:#141a3c;font-size:34px;font-weight:850;letter-spacing:-.035em}
+.sh-title .sh-info{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:50%;background:#dcdcef;color:#7a819c;font-size:13px;font-weight:800;cursor:help}
+.sh-lead{margin:0 0 18px;color:#666d90;font-size:15.5px;line-height:1.75;font-weight:600}
+
+.sh-progress-label{margin:0 0 6px;color:#4a5170;font-size:14px;font-weight:750}
+.sh-progress{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.sh-bar{flex:1;min-width:0;height:11px;border-radius:999px;background:#e0e0ee;overflow:hidden}
+.sh-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#6f66ec,#5b52e6)}
+.sh-progress b{flex:none;color:#2a3054;font:800 17px var(--mono)}
+
+.sh-stats{display:flex;flex-wrap:wrap;gap:12px}
+.sh-stat{display:flex;align-items:center;gap:12px;padding:10px 16px;border:1px solid #e3e2f3;border-radius:14px;background:rgba(255,255,255,.72)}
+.sh-stat svg{flex:none;color:#6f66ec}
+.sh-stat dt{margin:0 0 3px;color:#8a90ab;font-size:12.5px;font-weight:700}
+.sh-stat dd{margin:0;color:#1c2245;font-size:16px;font-weight:800;white-space:nowrap}
+
+
+.sh-cta{display:flex;flex-direction:row;gap:13px}
+.sh-cta .sh-btn{flex:1}
+.sh-btn{display:flex;align-items:center;justify-content:center;gap:11px;height:54px;border-radius:14px;font-size:18px;font-weight:800;letter-spacing:-.02em;transition:background .15s,border-color .15s,transform .06s}
+.sh-btn:active{transform:translateY(1px)}
+.sh-btn.solid{background:var(--brand);color:#fff;box-shadow:0 12px 26px -14px rgba(70,66,229,.65)}
+.sh-btn.solid:hover{background:var(--brand-ink)}
+.sh-btn.ghost{border:1px solid #cdc9f7;color:#4f46e5;background:rgba(255,255,255,.6)}
+.sh-btn.ghost:hover{background:#fff;border-color:var(--brand)}
+
+/* ── KPI 4종 ────────────────────────────────────────── */
+.sh-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.sh-kpi{display:flex;align-items:center;gap:14px;padding:22px 24px;background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow)}
+.sh-kpi div{flex:1;min-width:0}
+.sh-kpi dt{margin:0 0 8px;color:#79809c;font-size:14.5px;font-weight:700}
+.sh-kpi dd{margin:0;color:#141a3c;font-size:27px;font-weight:850;letter-spacing:-.03em}
+.sh-kpi dd small{font-size:16px;font-weight:800}
+.sh-kpi dd.up{color:#16a06a}
+.sh-kpi i{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:13px}
+.sh-kpi i.tint-brand{background:#eeecfd;color:#6355e8}
+.sh-kpi i.tint-green{background:#e6f7ef;color:#16a06a}
+
+/* ── 하단 3분할 ─────────────────────────────────────── */
+.sh-panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+.sh-panel{display:flex;flex-direction:column;padding:22px 24px;background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow)}
+.sh-panel-head{display:flex;align-items:center;gap:10px;margin:0 0 16px}
+.sh-panel-head h2{display:flex;align-items:center;gap:9px;margin:0;color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em}
+.sh-panel-head h2 svg{color:#6355e8}
+.sh-panel-head a{margin-left:auto;color:#8a93ad;font-size:13.5px;font-weight:700;white-space:nowrap}
+.sh-panel-head a:hover{color:var(--brand)}
+.sh-panel-foot{display:block;margin-top:16px;padding-top:4px;color:var(--brand);font-size:14px;font-weight:750;text-align:center}
+.sh-panel-foot:hover{color:var(--brand-ink)}
+
+/* 최근 모의 투자 */
+.sh-runs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.sh-run{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"state main main" "ret ret btn";align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--rule);border-radius:14px}
+.sh-run .sh-state{grid-area:state;align-self:start;margin-top:2px}
+.sh-run-main{grid-area:main}
+.sh-run .sh-return{grid-area:ret}
+.sh-run .sh-replay{grid-area:btn;justify-self:end}
+.sh-state{padding:4px 10px;border-radius:7px;font-size:12px;font-weight:750;white-space:nowrap}
+.sh-state.live{background:var(--brand-soft);color:#6355e8}
+.sh-state.done{background:#f0f1f6;color:#7b8298}
+.sh-run-main b{display:block;color:#1b2245;font-size:14.5px;font-weight:750;line-height:1.45;word-break:keep-all}
+.sh-run-main small{display:block;margin-top:4px;color:#98a0b6;font:650 12.5px var(--mono)}
+.sh-return{display:flex;align-items:baseline;gap:8px;white-space:nowrap}
+.sh-return dt{margin:0;color:#98a0b6;font-size:12.5px;font-weight:700}
+.sh-return dd{margin:0;font:800 15.5px var(--mono)}
+.sh-replay{padding:9px 15px;border:1px solid #cdc9f7;border-radius:10px;color:#4f46e5;font-size:13.5px;font-weight:750;white-space:nowrap}
+.sh-replay:hover{background:var(--brand-softer);border-color:var(--brand)}
+
+/* 인기 시즌 */
+.sh-seasons{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.sh-season{display:flex;align-items:center;gap:14px}
+.sh-thumb{width:70px;height:70px;flex:none;border-radius:12px;overflow:hidden}
+.sh-thumb svg{display:block;width:100%;height:100%}
+.sh-season-main{flex:1;min-width:0}
+.sh-season-name{display:flex;align-items:flex-start;gap:9px;margin:0 0 6px}
+.sh-rank{display:grid;place-items:center;width:22px;height:22px;flex:none;margin-top:1px;border-radius:7px;background:var(--brand);color:#fff;font:800 12.5px var(--mono)}
+.sh-season-name b{color:#1b2245;font-size:15.5px;font-weight:800;line-height:1.4;word-break:keep-all}
+.sh-season-desc{margin:0;overflow:hidden;color:#8a90ab;font-size:13.5px;font-weight:650;text-overflow:ellipsis;white-space:nowrap}
+.sh-pick{flex:none;padding:7px 14px;border-radius:9px;background:#f0effc;color:#6355e8;font-size:13px;font-weight:750}
+.sh-pick:hover{background:var(--brand-soft)}
+
+/* 보상 */
+.sh-rewards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sh-reward{display:flex;align-items:center;gap:13px;padding:12px 0}
+.sh-reward + .sh-reward{border-top:1px solid #f0f2f7}
+.sh-reward b{flex:1;min-width:0;color:#28304f;font-size:15px;font-weight:750}
+.sh-reward em{flex:none;font-style:normal;font-size:15px;font-weight:800}
+.sh-reward em.ant{color:#16a06a;font-family:var(--mono)}
+.sh-reward em.txt{color:#79809c;font-size:14px;font-weight:700}
+.sh-hex{display:grid;place-items:center;width:36px;height:36px;flex:none}
+.sh-hex svg{display:block}
+
+@media(max-width:1260px){
+  .sh-hero{grid-template-columns:minmax(0,1fr);background-image:linear-gradient(115deg,#f4f3fd 0%,#f7f7fe 44%,#eeeefb 100%)}
+  .sh-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sh-panels{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:760px){
+  .sh-hero{padding:22px 20px}
+  .sh-cta{flex-direction:column}
+  .sh-title{font-size:26px}
+  .sh-kpis{grid-template-columns:minmax(0,1fr)}
+  .sh-season{align-items:flex-start}
+}

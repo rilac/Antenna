@@ -1,0 +1,126 @@
+/* ANTENA prototype — 모의 투자 랭크 (sim-ranking.html) */
+
+.sim-rank{display:flex;flex-direction:column;gap:20px;max-width:1440px}
+.rk-card{background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow)}
+
+/* ── 헤더 ───────────────────────────────────────────── */
+.rk-head{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.rk-head h1{margin:0 0 8px;color:#0e1330;font-size:31px;font-weight:850;letter-spacing:-.035em}
+.rk-head p{display:flex;align-items:center;gap:8px;margin:0;color:#79809c;font-size:15px;font-weight:650}
+.rk-info{display:grid;place-items:center;width:17px;height:17px;flex:none;border-radius:50%;background:#e7eaf3;color:#8d95ab;font:800 10px/1 var(--sans);font-style:normal;cursor:help}
+.rk-head-right{margin-left:auto;text-align:right}
+.rk-season{display:inline-flex;align-items:center;gap:10px;height:50px;padding:0 16px;border:1px solid var(--rule);border-radius:13px;background:var(--surface)}
+.rk-season svg{flex:none;color:#8a93ad}
+.rk-season select{border:0;background:none;color:#141a3c;font-size:15px;font-weight:800;cursor:pointer}
+.rk-season select:focus{outline:none}
+.rk-left{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin:10px 0 0;color:#98a0b6;font-size:13.5px;font-weight:650}
+
+/* ── 요약 스트립 ────────────────────────────────────── */
+.rk-strip{display:grid;grid-template-columns:minmax(0,1.15fr) repeat(4,minmax(0,1fr));overflow:hidden}
+.rk-cell{padding:22px 24px;border-left:1px solid var(--rule)}
+.rk-cell:first-child{border-left:0;background:#f6f5fe;display:flex;align-items:center;gap:16px}
+.rk-cell dt{margin:0 0 10px;color:#79809c;font-size:14px;font-weight:700}
+.rk-cell dd{margin:0;color:#0e1330;font:850 30px var(--mono);letter-spacing:-.03em;white-space:nowrap}
+.rk-cell dd.up{color:#16a06a}
+.rk-cell small{display:block;margin-top:9px;color:#8a90ab;font-size:13.5px;font-weight:650}
+.rk-cell small b{color:#5b6280;font-family:var(--mono);font-weight:800}
+.rk-my{flex:1;min-width:0}
+.rk-my dd{font-size:28px}
+.rk-my dd span{font-size:19px;font-weight:800}
+.rk-tier{display:flex;flex-direction:column;align-items:center;gap:9px;flex:none}
+.rk-tier b{padding:5px 12px;border-radius:8px;background:#ece9fd;color:#6355e8;font-size:12.5px;font-weight:800;white-space:nowrap}
+
+/* ── 본문 2열 ───────────────────────────────────────── */
+.rk-body{display:grid;grid-template-columns:minmax(0,1.34fr) minmax(0,1fr);gap:20px;align-items:start}
+.rk-col{display:flex;flex-direction:column;gap:20px;min-width:0}
+.rk-panel{padding:22px 24px}
+.rk-panel-head{display:flex;align-items:center;gap:9px;margin:0 0 16px}
+.rk-panel-head h2{margin:0;color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em}
+
+/* 랭킹 표 */
+.rk-table-wrap{overflow-x:auto}
+.rk-table{width:100%;min-width:640px;border-collapse:collapse}
+.rk-table th{height:44px;padding:0 12px;color:#8a93ad;font-size:13.5px;font-weight:750;text-align:center;border-bottom:1px solid var(--rule)}
+.rk-table th:nth-child(2){text-align:left}
+.rk-table td{height:56px;padding:6px 12px;color:#2c3350;font-size:14.5px;font-weight:750;text-align:center;white-space:nowrap}
+.rk-table td:nth-child(2){text-align:left}
+.rk-table tbody tr:hover{background:#fbfbff}
+.rk-medal{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;font:850 13px var(--mono);color:#fff}
+.rk-m1{background:linear-gradient(145deg,#f5c651,#d99b12)}
+.rk-m2{background:linear-gradient(145deg,#cfd4e0,#a6adbe)}
+.rk-m3{background:linear-gradient(145deg,#e0a06a,#bd7639)}
+.rk-user{display:inline-flex;align-items:center;gap:11px;min-width:0}
+.rk-avatar{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:50%;color:#fff;font-style:normal;font:800 13px var(--sans)}
+.av-a{background:linear-gradient(145deg,#5f6b8c,#3c455f)}
+.av-b{background:linear-gradient(145deg,#8b6a4a,#5d4630)}
+.av-c{background:linear-gradient(145deg,#4a7bf7,#2a55c4)}
+.av-d{background:linear-gradient(145deg,#e5a63c,#c07f14)}
+.av-e{background:linear-gradient(145deg,#3f4a6b,#232a44)}
+.av-f{background:linear-gradient(145deg,#5b57e0,#332f9e)}
+.av-g{background:linear-gradient(145deg,#17a06a,#0f7049)}
+.rk-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:9px;font-size:12.5px;font-weight:800;white-space:nowrap}
+.rk-badge svg{flex:none}
+.tier-dia{background:#e9f0fe;color:#2a63c9}
+.tier-plat{background:#efedfd;color:#5a52d8}
+.tier-gold{background:#fdf3e0;color:#a8770f}
+
+.rk-divider td{padding:0}
+.rk-divider hr{margin:8px 0;border:0;border-top:1.5px dashed #d7dbe6}
+.rk-me td{background:#f8f7fe;color:var(--brand-ink)}
+.rk-me td:first-child{border-radius:11px 0 0 11px}
+.rk-me td:last-child{border-radius:0 11px 11px 0}
+.rk-me .rk-user b{color:var(--brand-ink)}
+
+.rk-all{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;margin-top:16px;border:1px solid #ddd9f8;border-radius:12px;background:#faf9ff;color:var(--brand);font-size:14.5px;font-weight:800}
+.rk-all:hover{background:var(--brand-softer);border-color:var(--brand)}
+
+/* 설정 요약 */
+.rk-settings{display:flex;flex-wrap:wrap;gap:14px}
+.rk-setting{display:flex;align-items:center;gap:13px;flex:1 1 170px;padding:16px 18px;border:1px solid var(--rule);border-radius:14px}
+.rk-setting svg{flex:none;color:var(--brand)}
+.rk-setting b{display:block;margin-bottom:5px;color:#5b6280;font-size:14px;font-weight:750}
+.rk-setting small{display:block;color:#98a0b6;font-size:13.5px;font-weight:700}
+.rk-setting small.on{color:#16a06a;font-weight:800}
+.rk-manage{display:inline-flex;align-items:center;gap:9px;flex:0 1 auto;padding:0 24px;min-height:74px;border:1px solid #cdc9f7;border-radius:14px;color:var(--brand);font-size:14.5px;font-weight:800}
+.rk-manage:hover{background:var(--brand-softer)}
+
+/* 랭크 보상 */
+.rk-rewards{list-style:none;margin:0;padding:0;border:1px solid var(--rule);border-radius:14px;overflow:hidden}
+.rk-reward{display:flex;align-items:center;gap:14px;padding:15px 18px}
+.rk-reward + .rk-reward{border-top:1px solid #f0f2f7}
+.rk-reward b{flex:none;width:78px;color:#2c3350;font-size:14.5px;font-weight:800}
+.rk-reward span{flex:1;min-width:0;color:#5b6280;font-size:14px;font-weight:650;text-align:right;word-break:keep-all}
+.rk-reward-foot{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:16px 0 0;color:#98a0b6;font-size:13.5px;font-weight:650}
+.rk-reward-foot a{margin-left:auto;color:var(--brand);font-weight:800}
+.rk-reward-foot a:hover{color:var(--brand-ink)}
+
+/* 친구 비교 */
+.rk-friends{list-style:none;margin:0;padding:0}
+.rk-friend{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;align-items:center;gap:12px;padding:14px 0}
+.rk-friend + .rk-friend{border-top:1px solid #f0f2f7}
+.rk-friend-name{display:inline-flex;align-items:center;gap:11px;min-width:0}
+.rk-friend-name b{overflow:hidden;color:#2c3350;font-size:14.5px;font-weight:750;text-overflow:ellipsis;white-space:nowrap}
+.rk-online{width:7px;height:7px;flex:none;border-radius:50%;background:#22c07a}
+.rk-friend em{font-style:normal;font:800 14.5px var(--mono)}
+.rk-friend .pct{color:#79809c;font:650 13.5px var(--mono)}
+.rk-friend-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:52px;margin-top:16px;border:1px solid #ddd9f8;border-radius:12px;background:#faf9ff;color:var(--brand);font-size:14.5px;font-weight:800}
+.rk-friend-btn:hover{background:var(--brand-softer);border-color:var(--brand)}
+
+@media(max-width:1240px){
+  .rk-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rk-cell{border-top:1px solid var(--rule)}
+  .rk-cell:nth-child(-n+2){border-top:0}
+  .rk-cell:nth-child(odd){border-left:0}
+  .rk-body{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:680px){
+  .rk-head h1{font-size:25px}
+  .rk-head-right{margin-left:0;text-align:left;width:100%}
+  .rk-left{justify-content:flex-start}
+  .rk-strip{grid-template-columns:minmax(0,1fr)}
+  .rk-cell{border-left:0;border-top:1px solid var(--rule)}
+  .rk-cell:first-child{border-top:0}
+  .rk-panel{padding:20px 18px}
+  .rk-friend{grid-template-columns:minmax(0,1fr) auto}
+  .rk-manage{width:100%;justify-content:center;min-height:56px}
+}

@@ -1,0 +1,104 @@
+/* ANTENA prototype — 모의 투자 게임 기록 (sim-portfolio.html) */
+
+.sim-record{display:flex;flex-direction:column;gap:20px;max-width:1440px}
+.sr-card{background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow)}
+
+/* ── 헤더 ───────────────────────────────────────────── */
+.sr-head{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.sr-head h1{margin:0 0 8px;color:#0e1330;font-size:31px;font-weight:850;letter-spacing:-.035em}
+.sr-head p{margin:0;color:#79809c;font-size:15px;font-weight:650}
+.sr-guide{display:inline-flex;align-items:center;gap:8px;margin-left:auto;color:var(--brand);font-size:14.5px;font-weight:750}
+.sr-guide:hover{color:var(--brand-ink)}
+.sr-info{display:grid;place-items:center;width:17px;height:17px;flex:none;border-radius:50%;background:#e7eaf3;color:#8d95ab;font:800 10px/1 var(--sans);font-style:normal;cursor:help}
+
+/* ── 필터 ───────────────────────────────────────────── */
+.sr-filters{display:flex;flex-wrap:wrap;gap:12px}
+.sr-filter{display:inline-flex;align-items:center;gap:10px;height:50px;padding:0 16px;background:var(--surface);border:1px solid var(--rule);border-radius:13px}
+.sr-filter svg{flex:none;color:#8a93ad}
+.sr-filter b{color:#5b6280;font-size:14.5px;font-weight:750}
+.sr-filter select{border:0;background:none;color:#141a3c;font-size:14.5px;font-weight:800;cursor:pointer}
+.sr-filter select:focus{outline:none}
+
+/* ── 상단 3분할 ─────────────────────────────────────── */
+.sr-top{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.06fr) minmax(0,.86fr);gap:20px;align-items:stretch}
+
+/* 최근 완료 */
+.sr-best{display:flex;flex-direction:column;padding:22px 24px;border-color:#d9d6f8}
+.sr-best-head{display:flex;align-items:center;gap:11px;margin:0 0 14px}
+.sr-best-head h2{margin:0;color:var(--brand-ink);font-size:16.5px;font-weight:850;letter-spacing:-.02em}
+.sr-tag{padding:4px 10px;border-radius:7px;background:var(--brand-soft);color:#6355e8;font:800 12px var(--mono);letter-spacing:.04em}
+.sr-best-body{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.sr-trophy{width:150px;height:150px;flex:none}
+.sr-best-main{flex:1;min-width:0}
+.sr-best-main > b{display:block;margin-bottom:8px;color:#161c37;font-size:19px;font-weight:800;letter-spacing:-.02em;word-break:keep-all}
+.sr-return{margin:0 0 2px;color:#16a06a;font:850 40px var(--mono);letter-spacing:-.03em}
+.sr-return-label{margin:0 0 18px;color:#8a90ab;font-size:13.5px;font-weight:700}
+.sr-best-stats{display:flex;gap:34px;flex-wrap:wrap;margin:0 0 18px}
+.sr-best-stats dt{margin:0 0 7px;color:#8a90ab;font-size:13.5px;font-weight:700}
+.sr-best-stats dd{margin:0;color:#141a3c;font:850 21px var(--mono)}
+.sr-ai{display:inline-flex;align-items:center;gap:9px;height:52px;padding:0 22px;border-radius:12px;background:var(--brand);color:#fff;font-size:15.5px;font-weight:800}
+.sr-ai:hover{background:var(--brand-ink)}
+.sr-best-foot{display:flex;flex-wrap:wrap;gap:8px 14px;margin:18px 0 0;padding-top:16px;border-top:1px solid #f0f2f7;color:#8a90ab;font-size:13.5px;font-weight:650}
+.sr-best-foot i{font-style:normal;color:#d3d7e3}
+
+/* 수익률 추이 */
+.sr-trend{display:flex;flex-direction:column;padding:22px 24px}
+.sr-trend h2{display:flex;align-items:baseline;gap:9px;margin:0 0 14px;color:var(--ink);font-size:16.5px;font-weight:850;letter-spacing:-.02em}
+.sr-trend h2 small{color:#98a0b6;font-size:13.5px;font-weight:650}
+.sr-legend{display:flex;gap:22px;flex-wrap:wrap;margin:0 0 8px;color:#5b6280;font-size:13.5px;font-weight:700}
+.sr-legend span{display:inline-flex;align-items:center;gap:8px}
+.sr-legend i{width:22px;height:0;border-top:3px solid var(--brand);border-radius:2px}
+.sr-legend i.dash{border-top-style:dashed;border-color:#b6bccd}
+.sr-trend svg{display:block;width:100%;height:auto;margin-top:auto}
+
+/* 배지 */
+.sr-badges{display:flex;flex-direction:column;padding:22px 24px}
+.sr-badges-head{display:flex;align-items:baseline;gap:12px;margin:0 0 20px}
+.sr-badges-head h2{margin:0;color:var(--ink);font-size:16.5px;font-weight:850;letter-spacing:-.02em}
+.sr-badges-head span{margin-left:auto;color:#98a0b6;font-size:13.5px;font-weight:650}
+.sr-badge-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.sr-badge{display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center}
+.sr-badge svg{flex:none}
+.sr-badge b{color:#39405c;font-size:13px;font-weight:750;line-height:1.35;word-break:keep-all}
+.sr-badge small{color:var(--brand);font:800 12.5px var(--mono)}
+.sr-badge.locked b,.sr-badge.locked small{color:#a8afc2}
+.sr-badge-all{display:flex;align-items:center;justify-content:center;gap:10px;height:52px;margin-top:auto;border:1px solid #cdc9f7;border-radius:12px;color:var(--brand);font-size:15px;font-weight:800}
+.sr-badge-all:hover{background:var(--brand-softer)}
+
+/* ── 히스토리 ───────────────────────────────────────── */
+.sr-history h2{margin:0 0 14px;color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em}
+.sr-table-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:16px;background:var(--surface);box-shadow:var(--shadow)}
+.sr-table{width:100%;min-width:1000px;border-collapse:collapse}
+.sr-table th{height:52px;padding:0 16px;background:#f8f9fc;color:#8a93ad;font-size:13.5px;font-weight:750;text-align:center;white-space:nowrap}
+.sr-table th:first-child{text-align:left;padding-left:22px}
+.sr-table td{height:74px;padding:10px 16px;border-top:1px solid #f0f2f7;color:#2c3350;font-size:14.5px;font-weight:700;text-align:center;white-space:nowrap}
+.sr-table td:first-child{text-align:left;padding-left:22px}
+.sr-table tbody tr:hover{background:#fbfbff}
+.sr-table tr[hidden]{display:none}
+.sr-scenario{display:flex;align-items:center;gap:13px;min-width:0}
+.sr-thumb{width:44px;height:44px;flex:none;border-radius:11px;overflow:hidden}
+.sr-thumb svg{display:block;width:100%;height:100%}
+.sr-grade{display:inline-grid;place-items:center;width:34px;height:34px;font:850 14px var(--mono);color:#fff}
+.sr-actions{display:inline-flex;align-items:center;gap:8px}
+.sr-act{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 14px;border:1px solid var(--rule);border-radius:10px;color:#5b6280;font-size:13.5px;font-weight:750}
+.sr-act:hover{border-color:#cdc9f7;color:var(--brand)}
+.sr-act.brand{border-color:#cdc9f7;color:var(--brand)}
+.sr-kebab{width:30px;height:30px;border-radius:8px;color:#a8afc2;font-size:17px}
+.sr-kebab:hover{background:var(--surface-2);color:var(--ink)}
+.sr-empty{margin:0;padding:40px 0;text-align:center;color:#9aa2b8;font-size:14px;font-weight:650}
+.sr-more{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;height:56px;border:0;border-top:1px solid #f0f2f7;background:var(--surface);color:var(--brand);font-size:14.5px;font-weight:800}
+.sr-more:hover{background:var(--brand-softer)}
+.sr-more:disabled{color:#a8afc2;background:var(--surface);cursor:default}
+
+@media(max-width:1240px){
+  .sr-top{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:680px){
+  .sr-head h1{font-size:25px}
+  .sr-guide{margin-left:0}
+  .sr-filter{flex:1 1 100%}
+  .sr-best,.sr-trend,.sr-badges{padding:20px 18px}
+  .sr-trophy{width:110px;height:110px}
+  .sr-return{font-size:32px}
+  .sr-badge-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

@@ -1,173 +1,63 @@
-import mascot from './assets/mascot.png';
-import type { Route } from './engine/types';
-import { useEngine } from './useEngine';
-import { Badge, Button, Modal } from './ui';
-import { Chain } from './views/Chain';
-import { Feed, FeedSidebar } from './views/Feed';
-import { Profile } from './views/Profile';
-import { Rank } from './views/Rank';
-import { Season } from './views/Season';
+import { useEffect } from 'react'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import Layout from './Layout'
+import { setNavigate } from './nav'
+import { ROUTES, type PageMeta } from './routes'
 
-const NAV: [Route, string][] = [
-  ['feed', '홈'],
-  ['rank', '예측자 랭킹'],
-  ['season', '모의투자'],
-];
+/* 프로토타입 화면 한 장. 마크업은 JSX 로 렌더하고,
+   프로토타입의 페이지 스크립트는 DOM 이 올라온 뒤 그대로 한 번 실행한다. */
+function Page({ meta }: { meta: PageMeta }) {
+  const Element = meta.element
 
-const BREADCRUMB: Record<Route, string> = {
-  feed: '홈 · 예측 피드',
-  rank: '예측자 랭킹',
-  profile: '예측자 프로필',
-  chain: '커밋 원장',
-  season: '리플레이 투자',
-};
+  useEffect(() => {
+    document.title = meta.title
+    if (meta.mode) document.body.dataset.mode = meta.mode
+    else {
+      delete document.body.dataset.mode
+      document.body.className = meta.bodyClass ?? ''  // 셸이 없는 화면(로그인)은 여기서 직접
+    }
+
+    meta.script?.()
+    window.scrollTo(0, 0)
+    // meta 는 라우트마다 고정이라 마운트 시 한 번만 돈다
+  }, [meta])
+
+  const body = <Element />
+  return meta.mode
+    ? <Layout mode={meta.mode} nav={meta.nav ?? 'home'} bodyClass={meta.bodyClass ?? ''}>{body}</Layout>
+    : body
+}
 
 export default function App() {
-  const e = useEngine();
-  const S = e.state;
-  const activeKey = S.route === 'profile' || S.route === 'chain' ? '' : S.route;
-  const modal = S.modal;
-  const subUser = modal?.kind === 'sub' ? e.U(modal.uid) : null;
+  const navigate = useNavigate()
+  const { pathname, search } = useLocation()
+
+  // 포팅한 프로토타입 스크립트도 SPA 이동을 쓰게 한다
+  useEffect(() => { setNavigate((to) => navigate(to)) }, [navigate])
+
+  // 화면 마크업의 <a href="/…"> 를 통째로 SPA 이동으로 가로챈다
+  // (20개 화면의 링크를 <Link> 로 하나하나 바꾸지 않기 위한 선택)
+  useEffect(() => {
+    function onClick(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      const link = (event.target as Element | null)?.closest?.('a')
+      if (!link || link.target || link.hasAttribute('download')) return
+      const href = link.getAttribute('href')
+      if (!href || !href.startsWith('/')) return
+      event.preventDefault()
+      navigate(href)
+    }
+    document.addEventListener('click', onClick)
+    return () => document.removeEventListener('click', onClick)
+  }, [navigate])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden', boxSizing: 'border-box' }}>
-      <div
-        className="card"
-        style={{
-          flex: 'none',
-          borderRadius: 0,
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 20,
-          padding: '10px 24px',
-          overflowX: 'auto',
-        }}
-      >
-        <div className="row" style={{ flex: 'none', gap: 10 }}>
-          <img src={mascot} alt="마스코트" className="glow" style={{ width: 40, height: 40, objectFit: 'contain' }} />
-          <div className="brandtitle">PredictChain</div>
-        </div>
-        <nav style={{ display: 'flex', gap: 6, flex: 'none' }}>
-          {NAV.map(([k, label]) => (
-            <Button key={k} size="sm" variant={activeKey === k ? 'primary' : 'secondary'} onClick={() => e.go(k)}>
-              {label}
-            </Button>
-          ))}
-        </nav>
-        <div style={{ flex: 1 }} />
-        <div style={{ flex: 'none', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-          {BREADCRUMB[S.route]}
-        </div>
-        <div className="row" style={{ flex: 'none' }}>
-          <Badge status="neutral">
-            영업일 D+{e.DAY} · {e.dstr(e.DAY)}
-          </Badge>
-          <Badge status="accent">{e.num(e.me.tokens)} PRT</Badge>
-          <Button variant="accent" size="sm" onClick={() => e.runBatch(1)}>
-            다음 배치
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => e.runBatch(5)}>
-            5영업일
-          </Button>
-        </div>
-      </div>
-
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minWidth: 0 }}>
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: 24, minWidth: 0 }}>
-          {S.route === 'feed' && <Feed e={e} />}
-          {S.route === 'rank' && <Rank e={e} />}
-          {S.route === 'profile' && <Profile e={e} />}
-          {S.route === 'chain' && <Chain e={e} />}
-          {S.route === 'season' && <Season e={e} />}
-        </div>
-        {S.route === 'feed' && <FeedSidebar e={e} />}
-      </div>
-
-      <Modal
-        open={!!modal}
-        title={modal?.kind === 'info' ? modal.title : subUser ? `${subUser.name} 구독` : ''}
-        description={modal?.kind === 'info' ? modal.desc : (subUser?.bio ?? '')}
-        primaryLabel={
-          modal?.kind === 'info' ? '확인' : subUser && e.me.tokens < subUser.fee ? '포인트 부족' : '구독 결제'
-        }
-        secondaryLabel="취소"
-        onPrimary={() => {
-          if (!modal) return;
-          if (modal.kind === 'info') e.closeModal();
-          else e.doSub(modal.uid);
-        }}
-        onSecondary={() => e.closeModal()}
-        onClose={() => e.closeModal()}
-      >
-        {subUser && (
-          <>
-            <div className="row" style={{ marginBottom: 10 }}>
-              <img src={mascot} alt="마스코트" style={{ width: 44, height: 44, objectFit: 'contain' }} />
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                구독하면 이 예측자의 분석 근거와 리포트를 모두 볼 수 있어요.
-              </div>
-            </div>
-            <div
-              style={{
-                background: 'var(--surface-sunken)',
-                borderRadius: 'var(--radius-md)',
-                padding: 14,
-                fontSize: 13,
-                display: 'grid',
-                gap: 6,
-              }}
-            >
-              <div className="between">
-                <span style={{ color: 'var(--text-muted)' }}>월 구독료</span>
-                <b>{e.num(subUser.fee)} PRT</b>
-              </div>
-              <div className="between">
-                <span style={{ color: 'var(--text-muted)' }}>예측자 배분(70%)</span>
-                <b style={{ color: 'var(--accent)' }}>{e.num(Math.round(subUser.fee * 0.7))} PRT</b>
-              </div>
-              <div className="between" style={{ borderTop: '1px solid var(--divider)', paddingTop: 6 }}>
-                <span style={{ color: 'var(--text-muted)' }}>결제 후 잔액</span>
-                <b>{e.num(e.me.tokens - subUser.fee)} PRT</b>
-              </div>
-            </div>
-          </>
-        )}
-        {modal?.kind === 'info' && (
-          <>
-            <div
-              style={{
-                background: 'var(--surface-sunken)',
-                borderRadius: 'var(--radius-md)',
-                padding: 14,
-                fontSize: 13,
-                display: 'grid',
-                gap: 6,
-              }}
-            >
-              {modal.lines.map(([label, value]) => (
-                <div key={label} className="between">
-                  <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-                  <b>{value}</b>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10 }}>{modal.note}</div>
-          </>
-        )}
-      </Modal>
-
-      <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {S.toasts.map((t) => (
-          <div
-            key={t.id}
-            className="card"
-            style={{ padding: '11px 15px', fontSize: 13, maxWidth: 320, borderLeft: `3px solid ${t.color}` }}
-          >
-            {t.msg}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+    <Routes>
+      {ROUTES.map((meta) => (
+        // key 에 쿼리를 포함해, ?code=… 가 바뀌면 페이지 스크립트가 다시 돌게 한다
+        <Route key={meta.path} path={meta.path} element={<Page key={pathname + search} meta={meta} />} />
+      ))}
+      <Route path="*" element={<Page key={pathname} meta={ROUTES[0]} />} />
+    </Routes>
+  )
 }
