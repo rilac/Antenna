@@ -1,0 +1,12 @@
+# 테스트는 DB 컨테이너 없이 돈다. 컨텍스트 로딩이 곧 엔티티 매핑 검증이다.
+spring:
+  datasource:
+    url: jdbc:h2:mem:antenna;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
