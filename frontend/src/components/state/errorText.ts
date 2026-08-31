@@ -1,27 +1,40 @@
 /* 서버 오류를 사용자 문구로 옮긴다. 설계서 §6.
 
    서버가 준 message 는 절대 그대로 쓰지 않는다. 내부 사정이 새어 나가고,
-   문구가 서버 배포마다 흔들린다. code 로 골라 여기 적힌 문구만 보여준다. */
+   문구가 서버 배포마다 흔들린다. code 로 골라 여기 적힌 문구만 보여준다.
+
+   code 는 API 명세서의 어휘표에만 있는 값을 쓴다. 표에 없는 code 를 여기서
+   지어내면 영영 맞지 않는 죽은 분기가 된다. 도메인 code 가 추가되면
+   백엔드가 표에 올린 뒤 여기에 함께 반영한다. */
 import type { ApiError } from '../../api/errors'
+import { CLIENT_ERROR_CODE, ERROR_CODE } from '../../api/errors'
 
 type Text = { title: string; hint?: string; retryable?: boolean }
 
 /* code 우선. 같은 status 라도 사유가 다르면 안내가 달라야 한다. */
 const BY_CODE: Record<string, Text> = {
-  // 409 — 사유별로 사용자가 할 일이 다르다
-  WALLET_ALREADY_LINKED: { title: '이미 다른 계정에 연동된 지갑입니다', hint: '다른 지갑으로 시도해 주세요' },
-  INSUFFICIENT_BALANCE: { title: '토큰 잔액이 부족합니다', hint: '지갑에서 잔액을 확인해 주세요' },
-  INSUFFICIENT_DEPOSIT: { title: '예수금이 부족합니다' },
-  ALREADY_JOINED: { title: '이미 참가한 시즌입니다', hint: '이어하기로 진행할 수 있습니다' },
-  SEASON_MANUAL_ADVANCE_FORBIDDEN: { title: '대회 모드는 직접 진행할 수 없습니다', hint: '시간표에 따라 자동으로 넘어갑니다' },
-  DAY_MISMATCH: { title: '진행 상황이 달라졌습니다', hint: '최신 상태로 맞춘 뒤 다시 시도합니다', retryable: true },
-  IDEMPOTENCY_KEY_REUSED: { title: '이미 처리된 요청입니다', hint: '결과를 다시 불러옵니다', retryable: true },
+  [ERROR_CODE.INVALID_REQUEST]: { title: '입력값을 다시 확인해 주세요' },
+  [ERROR_CODE.UNAUTHENTICATED]: { title: '로그인이 필요합니다' },
+  [ERROR_CODE.INTERNAL_ERROR]: { title: '서버에 문제가 생겼습니다', hint: '잠시 후 다시 시도해 주세요', retryable: true },
 
-  // 백엔드 연동 전 SPA fallback 을 걸렀을 때
-  NOT_JSON: { title: '서버에 연결하지 못했습니다', hint: '백엔드 연동 전이거나 응답이 올바르지 않습니다', retryable: true },
+  // 멱등성 — KEY_REQUIRED 는 클라이언트 결함이라 화면에 띄우지 않는다(isClientDefect)
+  [ERROR_CODE.IDEMPOTENCY_KEY_REUSED]: { title: '이미 처리된 요청입니다', hint: '결과를 다시 불러옵니다', retryable: true },
+
+  // 신고
+  [ERROR_CODE.TARGET_NOT_FOUND]: { title: '신고 대상을 찾을 수 없습니다', hint: '이미 삭제되었을 수 있습니다' },
+  [ERROR_CODE.SELF_REPORT]: { title: '자신을 신고할 수 없습니다' },
+  [ERROR_CODE.DUPLICATE_REPORT]: { title: '이미 신고한 대상입니다', hint: '처리 결과를 기다려 주세요' },
+
+  // 예측 · 잔액 · 모의투자
+  [ERROR_CODE.PREDICTION_SLOT_EXCEEDED]: { title: '무료 예측 슬롯을 모두 썼습니다', hint: '토큰을 소각하고 계속 등록할 수 있습니다' },
+  [ERROR_CODE.INSUFFICIENT_BALANCE]: { title: '토큰 잔액이 부족합니다', hint: '지갑에서 잔액을 확인해 주세요' },
+  [ERROR_CODE.DAY_MISMATCH]: { title: '진행 상황이 달라졌습니다', hint: '최신 상태로 맞춘 뒤 다시 시도합니다', retryable: true },
+
+  // 프론트가 만든 code
+  [CLIENT_ERROR_CODE.CLIENT_NOT_JSON]: { title: '서버에 연결하지 못했습니다', hint: '백엔드 연동 전이거나 응답이 올바르지 않습니다', retryable: true },
 }
 
-/* code 를 못 찾으면 status 로 떨어진다. */
+/* code 를 못 찾으면 status 로 떨어진다. 명세에 없는 사유가 와도 화면이 비지 않게. */
 const BY_STATUS: Record<number, Text> = {
   400: { title: '입력값을 다시 확인해 주세요' },
   401: { title: '로그인이 필요합니다' },
@@ -40,7 +53,7 @@ export function errorText(error: ApiError): Text {
 }
 
 /* 클라이언트 결함이라 사용자에게 보이면 안 되는 오류.
-   화면은 이걸 확인해 조용히 재요청한다(설계서 §6). */
+   화면은 이걸 확인해 키를 발급하고 조용히 재요청한다(설계서 §6). */
 export function isClientDefect(error: ApiError) {
-  return error.code === 'IDEMPOTENCY_KEY_REQUIRED'
+  return error.code === ERROR_CODE.IDEMPOTENCY_KEY_REQUIRED
 }

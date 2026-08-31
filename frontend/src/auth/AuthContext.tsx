@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { writeStub(user?.role ?? null) }, [user])
 
-  /* 401 UNAUTHORIZED 는 API 클라이언트가 전역으로 넘겨준다.
+  /* 401 UNAUTHENTICATED 는 API 클라이언트가 전역으로 넘겨준다.
      지금은 로그아웃 처리까지만 한다 — 재발급과 M-08 모달은
      [ANT-FE-SESSION] 이 이 자리에 붙인다. */
   useEffect(() => {
