@@ -6,6 +6,7 @@
 import type { ComponentType } from 'react'
 import type { Mode } from './Layout'
 import Login from './pages/Login'
+import OAuthCallback from './pages/OAuthCallback'
 import Search from './pages/Search'
 import Home from './pages/Home'
 import Stocks from './pages/Stocks'
@@ -74,6 +75,9 @@ export type PageMeta = {
 export const ROUTES: PageMeta[] = [
   // ── A. 인증 · 공통 ────────────────────────────────────
   { screen: 'A-01', element: Login, path: '/login', title: '로그인', access: 'public', story: 'ANT-FE-LOGIN' },
+  /* 구글이 인가 코드를 돌려주는 A-01 의 복귀 구간. 화면설계서에는 없는 경로다.
+     access 가 'public' 이어야 한다 — 가드가 막으면 코드를 교환하기도 전에 /login 으로 튕긴다. */
+  { screen: 'A-01', element: OAuthCallback, path: '/oauth/callback/google', title: '로그인 중', access: 'public', story: 'ANT-AUTH-01' },
   { screen: 'A-03', element: Search, path: '/search', title: '통합 검색', access: 'user', mode: 'insight', nav: 'stocks', story: 'ANT-FE-SEARCH' },
 
   // ── B. 인사이트 ──────────────────────────────────────

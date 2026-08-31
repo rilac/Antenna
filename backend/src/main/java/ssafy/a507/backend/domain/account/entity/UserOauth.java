@@ -58,4 +58,13 @@ public class UserOauth {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static UserOauth link(User user, Provider provider, String providerUserId, String email) {
+        UserOauth oauth = new UserOauth();
+        oauth.user = user;
+        oauth.provider = provider;
+        oauth.providerUserId = providerUserId;
+        oauth.email = email;
+        return oauth;
+    }
 }
