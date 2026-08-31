@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.web3j.crypto.Credentials;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
+import ssafy.a507.backend.domain.account.entity.User;
 import ssafy.a507.backend.support.TestNonceStoreConfig;
 import ssafy.a507.backend.support.WalletSignatures;
 
@@ -57,18 +58,13 @@ class SignatureGuardVerifyTest {
     }
 
     private Long insertUser(String nickname, String walletAddress) {
-        em.createNativeQuery(
-                        "INSERT INTO users (nickname, wallet_address, role, status, created_at,"
-                                + " updated_at) VALUES (:nickname, :wallet, 'USER', 'ACTIVE',"
-                                + " CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
-                .setParameter("nickname", nickname)
-                .setParameter("wallet", walletAddress)
-                .executeUpdate();
-        return ((Number)
-                        em.createNativeQuery("SELECT id FROM users WHERE nickname = :nickname")
-                                .setParameter("nickname", nickname)
-                                .getSingleResult())
-                .longValue();
+        User user = User.create(nickname);
+        if (walletAddress != null) {
+            user.linkWallet(walletAddress);
+        }
+        em.persist(user);
+        em.flush();
+        return user.getId();
     }
 
     private SubscribeStub signed(Long userId, String nonce, Credentials signer, long publisherId) {

@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.web3j.crypto.Credentials;
 import ssafy.a507.backend.common.security.SignatureNonceStore;
+import ssafy.a507.backend.domain.account.entity.User;
 import ssafy.a507.backend.domain.account.dto.WalletLinkRequest;
 import ssafy.a507.backend.support.TestNonceStoreConfig;
 import ssafy.a507.backend.support.WalletSignatures;
@@ -54,24 +55,14 @@ class WalletControllerTest {
         userId = insertUser("예측가");
     }
 
-    /**
-     * User는 protected 기본 생성자만 있고 정적 팩터리가 없어 객체로 만들 수 없다.
-     * 팀에 픽스처 경로가 생기기 전까지는 네이티브 INSERT로 넣는다.
-     * updated_at은 @UpdateTimestamp인데도 스키마가 NOT NULL로 생성되므로 같이 넣는다.
-     */
+    /** 팩터리로 만들고 em으로 넣는다. 컬럼이 바뀌어도 컴파일 단계에서 잡힌다. */
     private Long insertUser(String nickname) {
-        em.createNativeQuery(
-                        "INSERT INTO users (nickname, role, status, created_at, updated_at)"
-                                + " VALUES (:nickname, 'USER', 'ACTIVE',"
-                                + " CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
-                .setParameter("nickname", nickname)
-                .executeUpdate();
-        return ((Number)
-                        em.createNativeQuery("SELECT id FROM users WHERE nickname = :nickname")
-                                .setParameter("nickname", nickname)
-                                .getSingleResult())
-                .longValue();
+        User user = User.create(nickname);
+        em.persist(user);
+        em.flush();
+        return user.getId();
     }
+
 
     /**
      * 서버와 같은 규칙으로 payload를 만들어 서명한다. 프론트가 해야 할 일과 같다.

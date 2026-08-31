@@ -67,6 +67,19 @@ public class User {
     private Instant updatedAt;
 
     /**
+     * 회원가입 시점의 계정을 만든다. id·시각은 JPA가 채우고, 지갑은 나중에 linkWallet으로 붙인다.
+     * 빌더를 두지 않은 이유: 필수 필드가 nickname 하나뿐이라 인자 순서를 헷갈릴 여지가 없고,
+     * @AllArgsConstructor 는 nickname/introduce 를 바꿔 넣어도 컴파일이 통과해 오히려 위험하다.
+     */
+    public static User create(String nickname) {
+        User user = new User();
+        user.nickname = nickname;
+        user.role = Role.USER;
+        user.status = Status.ACTIVE;
+        return user;
+    }
+
+    /**
      * 지갑을 1회 연동한다. 주소는 소문자로 눕혀 저장한다 —
      * EIP-55 체크섬 주소와 소문자 주소는 같은 주소지만 문자열로는 달라서,
      * 정규화 없이 저장하면 unique 제약도 대조도 뚫린다.
