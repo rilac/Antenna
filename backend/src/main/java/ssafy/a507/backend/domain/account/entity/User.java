@@ -64,4 +64,13 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    /** OAuth 최초 로그인 시 생성. 닉네임은 온보딩에서 사용자가 정한다. */
+    public static User create(String nickname) {
+        User user = new User();
+        user.nickname = nickname;
+        user.role = Role.USER;
+        user.status = Status.ACTIVE;
+        return user;
+    }
 }

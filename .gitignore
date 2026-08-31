@@ -1,6 +1,15 @@
 .env
 .claude/
 
+# SSH·TLS 개인키 (EC2 접속용 pem 등). 저장소에 들어가면 서버가 통째로 열린다.
+*.pem
+*.ppk
+*.key
+
+# 개인별 로컬 오버라이드. .env.example·.env.production 은 공개값이라 추적한다.
+.env.local
+.env.*.local
+
 # macOS
 .DS_Store
 .AppleDouble
