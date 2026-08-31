@@ -7,11 +7,15 @@ export type CursorList<T> = {
   hasNext: boolean
 }
 
-/** 서버 오류 본문. code 로 분기하고 message 를 그대로 화면에 노출하지 않는다. */
+/* 서버 오류 본문. API 명세서 §오류 계약 — { code, message, field? } 세 필드로 고정한다.
+
+   HTTP 상태 코드는 본문에 넣지 않는다. 응답 상태와 중복이고, 두 값이 어긋나면
+   어느 쪽이 참인지 프론트가 판단할 수 없기 때문이다. 상태는 res.status 에서만 읽는다. */
 export type ApiErrorBody = {
   code: string
   message: string
-  status: number
+  /** 입력값 오류일 때만 채워진다. 여러 필드가 틀려도 첫 위반 한 곳만 온다 */
+  field?: string
 }
 
 /* ── 타입으로 막는 두 가지 규칙 ──────────────────────────
