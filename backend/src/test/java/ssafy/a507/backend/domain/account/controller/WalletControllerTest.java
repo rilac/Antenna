@@ -84,7 +84,7 @@ class WalletControllerTest {
     @DisplayName("nonce 발급 성공")
     void nonce_발급_성공() throws Exception {
         mockMvc.perform(
-                        post("/api/wallet/nonce")
+                        post("/api/v1/wallet/nonce")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -98,7 +98,7 @@ class WalletControllerTest {
     @DisplayName("scope를 빼먹으면 400 INVALID_REQUEST")
     void nonce_발급_scope_필수() throws Exception {
         mockMvc.perform(
-                        post("/api/wallet/nonce")
+                        post("/api/v1/wallet/nonce")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -115,7 +115,7 @@ class WalletControllerTest {
         nonceStore.issue(userId, SignatureScope.SUBSCRIBE);
 
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -131,7 +131,7 @@ class WalletControllerTest {
                 credentials.getAddress().toUpperCase(Locale.ROOT).replace("0X", "0x");
 
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -157,7 +157,7 @@ class WalletControllerTest {
 
         Long other = insertUser("가로채는사람");
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(other)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -174,7 +174,7 @@ class WalletControllerTest {
 
         // 서명자가 달라 401로 실패하지만, 그 과정에서 nonce는 이미 태워졌다.
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -182,7 +182,7 @@ class WalletControllerTest {
                 .andExpect(status().isUnauthorized());
 
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -197,7 +197,7 @@ class WalletControllerTest {
         String nonce = nonceStore.issue(userId, SignatureScope.WALLET_LINK);
 
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -216,7 +216,7 @@ class WalletControllerTest {
     void 중복_주소_409() throws Exception {
         String nonce = nonceStore.issue(userId, SignatureScope.WALLET_LINK);
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -227,7 +227,7 @@ class WalletControllerTest {
         Long other = insertUser("따라하는사람");
         String otherNonce = nonceStore.issue(other, SignatureScope.WALLET_LINK);
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(other)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -241,7 +241,7 @@ class WalletControllerTest {
     @DisplayName("주소 형식이 틀리면 400 INVALID_REQUEST — DTO의 한국어 메시지가 그대로 내려간다")
     void 주소_형식_검증() throws Exception {
         mockMvc.perform(
-                        post("/api/wallet/link")
+                        post("/api/v1/wallet/link")
                                 .with(user(String.valueOf(userId)))
                                 .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -255,7 +255,7 @@ class WalletControllerTest {
     @Test
     @DisplayName("미연동 계정은 linked=false, walletAddress는 null로 내려간다")
     void 연동_상태_조회_미연동() throws Exception {
-        mockMvc.perform(get("/api/wallet").with(user(String.valueOf(userId))))
+        mockMvc.perform(get("/api/v1/wallet").with(user(String.valueOf(userId))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.linked").value(false))
                 .andExpect(jsonPath("$.walletAddress").isEmpty());

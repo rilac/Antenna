@@ -17,10 +17,11 @@ import ssafy.a507.backend.domain.account.service.WalletService;
 
 /**
  * 지갑은 계정당 1개인 싱글턴 리소스라 경로가 단수다(API 명세 §지갑·토큰).
+ * Base 는 /api/v1 이다 — 명세 헤더와 프론트 api/client.ts 가 그 값으로 고정돼 있다.
  * 잔액·원장 조회(/wallet/balance · /wallet/ledger)는 온체인 대사가 필요해 ANT-TOKEN-04로 뺐다.
  */
 @RestController
-@RequestMapping("/api/wallet")
+@RequestMapping("/api/v1/wallet")
 @RequiredArgsConstructor
 public class WalletController {
 
