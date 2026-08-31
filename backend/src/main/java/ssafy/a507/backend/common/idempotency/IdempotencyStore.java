@@ -50,8 +50,9 @@ public class IdempotencyStore {
      * @param key 클라이언트가 만든 Idempotency-Key 헤더 값. 없으면 400
      * @param requestBodyHash {@link #hash(String)} 로 만든 요청 본문 해시. 같은 키에 다른
      *     본문이면 409
-     * @param action 최초 요청일 때만 실행되는 실제 처리. 반환값이 그대로 저장된다
-     * @return 저장하거나 꺼낸 응답 본문(JSON 문자열)
+     * @param action 최초 요청일 때만 실행되는 실제 처리. 반환값이 그대로 저장된다 — 응답 전체가
+     *     아니라 응답을 다시 만들 수 있는 최소 식별값이면 된다
+     * @return 저장하거나 꺼낸 응답 식별값
      */
     public String execute(
             Long userId,
