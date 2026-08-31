@@ -22,6 +22,19 @@
 /* 대사 시각 — 실시간 잔액이 아니라는 걸 숫자 바로 아래에서 알린다 */
 .wallet-synced{margin:2px 0 0;color:var(--faint);font-size:12px;font-weight:650}
 
+/* ── 미연동 안내 ─────────────────────────────────────── */
+/* EmptyState 를 쓰지 않는다 — M-01 은 라우트 없는 모달이라 링크가 아니라 버튼이다 */
+.wallet-unlinked{
+  display:grid;place-items:center;gap:4px;
+  padding:40px 24px;text-align:center;
+  border:1px dashed var(--rule);border-radius:16px;background:var(--surface-2);
+}
+.wallet-unlinked-title{margin:0;color:var(--ink);font-size:15.5px;font-weight:750}
+.wallet-unlinked-hint{margin:0;color:var(--muted);font-size:13px}
+.wallet-unlinked .state-cta:disabled{
+  background:var(--rule);color:var(--faint);cursor:not-allowed;
+}
+
 /* ── 내역 머리말 + 사유 필터 ─────────────────────────── */
 .wallet-ledger-head{
   display:flex;align-items:center;flex-wrap:wrap;gap:12px;

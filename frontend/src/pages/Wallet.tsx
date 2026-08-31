@@ -37,11 +37,22 @@ export default function Wallet() {
         {/* ── 연동 상태 + 잔액 ─────────────────────────── */}
         {status.error && <ErrorState error={status.error} onRetry={status.reload} />}
 
+        {/* 설계 제약 — 미연동이면 M-01 지갑 연동으로 보낸다.
+            M-01 은 라우트가 없는 모달이라 [ANT-FE-WALLET-LINK] 가 붙기 전까지
+            버튼만 자리를 잡아 둔다. 그 스토리는 onClick 한 줄만 바꾸면 된다. */}
         {!status.error && status.data && !status.data.linked && (
-          <EmptyState
-            title="아직 지갑을 연동하지 않았습니다"
-            hint="지갑을 연동해야 예측을 등록할 수 있습니다"
-          />
+          <section className="wallet-unlinked">
+            <p className="wallet-unlinked-title">아직 지갑을 연동하지 않았습니다</p>
+            <p className="wallet-unlinked-hint">
+              지갑을 연동해야 예측을 등록하고 토큰을 받을 수 있습니다
+            </p>
+            <button
+              type="button" className="state-cta" disabled
+              title="[ANT-FE-WALLET-LINK] 에서 연동 모달을 붙입니다"
+            >
+              지갑 연동하기
+            </button>
+          </section>
         )}
 
         {!status.error && status.data?.linked && (
@@ -77,11 +88,13 @@ export default function Wallet() {
           <div className="wallet-filters" role="group" aria-label="사유 필터">
             <button
               type="button" className={reason === null ? 'on' : ''}
+              aria-pressed={reason === null}
               onClick={() => setReason(null)}
             >전체</button>
             {LEDGER_REASONS.map((r) => (
               <button
                 key={r} type="button" className={reason === r ? 'on' : ''}
+                aria-pressed={reason === r}
                 onClick={() => setReason(r)}
               >{REASON_LABEL[r]}</button>
             ))}
