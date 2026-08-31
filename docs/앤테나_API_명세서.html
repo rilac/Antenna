@@ -30,7 +30,7 @@ pre code{background:none;padding:0;color:inherit}.callout{background:var(--soft)
 footer{margin-top:50px;padding-top:14px;border-top:1px solid var(--line);color:var(--sub);font-size:12px}.small{font-size:12.3px;color:var(--sub)}
 @media(max-width:880px){.layout{grid-template-columns:1fr}nav{display:none}}
 </style></head>
-<body><div class=layout><nav><div class=brand>엔테나 API 명세서</div><div class=ver>v0.3 clean · 2026-08-27</div>
+<body><div class=layout><nav><div class=brand>엔테나 API 명세서</div><div class=ver>v0.4 · 2026-08-31</div>
 <a href="#map">0. 큰그림(인터페이스 맵)</a><a href="#common">1. 공통 규약</a>
 <div class=grp>2. REST API</div>
 <a href="#tag-async">비동기 작업</a><a href="#tag-auth">인증</a><a href="#tag-users">회원</a><a href="#tag-wallet">지갑·토큰</a>
@@ -44,7 +44,7 @@ footer{margin-top:50px;padding-top:14px;border-top:1px solid var(--line);color:v
 <h1>엔테나(Antenna) API 명세서</h1>
 <p class=lede>기능명세서 v1 · 엔테나 ERD · SSAFY 토큰증권/금융망 API 기준의 인터페이스 명세.</p>
 
-<div class=meta><span><b>버전</b> 0.3</span><span><b>갱신일</b> 2026-08-27</span>
+<div class=meta><span><b>버전</b> 0.4</span><span><b>갱신일</b> 2026-08-31</span>
 <span><b>REST</b> 93 엔드포인트 · 16 도메인</span><span><b>실시간</b> STOMP 1채널(+2차 2채널)</span>
 <span><b>온체인</b> 토큰증권 API + CommitAnchor 1본</span><span><b>배치</b> 6종 + 인덱서</span>
 <span><b>Base</b> <code>/api/v1</code></span><span><b>인증</b> JWT Bearer · 전 API 로그인 필수</span></div>
@@ -67,7 +67,7 @@ footer{margin-top:50px;padding-top:14px;border-top:1px solid var(--line);color:v
 <tr><td><b>관리자</b></td><td>신고·블라인드·제재·시즌 운영</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
 <tr><td><b>시스템</b></td><td>—</td><td>—</td><td>이벤트 인덱싱</td><td>—</td><td>B1~B6</td></tr></table>
 
-<h2 id=common>1. 공통 규약</h2>
+<div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v0.4</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — §1.2 지갑 서명 규격 확정 — EIP-191 <code>personal_sign</code> + <b>줄 구분 문자열</b>(JSON 아님), nonce는 본문에 넣지 않고 서버가 userId로 조회해 payload 재조립. <code>/wallet/link</code> 요청 본문·응답 오류 코드 구체화. 근거: 지라 S15P21A507-55·21</div><div><b>v0.3</b> · 2026-08-27 · (이전 판) · <code>—</code> — clean 판</div></div><h2 id=common>1. 공통 규약</h2>
 <div class=callout><b>인증</b> — 전 API <code>Authorization: Bearer &lt;accessToken&gt;</code> 필요
 (예외: <code>POST /auth/login/{provider}</code>·<code>POST /auth/refresh</code>).
 로그인은 SSAFY·Google OAuth <b>인가 코드 방식</b>: 프론트가 code 수신 → 서버로 전달 → 서버가 교환·검증.
@@ -88,8 +88,10 @@ nonce=&lt;POST /wallet/nonce 로 발급받은 값&gt;</pre>
 재사용 방지는 nonce 1회성(Redis TTL 5분, GETDEL 소비)이 담당하므로 payload에 timestamp를 넣지 않는다.
 서버는 복원 주소를 연동 지갑(<code>users.wallet_address</code>, 소문자 정규화)과 대조,
 불일치 시 <b>401 <code>SIGNER_MISMATCH</code></b>. 미연동이면 <b>400 <code>WALLET_NOT_LINKED</code></b>. 부인방지 목적.
-<br><small>확정 2026-08-31 (ANT-AUTH-04·06 구현). ERD·기술아키텍처의 "EIP-712" 표기는 이 규격으로 정정 필요 —
-컨트랙트가 사용자 서명을 검증하지 않는 구조(릴레이어가 서버 키로 전송)라 712의 이점이 발동하지 않는다.</small></div>
+<br><small>확정 2026-08-31 (ANT-AUTH-04·06 구현). ERD·유저플로우의 "EIP-712" 표기는 v0.4에서 함께 정정했다.
+<b><code>docs/기술아키텍쳐.jpg</code>는 이미지라 수정 불가 — 소유자 확인 필요.</b>
+712가 아닌 이유: 컨트랙트가 사용자 서명을 검증하지 않는 구조(릴레이어가 서버 키로 전송)라
+712의 이점이 발동하지 않는다.</small></div>
 <div class=callout><b>202 + 작업 리소스 폴링</b> — 온체인 트랜잭션 동반 요청은 <b>202 Accepted</b>로 접수만 하고,
 응답에 <code>operationId</code>와 <code>Location: /api/v1/operations/{operationId}</code>를 담는다. 클라이언트는 <b>리소스별로 다른 조회 API가 아니라 <code>GET /operations/{operationId}</code> 하나를</b> 폴링(3~5초)해 <code>PENDING → SUCCEEDED / FAILED</code>를 확인한다.
 전이는 체인 인덱서가 수행하며, 도메인 리소스(구독 ACTIVE·앵커 CONFIRMED·광고 ACTIVE)도 같은 인덱서가 함께 갱신한다.
@@ -222,5 +224,5 @@ event Anchored(uint256 indexed batchId, bytes32 merkleRoot, uint256 commitCount)
 <tr><td>B6</td><td>AI 생성</td><td>일 배치 · 시즌 종료 트리거</td><td>브리핑·요약·포인트 생성 · 시즌 CLOSED 시 복기 리포트</td><td>생성물 UQ(대상+날짜)</td></tr></table>
 <p class=small>상시 데몬: <b>체인 이벤트 인덱서</b>.</p>
 
-<footer>엔테나 API 명세서 v0.3 (clean) · 2026-08-27</footer>
+<footer>엔테나 API 명세서 v0.4 · 2026-08-31</footer>
 </main></div></body></html>

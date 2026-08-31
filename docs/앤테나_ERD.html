@@ -85,7 +85,7 @@
 </head>
 <body>
 <div class="wrap">
-<h1>엔테나 테이블 맵</h1>
+<h1>엔테나 테이블 맵</h1><div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v0.2</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — <code>prediction_commits.signature</code> 주석의 "EIP-712"를 <b>EIP-191 personal_sign</b>으로 정정. API 명세서 v0.4 §1.2와 일치시킨 것. 스키마 변경은 없다.</div><div><b>v0.1</b> · ~2026-08-28 · (이전 판) · <code>—</code> — 버전 표기가 없던 최초 판</div></div>
 
 <!-- ── 계정 ── -->
 <section style="--dc:#435268">
@@ -259,7 +259,7 @@
       <li><div class="row"><span class="k pk">PK</span><span class="c">prediction_id <em>→predictions 1:1</em></span><span class="t">int</span></div><div class="note">공유 PK(@MapsId) · salt가 본체에 안 실리게 분리</div></li>
       <li><div class="row"><span class="k uq">UQ</span><span class="c">commit_hash</span><span class="t">varchar(66)</span></div><div class="note">hash(payload|salt) · 머클 트리의 잎</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">salt</span><span class="t">varchar(64)</span></div><div class="note">hex 난수 · 리빌 전 어떤 응답에도 미노출</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">signature</span><span class="t">varchar(255)</span></div><div class="note">EIP-712 서명 · 작성자 부인방지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">signature</span><span class="t">varchar(255)</span></div><div class="note">EIP-191 personal_sign 서명 · 작성자 부인방지</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">signer_address</span><span class="t">varchar(42)</span></div><div class="note">서명 복원 주소 · 연동 지갑과 불일치 시 401</div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">anchor_batch_id <em>→anchor_batches</em></span><span class="t">int</span></div><div class="note">소속 앵커 배치 · NULL = 앵커 대기</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">revealed_at</span><span class="t">timestamptz</span></div><div class="note">salt 공개 시각 · NULL이면 비공개</div></li>
