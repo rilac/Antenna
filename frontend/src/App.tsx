@@ -20,7 +20,13 @@ function Page({ meta }: { meta: PageMeta }) {
     window.scrollTo(0, 0)
   }, [meta])
 
-  const body = <Element />
+  /* 가드를 셸 안쪽에 둔다 — 403 을 만나도 사이드바가 남아 다른 화면으로 갈 수 있다.
+     비로그인 리다이렉트는 렌더 중에 일어나 셸이 그려지기 전에 빠져나간다. */
+  const body = (
+    <RequireAccess access={meta.access}>
+      <Element />
+    </RequireAccess>
+  )
 
   return meta.mode
     ? <Layout mode={meta.mode} nav={meta.nav ?? 'home'} bodyClass={meta.bodyClass ?? ''}>{body}</Layout>
@@ -31,10 +37,7 @@ export default function App() {
   return (
     <Routes>
       {ROUTES.map((meta) => (
-        <Route
-          key={meta.path} path={meta.path}
-          element={<RequireAccess access={meta.access}><Page meta={meta} /></RequireAccess>}
-        />
+        <Route key={meta.path} path={meta.path} element={<Page meta={meta} />} />
       ))}
       {/* 없는 경로는 홈으로. 404 화면(A-04)은 [ANT-FE-ERROR] 에서 붙인다 */}
       <Route path="*" element={<Navigate to="/" replace />} />
