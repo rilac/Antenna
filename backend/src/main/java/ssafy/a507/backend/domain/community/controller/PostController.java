@@ -20,9 +20,9 @@ import ssafy.a507.backend.domain.community.dto.PostDetailResponse;
 import ssafy.a507.backend.domain.community.dto.PostListResponse;
 import ssafy.a507.backend.domain.community.service.PostService;
 
-/** 피드 글 — ANT-COMMUNITY-02. 실제 경로에는 {@code /api/v1} 이 앞에 붙는다(WebMvcConfig). */
+/** 피드 글 — ANT-COMMUNITY-02. 명세 §1 의 {@code Base /api/v1} 을 경로에 직접 적는다. */
 @RestController
-@RequestMapping("/posts")
+@RequestMapping("/api/v1/posts")
 @RequiredArgsConstructor
 public class PostController {
 
