@@ -6,6 +6,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
@@ -23,7 +24,13 @@ class ApiPathContractTest {
 
     private static final String PREFIX = "/api/v1";
 
+    /**
+     * 빈 이름으로 특정한다. actuator 가 {@code controllerEndpointHandlerMapping} 을 같은 타입으로
+     * 하나 더 등록하므로 타입만으로는 주입되지 않는다. 우리가 보려는 것은 @RestController 들이
+     * 등록한 매핑이라 {@code requestMappingHandlerMapping} 쪽이 맞다.
+     */
     @Autowired
+    @Qualifier("requestMappingHandlerMapping")
     RequestMappingHandlerMapping handlerMapping;
 
     @Test
