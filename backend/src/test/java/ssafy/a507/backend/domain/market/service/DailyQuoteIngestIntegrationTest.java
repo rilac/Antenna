@@ -67,7 +67,7 @@ class DailyQuoteIngestIntegrationTest {
     static class PropertiesConfig {
         @Bean
         PublicDataProperties publicDataProperties() {
-            return new PublicDataProperties("test-key", null, 100, 10);
+            return new PublicDataProperties("test-key", null, 100, 10, null, 0);
         }
     }
 
@@ -167,12 +167,67 @@ class DailyQuoteIngestIntegrationTest {
                         client,
                         marketUpsertRepository,
                         ingestRunRepository,
-                        new PublicDataProperties("", null, 100, 10));
+                        new PublicDataProperties("", null, 100, 10, null, 0));
 
         assertThat(unconfigured.ingestPending(MONDAY)).isEmpty();
 
         verifyNoInteractions(client);
         assertThat(ingestRunRepository.count()).isZero();
+    }
+
+    // ── 3년치 백필 (ANT-DATA-03) ────────────────────────────
+
+    /**
+     * 백필을 한 번에 740일 돌리지 않는 이유가 여기 있다 — 회차가 잘려 있어야 포털을 몰아치지
+     * 않고, 앱이 중간에 죽어도 ingest_runs 에 남은 데까지가 그대로 이어진다.
+     */
+    @Test
+    @DisplayName("백필은 한 회차에 정해진 날짜 수만 집고 다음 회차가 이어받는다")
+    void 백필이_회차마다_이어진다() {
+        given(client.fetchDay(any())).willAnswer(call -> List.of(rowOn(call.getArgument(0))));
+        LocalDate from = LocalDate.of(2026, 8, 20);
+
+        List<IngestRun> first = service.backfill(MONDAY, from, 2);
+        List<IngestRun> second = service.backfill(MONDAY, from, 2);
+        entityManager.clear();
+
+        assertThat(first)
+                .extracting(IngestRun::getBaseDate)
+                .containsExactly(LocalDate.of(2026, 8, 20), LocalDate.of(2026, 8, 21));
+        assertThat(second)
+                .as("앞 회차가 SUCCESS 로 남아 그 다음 영업일부터 이어진다")
+                .extracting(IngestRun::getBaseDate)
+                .containsExactly(LocalDate.of(2026, 8, 24), LocalDate.of(2026, 8, 25));
+        assertThat(dailyQuoteRepository.count()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("백필할 영업일이 남지 않으면 빈 결과다 — 그때 cron 을 다시 끈다")
+    void 백필이_끝나면_빈_결과다() {
+        LocalDate from = LocalDate.of(2026, 8, 24);
+        seedCollected(LocalDate.of(2026, 8, 24));
+        seedCollected(LocalDate.of(2026, 8, 25));
+        seedCollected(LocalDate.of(2026, 8, 26));
+        seedCollected(LocalDate.of(2026, 8, 27));
+        seedCollected(LocalDate.of(2026, 8, 28));
+
+        assertThat(service.backfill(MONDAY, from, 20)).isEmpty();
+
+        verifyNoInteractions(client);
+    }
+
+    private StockPriceRow rowOn(LocalDate tradeDate) {
+        return new StockPriceRow(
+                "005930",
+                "삼성전자",
+                Stock.Market.KOSPI,
+                tradeDate,
+                new BigDecimal("71000"),
+                new BigDecimal("71800"),
+                new BigDecimal("70900"),
+                new BigDecimal("71500"),
+                12_345_678L,
+                null);
     }
 
     private void seedCollected(LocalDate baseDate) {
@@ -192,6 +247,7 @@ class DailyQuoteIngestIntegrationTest {
                 new BigDecimal("71800"),
                 new BigDecimal("70900"),
                 new BigDecimal(close),
-                12_345_678L);
+                12_345_678L,
+                null);
     }
 }

@@ -40,34 +40,61 @@ public class DailyQuoteIngestService {
     private final IngestRunRepository ingestRunRepository;
     private final PublicDataProperties properties;
 
+    /** 한 회차가 집을 날짜 수에 상한을 두지 않는다는 표시. */
+    private static final int NO_LIMIT = 0;
+
     /**
-     * 아직 못 받은 영업일을 오래된 것부터 메운다. 스케줄러가 부르는 진입점이다.
+     * 아직 못 받은 영업일을 오래된 것부터 메운다. 13시 스케줄러가 부르는 진입점이다.
      *
      * @param today 오늘(KST)
      * @return 이번 회차가 건드린 날짜별 기록
      */
     public List<IngestRun> ingestPending(LocalDate today) {
+        // 배치가 도는 13시에는 오늘 종가가 아직 없다(장 마감 15:30). 어제가 마지막 대상이다.
+        LocalDate lastTarget = today.minusDays(1);
+        return ingestMissing(lastTarget.minusDays(properties.lookbackDays()), lastTarget, NO_LIMIT);
+    }
+
+    /**
+     * 3년치 백필. 정기 수집과 같은 길을 쓰되 창만 넓히고, 한 회차가 집는 날짜 수를 자른다.
+     *
+     * <p><b>왜 한 번에 740일을 돌지 않는가.</b> 회차를 잘게 나누면 세 가지가 공짜로 딸려온다 —
+     * 포털에 몰아치지 않고(회차당 chunkSize×3콜), 중간에 앱이 죽어도 ingest_runs 에 남은
+     * 진행 상황에서 이어지며, 일 1만 콜 한도를 회차 간격으로 조절할 수 있다.
+     *
+     * @param from 백필 시작일
+     * @param chunkSize 이번 회차가 집을 영업일 수
+     */
+    public List<IngestRun> backfill(LocalDate today, LocalDate from, int chunkSize) {
+        return ingestMissing(from, today.minusDays(1), chunkSize);
+    }
+
+    private List<IngestRun> ingestMissing(LocalDate from, LocalDate to, int limit) {
         if (!properties.isConfigured()) {
             log.warn("PUBLIC_DATA_SERVICE_KEY 가 비어 있어 일봉 수집을 건너뛴다.");
             return List.of();
         }
+        if (from.isAfter(to)) {
+            return List.of();
+        }
 
-        // 배치가 도는 13시에는 오늘 종가가 아직 없다(장 마감 15:30). 어제가 마지막 대상이다.
-        LocalDate lastTarget = today.minusDays(1);
-        LocalDate from = lastTarget.minusDays(properties.lookbackDays());
-
-        Set<LocalDate> collected = ingestRunRepository.findByBaseDateBetween(from, lastTarget).stream()
+        Set<LocalDate> collected = ingestRunRepository.findByBaseDateBetween(from, to).stream()
                 .filter(IngestRun::isCollected)
                 .map(IngestRun::getBaseDate)
                 .collect(Collectors.toSet());
 
-        List<LocalDate> targets = pendingDates(from, lastTarget, collected);
+        List<LocalDate> targets = pendingDates(from, to, collected);
         if (targets.isEmpty()) {
-            log.info("메울 영업일이 없다 — {} ~ {}", from, lastTarget);
+            log.info("메울 영업일이 없다 — {} ~ {}", from, to);
             return List.of();
         }
 
-        log.info("일봉 수집 시작 — {} ~ {} 중 {}일", from, lastTarget, targets.size());
+        if (limit > NO_LIMIT && targets.size() > limit) {
+            log.info("남은 {}일 중 {}일만 이번 회차에 집는다.", targets.size(), limit);
+            targets = targets.subList(0, limit);
+        }
+
+        log.info("일봉 수집 시작 — {} ~ {} 중 {}일", from, to, targets.size());
         List<IngestRun> runs = new ArrayList<>(targets.size());
         for (LocalDate target : targets) {
             runs.add(ingestDate(target));

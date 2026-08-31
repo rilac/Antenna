@@ -53,10 +53,17 @@ class PublicDataStockClientTest {
 
     @BeforeEach
     void setUp() {
+        client = clientWith(null, 0);
+    }
+
+    /** 수집 범위 설정(market-filter · top-count)만 바꿔 클라이언트를 다시 만든다. */
+    private PublicDataStockClient clientWith(Stock.Market marketFilter, int topCount) {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new PublicDataStockClient(
-                builder, new PublicDataProperties(SERVICE_KEY, "http://portal.test/svc", 2, 10));
+        return new PublicDataStockClient(
+                builder,
+                new PublicDataProperties(
+                        SERVICE_KEY, "http://portal.test/svc", 2, 10, marketFilter, topCount));
     }
 
     @Test
@@ -211,6 +218,60 @@ class PublicDataStockClientTest {
 
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0).stockCode()).isEqualTo("000660");
+
+        server.verify();
+    }
+
+    // ── 수집 범위 축소 — KOSPI 시가총액 상위 N (팀 결정: KOSPI 300) ──────────
+
+    @Test
+    @DisplayName("시장 필터는 mrktCls 로 나가고, 응답에 섞여 온 다른 시장 행은 떨어진다")
+    void 시장_필터를_적용한다() {
+        client = clientWith(Stock.Market.KOSPI, 0);
+        // ONE_PAGE 에는 KOSPI(삼성전자)와 KOSDAQ(카카오)이 섞여 있다 — 포털이 mrktCls 를
+        // 무시하고 전 시장을 돌려줘도 결과가 KOSPI 만이어야 한다.
+        server.expect(requestTo(containsString("mrktCls=KOSPI")))
+                .andRespond(withSuccess(utf8(ONE_PAGE), JSON));
+
+        List<StockPriceRow> rows = client.fetchDay(BASE_DATE);
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).stockCode()).isEqualTo("005930");
+
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("시가총액 상위 N 종목만 남긴다 — 전 페이지를 받은 뒤에 고른다")
+    void 시가총액_상위만_남긴다() {
+        client = clientWith(Stock.Market.KOSPI, 2);
+        String page1 =
+                """
+                {"response":{"header":{"resultCode":"00","resultMsg":"NORMAL SERVICE."},
+                "body":{"numOfRows":2,"pageNo":1,"totalCount":3,"items":{"item":[
+                {"basDt":"20260828","srtnCd":"900001","itmsNm":"소형주","mrktCtg":"KOSPI",
+                 "clpr":"1000","mrktTotAmt":"1000000000000"},
+                {"basDt":"20260828","srtnCd":"000660","itmsNm":"SK하이닉스","mrktCtg":"KOSPI",
+                 "clpr":"180000","mrktTotAmt":"100000000000000"}
+                ]}}}}
+                """;
+        String page2 =
+                """
+                {"response":{"header":{"resultCode":"00","resultMsg":"NORMAL SERVICE."},
+                "body":{"numOfRows":2,"pageNo":2,"totalCount":3,"items":{"item":
+                {"basDt":"20260828","srtnCd":"005930","itmsNm":"삼성전자","mrktCtg":"KOSPI",
+                 "clpr":"71500","mrktTotAmt":"400000000000000"}
+                }}}}
+                """;
+        server.expect(requestTo(containsString("pageNo=1")))
+                .andRespond(withSuccess(utf8(page1), JSON));
+        server.expect(requestTo(containsString("pageNo=2")))
+                .andRespond(withSuccess(utf8(page2), JSON));
+
+        List<StockPriceRow> rows = client.fetchDay(BASE_DATE);
+
+        // 마지막 페이지에 온 삼성전자가 1등이다 — 페이지 순서가 아니라 시가총액이 기준이다.
+        assertThat(rows).extracting(StockPriceRow::stockCode).containsExactly("005930", "000660");
 
         server.verify();
     }
