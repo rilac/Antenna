@@ -29,6 +29,23 @@ export function fetchMe() {
 }
 
 /**
+ * 로그아웃. 서버가 Redis 의 refresh 를 지우고 만료된 쿠키로 덮어쓴다.
+ * 브라우저가 httpOnly 쿠키를 직접 못 지우므로 이 요청 없이는 refresh 가 살아 있다.
+ *
+ * 요청이 실패해도 클라이언트 상태는 반드시 비운다 — 서버를 못 불렀다고 화면이
+ * 로그인 상태로 남으면, 사용자는 로그아웃했다고 믿는데 토큰은 그대로다.
+ */
+export async function endSession(): Promise<void> {
+  try {
+    await api.post<void>('/auth/logout')
+  } catch {
+    // 이미 만료됐거나 서버가 응답하지 않는 경우. 아래 정리는 그대로 진행한다.
+  } finally {
+    setAccessToken(null)
+  }
+}
+
+/**
  * 앱이 뜰 때 한 번 부른다. 쿠키가 없거나 만료면 null — 비로그인으로 시작하면 된다.
  * 실패를 예외로 올리지 않는다. 첫 화면이 오류로 막히면 로그인조차 못 한다.
  */
