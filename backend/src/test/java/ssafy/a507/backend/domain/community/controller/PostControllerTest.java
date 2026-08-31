@@ -316,6 +316,96 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.items[0].reportCard.locked").value(false));
     }
 
+    // ── 예측 카드 잠금 ──────────────────────────────────────
+    // 명세에 없는 조합을 구현에서 정한 부분이다(PredictionCardResponse 주석). 규칙이
+    // 바뀌면 여기서 걸리게 두려고 네 경우를 다 덮는다.
+
+    @Test
+    @DisplayName("없는 예측을 첨부하면 404 PREDICTION_NOT_FOUND")
+    void 없는_예측_첨부는_404() throws Exception {
+        mockMvc.perform(post(URL)
+                        .with(user(String.valueOf(authorId))).with(csrf())
+                        .header("Idempotency-Key", "key-noprediction")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("예측 카드", null, 999_999L)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("PREDICTION_NOT_FOUND"))
+                .andExpect(jsonPath("$.field").value("predictionId"));
+    }
+
+    @Test
+    @DisplayName("미판정(OPEN) 예측은 미구독자에게 잠기고 targetPrice 가 빠진다 — 종목·방향만 남는다")
+    void 미판정_예측은_미구독자에게_잠긴다() throws Exception {
+        insertStock("000660", "SK하이닉스");
+        Long predictionId = insertPrediction(authorId, "000660", "UP", "OPEN");
+        insertFeedPostWithPrediction(authorId, "미판정 예측 첨부", predictionId);
+        flush();
+
+        mockMvc.perform(get(URL).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].predictionCard.locked").value(true))
+                .andExpect(jsonPath("$.items[0].predictionCard.stockCode").value("000660"))
+                .andExpect(jsonPath("$.items[0].predictionCard.stockName").value("SK하이닉스"))
+                .andExpect(jsonPath("$.items[0].predictionCard.direction").value("UP"))
+                .andExpect(jsonPath("$.items[0].predictionCard.targetPrice").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("미판정 예측이라도 작성자 본인에게는 열리고 targetPrice 가 실린다")
+    void 미판정_예측도_본인은_열린다() throws Exception {
+        insertStock("000660", "SK하이닉스");
+        Long predictionId = insertPrediction(authorId, "000660", "UP", "BASE");
+        insertFeedPostWithPrediction(authorId, "내 예측 첨부", predictionId);
+        flush();
+
+        mockMvc.perform(get(URL).with(user(String.valueOf(authorId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].predictionCard.locked").value(false))
+                .andExpect(jsonPath("$.items[0].predictionCard.targetPrice").exists());
+    }
+
+    @Test
+    @DisplayName("판정 완료(HIT) 예측은 미구독자에게도 열린다 — 과거 예측은 전체 공개다")
+    void 판정_완료_예측은_누구에게나_열린다() throws Exception {
+        insertStock("005930", "삼성전자");
+        Long predictionId = insertPrediction(authorId, "005930", "DOWN", "HIT");
+        insertFeedPostWithPrediction(authorId, "판정된 예측 첨부", predictionId);
+        flush();
+
+        mockMvc.perform(get(URL).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].predictionCard.locked").value(false))
+                .andExpect(jsonPath("$.items[0].predictionCard.targetPrice").exists());
+    }
+
+    @Test
+    @DisplayName("리포트와 예측을 함께 붙인 글은 카드 두 개가 각각 판정된다")
+    void 리포트와_예측을_함께_붙일_수_있다() throws Exception {
+        insertStock("000660", "SK하이닉스");
+        Long reportId = insertReport(authorId, "공개 리포트", true);
+        Long predictionId = insertPrediction(authorId, "000660", "UP", "OPEN");
+        insertFeedPostWithBoth(authorId, "둘 다 붙인 글", reportId, predictionId);
+        flush();
+
+        mockMvc.perform(get(URL).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                // 공개 리포트라 열리고, 미판정 예측이라 잠긴다 — 서로 독립적으로 판정된다
+                .andExpect(jsonPath("$.items[0].reportCard.locked").value(false))
+                .andExpect(jsonPath("$.items[0].predictionCard.locked").value(true));
+    }
+
+    @Test
+    @DisplayName("첨부가 없는 글은 카드 키 자체가 응답에서 빠진다")
+    void 첨부_없는_글은_카드가_없다() throws Exception {
+        insertFeedPost(authorId, "본문만 있는 글", "VISIBLE");
+        flush();
+
+        mockMvc.perform(get(URL).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].reportCard").doesNotExist())
+                .andExpect(jsonPath("$.items[0].predictionCard").doesNotExist());
+    }
+
     // ── GET /posts/{postId} ─────────────────────────────────
 
     @Test
@@ -398,6 +488,42 @@ class PostControllerTest {
                 .setParameter(3, status).executeUpdate();
         return ((Number) em.createNativeQuery("SELECT id FROM feed_posts WHERE body = ?")
                 .setParameter(1, body).getSingleResult()).longValue();
+    }
+
+    private void insertStock(String code, String name) {
+        em.createNativeQuery("""
+                INSERT INTO stocks (code, name, listed) VALUES (?, ?, true)
+                """).setParameter(1, code).setParameter(2, name).executeUpdate();
+    }
+
+    /** 예측은 ANT-PRED 담당 엔티티다. NOT NULL 컬럼만 채운 최소 행을 넣는다. */
+    private Long insertPrediction(Long userId, String stockCode, String direction, String status) {
+        em.createNativeQuery("""
+                INSERT INTO predictions
+                  (user_id, track, stock_code, direction, target_price, horizon, status,
+                   created_at, updated_at)
+                VALUES (?, 'REAL', ?, ?, 240000.00, 30, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """).setParameter(1, userId).setParameter(2, stockCode)
+                .setParameter(3, direction).setParameter(4, status).executeUpdate();
+        return ((Number) em.createNativeQuery("""
+                SELECT id FROM predictions WHERE user_id = ? AND status = ?
+                """).setParameter(1, userId).setParameter(2, status).getSingleResult()).longValue();
+    }
+
+    private void insertFeedPostWithPrediction(Long userId, String body, Long predictionId) {
+        em.createNativeQuery("""
+                INSERT INTO feed_posts (user_id, body, prediction_id, status, created_at)
+                VALUES (?, ?, ?, 'VISIBLE', CURRENT_TIMESTAMP)
+                """).setParameter(1, userId).setParameter(2, body)
+                .setParameter(3, predictionId).executeUpdate();
+    }
+
+    private void insertFeedPostWithBoth(Long userId, String body, Long reportId, Long predictionId) {
+        em.createNativeQuery("""
+                INSERT INTO feed_posts (user_id, body, report_id, prediction_id, status, created_at)
+                VALUES (?, ?, ?, ?, 'VISIBLE', CURRENT_TIMESTAMP)
+                """).setParameter(1, userId).setParameter(2, body)
+                .setParameter(3, reportId).setParameter(4, predictionId).executeUpdate();
     }
 
     private void insertFeedPostWithReport(Long userId, String body, Long reportId) {
