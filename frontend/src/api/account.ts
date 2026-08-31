@@ -14,9 +14,12 @@ export type MyProfile = {
   id: number
   nickname: string
   introduce: string | null
+  /* 명세에는 있으나 백엔드 MeResponse 가 아직 내려주지 않는다.
+     옵셔널로 둬 가드 없는 접근을 tsc 가 잡게 한다 — 없는 필드를 있다고
+     타입이 거짓말하면 렌더 중 TypeError 로 앱 전체가 흰 화면이 된다. */
   /** 관심 섹터. 배열 전체 교체 방식이라 부분 수정이 없다 */
-  interests: string[]
-  channels: UserChannel[]
+  interests?: string[]
+  channels?: UserChannel[]
   /** 미연동이면 null. 연동 상태는 GET /wallet 이 정본이다 */
   walletAddress: string | null
 }
