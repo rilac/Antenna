@@ -1,0 +1,4 @@
+# 빌드 컨텍스트로 jar 하나만 보낸다. src, build/classes, gradle 캐시까지
+# 통째로 보내면 배포마다 수백 MB 를 도커 데몬에 전송하게 된다.
+*
+!build/libs/*.jar

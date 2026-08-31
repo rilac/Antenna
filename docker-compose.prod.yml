@@ -1,0 +1,23 @@
+# 운영 전용 오버레이. 기본 파일과 함께 사용한다.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build backend
+#
+# postgres·redis 는 기본 파일 정의를 그대로 쓴다. 여기서는 backend 만 얹는다.
+# 프로젝트 이름이 기본 파일에 name: antenna 로 고정돼 있어서, 어느 디렉터리에서
+# 실행하든 이미 떠 있는 antenna-postgres·antenna-redis 를 재사용한다.
+
+services:
+  backend:
+    build: ./backend
+    container_name: antenna-backend
+    restart: unless-stopped
+    # CI 가 생성한 .env 를 그대로 컨테이너 환경변수로 넣는다.
+    # 이 파일에서는 DB_HOST=postgres, REDIS_HOST=redis 여야 한다(컨테이너 이름 기준).
+    env_file: .env
+    ports:
+      # nginx 가 127.0.0.1:8080 으로 프록시한다. 외부에 직접 노출하지 않는다.
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
