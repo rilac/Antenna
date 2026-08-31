@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './Layout'
+import RequireAccess from './auth/RequireAccess'
 import { ROUTES, type PageMeta } from './routes'
 
 /* 화면 한 장. 셸을 씌울지와 body 속성만 여기서 정하고,
@@ -30,7 +31,10 @@ export default function App() {
   return (
     <Routes>
       {ROUTES.map((meta) => (
-        <Route key={meta.path} path={meta.path} element={<Page meta={meta} />} />
+        <Route
+          key={meta.path} path={meta.path}
+          element={<RequireAccess access={meta.access}><Page meta={meta} /></RequireAccess>}
+        />
       ))}
       {/* 없는 경로는 홈으로. 404 화면(A-04)은 [ANT-FE-ERROR] 에서 붙인다 */}
       <Route path="*" element={<Navigate to="/" replace />} />
