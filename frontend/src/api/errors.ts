@@ -38,5 +38,6 @@ export const ERROR_CODE = {
 
 /** 401 중 인증 만료(M-08 행)와 지갑 서명 주소 불일치(재서명 안내)를 가른다. */
 export function isSignatureMismatch(e: ApiError) {
-  return e.status === 401 && e.code !== 'UNAUTHORIZED'
+  // 백엔드가 실제로 쓰는 만료 code 는 UNAUTHENTICATED 다. UNAUTHORIZED 는 설계 초안의 이름이라 함께 받아 둔다.
+  return e.status === 401 && e.code !== 'UNAUTHENTICATED' && e.code !== 'UNAUTHORIZED'
 }

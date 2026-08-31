@@ -151,3 +151,12 @@
 }
 .auth .dev-signin-row button:hover{background:#fff;color:var(--ink)}
 .auth .dev-signin-row button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* A-02 온보딩 닉네임 — [ANT-AUTH-03] */
+.auth .nickname-input{width:100%;height:56px;padding:0 16px;border:1px solid var(--rule);border-radius:14px;background:#fff;color:var(--ink);font-family:inherit;font-size:16px;font-weight:600}
+.auth .nickname-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(88,80,244,.14)}
+.auth .nickname-input[aria-invalid="true"]{border-color:#dc2626}
+.auth .nickname-hint{margin:9px 2px 20px;font-size:13px;color:var(--muted);min-height:18px}
+.auth .nickname-hint.is-available{color:#15803d}
+.auth .nickname-hint.is-taken,.auth .nickname-hint.is-invalid{color:#dc2626}
+.auth .sso-btn:disabled{opacity:.5;cursor:not-allowed}
