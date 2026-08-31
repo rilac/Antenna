@@ -18,7 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * POST /api/abuse-reports — ANT-COMMUNITY-04 의 AC 검증.
+ * POST /api/v1/abuse-reports — ANT-COMMUNITY-04 의 AC 검증.
  *
  * SecurityConfig 가 아직 없어 기본 체인이 살아 있다. 그래서 요청마다
  * user(...) 로 인증 주체를, csrf() 로 토큰을 붙인다. 인증 주체의 이름이
@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class AbuseReportControllerTest {
 
-    private static final String URL = "/api/abuse-reports";
+    private static final String URL = "/api/v1/abuse-reports";
 
     @Autowired
     MockMvc mockMvc;

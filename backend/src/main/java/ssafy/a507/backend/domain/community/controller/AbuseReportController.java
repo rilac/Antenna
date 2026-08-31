@@ -13,7 +13,7 @@ import ssafy.a507.backend.domain.community.dto.AbuseReportCreateResponse;
 import ssafy.a507.backend.domain.community.service.AbuseReportService;
 
 @RestController
-@RequestMapping("/api/abuse-reports")
+@RequestMapping("/abuse-reports")
 @RequiredArgsConstructor
 public class AbuseReportController {
 
