@@ -17,8 +17,12 @@ export type AuthUser = {
 export type AuthState = {
   user: AuthUser | null
   authed: boolean
+  /** 새로고침 직후 쿠키로 세션을 되살리는 중. 이때 가드가 판단하면 로그인 화면으로 잘못 튕긴다. */
+  booting: boolean
   signIn: (user: AuthUser) => void
   signOut: () => void
+  /** 온보딩에서 닉네임을 확정한 뒤 셸의 표시 이름을 갱신한다. */
+  setNickname: (nickname: string) => void
 }
 
 export const AuthCtx = createContext<AuthState | null>(null)
