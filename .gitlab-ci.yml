@@ -1,0 +1,171 @@
+# 앤테나 CI/CD
+#
+# 러너: 앱 EC2 에 shell executor 로 등록돼 있다(태그 a507-antenna-runner).
+#       빌드와 배포가 같은 기계에서 일어나므로 산출물 전송 단계가 아예 없다.
+#
+# 배포 대상은 master 뿐이다. dev 는 통합·로컬 테스트용이라 파이프라인이 생성되지 않는다.
+# 러너를 ref_protected 로 등록했기 때문에 보호 브랜치(master) job 만 집어간다.
+
+stages:
+  - deploy
+
+variables:
+  # 기본 -ffdx 의 'x' 는 무시된 파일(node_modules, build, .env)까지 지우려 든다.
+  # 프론트 빌드를 도커(root)로 돌리므로 그 산출물을 gitlab-runner 권한으로 못 지워
+  # job 이 Permission denied 로 깨진다. 'x' 를 빼면 git 이 무시된 파일을 손대지 않는다.
+  GIT_CLEAN_FLAGS: -ffd
+
+# 배포가 겹치면 컨테이너 교체와 정적 파일 교체가 서로를 덮어쓴다.
+# 같은 resource_group 의 job 은 한 번에 하나만 실행된다.
+.deploy-base: &deploy-base
+  stage: deploy
+  tags:
+    - a507-antenna-runner
+  resource_group: production
+  timeout: 20m
+
+deploy-backend:
+  <<: *deploy-base
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      changes:
+        - backend/**/*
+        - docker-compose.yml
+        - docker-compose.prod.yml
+        - .gitlab-ci.yml
+    # UI 에서 수동 실행(Run pipeline)하면 변경 경로와 무관하게 재배포한다.
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  script:
+    # ── 환경변수 파일 생성 ────────────────────────────────────────────
+    # 비밀 3 개만 GitLab CI/CD Variables(Masked + Protected)에서 온다.
+    # 나머지는 운영 고정값이라 여기 적어 둔다 — 리뷰되고 히스토리에 남는 편이 낫다.
+    # DB_HOST/REDIS_HOST 가 컨테이너 이름인 이유: backend 가 compose 네트워크 안에서 돈다.
+    - |
+      umask 077
+      cat > .env <<EOF
+      DB_HOST=postgres
+      DB_PORT=5432
+      DB_NAME=antenna
+      DB_USER=antenna
+      DB_PASSWORD=$DB_PASSWORD
+      REDIS_HOST=redis
+      REDIS_PORT=6379
+      GOOGLE_CLIENT_ID=188970119306-0l7hfiirqh0pbsf82v1pkndvn292t8o6.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET
+      JWT_SECRET=$JWT_SECRET
+      JWT_ACCESS_TTL_MINUTES=30
+      JWT_REFRESH_TTL_DAYS=14
+      COOKIE_SECURE=true
+      CORS_ALLOWED_ORIGINS=https://stock-antenna.com
+      EOF
+
+    # ── 테스트 + jar 빌드 ─────────────────────────────────────────────
+    # bootJar 만 돌리면 테스트를 건너뛴다. test 를 앞에 붙여 깨진 코드가 배포되지 않게 한다.
+    # build 대신 test+bootJar 인 이유 — build 는 plain jar 도 만들어서
+    # Dockerfile 의 COPY build/libs/*.jar 가 두 개를 만나 실패한다.
+    # 서브셸로 감싼다. cd 를 && 로 이어 붙이면 gradle 이 실패했을 때 되돌아오는
+    # cd 가 건너뛰어져, 다음 단계가 backend/ 안에서 실행된다.
+    - (cd backend && chmod +x ./gradlew && ./gradlew --no-daemon clean test bootJar)
+
+    # ── 교체 + 헬스체크 + 롤백 ────────────────────────────────────────
+    - |
+      # 앞 단계가 실패했는데도 여기까지 흘러오면, 원인과 상관없는 에러로 바뀌어
+      # 로그를 읽기 어려워진다. 산출물이 있는지부터 확인하고 멈춘다.
+      if [ -z "$(ls backend/build/libs/*.jar 2>/dev/null)" ]; then
+        echo "backend/build/libs 에 jar 이 없습니다 — 빌드 단계를 확인하세요." >&2
+        exit 1
+      fi
+
+      COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+
+      # 실패했을 때 돌아갈 이미지를 먼저 확보한다. 첫 배포면 previous 가 없다.
+      docker image tag antenna-backend:latest antenna-backend:previous 2>/dev/null \
+        && HAVE_PREV=1 || HAVE_PREV=0
+
+      $COMPOSE up -d --build backend
+
+      # 부팅될 때까지 최대 90초 기다린다. actuator 의 종합 health 는 DB·Redis
+      # 연결까지 포함하므로, 컨테이너가 떠 있어도 DB 에 못 붙으면 DOWN 이 된다.
+      # 응답 코드만 보던 이전 방식은 500 을 뱉는 상태도 성공으로 통과시켰다.
+      UP=0
+      for i in $(seq 1 30); do
+        if curl -fsS --max-time 5 http://127.0.0.1:8080/actuator/health 2>/dev/null \
+             | grep -q '"status":"UP"'; then
+          echo "헬스체크 성공 (${i}회차)"
+          UP=1
+          break
+        fi
+        sleep 3
+      done
+
+      if [ "$UP" = 0 ]; then
+        echo "헬스체크 실패 — 컨테이너 로그 마지막 60줄" >&2
+        docker logs --tail 60 antenna-backend >&2 || true
+        if [ "$HAVE_PREV" = 1 ]; then
+          echo "이전 이미지로 롤백합니다" >&2
+          docker image tag antenna-backend:previous antenna-backend:latest
+          $COMPOSE up -d --force-recreate --no-build backend
+        else
+          echo "이전 이미지가 없어 롤백할 수 없습니다(첫 배포)." >&2
+        fi
+        exit 1
+      fi
+
+    # 태그 없는 옛 이미지만 지운다. antenna-backend:previous 는 태그가 있어 남는다.
+    - docker image prune -f
+
+deploy-frontend:
+  <<: *deploy-base
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      changes:
+        - frontend/**/*
+        - .gitlab-ci.yml
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+  script:
+    # 호스트에 node 를 설치하지 않는다. VITE_* 는 빌드 시점에 번들에 박히며
+    # frontend/.env.production 에서 읽는다(둘 다 공개값이라 커밋돼 있다).
+    - |
+      docker run --rm -v "$PWD/frontend":/app -w /app node:22-alpine \
+        sh -c "npm ci && npm run build"
+
+    # 스테이징 디렉터리를 만들어 통째로 바꿔치기한다.
+    # 제자리에서 복사하면 복사가 끝나기 전의 섞인 트리가 잠깐 서비스된다.
+    - |
+      NEW=/srv/antenna/frontend.new
+      OLD=/srv/antenna/frontend.old
+      CUR=/srv/antenna/frontend
+
+      rm -rf "$NEW" "$OLD"
+      cp -r frontend/dist "$NEW"
+
+      # 배포 전부터 열려 있던 탭은 자기가 아는 옛 청크 이름을 계속 요청한다.
+      # 그 파일이 사라지면 지연 로딩되는 화면에 들어가는 순간 404 가 나는데,
+      # 화면에는 아무 일도 안 일어나고 콘솔에만 남아 원인을 찾기 어렵다.
+      # Vite 청크는 파일명에 해시가 붙어 새 파일과 이름이 겹치지 않으므로
+      # 옛 청크를 새 트리에 그대로 이어 붙인다. -n 은 새 파일을 덮어쓰지 않게,
+      # -p 는 mtime 을 보존해 아래 정리 대상 판정이 맞게 한다.
+      cp -rpn "$CUR/assets/." "$NEW/assets/" 2>/dev/null || true
+
+      # 도커(root)가 만든 dist 는 디렉터리가 700 으로 나오는 경우가 있다.
+      # nginx 는 www-data 로 읽으므로 통과 권한이 없으면 403 이 된다.
+      find "$NEW" -type d -exec chmod 755 {} +
+      find "$NEW" -type f -exec chmod 644 {} +
+
+      # 7 일 넘게 어느 배포에도 없었던 청크만 지운다. 열어 둔 탭의 현실적인
+      # 수명보다 넉넉하고, 옛 청크를 영원히 쌓아 두지도 않는다.
+      find "$NEW/assets" -type f -mtime +7 -delete 2>/dev/null || true
+
+      mv "$CUR" "$OLD"
+      mv "$NEW" "$CUR"
+
+      # nginx 는 파일을 직접 읽으므로 reload 가 필요 없다. 교체 결과만 확인한다.
+      CODE=$(curl -s -o /dev/null -w '%{http_code}' https://stock-antenna.com)
+      if [ "$CODE" != "200" ]; then
+        echo "배포 후 응답이 $CODE 입니다 — 이전 트리로 되돌립니다" >&2
+        rm -rf "$CUR"
+        mv "$OLD" "$CUR"
+        exit 1
+      fi
+      echo "프론트 배포 확인 (HTTP $CODE)"
+      rm -rf "$OLD"

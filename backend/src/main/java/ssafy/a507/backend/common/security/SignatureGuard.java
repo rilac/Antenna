@@ -64,7 +64,7 @@ public class SignatureGuard {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+                        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
         String linked = user.getWalletAddress();
         if (linked == null) {
             throw new BusinessException(ErrorCode.WALLET_NOT_LINKED);

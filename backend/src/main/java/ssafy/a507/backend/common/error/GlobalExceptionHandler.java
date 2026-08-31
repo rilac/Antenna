@@ -1,15 +1,15 @@
 package ssafy.a507.backend.common.error;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/**
- * 오류 응답을 한 곳에서 만든다.
- * 예상 못 한 예외(catch-all)는 여기서 잡지 않는다 — 삼키면 팀 전체가 개발 중에 스택을 못 본다.
- */
+/** 모든 오류 응답을 API 명세 §1 형식 하나로 모은다. */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -20,18 +20,34 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(code, e.getField()));
     }
 
-    /**
-     * @Valid 실패. 위반이 여러 개여도 첫 번째만 내려간다 —
-     * 그래서 DTO의 message = 를 사람이 읽을 한국어로 쓰는 게 곧 API 문구가 된다.
-     */
+    /** @Valid 실패. 첫 번째 위반 필드만 내려준다 — 프론트가 한 번에 한 곳을 가리키면 된다. */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         FieldError first = e.getBindingResult().getFieldErrors().stream().findFirst().orElse(null);
-        ErrorCode code = ErrorCode.INVALID_REQUEST;
-        if (first == null) {
-            return ResponseEntity.status(code.getStatus()).body(ErrorResponse.of(code));
-        }
-        return ResponseEntity.status(code.getStatus())
-                .body(ErrorResponse.of(code, first.getDefaultMessage(), first.getField()));
+        String field = first == null ? null : first.getField();
+        String message = first == null
+                ? ErrorCode.INVALID_REQUEST.getMessage()
+                : first.getDefaultMessage();
+        return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, message, field));
+    }
+
+    /**
+     * 본문을 못 읽는 경우 — 깨진 JSON, enum 에 없는 값 등.
+     * 파서 메시지는 내부 타입 이름을 흘리므로 내려보내지 않는다.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException e) {
+        log.debug("본문 파싱 실패", e);
+        return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST));
+    }
+
+    /** 마지막 그물. 여기까지 온 것은 예상 못 한 오류이므로 스택을 남긴다. */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception e) {
+        log.error("처리되지 않은 예외", e);
+        return ResponseEntity.status(ErrorCode.INTERNAL_ERROR.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
     }
 }

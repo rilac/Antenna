@@ -1,32 +1,14 @@
 package ssafy.a507.backend.common.security;
 
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
-import ssafy.a507.backend.common.error.BusinessException;
-import ssafy.a507.backend.common.error.ErrorCode;
-
 /**
- * 현재 로그인 사용자. 서비스에서 SecurityContextHolder를 직접 뒤지지 않는다.
- * 인증 주체의 이름을 users.id로 읽는다 — ANT-AUTH-03이 자체 JWT를 붙일 때
- * sub 클레임이 그 자리에 오므로 이 어댑터는 그대로 동작한다.
+ * 현재 요청을 보낸 사용자의 id.
+ * ANT-AUTH(자체 JWT)가 붙기 전까지는 SecurityContext 의 principal 이름을 그대로 쓴다.
+ *
+ * <p>인증 없이 부르면 401({@code UNAUTHENTICATED})로 던진다 — null 을 돌려주지 않으므로
+ * 호출부에서 널 검사를 하지 않는다. 임시 구현의 한계는
+ * {@link SecurityContextCurrentUserProvider} 주석에 적어 두었다.
  */
-@Component
-public class CurrentUserProvider {
+public interface CurrentUserProvider {
 
-    public Long currentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null
-                || !authentication.isAuthenticated()
-                || authentication instanceof AnonymousAuthenticationToken) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-        try {
-            return Long.parseLong(authentication.getName());
-        } catch (NumberFormatException e) {
-            // 인증은 됐는데 주체 이름이 users.id가 아니다 — 인증 설정이 계약을 어긴 것이다.
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-    }
+    Long currentUserId();
 }

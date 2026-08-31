@@ -66,11 +66,7 @@ public class User {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    /**
-     * 회원가입 시점의 계정을 만든다. id·시각은 JPA가 채우고, 지갑은 나중에 linkWallet으로 붙인다.
-     * 빌더를 두지 않은 이유: 필수 필드가 nickname 하나뿐이라 인자 순서를 헷갈릴 여지가 없고,
-     * @AllArgsConstructor 는 nickname/introduce 를 바꿔 넣어도 컴파일이 통과해 오히려 위험하다.
-     */
+    /** OAuth 최초 로그인 시 생성. 닉네임은 온보딩에서 사용자가 정한다. */
     public static User create(String nickname) {
         User user = new User();
         user.nickname = nickname;

@@ -5,6 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ANTENA</title>
+    <!-- Pretendard Variable — --sans 가 1순위로 지정한 폰트인데 아무 데서도
+         불러오지 않아, 한글이 시스템 폰트의 400/700 두 단계로만 렌더되고 있었다.
+         굵기 45~920 가변이라 CSS 곳곳의 650·750·850 이 제대로 표현된다. -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   </head>
   <body>
     <div id="root"></div>

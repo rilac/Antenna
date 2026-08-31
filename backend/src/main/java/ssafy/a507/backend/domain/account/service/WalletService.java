@@ -43,7 +43,7 @@ public class WalletService {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+                        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
         if (user.getWalletAddress() != null) {
             throw new BusinessException(ErrorCode.WALLET_ALREADY_LINKED);
         }
@@ -74,7 +74,7 @@ public class WalletService {
         User user =
                 userRepository
                         .findById(userId)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+                        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
         String address = user.getWalletAddress();
         return new WalletStatusResponse(address != null, address);
     }
