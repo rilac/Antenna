@@ -421,6 +421,7 @@
       <li><div class="row"><span class="k no">·</span><span class="c">title</span><span class="t">varchar(100)</span></div><div class="note">목록은 미구독자에게도 공개 · 구독 유인</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">본문 · 20000자 상한</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">is_public <span class="nv">V4</span></span><span class="t">boolean</span></div><div class="note">true면 본문 전체 공개 · false면 미구독자에게 앞 3줄만 노출하고 구독 유도</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">view_count <span class="nv">V5</span></span><span class="t">int</span></div><div class="note">열람 수 · GET /reports 목록의 viewCount · 기본 0, GET /reports/{id} 에서 증가 · sort=POPULAR 정렬 키</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">발행 시각 · 목록 정렬 키</div></li>
     </ul>
   </article>
@@ -442,7 +443,7 @@
     <ul>
       <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">advertiser_id <em>→users</em></span><span class="t">int</span></div><div class="note">배너를 산 회원 · 토큰 결제자</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">image_url</span><span class="t">varchar(500)</span></div><div class="note">배너 이미지 · https만 허용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">image_url</span><span class="t">varchar(500)</span></div><div class="note">배너 이미지 · <b>upload_files 가 발급한 내부 URL만</b> · 클라이언트가 넘긴 외부 URL은 저장하지 않는다(SSRF · 추적 픽셀 · 승인 후 바꿔치기 차단)</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">link_url</span><span class="t">varchar(500)</span></div><div class="note">클릭 시 이동 주소 · https만 허용(피싱 차단)</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">starts_at</span><span class="t">timestamptz</span></div><div class="note">게재 시작 · 메인 배너 자리는 1개라 기간 중복은 앱에서 차단</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">ends_at</span><span class="t">timestamptz</span></div><div class="note">게재 종료 · 지나면 노출 쿼리에서 자동 제외</div></li>
@@ -457,7 +458,7 @@
 
 <!-- ── 커뮤니티 ── -->
 <section style="--dc:#C24A2E">
-  <h2>커뮤니티 <span class="cnt">5</span></h2>
+  <h2>커뮤니티 <span class="cnt">6</span></h2>
   <div class="grid">
 
   <article><header><h3>feed_posts</h3><span class="v3">V3</span></header>
@@ -516,6 +517,21 @@
       <li><div class="row"><span class="k fk">FK</span><span class="c">handled_by <em>→users</em></span><span class="t">int</span></div><div class="note">처리한 관리자</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">handled_at</span><span class="t">timestamptz</span></div><div class="note">처리 시각</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">접수 시각</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>upload_files</h3><span class="v3">V5</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">varchar(36)</span></div><div class="note">fileId(UUID) · POST /uploads 응답값 그대로 · 다른 API는 이 값만 받고 URL은 받지 않는다</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">업로더</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">purpose</span><span class="t">varchar(10)</span></div><div class="note">AD / REPORT / POST · 용도별 규격 검증(배너는 고정 비율)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">url</span><span class="t">varchar(500)</span></div><div class="note">저장 위치 · CDN은 인프라 결정</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">mime</span><span class="t">varchar(20)</span></div><div class="note">image/png · image/jpeg · image/webp 만 허용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">width</span><span class="t">int</span></div><div class="note">응답 필드</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">height</span><span class="t">int</span></div><div class="note">응답 필드</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">bytes</span><span class="t">int</span></div><div class="note">5MB 상한 · 초과 시 413</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">post_id <em>→feed_posts</em></span><span class="t">int</span></div><div class="note">피드 글 첨부 · 업로드 시점엔 NULL, POST /posts 의 imageFileIds 로 연결 · 글당 4장 상한은 앱에서 검증</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">업로드 시각</div></li>
     </ul>
   </article>
 
