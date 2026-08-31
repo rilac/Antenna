@@ -49,6 +49,10 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 "/api/v1/auth/login/*", "/api/v1/auth/refresh")
                                         .permitAll()
+                                        // 배포 헬스체크. nginx 는 /api/ 만 프록시하므로
+                                        // 외부에서는 닿지 않고 서버 안에서만 열린다.
+                                        .requestMatchers("/actuator/health")
+                                        .permitAll()
                                         .anyRequest()
                                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
