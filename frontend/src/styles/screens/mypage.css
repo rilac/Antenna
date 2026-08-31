@@ -1,0 +1,95 @@
+/* E-05 마이페이지 [ANT-FE-MYPAGE]
+   화면 전용 CSS. 셸(app.css)·공용 상태(state.css)와 섞지 않는다.
+   .badges 는 G-09 와 공유하는 컴포넌트 스타일이라 아래쪽에 따로 모아 둔다. */
+
+/* ── 프로필 요약 ─────────────────────────────────────── */
+.mp-profile{
+  display:grid;align-items:center;gap:20px;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  padding:24px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.mp-avatar{
+  width:72px;height:72px;flex:none;border-radius:50%;
+  object-fit:cover;background:var(--brand-soft);
+}
+.mp-who{min-width:0}
+.mp-who h2{margin:0;color:var(--ink);font-size:20px;font-weight:850;letter-spacing:-.02em}
+.mp-introduce{margin:4px 0 0;color:var(--muted);font-size:13.5px}
+
+.mp-interests{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding:0;list-style:none}
+.mp-interests li{
+  padding:4px 10px;border-radius:999px;
+  background:var(--brand-soft);color:var(--brand-ink);
+  font-size:12px;font-weight:700;
+}
+
+.mp-actions{display:grid;gap:8px}
+.mp-btn{
+  display:grid;place-items:center;height:36px;padding:0 16px;
+  border-radius:10px;font-size:13px;font-weight:750;white-space:nowrap;
+}
+.mp-btn.solid{background:var(--brand);color:#fff}
+.mp-btn.solid:hover{background:var(--brand-ink)}
+.mp-btn.ghost{border:1px solid var(--rule);background:var(--surface);color:var(--body)}
+.mp-btn.ghost:hover{border-color:#cdc9f7;color:var(--brand-ink)}
+
+/* ── 블록 공통 ───────────────────────────────────────── */
+.mp-block{margin-top:32px}
+.mp-block h3{margin:0 0 12px;color:var(--ink);font-size:16px;font-weight:800}
+
+/* ── 외부 채널 ───────────────────────────────────────── */
+.mp-channels{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.mp-channels a{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+}
+.mp-channels a:hover{border-color:#cdc9f7}
+.mp-channel-platform{flex:none;color:var(--ink);font-size:13px;font-weight:750}
+.mp-channel-url{
+  overflow:hidden;color:var(--muted);
+  font:600 12.5px var(--mono);text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ── 활동 진입점 ─────────────────────────────────────── */
+.mp-links{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  margin:0;padding:0;list-style:none;
+}
+.mp-links a{
+  display:flex;align-items:center;gap:13px;padding:16px 18px;
+  border:1px solid var(--rule);border-radius:14px;background:var(--surface);
+  transition:border-color .14s,background .14s;
+}
+.mp-links a:hover{border-color:#cdc9f7;background:var(--brand-softer)}
+.mp-link-ic{
+  display:grid;place-items:center;width:40px;height:40px;flex:none;
+  border-radius:11px;background:var(--brand-soft);color:var(--brand);
+}
+.mp-link-text{flex:1;min-width:0}
+.mp-link-text b{display:block;color:var(--ink);font-size:14px;font-weight:750}
+.mp-link-text small{display:block;margin-top:2px;color:var(--muted);font-size:12px}
+.mp-link-go{flex:none;font-style:normal;color:#b3b9c9;font-size:17px}
+.mp-links a:hover .mp-link-go{color:var(--brand)}
+
+/* ── 배지 (G-09 와 공유) ─────────────────────────────── */
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.badge-chip{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 14px;border:1px solid var(--rule);border-radius:999px;
+  background:var(--surface);color:var(--body);font-size:13px;font-weight:750;
+}
+/* 전시 pin 은 브랜드색으로 앞에 세운다 */
+.badge-chip.pinned{border-color:#cdc9f7;background:var(--brand-softer);color:var(--brand-ink)}
+.badge-mark{display:grid;place-items:center;color:var(--gold)}
+.badge-pin{
+  padding:1px 6px;border-radius:999px;background:var(--brand-soft);
+  color:var(--brand-ink);font-style:normal;font-size:10.5px;font-weight:800;
+}
+.badges-empty{margin:0;color:var(--faint);font-size:13px}
+
+@media(max-width:760px){
+  .mp-profile{grid-template-columns:auto minmax(0,1fr);gap:16px}
+  .mp-actions{grid-column:1/-1;grid-template-columns:1fr 1fr}
+  .mp-links{grid-template-columns:minmax(0,1fr)}
+}
