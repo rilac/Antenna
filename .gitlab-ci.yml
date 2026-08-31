@@ -63,10 +63,19 @@ deploy-backend:
     # bootJar 만 돌리면 테스트를 건너뛴다. test 를 앞에 붙여 깨진 코드가 배포되지 않게 한다.
     # build 대신 test+bootJar 인 이유 — build 는 plain jar 도 만들어서
     # Dockerfile 의 COPY build/libs/*.jar 가 두 개를 만나 실패한다.
-    - cd backend && chmod +x ./gradlew && ./gradlew --no-daemon clean test bootJar && cd ..
+    # 서브셸로 감싼다. cd 를 && 로 이어 붙이면 gradle 이 실패했을 때 되돌아오는
+    # cd 가 건너뛰어져, 다음 단계가 backend/ 안에서 실행된다.
+    - (cd backend && chmod +x ./gradlew && ./gradlew --no-daemon clean test bootJar)
 
     # ── 교체 + 헬스체크 + 롤백 ────────────────────────────────────────
     - |
+      # 앞 단계가 실패했는데도 여기까지 흘러오면, 원인과 상관없는 에러로 바뀌어
+      # 로그를 읽기 어려워진다. 산출물이 있는지부터 확인하고 멈춘다.
+      if [ -z "$(ls backend/build/libs/*.jar 2>/dev/null)" ]; then
+        echo "backend/build/libs 에 jar 이 없습니다 — 빌드 단계를 확인하세요." >&2
+        exit 1
+      fi
+
       COMPOSE="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 
       # 실패했을 때 돌아갈 이미지를 먼저 확보한다. 첫 배포면 previous 가 없다.
