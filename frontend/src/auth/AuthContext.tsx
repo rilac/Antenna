@@ -3,7 +3,7 @@
    여기서는 셸이 로그인/비로그인 두 모습을 그릴 수 있을 만큼만 들고 있는다. */
 import { useEffect, useMemo, useState } from 'react'
 import { setAccessToken, setUnauthorizedHandler } from '../api/client'
-import { restoreSession } from './session'
+import { endSession, restoreSession } from './session'
 import { AuthCtx, type AuthState, type AuthUser, type Role } from './context'
 
 /* 프로토타입이 쓰던 임시 플래그. [ANT-FE-LOGIN] 이 실제 토큰으로 갈아끼운다.
@@ -74,7 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authed: user !== null,
     booting,
     signIn: (next: AuthUser) => setUser(next),
-    signOut: () => setUser(null),
+    signOut: () => {
+      /* 서버 응답을 기다리지 않는다 — 화면은 즉시 로그아웃 상태가 되어야 한다.
+         access token 정리는 endSession 이 요청을 마친 뒤에 한다(토큰이 있어야 부를 수 있다). */
+      void endSession()
+      setUser(null)
+    },
     setNickname: (nickname: string) =>
       setUser((prev) => (prev ? { ...prev, nickname } : prev)),
   }), [user, booting])
