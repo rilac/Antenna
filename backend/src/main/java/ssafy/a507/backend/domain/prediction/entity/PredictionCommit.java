@@ -42,7 +42,7 @@ public class PredictionCommit {
     @Column(nullable = false, length = 64)
     private String salt;
 
-    /** EIP-712 서명. 작성자 부인방지용이다. */
+    /** EIP-191 personal_sign 서명. 작성자 부인방지용이다. 규격은 API 명세 v0.6 §1.2. */
     @Column(length = 255)
     private String signature;
 
