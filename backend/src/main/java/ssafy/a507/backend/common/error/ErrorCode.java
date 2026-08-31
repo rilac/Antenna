@@ -13,6 +13,7 @@ public enum ErrorCode {
     // 공통
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "요청 값이 올바르지 않습니다."),
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
     // 신고 (ANT-COMMUNITY-04)
     TARGET_NOT_FOUND(HttpStatus.NOT_FOUND, "신고 대상을 찾을 수 없습니다."),

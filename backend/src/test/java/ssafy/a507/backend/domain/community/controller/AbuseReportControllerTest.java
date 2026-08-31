@@ -162,6 +162,28 @@ class AbuseReportControllerTest {
     }
 
     @Test
+    @DisplayName("enum 에 없는 targetType 이면 400 INVALID_REQUEST — code 가 반드시 실린다")
+    void 잘못된_enum_은_400() throws Exception {
+        mockMvc.perform(post(URL)
+                        .with(user(String.valueOf(reporterId))).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("GROUP", postId, "SPAM", null)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("깨진 JSON 이면 400 INVALID_REQUEST — 본문이 비지 않는다")
+    void 깨진_JSON_은_400() throws Exception {
+        mockMvc.perform(post(URL)
+                        .with(user(String.valueOf(reporterId))).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ broken"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
     @DisplayName("로그인하지 않으면 401 — 기본 Security 체인이 막는다")
     void 미인증은_401() throws Exception {
         mockMvc.perform(post(URL).with(csrf())
