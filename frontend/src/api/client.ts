@@ -2,7 +2,7 @@
 
    accessToken 은 메모리에만 둔다. refresh 는 httpOnly 쿠키라 클라이언트가
    저장하거나 읽지 않는다(설계서 §4 A-01). */
-import { ApiError, toApiError } from './errors'
+import { ApiError, CLIENT_ERROR_CODE, isUnauthenticated, toApiError } from './errors'
 import { idempotencyKey } from './idempotency'
 
 const BASE = '/api/v1'
@@ -66,15 +66,20 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
      그대로 두면 화면이 undefined 를 그리다 터지므로 여기서 걸러낸다. */
   const contentType = res.headers.get('Content-Type') ?? ''
   if (!contentType.includes('application/json')) {
-    throw new ApiError({ code: 'NOT_JSON', message: `expected JSON, got ${contentType}`, status: res.status })
+    throw new ApiError(
+      { code: CLIENT_ERROR_CODE.CLIENT_NOT_JSON, message: `expected JSON, got ${contentType}` },
+      res.status,
+    )
   }
 
   const payload = await res.json().catch(() => null)
 
   if (!res.ok) {
     const error = toApiError(res.status, payload)
-    // 인증 만료는 전역에서 M-08 로 넘긴다. 서명 주소 불일치(401)는 화면이 처리한다.
-    if (error.status === 401 && error.code === 'UNAUTHORIZED') onUnauthorized()
+    // 인증 만료는 전역에서 M-08 로 넘긴다.
+    // 명세상 UNAUTHENTICATED 는 서명 주소 불일치도 덮으므로, 지갑 서명이 오가는
+    // 요청은 화면이 직접 재서명으로 분기한다 — errors.ts isUnauthenticated 주석 참고.
+    if (isUnauthenticated(error)) onUnauthorized()
     throw error
   }
 
