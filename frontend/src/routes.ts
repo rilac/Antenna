@@ -11,6 +11,7 @@ import CommunityPost from './pages/CommunityPost'
 import Watchlist from './pages/Watchlist'
 import MyPage from './pages/MyPage'
 import Login from './pages/Login'
+import OAuthCallback from './pages/OAuthCallback'
 import PredictionCreate from './pages/PredictionCreate'
 import SimHome from './pages/SimHome'
 import SimSetup from './pages/SimSetup'
@@ -59,6 +60,7 @@ export const ROUTES: PageMeta[] = [
   { path: '/watchlist', element: Watchlist, title: "찜 · ANTENA", mode: 'insight' as const, nav: 'watchlist', bodyClass: 'watchlist-page', script: WatchlistScript },
   { path: '/mypage', element: MyPage, title: "마이페이지 · ANTENA", mode: 'insight' as const, nav: 'portfolio', bodyClass: 'mypage-page', script: MyPageScript },
   { path: '/login', element: Login, title: "로그인 · ANTENA", script: LoginScript },
+  { path: '/oauth/callback/google', element: OAuthCallback, title: "로그인 중 · ANTENA" },
   { path: '/prediction/create', element: PredictionCreate, title: "예측 등록 · ANTENA", mode: 'insight' as const, nav: 'market', bodyClass: 'prediction-create-page', script: PredictionCreateScript },
   { path: '/sim', element: SimHome, title: "모의 투자 홈 · ANTENA", mode: 'sim' as const, nav: 'home', bodyClass: 'sim-home-page' },
   { path: '/sim/setup', element: SimSetup, title: "모드 선택 · ANTENA", mode: 'sim' as const, nav: 'play', bodyClass: 'sim-setup-page' },

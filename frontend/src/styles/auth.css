@@ -53,7 +53,7 @@
 .auth-back{position:absolute;left:48px;top:34px;color:#7a85a0;font-size:13px;font-weight:700;transition:color .15s}.auth-back:hover{color:var(--brand)}
 .sso h2{margin:0 0 12px;text-align:center;color:var(--ink);font-size:28px;font-weight:850;letter-spacing:-.025em}
 .sso .sub{margin:0 0 38px;text-align:center;color:var(--muted);font-size:14px}
-.sso-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:62px;border-radius:14px;font-size:16px;font-weight:750;letter-spacing:-.01em;transition:background .15s,border-color .15s,transform .06s,box-shadow .15s}
+.sso-btn{display:flex;font-family:inherit;cursor:pointer;align-items:center;justify-content:center;gap:12px;width:100%;height:62px;border-radius:14px;font-size:16px;font-weight:750;letter-spacing:-.01em;transition:background .15s,border-color .15s,transform .06s,box-shadow .15s}
 .sso-btn+.sso-btn{margin-top:14px}.sso-btn:active{transform:translateY(1px)}.sso-btn svg{flex:none}
 .sso-btn.ssafy{background:linear-gradient(135deg,#5850f4,#393df0);box-shadow:0 10px 22px rgba(70,66,229,.2);color:#fff}.sso-btn.ssafy:hover{background:linear-gradient(135deg,#4a43e8,#3035dd)}
 .sso-btn.google{border:1px solid var(--rule);background:#fff;color:var(--ink)}.sso-btn.google:hover{border-color:#bfc4da;background:#fbfbff}
