@@ -84,17 +84,14 @@ deploy-backend:
 
       $COMPOSE up -d --build backend
 
-      # 부팅될 때까지 최대 90초 기다린다. 아직 actuator 를 안 붙였으므로
-      # 인증 엔드포인트가 HTTP 로 응답하는지로 살아있음을 판단한다.
-      # 연결 거부면 curl 이 000 을 돌려준다.
-      # ponytail: 응답 코드만 보는 얕은 판정. DB 연결까지 확인하려면
-      #           spring-boot-starter-actuator 를 넣고 /actuator/health 로 바꾼다.
+      # 부팅될 때까지 최대 90초 기다린다. actuator 의 종합 health 는 DB·Redis
+      # 연결까지 포함하므로, 컨테이너가 떠 있어도 DB 에 못 붙으면 DOWN 이 된다.
+      # 응답 코드만 보던 이전 방식은 500 을 뱉는 상태도 성공으로 통과시켰다.
       UP=0
       for i in $(seq 1 30); do
-        CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
-          http://127.0.0.1:8080/api/v1/auth/refresh || true)
-        if [ "$CODE" != "000" ] && [ -n "$CODE" ]; then
-          echo "헬스체크 성공 (${i}회차, HTTP $CODE)"
+        if curl -fsS --max-time 5 http://127.0.0.1:8080/actuator/health 2>/dev/null \
+             | grep -q '"status":"UP"'; then
+          echo "헬스체크 성공 (${i}회차)"
           UP=1
           break
         fi

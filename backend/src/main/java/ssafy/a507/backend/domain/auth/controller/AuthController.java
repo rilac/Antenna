@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
+import ssafy.a507.backend.common.error.BusinessException;
+import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.domain.auth.dto.AuthDtos.AccessTokenResponse;
 import ssafy.a507.backend.domain.auth.dto.AuthDtos.LoginRequest;
 import ssafy.a507.backend.domain.auth.dto.AuthDtos.LoginResponse;
@@ -52,7 +53,10 @@ public class AuthController {
     public ResponseEntity<AccessTokenResponse> refresh(
             @CookieValue(name = REFRESH_COOKIE, required = false) String refreshToken) {
         if (refreshToken == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "refresh 쿠키 없음");
+            // ResponseStatusException 을 쓰면 GlobalExceptionHandler 의 마지막 그물
+            // (@ExceptionHandler(Exception.class))에 걸려 401 이 500 으로 바뀐다.
+            // 오류 계약대로 BusinessException 을 던져 code 까지 함께 내려보낸다.
+            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
         }
         RefreshTokenStore.Rotated rotated;
         try {
