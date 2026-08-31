@@ -38,3 +38,12 @@ app:
     cookie-secure: false
   cors:
     allowed-origins: http://localhost:5173
+
+  # 테스트는 포털과 통신하지 않는다. 키가 비어 있을 때 수집이 스스로 멈추는 것도 검증 대상이다.
+  market-data:
+    service-key:
+    base-url: http://portal.test/GetStockSecuritiesInfoService
+    page-size: 100
+    lookback-days: 10
+    # "-" 는 스프링의 스케줄 비활성 표시다. 등록은 검증되고 실행만 빠진다.
+    cron: "-"

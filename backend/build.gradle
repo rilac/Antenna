@@ -30,6 +30,9 @@ dependencies {
     // 배포 헬스체크. DB·Redis 연결까지 확인해야 CI 가 기동 실패를 잡아낸다.
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-webclient'
+    // RestClient 자동설정. 부트 4 에서 별도 모듈로 빠져 이게 없으면
+    // RestClient.Builder 빈이 없다 — 외부 API 클라이언트가 주입받지 못한다.
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
