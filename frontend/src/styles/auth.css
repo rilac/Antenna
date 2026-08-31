@@ -1,0 +1,153 @@
+/* ANTENA — 로그인 (SSO)
+   전 선택자를 .auth 아래로 스코프했다. auth.css 는 다른 화면 CSS 와 함께 전역으로 올라가므로
+   .feat · .lead · .sub 같은 흔한 이름이 밖으로 새지 않게 한다. */
+
+.auth{
+  position:relative;
+  min-height:100vh;
+  padding:56px;
+  display:flex;align-items:center;
+  background:
+    radial-gradient(circle at 12% 6%,rgba(150,138,255,.13),transparent 42%),
+    radial-gradient(circle at 92% 88%,rgba(126,172,255,.12),transparent 40%),
+    linear-gradient(158deg,#fcfcff 0%,#f7f7fd 46%,#eff1fa 100%);
+}
+
+/* 브랜드 로고 — 제목 바로 위에 놓인다. 홈으로 돌아가는 통로도 겸한다. */
+.auth .auth-brand{
+  display:inline-flex;align-items:center;gap:11px;
+  margin:0 0 14px;border-radius:10px;
+}
+.auth .auth-brand .mark{width:27px;height:27px;flex:none;color:var(--brand)}
+.auth .auth-brand .name{font-size:19px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+.auth .auth-brand:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+
+.auth .auth-shell{
+  /* 코멘트 반영: 전체를 중앙으로 모으려고 폭 1420px → 1120px, 간격 56px → 44px.
+     카드 가로는 앞선 요청대로 404px 유지. */
+  width:min(1120px,100%);margin:0 auto;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,404px);
+  align-items:center;gap:44px;
+}
+
+.auth .auth-intro{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.62fr);
+  align-items:center;gap:14px;min-width:0;
+}
+
+.auth .intro-copy{min-width:0;padding-left:8px}
+.auth .intro-copy h1{
+  margin:0 0 14px;font-size:clamp(26px,2.4vw,38px);line-height:1.26;
+  /* 코멘트 반영: 제목 두께 800 → 880 (+10%). 가변 폰트면 그대로, 아니면 가장 가까운 900 으로 렌더된다. */
+  font-weight:880;letter-spacing:-.035em;color:var(--ink);text-wrap:balance;
+}
+.auth .intro-copy .lead{
+  margin:0 0 21px;font-size:14px;line-height:1.65;color:var(--muted);
+}
+
+.auth .feats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:13px}
+.auth .feat{display:flex;align-items:center;gap:14px}
+.auth .feat-ic{
+  width:44px;height:44px;flex:none;border-radius:14px;display:grid;place-items:center;
+  background:#fff;color:var(--brand);
+  box-shadow:0 1px 2px rgba(20,20,27,.05),0 10px 24px -16px rgba(58,60,140,.6);
+}
+.auth .feat h3{margin:0;font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+
+.auth .intro-art{position:relative;margin:0;min-width:0;display:grid;place-items:end center}
+.auth .intro-art img{
+  width:100%;max-width:400px;height:auto;max-height:52vh;object-fit:contain;
+  /* 코멘트 반영: 개미를 살짝 왼쪽으로. transform 이라 레이아웃에는 영향이 없다. */
+  transform:translateX(-30px);
+  filter:drop-shadow(0 30px 40px rgba(72,64,160,.16));
+}
+
+/* 우측 SSO 카드 */
+.auth .sso{
+  display:flex;flex-direction:column;justify-content:center;
+  /* 코멘트 반영: 세로 620px → 372px (40% 축소). 안쪽 여백도 함께 줄여 비율을 유지한다. */
+  /* 버튼·안내문·임시 진입로가 더해져 내용이 늘었다. 고정 높이를 풀고 내용에 맞춘다. */
+  padding:34px 40px;
+  background:#fff;border-radius:28px;
+  box-shadow:0 2px 6px rgba(32,34,84,.04),0 40px 80px -44px rgba(41,44,112,.42);
+}
+.auth .sso h2{
+  margin:0 0 12px;text-align:center;color:var(--ink);
+  font-size:29px;font-weight:800;letter-spacing:-.025em;
+}
+.auth .sso .sub{margin:0 0 30px;text-align:center;color:var(--muted);font-size:14.5px}
+
+.auth .sso-btn{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;height:62px;border:0;border-radius:14px;
+  font-family:inherit;font-size:16px;font-weight:750;letter-spacing:-.01em;cursor:pointer;
+  transition:background .15s,border-color .15s,transform .06s,box-shadow .15s;
+}
+.auth .sso-btn+.sso-btn{margin-top:14px}
+.auth .sso-btn svg{flex:none}
+.auth .sso-btn:not(:disabled):active{transform:translateY(1px)}
+.auth .sso-btn:disabled{opacity:.6;cursor:progress}
+.auth .sso-btn:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+
+.auth .sso-btn.ssafy{
+  background:linear-gradient(135deg,#5850f4,#393df0);color:#fff;
+  box-shadow:0 10px 22px rgba(70,66,229,.2);
+}
+.auth .sso-btn.ssafy:not(:disabled):hover{background:linear-gradient(135deg,#4a43e8,#3035dd)}
+
+.auth .sso-btn.google{border:1px solid var(--rule);background:#fff;color:var(--ink)}
+.auth .sso-btn.google:not(:disabled):hover{border-color:#bfc4da;background:#fbfbff}
+
+.auth .sso-status{margin:18px 0 0;min-height:20px;text-align:center;font-size:13px;line-height:1.6}
+.auth .sso-status .err{color:var(--danger)}
+
+@media (prefers-reduced-motion:reduce){
+  .auth .sso-btn{transition:none}
+}
+
+/* 마스코트를 먼저 접고, 그다음 세로로 쌓는다 */
+@media (max-width:1180px){
+  .auth .auth-intro{grid-template-columns:minmax(0,1fr)}
+  .auth .intro-art{display:none}
+}
+@media (max-width:900px){
+  .auth{padding:44px 28px 40px;align-items:flex-start}
+  .auth .auth-shell{grid-template-columns:minmax(0,1fr);gap:40px}
+  .auth .intro-copy{padding-left:0}
+  .auth .intro-copy .lead{margin-bottom:30px}
+  .auth .sso{min-height:0;padding:36px 32px}
+}
+@media (max-width:520px){
+  .auth{padding:34px 20px 32px}
+  .auth .auth-brand{margin-bottom:18px}
+  .auth .intro-copy h1{font-size:27px}
+  .auth .feats{gap:15px}
+  .auth .feat-ic{width:44px;height:44px;border-radius:13px}
+  .auth .sso{padding:36px 22px;border-radius:22px}
+  .auth .sso h2{font-size:25px}
+  .auth .sso .sub{margin-bottom:30px}
+  .auth .sso-btn{height:58px;font-size:15px}
+}
+
+/* 준비 중 버튼 — 눌릴 수 없다는 게 색과 커서로 드러나야 한다 */
+.auth .sso-btn.ssafy:disabled{
+  background:var(--surface-2);border:1px solid var(--rule);color:var(--faint);
+  box-shadow:none;opacity:1;cursor:not-allowed;
+}
+.auth .sso-note{margin:9px 0 0;text-align:center;color:var(--faint);font-size:12px}
+
+/* 백엔드 없이 화면을 볼 때 쓰는 임시 진입로.
+   실제 로그인 버튼과 헷갈리지 않게 점선 아래로 내리고 흐리게 둔다. */
+.auth .dev-signin{
+  margin-top:20px;padding-top:16px;border-top:1px dashed var(--rule);
+  display:flex;flex-direction:column;gap:9px;
+}
+.auth .dev-signin-label{text-align:center;color:var(--faint);font-size:11px}
+.auth .dev-signin-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.auth .dev-signin-row button{
+  height:38px;border:1px solid var(--rule);border-radius:10px;background:var(--surface-2);
+  color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;
+  transition:background .15s,color .15s;
+}
+.auth .dev-signin-row button:hover{background:#fff;color:var(--ink)}
+.auth .dev-signin-row button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
