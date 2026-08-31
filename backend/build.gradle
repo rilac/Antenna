@@ -24,6 +24,8 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    // 배포 헬스체크. DB·Redis 연결까지 확인해야 CI 가 기동 실패를 잡아낸다.
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-webclient'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
