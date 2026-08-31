@@ -102,7 +102,7 @@
 <body>
 <div class="wrap">
 
-<h1>ANTENA 유저 플로우차트 v2</h1>
+<h1>ANTENA 유저 플로우차트 v2</h1><div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v2.1</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — 예측 등록 플로우의 "지갑 서명 EIP-712" 노드를 <b>EIP-191</b>로 정정. API 명세서 v0.4 §1.2와 일치.</div><div><b>v2.0</b> · 2026-08-27 · (이전 판) · <code>—</code> — Figma 14화면 기준 최초 판</div></div>
 <p class="sub">
   근거 ① Figma <code>j6hf8bls</code> / &ldquo;상민 와이어프레임&rdquo; 14화면 (2026-08-27 조회)<br>
   근거 ② <code>엔테나_기능명세_v4.xlsx</code> &mdash; 기능 80행 + 논의목록 D1~D19 (작성 08-26, 팀 합의 전)<br>
@@ -320,7 +320,7 @@ flowchart TB
   F3 --> F4["확신도"]
   F4 --> F5["내 판단 작성 + 선택 근거"]
   F5 --> F6["공개 · 비공개 설정"]
-  F6 --> SG["지갑 서명 EIP-712"]
+  F6 --> SG["지갑 서명 EIP-191"]
   SG --> SGV{"복원 주소 =<br/>연동 지갑?"}
   SGV -->|아니오| SGX["401 거부"]
   SGV -->|예| CM

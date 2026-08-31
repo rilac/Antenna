@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.Locale;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -86,5 +87,14 @@ public class User {
     /** false 면 온보딩을 마치지 않은 회원이다. */
     public boolean hasNickname() {
         return nickname != null;
+    }
+
+    /**
+     * 지갑을 1회 연동한다. 주소는 소문자로 눕혀 저장한다 —
+     * EIP-55 체크섬 주소와 소문자 주소는 같은 주소지만 문자열로는 달라서,
+     * 정규화 없이 저장하면 unique 제약도 대조도 뚫린다.
+     */
+    public void linkWallet(String address) {
+        this.walletAddress = address.toLowerCase(Locale.ROOT);
     }
 }
