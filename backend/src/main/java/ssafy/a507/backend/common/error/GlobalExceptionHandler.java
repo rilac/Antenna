@@ -1,5 +1,7 @@
 package ssafy.a507.backend.common.error;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -28,6 +30,24 @@ public class GlobalExceptionHandler {
         String message = first == null
                 ? ErrorCode.INVALID_REQUEST.getMessage()
                 : first.getDefaultMessage();
+        return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, message, field));
+    }
+
+    /**
+     * 쿼리 파라미터·경로 변수 검증 실패(@Validated). 없으면 500 으로 나가므로 본문 검증과 같은 형식으로 맞춘다.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleParamValidation(ConstraintViolationException e) {
+        ConstraintViolation<?> first = e.getConstraintViolations().stream().findFirst().orElse(null);
+        String field = null;
+        String message = ErrorCode.INVALID_REQUEST.getMessage();
+        if (first != null) {
+            // propertyPath 는 "메서드명.파라미터명" 이라 마지막 마디만 필드로 쓴다.
+            String path = first.getPropertyPath().toString();
+            field = path.substring(path.lastIndexOf('.') + 1);
+            message = first.getMessage();
+        }
         return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, message, field));
     }

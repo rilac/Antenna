@@ -58,7 +58,9 @@ class WalletControllerTest {
 
     /** 팩터리로 만들고 em으로 넣는다. 컬럼이 바뀌어도 컴파일 단계에서 잡힌다. */
     private Long insertUser(String nickname) {
-        User user = User.create(nickname);
+        // dev 병합 후 create() 는 인자를 받지 않는다 — 닉네임은 온보딩에서 정해진다.
+        User user = User.create();
+        user.changeNickname(nickname);
         em.persist(user);
         em.flush();
         return user.getId();

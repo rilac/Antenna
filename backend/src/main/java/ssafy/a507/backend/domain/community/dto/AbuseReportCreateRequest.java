@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import ssafy.a507.backend.domain.community.entity.AbuseReport;
 
-/** POST /api/abuse-reports 요청 본문. */
+/** POST /api/v1/abuse-reports 요청 본문. */
 public record AbuseReportCreateRequest(
 
         @NotNull(message = "신고 대상 종류를 지정해야 합니다.")

@@ -40,8 +40,8 @@ public class FeedPost {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    /** 5000자 상한은 애플리케이션에서 검증한다. */
-    @Column(columnDefinition = "text")
+    /** 5000자 상한은 애플리케이션에서 검증한다. 본문 없는 글은 없다. */
+    @Column(columnDefinition = "text", nullable = false)
     private String body;
 
     /** 리포스팅 원본. 구독 게이팅은 원본에서 판정한다. */
@@ -61,4 +61,22 @@ public class FeedPost {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /**
+     * 글 작성. {@code report} · {@code prediction} 은 없어도 되고 둘 다 붙어도 된다 —
+     * 리포스팅한 글에 예측 카드까지 다는 것을 명세가 막지 않는다.
+     */
+    public static FeedPost create(User user, String body, Report report, Prediction prediction) {
+        FeedPost post = new FeedPost();
+        post.user = user;
+        post.body = body;
+        post.report = report;
+        post.prediction = prediction;
+        post.status = Status.VISIBLE;
+        return post;
+    }
+
+    public boolean isBlocked() {
+        return status == Status.BLOCKED;
+    }
 }

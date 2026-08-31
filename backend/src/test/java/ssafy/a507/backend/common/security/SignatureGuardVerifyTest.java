@@ -63,7 +63,9 @@ class SignatureGuardVerifyTest {
     }
 
     private Long insertUser(String nickname, String walletAddress) {
-        User user = User.create(nickname);
+        // dev 병합 후 create() 는 인자를 받지 않는다 — 닉네임은 온보딩에서 정해진다.
+        User user = User.create();
+        user.changeNickname(nickname);
         if (walletAddress != null) {
             user.linkWallet(walletAddress);
         }
