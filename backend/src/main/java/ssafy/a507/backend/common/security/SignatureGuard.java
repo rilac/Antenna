@@ -47,7 +47,7 @@ public class SignatureGuard {
      * 실패해도 nonce는 이미 소비된 상태다 — 재시도로 서명을 갈아 끼우며 맞춰 보는 걸 막는다.
      */
     public String recover(Long userId, WalletSigned request) {
-        String nonce = nonceStore.consume(userId);
+        String nonce = nonceStore.consume(userId, request.scope());
         if (nonce == null) {
             throw new BusinessException(ErrorCode.NONCE_NOT_FOUND);
         }
@@ -76,6 +76,14 @@ public class SignatureGuard {
             throw new BusinessException(ErrorCode.SIGNER_MISMATCH, "signature");
         }
         return recovered;
+    }
+
+    /**
+     * 서명 payload에 박히는 체인 번호. 프론트도 같은 값으로 조립해야 하므로
+     * nonce 발급 응답에 함께 실어 보낸다 — 지갑에 물어보게 두면 사용자가 고른 네트워크 값이 와서 어긋난다.
+     */
+    public long chainId() {
+        return chainId;
     }
 
     /** 복원된 주소를 0x + 소문자 40자로 돌려준다. 저장·비교 형식이 이것 하나다. */

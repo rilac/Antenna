@@ -20,9 +20,9 @@ public class RedisSignatureNonceStore implements SignatureNonceStore {
     private final StringRedisTemplate redisTemplate;
 
     @Override
-    public String issue(Long userId) {
+    public String issue(Long userId, SignatureScope scope) {
         String nonce = UUID.randomUUID().toString();
-        redisTemplate.opsForValue().set(key(userId), nonce, TTL);
+        redisTemplate.opsForValue().set(key(userId, scope), nonce, TTL);
         return nonce;
     }
 
@@ -31,11 +31,12 @@ public class RedisSignatureNonceStore implements SignatureNonceStore {
      * 조회와 삭제를 두 명령으로 나누면 동시에 들어온 2건이 둘 다 조회를 통과한다.
      */
     @Override
-    public String consume(Long userId) {
-        return redisTemplate.opsForValue().getAndDelete(key(userId));
+    public String consume(Long userId, SignatureScope scope) {
+        return redisTemplate.opsForValue().getAndDelete(key(userId, scope));
     }
 
-    private String key(Long userId) {
-        return KEY_PREFIX + userId;
+    /** Redis에는 WHERE가 없다. 조회 조건을 키 이름에 그대로 박아 넣는다. */
+    private String key(Long userId, SignatureScope scope) {
+        return KEY_PREFIX + userId + ":" + scope.tag();
     }
 }

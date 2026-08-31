@@ -8,6 +8,9 @@ package ssafy.a507.backend.common.security;
  */
 public interface WalletSigned {
 
+    /** nonce 칸을 고르고 payload 첫 줄을 만든다. 다른 행위의 서명을 여기 재사용하지 못하게 하는 값이다. */
+    SignatureScope scope();
+
     /** 0x + r(32) s(32) v(1) = 130 hex. */
     String signature();
 

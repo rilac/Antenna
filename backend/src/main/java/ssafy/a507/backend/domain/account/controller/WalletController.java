@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ssafy.a507.backend.common.security.CurrentUserProvider;
 import ssafy.a507.backend.domain.account.dto.WalletLinkRequest;
 import ssafy.a507.backend.domain.account.dto.WalletLinkResponse;
+import ssafy.a507.backend.domain.account.dto.WalletNonceRequest;
 import ssafy.a507.backend.domain.account.dto.WalletNonceResponse;
 import ssafy.a507.backend.domain.account.dto.WalletStatusResponse;
 import ssafy.a507.backend.domain.account.service.WalletService;
@@ -26,9 +27,10 @@ public class WalletController {
     private final WalletService walletService;
     private final CurrentUserProvider currentUserProvider;
 
+    /** 지갑 연동뿐 아니라 온체인 동반 요청 전부가 쓰는 공용 창구다. scope가 nonce 칸을 고른다. */
     @PostMapping("/nonce")
-    public WalletNonceResponse issueNonce() {
-        return new WalletNonceResponse(walletService.issueNonce(currentUserProvider.currentUserId()));
+    public WalletNonceResponse issueNonce(@Valid @RequestBody WalletNonceRequest request) {
+        return walletService.issueNonce(currentUserProvider.currentUserId(), request.scope());
     }
 
     /** 새 리소스를 만드는 게 아니라 기존 계정의 상태를 바꾸는 전이라서 200이다. */

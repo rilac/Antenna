@@ -47,6 +47,11 @@ class SignatureGuardVerifyTest {
     /** 온체인 동반 요청 DTO를 흉내 낸다. 금액·대상이 payload에 들어가는 모양 그대로. */
     private record SubscribeStub(String signature, long publisherId) implements WalletSigned {
         @Override
+        public SignatureScope scope() {
+            return SignatureScope.SUBSCRIBE;
+        }
+
+        @Override
         public String signingPayload(String nonce, long chainId) {
             return "antenna:subscribe:v1\npublisher="
                     + publisherId
@@ -76,7 +81,7 @@ class SignatureGuardVerifyTest {
     @DisplayName("연동 지갑으로 서명하면 통과한다")
     void 서명자_일치() {
         Long userId = insertUser("연동한사람", credentials.getAddress());
-        String nonce = nonceStore.issue(userId);
+        String nonce = nonceStore.issue(userId, SignatureScope.SUBSCRIBE);
 
         String recovered = signatureGuard.verify(userId, signed(userId, nonce, credentials, 7L));
 
@@ -87,7 +92,7 @@ class SignatureGuardVerifyTest {
     @DisplayName("지갑 미연동이면 WALLET_NOT_LINKED — UNAUTHORIZED로 뭉개지지 않는다")
     void 미연동_계정은_연동을_유도한다() {
         Long userId = insertUser("미연동사람", null);
-        nonceStore.issue(userId);
+        nonceStore.issue(userId, SignatureScope.SUBSCRIBE);
 
         assertThatThrownBy(
                         () -> signatureGuard.verify(userId, signed(userId, "unused", credentials, 7L)))
@@ -100,20 +105,20 @@ class SignatureGuardVerifyTest {
     @DisplayName("미연동으로 거절될 때는 nonce를 태우지 않는다")
     void 실패해도_nonce는_남는다() {
         Long userId = insertUser("미연동사람2", null);
-        String nonce = nonceStore.issue(userId);
+        String nonce = nonceStore.issue(userId, SignatureScope.SUBSCRIBE);
 
         assertThatThrownBy(
                         () -> signatureGuard.verify(userId, signed(userId, nonce, credentials, 7L)))
                 .isInstanceOf(BusinessException.class);
 
-        assertThat(nonceStore.consume(userId)).isEqualTo(nonce);
+        assertThat(nonceStore.consume(userId, SignatureScope.SUBSCRIBE)).isEqualTo(nonce);
     }
 
     @Test
     @DisplayName("다른 지갑으로 서명하면 401 SIGNER_MISMATCH")
     void 서명자_불일치() {
         Long userId = insertUser("연동한사람2", credentials.getAddress());
-        String nonce = nonceStore.issue(userId);
+        String nonce = nonceStore.issue(userId, SignatureScope.SUBSCRIBE);
 
         assertThatThrownBy(
                         () ->
@@ -133,7 +138,7 @@ class SignatureGuardVerifyTest {
     @DisplayName("body의 publisher를 바꿔치기하면 복원 주소가 달라져 401")
     void body_변조는_401로_드러난다() {
         Long userId = insertUser("연동한사람3", credentials.getAddress());
-        String nonce = nonceStore.issue(userId);
+        String nonce = nonceStore.issue(userId, SignatureScope.SUBSCRIBE);
         // publisher=7로 서명해 두고, 서버에는 publisher=99인 요청으로 보낸다.
         String tampered = signed(userId, nonce, credentials, 7L).signature();
 

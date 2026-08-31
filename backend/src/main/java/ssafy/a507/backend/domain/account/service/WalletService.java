@@ -9,7 +9,9 @@ import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.common.security.SignatureGuard;
 import ssafy.a507.backend.common.security.SignatureNonceStore;
+import ssafy.a507.backend.common.security.SignatureScope;
 import ssafy.a507.backend.domain.account.dto.WalletLinkRequest;
+import ssafy.a507.backend.domain.account.dto.WalletNonceResponse;
 import ssafy.a507.backend.domain.account.dto.WalletStatusResponse;
 import ssafy.a507.backend.domain.account.entity.User;
 import ssafy.a507.backend.domain.account.repository.UserRepository;
@@ -23,9 +25,13 @@ public class WalletService {
     private final SignatureNonceStore nonceStore;
     private final SignatureGuard signatureGuard;
 
-    /** 재발급하면 이전 nonce는 죽는다. 탭 두 개에서 각각 받으면 먼저 받은 쪽이 만료된다. */
-    public String issueNonce(Long userId) {
-        return nonceStore.issue(userId);
+    /**
+     * 같은 칸에 재발급하면 그 칸의 이전 nonce만 죽는다. 칸이 scope로 나뉘어 있어
+     * 예측 등록 서명을 띄워 둔 채 구독 결제를 시작해도 서로를 죽이지 않는다.
+     * chainId를 같이 돌려주는 이유는 WalletNonceResponse 주석 참고.
+     */
+    public WalletNonceResponse issueNonce(Long userId, SignatureScope scope) {
+        return new WalletNonceResponse(nonceStore.issue(userId, scope), signatureGuard.chainId());
     }
 
     /**
