@@ -15,6 +15,10 @@ public enum ErrorCode {
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    // 회원 (ANT-AUTH-03)
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."),
+    DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
+
     // 신고 (ANT-COMMUNITY-04)
     TARGET_NOT_FOUND(HttpStatus.NOT_FOUND, "신고 대상을 찾을 수 없습니다."),
     SELF_REPORT(HttpStatus.BAD_REQUEST, "자신을 신고할 수 없습니다."),
