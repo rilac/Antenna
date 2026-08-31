@@ -27,10 +27,10 @@ const MODES = {
     nav: [
       { key: 'home', icon: 'home', text: '홈', href: '/' },
       { key: 'stocks', icon: 'stocks', text: '종목 탐색', href: '/stocks' },
-      { key: 'market', icon: 'market', text: '주가 예측', href: '/market' },
+      { key: 'market', icon: 'market', text: '주가 예측', href: '/rankings' },
       { key: 'report', icon: 'report', text: '리포트', href: '/reports' },
-      { key: 'community', icon: 'community', text: '커뮤니티', href: '/community' },
-      { key: 'portfolio', icon: 'portfolio', text: '예측 포트폴리오', href: '/portfolio' },
+      { key: 'community', icon: 'community', text: '커뮤니티', href: '/posts' },
+      { key: 'portfolio', icon: 'portfolio', text: '예측 포트폴리오', href: '/me/portfolio' },
     ],
   },
   sim: {
@@ -38,9 +38,11 @@ const MODES = {
     home: '/sim',
     nav: [
       { key: 'home', icon: 'home', text: '홈', href: '/sim' },
-      { key: 'play', icon: 'play', text: '투자하기', href: '/sim/setup' },
-      { key: 'portfolio', icon: 'portfolio', text: '투자 포트폴리오', href: '/sim/portfolio' },
-      { key: 'ranking', icon: 'trophy', text: '모의투자 랭킹', href: '/sim/ranking' },
+      { key: 'play', icon: 'play', text: '투자하기', href: '/sim/modes' },
+      { key: 'portfolio', icon: 'portfolio', text: '투자 포트폴리오', href: '/sim/history' },
+      /* 시즌 리더보드는 /sim/:id/leaderboard 라 시즌 없이 갈 수 없다.
+         G-01 홈에서 진행 중 시즌을 골라 들어가는 게 정본 경로다. */
+      { key: 'ranking', icon: 'trophy', text: '모의투자 랭킹', href: '/rankings' },
     ],
   },
 } as const
@@ -173,7 +175,8 @@ export default function Layout({ mode, nav, bodyClass, children }: { mode: Mode;
         {/* 비로그인은 하단을 비워 둔다 — 로그인 진입은 상단바에만 있다 */}
         {authed && (
           <div className="rail-foot">
-            <Link className="rail-me" to="/mypage">
+            {/* 설계서 §3 E 기준 마이페이지는 /me 다. 프로토타입의 /mypage 가 아니다 */}
+            <Link className="rail-me" to="/me">
               <img className="rail-me-avatar" src={user?.avatarUrl} alt="" />
               <span><b>{`${user?.nickname ?? '안테나'}님`}</b><small>마이페이지</small></span>
               <em aria-hidden="true">›</em>
