@@ -22,6 +22,10 @@ public enum ErrorCode {
     IDEMPOTENCY_KEY_REQUIRED(HttpStatus.BAD_REQUEST, "Idempotency-Key 헤더가 필요합니다."),
     IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, "같은 Idempotency-Key 로 다른 요청을 보냈습니다."),
 
+    // 회원 (ANT-AUTH-03)
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "회원을 찾을 수 없습니다."),
+    DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
+
     // 신고 (ANT-COMMUNITY-04)
     TARGET_NOT_FOUND(HttpStatus.NOT_FOUND, "신고 대상을 찾을 수 없습니다."),
     SELF_REPORT(HttpStatus.BAD_REQUEST, "자신을 신고할 수 없습니다."),

@@ -29,8 +29,13 @@ export default function OAuthCallback() {
     exchanged.current = true
 
     completeGoogleLogin(code, params.get('state'))
-      .then(({ user }) => {
+      .then(({ user, isNew }) => {
         signIn(user)
+        // 닉네임이 없는 회원은 온보딩부터. returnTo 는 온보딩이 끝난 뒤에 꺼낸다.
+        if (isNew) {
+          navigate('/onboarding/nickname', { replace: true })
+          return
+        }
         // 비로그인 딥링크로 막혔던 경로가 있으면 그리로, 없으면 홈으로.
         navigate(takeReturnTo(), { replace: true })
       })

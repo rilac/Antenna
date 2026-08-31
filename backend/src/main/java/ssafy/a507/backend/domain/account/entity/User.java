@@ -37,8 +37,13 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 화면 표시 이름이자 유일한 공개 식별자. */
-    @Column(nullable = false, unique = true, length = 30)
+    /**
+     * 화면 표시 이름이자 유일한 공개 식별자.
+     *
+     * <p>NULL 은 "온보딩에서 아직 정하지 않음"을 뜻한다. 임시 닉네임을 넣어 두면 온보딩을 중간에
+     * 그만둔 회원을 다음 로그인에서 다시 온보딩으로 보낼 수 없다.
+     */
+    @Column(unique = true, length = 30)
     private String nickname;
 
     /** 프로필 소개 문구. 구독 판단 근거로 쓰인다. */
@@ -65,12 +70,21 @@ public class User {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    /** OAuth 최초 로그인 시 생성. 닉네임은 온보딩에서 사용자가 정한다. */
-    public static User create(String nickname) {
+    /** OAuth 최초 로그인 시 생성. 닉네임은 온보딩에서 정하므로 아직 비어 있다. */
+    public static User create() {
         User user = new User();
-        user.nickname = nickname;
         user.role = Role.USER;
         user.status = Status.ACTIVE;
         return user;
+    }
+
+    /** 온보딩·프로필 수정에서 닉네임을 확정한다. 중복 검사는 서비스가 먼저 한다. */
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    /** false 면 온보딩을 마치지 않은 회원이다. */
+    public boolean hasNickname() {
+        return nickname != null;
     }
 }

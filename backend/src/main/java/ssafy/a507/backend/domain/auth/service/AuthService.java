@@ -1,6 +1,5 @@
 package ssafy.a507.backend.domain.auth.service;
 
-import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,8 +53,7 @@ public class AuthService {
                                 UserOauth.Provider.GOOGLE, account.providerUserId())
                         .orElse(null);
 
-        boolean isNew = oauth == null;
-        User user = isNew ? register(account) : oauth.getUser();
+        User user = oauth == null ? register(account) : oauth.getUser();
 
         if (user.getStatus() == User.Status.BANNED) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "차단된 계정");
@@ -63,16 +61,20 @@ public class AuthService {
 
         String accessToken = jwtProvider.issueAccessToken(user.getId(), user.getRole().name());
         String refreshToken = refreshTokenStore.issue(user.getId());
+        // 온보딩을 중간에 그만둔 회원도 다시 닉네임 화면으로 보내야 하므로,
+        // "이번에 가입했는가"가 아니라 "닉네임이 아직 없는가"를 isNew 로 내려보낸다.
         UserSummary summary =
                 new UserSummary(
-                        user.getId(), user.getNickname(), user.getWalletAddress() != null, isNew);
+                        user.getId(),
+                        user.getNickname(),
+                        user.getWalletAddress() != null,
+                        !user.hasNickname());
         return new LoginResult(new LoginResponse(accessToken, summary), refreshToken);
     }
 
-    /** 닉네임은 온보딩에서 정하므로 충돌하지 않는 임시값으로 가입시킨다. */
+    /** 닉네임 없이 가입시킨다. 온보딩에서 확정할 때까지 nickname 은 NULL 이다. */
     private User register(GoogleOAuthClient.GoogleAccount account) {
-        String placeholder = "user_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
-        User user = users.save(User.create(placeholder));
+        User user = users.save(User.create());
         userOauths.save(
                 UserOauth.link(
                         user, UserOauth.Provider.GOOGLE, account.providerUserId(), account.email()));
