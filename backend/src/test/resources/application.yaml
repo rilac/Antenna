@@ -10,3 +10,22 @@ spring:
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
+
+  # 컨텍스트 로딩용 더미. 테스트는 구글과 통신하지 않는다.
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-client-id
+            client-secret: test-client-secret
+            scope: openid,email,profile
+
+app:
+  auth:
+    jwt-secret: test-secret-key-for-context-loading-only-32b
+    access-ttl-minutes: 30
+    refresh-ttl-days: 14
+    cookie-secure: false
+  cors:
+    allowed-origins: http://localhost:5173
