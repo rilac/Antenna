@@ -3,10 +3,13 @@
    내보내면 Vite Fast Refresh 가 동작하지 않는다. */
 import { createContext, useContext } from 'react'
 
+export type Role = 'USER' | 'ADMIN'
+
 export type AuthUser = {
   nickname: string
   /** 프로필 이미지 경로. 실제로는 GET /users/me 가 내려준다 */
   avatarUrl: string
+  role: Role
   /** 지갑 연동 여부 — C-01 진입 시 M-01 을 띄울지 판단한다 */
   walletLinked: boolean
 }
