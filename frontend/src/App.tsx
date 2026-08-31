@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './Layout'
 import RequireAccess from './auth/RequireAccess'
+import ErrorBoundary from './components/state/ErrorBoundary'
 import { ROUTES, type PageMeta } from './routes'
 
 /* 화면 한 장. 셸을 씌울지와 body 속성만 여기서 정하고,
@@ -20,12 +21,17 @@ function Page({ meta }: { meta: PageMeta }) {
     window.scrollTo(0, 0)
   }, [meta])
 
-  /* 가드를 셸 안쪽에 둔다 — 403 을 만나도 사이드바가 남아 다른 화면으로 갈 수 있다.
-     비로그인 리다이렉트는 렌더 중에 일어나 셸이 그려지기 전에 빠져나간다. */
+  /* 가드와 오류 경계를 모두 셸 안쪽에 둔다 — 403 이나 렌더 예외를 만나도
+     사이드바가 남아 다른 화면으로 갈 수 있다.
+     비로그인 리다이렉트는 렌더 중에 일어나 셸이 그려지기 전에 빠져나간다.
+
+     key 에 경로를 주면 다른 화면으로 옮길 때 리마운트되어 오류 상태가 풀린다. */
   const body = (
-    <RequireAccess access={meta.access}>
-      <Element />
-    </RequireAccess>
+    <ErrorBoundary key={meta.path}>
+      <RequireAccess access={meta.access}>
+        <Element />
+      </RequireAccess>
+    </ErrorBoundary>
   )
 
   return meta.mode

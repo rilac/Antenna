@@ -39,6 +39,12 @@ export default function MyPage() {
   const profile = useApiQuery<MyProfile>('/users/me')
   const badges = useApiQuery<BadgeListResponse>('/users/me/badges')
 
+  /* 배열은 여기서 한 번 정규화한다. 백엔드 MeResponse 가 아직 이 필드를
+     내려주지 않아 undefined 로 온다 — 아래에서 .length 를 바로 읽으면
+     렌더 중 TypeError 가 나 앱 전체가 흰 화면이 된다. */
+  const interests = profile.data?.interests ?? []
+  const channels = profile.data?.channels ?? []
+
   return (
     <main className="main">
       <div className="main-inner">
@@ -61,9 +67,9 @@ export default function MyPage() {
                 {profile.data?.introduce || '소개가 아직 없습니다'}
               </p>
 
-              {profile.data && profile.data.interests.length > 0 && (
+              {interests.length > 0 && (
                 <ul className="mp-interests" aria-label="관심 섹터">
-                  {profile.data.interests.map((s) => <li key={s}>{s}</li>)}
+                  {interests.map((s) => <li key={s}>{s}</li>)}
                 </ul>
               )}
             </div>
@@ -81,11 +87,11 @@ export default function MyPage() {
         )}
 
         {/* ── 외부 채널 ────────────────────────────────── */}
-        {profile.data && profile.data.channels.length > 0 && (
+        {channels.length > 0 && (
           <section className="mp-block">
             <h3>외부 채널</h3>
             <ul className="mp-channels">
-              {profile.data.channels.map((c) => (
+              {channels.map((c) => (
                 <li key={c.url}>
                   {/* 명세상 https 만 저장된다. 외부로 나가므로 새 탭 + noreferrer */}
                   <a href={c.url} target="_blank" rel="noreferrer noopener">
