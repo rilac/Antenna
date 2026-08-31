@@ -1,0 +1,69 @@
+/* A-04 오류 · 빈 상태 · 잠금 [ANT-FE-ERROR]
+   셸(app.css)과 분리해 둔다 — 화면이 아니라 전 화면이 공유하는 상태 표현이다. */
+
+/* ── 공용 상태 블록 (오류 · 빈 상태) ──────────────────── */
+.state{
+  display:grid;place-items:center;gap:6px;
+  min-height:220px;padding:32px 24px;
+  border:1px dashed var(--rule);border-radius:14px;
+  background:var(--surface-2);text-align:center;
+}
+.state-inline{min-height:0;padding:18px 16px;border-radius:12px}
+.state-title{margin:0;color:var(--ink);font-size:15px;font-weight:750}
+.state-hint{margin:0;color:var(--muted);font-size:13px}
+.state-code{
+  margin:2px 0 0;color:var(--faint);
+  font:600 11px var(--mono);letter-spacing:.02em;
+}
+
+/* 상태 블록 안의 행동 버튼 — 오류·빈 상태·잠금이 함께 쓴다 */
+.state-cta{
+  display:inline-grid;place-items:center;height:36px;margin-top:8px;padding:0 16px;
+  border-radius:9px;background:var(--brand);color:#fff;
+  font-size:13px;font-weight:750;
+}
+.state-cta:hover{background:var(--brand-ink)}
+
+/* ── 403 잠금 카드 ───────────────────────────────────── */
+/* 없는 것처럼 보이면 안 된다 — 잠긴 내용이 있다는 사실을 드러낸다 */
+.state-locked{
+  position:relative;overflow:hidden;
+  border:1px solid var(--rule);border-radius:14px;background:var(--surface);
+}
+/* 서버가 잘라 준 미리보기. 아래쪽을 흐리게 덮어 "더 있다" 를 보인다 */
+.state-locked-preview{position:relative;padding:20px 22px 0;max-height:120px;overflow:hidden}
+.state-locked-preview p{margin:0;color:var(--body);font-size:14px;line-height:1.7}
+.state-locked-preview::after{
+  content:"";position:absolute;inset:auto 0 0 0;height:64px;
+  background:linear-gradient(to bottom,rgba(255,255,255,0),var(--surface));
+}
+.state-locked-body{
+  display:grid;place-items:center;gap:6px;
+  padding:22px 24px 26px;text-align:center;
+}
+.state-locked-mark{
+  display:grid;place-items:center;width:40px;height:40px;margin-bottom:2px;
+  border-radius:50%;background:var(--brand-soft);color:var(--brand);
+}
+.state-locked-title{margin:0;color:var(--ink);font-size:14.5px;font-weight:750}
+
+/* ── 400 인라인 필드 오류 ────────────────────────────── */
+.field-error{
+  display:flex;align-items:center;gap:5px;
+  margin:6px 0 0;color:var(--danger);font-size:12.5px;font-weight:650;
+}
+.field-error svg{flex:none}
+
+/* ── 체인 장애 배너 (M-02 안에서만) ──────────────────── */
+.state-banner{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;
+  border:1px solid #f3d9a8;border-radius:12px;background:#fdf7ec;
+}
+.state-banner-mark{
+  display:grid;place-items:center;width:34px;height:34px;flex:none;
+  border-radius:9px;background:#f8ebd2;color:#a9760f;
+}
+.state-banner-title{margin:0;color:#7a5408;font-size:13.5px;font-weight:750}
+.state-banner-hint{margin:2px 0 0;color:#96702c;font-size:12.5px}
+.state-banner .state-cta{margin:0 0 0 auto;flex:none;height:32px;background:#a9760f}
+.state-banner .state-cta:hover{background:#8a5f0b}

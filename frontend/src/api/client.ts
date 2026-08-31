@@ -2,7 +2,7 @@
 
    accessToken 은 메모리에만 둔다. refresh 는 httpOnly 쿠키라 클라이언트가
    저장하거나 읽지 않는다(설계서 §4 A-01). */
-import { ApiError, toApiError } from './errors'
+import { ApiError, CLIENT_ERROR_CODE, toApiError } from './errors'
 import { idempotencyKey } from './idempotency'
 
 const BASE = '/api/v1'
@@ -21,14 +21,6 @@ export function setUnauthorizedHandler(fn: UnauthorizedHandler) {
 }
 
 const REFRESH_PATH = '/auth/refresh'
-
-/** 백엔드 ErrorCode.UNAUTHENTICATED 와 짝을 이룬다. */
-const SESSION_EXPIRED_CODE = 'UNAUTHENTICATED'
-
-/** 본문 없는 401(리소스 서버가 토큰을 거부한 경우)도 세션 만료로 본다. */
-function isSessionExpiry(code: string | undefined) {
-  return !code || code === SESSION_EXPIRED_CODE || code === 'UNAUTHORIZED'
-}
 
 /* 재발급이 동시에 여러 번 나가면 회전된 토큰끼리 서로를 무효화해
    재사용 탐지에 걸린다. 진행 중인 요청 하나를 모두가 함께 기다린다. */
@@ -104,18 +96,15 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   /* access 가 만료됐을 뿐이면 사용자 눈에 띄지 않게 되살린다.
      재발급 자체(/auth/refresh)가 401 이면 쿠키가 죽은 것이라 재시도하지 않는다. */
   if (res.status === 401 && path !== REFRESH_PATH) {
-    // 401 이라고 다 세션 만료가 아니다 — 지갑 서명 주소 불일치는 화면이 처리한다.
-    const peeked = await res.json().catch(() => null)
-    const code = (peeked as { code?: string } | null)?.code
-    if (!isSessionExpiry(code)) throw toApiError(401, peeked)
-
-    const revived = await refreshAccessToken()
-    if (revived) res = await send()
-
-    if (!revived || res.status === 401) {
+    if (await refreshAccessToken()) {
+      /* 쿠키가 살아 있으니 세션은 유효하다. 재시도하고, 그래도 401 이면
+         만료가 아니라 권한·서명 문제이므로 로그아웃시키지 않고 화면에 넘긴다
+         — 명세상 UNAUTHENTICATED 하나가 두 경우를 덮는다(errors.ts 주석). */
+      res = await send()
+    } else {
       setAccessToken(null)
       onUnauthorized()
-      throw new ApiError({ code: code ?? SESSION_EXPIRED_CODE, message: '', status: 401 })
+      throw toApiError(401, await res.json().catch(() => null))
     }
   }
 
@@ -125,13 +114,17 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
      그대로 두면 화면이 undefined 를 그리다 터지므로 여기서 걸러낸다. */
   const contentType = res.headers.get('Content-Type') ?? ''
   if (!contentType.includes('application/json')) {
-    throw new ApiError({ code: 'NOT_JSON', message: `expected JSON, got ${contentType}`, status: res.status })
+    throw new ApiError(
+      { code: CLIENT_ERROR_CODE.CLIENT_NOT_JSON, message: `expected JSON, got ${contentType}` },
+      res.status,
+    )
   }
 
   const payload = await res.json().catch(() => null)
 
   if (!res.ok) {
-    // 401 은 위에서 재발급까지 시도하고 onUnauthorized 도 이미 불렀다.
+    /* 401 은 위에서 이미 갈랐다 — 재발급이 실패한 경우만 onUnauthorized 로 넘어갔고,
+       여기 남는 401 은 세션이 살아 있는데도 거부된 것이라 화면이 처리한다. */
     throw toApiError(res.status, payload)
   }
 

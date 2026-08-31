@@ -5,6 +5,8 @@
    셸이 미리 붙여 둔 것: useCursorList 로 GET /anchors 를 읽는 배선.
    목록 계약({ items, nextCursor, hasNext })이 실제로 도는지 보이기 위한
    최소 표현이며, 앵커 배지·머클루트 표시 등은 이 스토리에서 만든다. */
+import EmptyState from '../components/state/EmptyState'
+import ErrorState from '../components/state/ErrorState'
 import { useCursorList } from '../api/useCursorList'
 
 type Anchor = {
@@ -15,7 +17,7 @@ type Anchor = {
 }
 
 export default function LedgerList() {
-  const { items, hasNext, loading, error, loadMore } = useCursorList<Anchor>('/anchors')
+  const { items, hasNext, loading, error, loadMore, reload } = useCursorList<Anchor>('/anchors')
 
   return (
     <main className="main">
@@ -25,14 +27,10 @@ export default function LedgerList() {
           <p>{'D-01 · /ledger'}</p>
         </div>
 
-        {error && (
-          <div className="placeholder tall">
-            {`목록을 불러오지 못했습니다 (${error.code}) — 백엔드 연동 전입니다`}
-          </div>
-        )}
+        {error && <ErrorState error={error} onRetry={reload} />}
 
         {!error && items.length === 0 && !loading && (
-          <div className="placeholder tall">{'앵커된 배치가 없습니다'}</div>
+          <EmptyState title="앵커된 배치가 없습니다" hint="예측이 봉인되면 배치로 묶여 체인에 기록됩니다" />
         )}
 
         {items.length > 0 && (

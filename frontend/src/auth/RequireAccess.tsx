@@ -2,6 +2,7 @@
    설계서 §1 — 공개 화면은 A-01 하나뿐이고 나머지는 전부 JWT 를 요구한다.
    §5 — 관리자 화면은 비관리자에게 진입 자체를 막는다. */
 import { Navigate, useLocation } from 'react-router-dom'
+import LockedCard from '../components/state/LockedCard'
 import type { Access } from '../routes'
 import { useAuth } from './context'
 import { rememberReturnTo } from './returnTo'
@@ -32,7 +33,7 @@ export default function RequireAccess({ access, children }: { access: Access; ch
 
   if (access === 'admin' && user?.role !== 'ADMIN') {
     // 홈으로 튕기지 않고 왜 막혔는지 알린다.
-    // 제대로 된 403 화면은 A-04 [ANT-FE-ERROR] 가 채운다.
+    // 관리자 화면은 구독으로 풀리지 않으므로 CTA 없는 잠금이다.
     return (
       <main className="main">
         <div className="main-inner">
@@ -40,7 +41,9 @@ export default function RequireAccess({ access, children }: { access: Access; ch
             <h1>접근 권한이 없습니다</h1>
             <p>{'403 · 관리자 전용 화면입니다'}</p>
           </div>
-          <div className="placeholder tall">{'[ANT-FE-ERROR] 에서 오류 화면을 구현합니다'}</div>
+          <LockedCard label="이 화면" title="관리자 계정으로만 들어올 수 있습니다">
+            <p className="state-hint">권한이 필요하면 운영자에게 문의해 주세요</p>
+          </LockedCard>
         </div>
       </main>
     )
