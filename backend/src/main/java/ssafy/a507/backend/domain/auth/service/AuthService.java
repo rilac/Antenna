@@ -1,9 +1,14 @@
 package ssafy.a507.backend.domain.auth.service;
 
-import org.springframework.http.HttpStatus;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
+import ssafy.a507.backend.common.error.BusinessException;
+import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.domain.account.entity.User;
 import ssafy.a507.backend.domain.account.entity.UserOauth;
 import ssafy.a507.backend.domain.account.repository.UserOauthRepository;
@@ -18,19 +23,24 @@ public class AuthService {
     /** access token 과 함께 쿠키로 내보낼 refresh 토큰. */
     public record LoginResult(LoginResponse body, String refreshToken) {}
 
-    private final GoogleOAuthClient googleOAuthClient;
+    /** 프로바이더 → 구현체. 스프링이 등록한 OAuthClient 빈으로 채운다. */
+    private final Map<UserOauth.Provider, OAuthClient> oauthClients;
     private final RefreshTokenStore refreshTokenStore;
     private final JwtProvider jwtProvider;
     private final UserRepository users;
     private final UserOauthRepository userOauths;
 
     public AuthService(
-            GoogleOAuthClient googleOAuthClient,
+            List<OAuthClient> oauthClients,
             RefreshTokenStore refreshTokenStore,
             JwtProvider jwtProvider,
             UserRepository users,
             UserOauthRepository userOauths) {
-        this.googleOAuthClient = googleOAuthClient;
+        this.oauthClients =
+                oauthClients.stream()
+                        .collect(
+                                Collectors.toUnmodifiableMap(
+                                        OAuthClient::provider, Function.identity()));
         this.refreshTokenStore = refreshTokenStore;
         this.jwtProvider = jwtProvider;
         this.users = users;
@@ -39,24 +49,19 @@ public class AuthService {
 
     @Transactional
     public LoginResult login(String provider, String code, String redirectUri) {
-        if (!"google".equalsIgnoreCase(provider)) {
-            // SSAFY 는 개발자센터 승인 후 자격증명이 나오면 붙인다.
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_IMPLEMENTED, "지원하지 않는 프로바이더: " + provider);
-        }
-
-        GoogleOAuthClient.GoogleAccount account = googleOAuthClient.exchange(code, redirectUri);
+        OAuthClient client = clientFor(provider);
+        OAuthClient.OAuthAccount account = client.exchange(code, redirectUri);
 
         UserOauth oauth =
                 userOauths
                         .findByProviderAndProviderUserId(
-                                UserOauth.Provider.GOOGLE, account.providerUserId())
+                                client.provider(), account.providerUserId())
                         .orElse(null);
 
-        User user = oauth == null ? register(account) : oauth.getUser();
+        User user = oauth == null ? register(client.provider(), account) : oauth.getUser();
 
         if (user.getStatus() == User.Status.BANNED) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "차단된 계정");
+            throw new BusinessException(ErrorCode.ACCOUNT_BANNED);
         }
 
         String accessToken = jwtProvider.issueAccessToken(user.getId(), user.getRole().name());
@@ -73,12 +78,31 @@ public class AuthService {
     }
 
     /** 닉네임 없이 가입시킨다. 온보딩에서 확정할 때까지 nickname 은 NULL 이다. */
-    private User register(GoogleOAuthClient.GoogleAccount account) {
+    private User register(UserOauth.Provider provider, OAuthClient.OAuthAccount account) {
         User user = users.save(User.create());
         userOauths.save(
-                UserOauth.link(
-                        user, UserOauth.Provider.GOOGLE, account.providerUserId(), account.email()));
+                UserOauth.link(user, provider, account.providerUserId(), account.email()));
         return user;
+    }
+
+    /**
+     * 경로변수 provider 로 구현체를 고른다.
+     *
+     * <p>어휘에 없는 값(400)과 어휘에는 있지만 아직 구현체가 없는 값(501)을 나눈다 — 프론트
+     * 오타와 "아직 안 붙였다"는 서로 다른 상황이라 같은 코드로 묶으면 원인을 못 가린다.
+     */
+    private OAuthClient clientFor(String provider) {
+        UserOauth.Provider key;
+        try {
+            key = UserOauth.Provider.valueOf(provider.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        OAuthClient client = oauthClients.get(key);
+        if (client == null) {
+            throw new BusinessException(ErrorCode.PROVIDER_NOT_SUPPORTED);
+        }
+        return client;
     }
 
     public RefreshTokenStore.Rotated refresh(String refreshToken) {
@@ -88,13 +112,10 @@ public class AuthService {
     public String issueAccessToken(Long userId) {
         User user =
                 users.findById(userId)
-                        .orElseThrow(
-                                () ->
-                                        new ResponseStatusException(
-                                                HttpStatus.UNAUTHORIZED, "존재하지 않는 회원"));
+                        .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
         if (user.getStatus() == User.Status.BANNED) {
             refreshTokenStore.revokeAll(userId);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "차단된 계정");
+            throw new BusinessException(ErrorCode.ACCOUNT_BANNED);
         }
         return jwtProvider.issueAccessToken(user.getId(), user.getRole().name());
     }

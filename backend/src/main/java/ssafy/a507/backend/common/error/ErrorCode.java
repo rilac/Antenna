@@ -18,6 +18,12 @@ public enum ErrorCode {
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    // 인증 (ANT-AUTH-01 · ANT-AUTH-02)
+    /** 어휘에는 있지만 아직 붙이지 않은 프로바이더. 프론트 오타(INVALID_REQUEST)와 구분한다. */
+    PROVIDER_NOT_SUPPORTED(HttpStatus.NOT_IMPLEMENTED, "아직 지원하지 않는 로그인 방식입니다."),
+    /** 제재로 막힌 계정. 다시 로그인해도 풀리지 않으므로 401 이 아니라 403 이다. */
+    ACCOUNT_BANNED(HttpStatus.FORBIDDEN, "이용이 제한된 계정입니다."),
+
     // 멱등성 (명세 §1)
     IDEMPOTENCY_KEY_REQUIRED(HttpStatus.BAD_REQUEST, "Idempotency-Key 헤더가 필요합니다."),
     IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, "같은 Idempotency-Key 로 다른 요청을 보냈습니다."),

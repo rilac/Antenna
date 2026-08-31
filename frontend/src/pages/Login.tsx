@@ -2,11 +2,11 @@
    담당 스토리 [ANT-FE-LOGIN]
 
    이 스토리가 채운 것은 화면 디자인이다.
-   구글 OAuth 는 [ANT-AUTH-01] 이 auth/google.ts 에 만들어 둔 것을 그대로 부른다 —
+   OAuth 는 auth/oauth.ts 에 만들어 둔 것을 그대로 부른다 —
    인가 요청·콜백 교환·토큰 저장 모두 그쪽 몫이라 여기서 다시 만들지 않는다.
 
-   SSAFY OAuth 는 아직 붙이지 않았다. 백엔드에 GoogleOAuthClient 만 있고
-   SSAFY 쪽은 [ANT-AUTH-02] 가 남아 있어, 지금 프론트만 만들면 부를 곳이 없다.
+   SSAFY 버튼은 자격증명이 env 에 들어왔을 때만 열린다([ANT-AUTH-02]).
+   값이 없으면 부를 곳이 없어 그냥 실패하므로 잠근 채로 둔다.
 
    회원가입 화면은 없다 — 설계서 §2 상 최초 로그인 시 회원이 자동 생성되므로
    SSO 버튼이 로그인과 가입을 겸한다. */
@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/context'
 import { takeReturnTo } from '../auth/returnTo'
-import { startGoogleLogin } from '../auth/google'
+import { isConfigured, startLogin } from '../auth/oauth'
 import '../styles/auth.css'
 
 const BrandMark = () => (
@@ -59,6 +59,10 @@ const FEATURES = [
 export default function Login() {
   const navigate = useNavigate()
   const { signIn } = useAuth()
+
+  /* 자격증명이 env 에 들어왔는지로 버튼을 연다. 빌드 시점에 정해지는 값이라
+     렌더마다 다시 계산할 이유가 없다. */
+  const ssafyReady = isConfigured('ssafy')
 
   /* 백엔드 없이 화면을 만드는 팀원을 위해 남겨 둔 임시 진입로.
      실제 로그인이 안정되면 지운다. — [ANT-AUTH-01] 이 남긴 것을 그대로 둔다.
@@ -106,7 +110,7 @@ export default function Login() {
 
           {/* 구글로 나갔다가 /oauth/callback/google 로 전체 페이지 로드로 돌아온다.
               돌아올 경로는 returnTo 가 sessionStorage 에 들고 있는다. */}
-          <button type="button" className="sso-btn google" onClick={startGoogleLogin}>
+          <button type="button" className="sso-btn google" onClick={() => startLogin('google')}>
             <svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true">
               <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
               <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
@@ -116,16 +120,24 @@ export default function Login() {
             Google로 로그인
           </button>
 
-          {/* SSAFY 는 백엔드가 아직 없다([ANT-AUTH-02]). 버튼 자리를 미리 잡아 두되
-              누를 수 없게 막는다 — 눌리면 부를 곳이 없어 그냥 실패한다. */}
-          <button type="button" className="sso-btn ssafy" disabled aria-describedby="ssafy-note">
+          {/* 개발자센터 자격증명이 env 에 들어와야 열린다([ANT-AUTH-02]).
+              값이 없는 채로 누르면 부를 곳이 없어 그냥 실패하므로 잠가 둔다. */}
+          <button
+            type="button"
+            className="sso-btn ssafy"
+            onClick={() => startLogin('ssafy')}
+            disabled={!ssafyReady}
+            aria-describedby={ssafyReady ? undefined : 'ssafy-note'}
+          >
             <svg width="26" height="26" viewBox="0 0 40 40" fill="none" aria-hidden="true">
               <path d="M11.5 29.5 20 11.5l8.5 18" stroke="currentColor" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M15.8 24.2h8.4" stroke="currentColor" strokeWidth="4.2" strokeLinecap="round" />
             </svg>
             SSAFY로 로그인
           </button>
-          <p className="sso-note" id="ssafy-note">SSAFY 로그인은 준비 중입니다.</p>
+          {!ssafyReady && (
+            <p className="sso-note" id="ssafy-note">SSAFY 로그인은 준비 중입니다.</p>
+          )}
 
           <div className="dev-signin">
             <span className="dev-signin-label">백엔드 없이 화면을 볼 때 쓰는 임시 진입로</span>

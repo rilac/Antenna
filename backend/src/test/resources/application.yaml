@@ -23,6 +23,15 @@ spring:
 
 app:
   auth:
+    # SSAFY 는 미설정 상태를 그대로 둔다 — 테스트는 SSAFY 와 통신하지 않고,
+    # 설정이 없을 때 로그인이 501 로 막히는 것도 검증 대상이다.
+    ssafy:
+      client-id:
+      client-secret:
+      token-uri:
+      user-info-uri:
+      user-name-attribute:
+      email-attribute:
     jwt-secret: test-secret-key-for-context-loading-only-32b
     access-ttl-minutes: 30
     refresh-ttl-days: 14
