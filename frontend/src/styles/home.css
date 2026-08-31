@@ -1,0 +1,124 @@
+/* B-01 인사이트 홈. 전 선택자를 hm- 접두사로 두고 app.css 토큰만 쓴다.
+   화면별 CSS 가 전역으로 함께 올라가므로 흔한 이름을 만들지 않는다. */
+
+.hm-grid{
+  display:grid; gap:16px;
+  grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
+  align-items:start;
+}
+.hm-card{display:flex; flex-direction:column; gap:14px; min-width:0}
+/* 한 칸에 카드를 여러 장 쌓을 때 */
+.hm-col{display:flex; flex-direction:column; gap:16px; min-width:0}
+/* 관심 종목은 표라서 두 칸을 다 쓴다 */
+.hm-wide{grid-column:1 / -1}
+
+.hm-head{display:flex; align-items:baseline; gap:10px}
+.hm-head h2{margin:0; color:var(--ink); font-size:17px; font-weight:750; letter-spacing:-.02em}
+.hm-head a,.hm-head .hm-date,.hm-head .hm-badge{margin-left:auto; font-size:12.5px; color:var(--muted)}
+.hm-head a{font-weight:650}
+.hm-head a:hover{color:var(--brand)}
+.hm-badge{
+  padding:2px 8px; border:1px solid var(--rule); border-radius:99px;
+  background:var(--surface-2); font-size:11px; font-weight:650;
+}
+
+/* 섹션 상태 */
+.hm-state{margin:0; padding:16px 0; color:var(--faint); font-size:13px}
+.hm-state.err{color:var(--danger)}
+.hm-retry{
+  margin-left:8px; padding:2px 9px; border:1px solid var(--rule); border-radius:8px;
+  background:var(--surface); color:var(--muted); font-family:inherit; font-size:12px; cursor:pointer;
+}
+.hm-retry:hover{color:var(--ink)}
+.hm-foot{margin:0; color:var(--faint); font-size:11.5px; line-height:1.5}
+
+/* 상승·하락 — 국내 관례대로 상승이 빨강이다. 숫자에 부호가 함께 있어 색만으로 전달하지 않는다. */
+.up{color:var(--up)}
+.down{color:var(--down)}
+.spark{display:block; flex:none}
+.spark-empty{display:inline-block; width:88px; height:30px}
+
+/* 시장 Overview */
+.hm-indices{list-style:none; margin:0; padding:0; display:grid; gap:14px}
+.hm-indices li{
+  display:grid; grid-template-columns:1fr auto; gap:2px 12px; align-items:center;
+  padding-bottom:12px; border-bottom:1px solid var(--rule);
+}
+.hm-indices li:last-child{padding-bottom:0; border-bottom:0}
+.hm-ix-name{color:var(--muted); font-size:12.5px; font-weight:650}
+.hm-ix-row{grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; gap:14px}
+.hm-ix-row b{color:var(--ink); font-size:22px; font-weight:700; letter-spacing:-.02em}
+.hm-delta{grid-column:1 / -1; font-size:12.5px; font-weight:700}
+
+/* 내 자산 */
+.hm-ant{margin:0; color:var(--ink)}
+.hm-ant b{font-size:30px; font-weight:750; letter-spacing:-.03em}
+.hm-ant em{font-style:normal; color:var(--muted); font-size:14px; font-weight:650}
+.hm-ant-grid{
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:0;
+  padding-top:12px; border-top:1px solid var(--rule);
+}
+.hm-ant-grid dt{color:var(--muted); font-size:11.5px}
+.hm-ant-grid dd{margin:4px 0 0; color:var(--ink); font-size:13.5px; font-weight:700}
+
+/* AI 브리핑 */
+.hm-brief{list-style:none; margin:0; padding:0; display:grid; gap:11px}
+.hm-brief li{
+  display:grid; grid-template-columns:auto 1fr; gap:9px; align-items:start;
+  color:var(--body); font-size:13.5px; line-height:1.6;
+}
+.hm-brief-mark{
+  width:6px; height:6px; margin-top:7px; border-radius:50%;
+  background:var(--brand); flex:none;
+}
+
+/* 관심 종목 표 */
+.hm-table-wrap{overflow-x:auto}
+.hm-table{border-collapse:collapse; width:100%; min-width:460px; font-size:13.5px}
+.hm-table th,.hm-table td{padding:10px 12px; border-bottom:1px solid var(--rule); text-align:left}
+.hm-table thead th{
+  padding-top:0; color:var(--muted); font-size:11.5px; font-weight:650; letter-spacing:.02em;
+}
+.hm-table tbody tr:last-child th,.hm-table tbody tr:last-child td{border-bottom:0}
+.hm-table tbody th{font-weight:650}
+.hm-table tbody th a{color:var(--ink)}
+.hm-table tbody th a:hover{color:var(--brand)}
+.hm-table tbody th small{margin-left:6px; color:var(--faint); font-size:11.5px; font-weight:500}
+.hm-table .r{text-align:right}
+.hm-table .c{text-align:center; width:104px}
+.hm-table .c .spark{margin:0 auto}
+.hm-table td.num{font-variant-numeric:tabular-nums}
+
+/* 주목할 예측가 */
+.hm-top{list-style:none; margin:0; padding:0; display:grid; gap:2px; counter-reset:none}
+.hm-top li{
+  display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:4px 10px; align-items:center;
+  padding:9px 0; border-bottom:1px solid var(--rule);
+}
+.hm-top li:last-child{border-bottom:0}
+.hm-rank{color:var(--faint); font-size:12.5px; font-weight:700; text-align:center}
+.hm-top-name{color:var(--ink); font-size:13.5px; font-weight:700}
+.hm-top-name:hover{color:var(--brand)}
+.hm-top-stat{color:var(--ink); font-size:12.5px; font-weight:700}
+.hm-top-sub{grid-column:2 / -1; color:var(--faint); font-size:11.5px}
+
+/* 스폰서드 */
+.hm-ad-body{
+  display:grid; grid-template-columns:76px minmax(0,1fr); gap:14px; align-items:center;
+  padding:14px; border-radius:12px;
+  background:linear-gradient(135deg,var(--brand-softer),var(--brand-soft));
+}
+.hm-ad-body img{width:100%; height:auto}
+.hm-ad-body span{color:var(--muted); font-size:12.5px; line-height:1.55}
+.hm-ad-body em{display:block; margin-top:3px; color:var(--ink); font-style:normal; font-weight:700; font-size:13.5px}
+.hm-ad-body:hover{outline:2px solid var(--brand); outline-offset:2px}
+
+@media (max-width:1080px){
+  .hm-grid{grid-template-columns:minmax(0,1fr)}
+  .hm-wide{grid-column:auto}
+}
+@media (max-width:560px){
+  .hm-ant-grid{grid-template-columns:minmax(0,1fr); gap:8px}
+  .hm-ix-row b{font-size:19px}
+  .hm-ant b{font-size:26px}
+}
