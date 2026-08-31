@@ -1,0 +1,74 @@
+/* H-01 지갑·토큰 [ANT-FE-WALLET]
+   화면 전용 CSS. 셸(app.css)·공용 상태(state.css)와 섞지 않는다. */
+
+/* ── 연동 상태 + 잔액 카드 ───────────────────────────── */
+.wallet-card{
+  display:grid;gap:18px;padding:22px 24px;
+  border:1px solid var(--rule);border-radius:16px;background:var(--surface);
+  box-shadow:var(--shadow);
+}
+.wallet-label{display:block;color:var(--muted);font-size:12.5px;font-weight:700}
+
+.wallet-address{display:grid;gap:6px}
+.wallet-address code{
+  overflow:hidden;color:var(--ink);
+  font:600 13px var(--mono);text-overflow:ellipsis;white-space:nowrap;
+}
+
+.wallet-balance{display:grid;gap:4px;padding-top:16px;border-top:1px solid var(--rule)}
+.wallet-amount{display:flex;align-items:baseline;gap:6px;margin:2px 0 0}
+.wallet-amount b{color:var(--ink);font-size:34px;font-weight:850;letter-spacing:-.03em}
+.wallet-amount small{color:var(--muted);font-size:15px;font-weight:800}
+/* 대사 시각 — 실시간 잔액이 아니라는 걸 숫자 바로 아래에서 알린다 */
+.wallet-synced{margin:2px 0 0;color:var(--faint);font-size:12px;font-weight:650}
+
+/* ── 내역 머리말 + 사유 필터 ─────────────────────────── */
+.wallet-ledger-head{
+  display:flex;align-items:center;flex-wrap:wrap;gap:12px;
+  margin:32px 0 14px;
+}
+.wallet-ledger-head h2{margin:0;color:var(--ink);font-size:17px;font-weight:800}
+.wallet-filters{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.wallet-filters button{
+  height:30px;padding:0 12px;border:1px solid var(--rule);border-radius:999px;
+  background:var(--surface);color:var(--muted);font-size:12.5px;font-weight:700;
+  white-space:nowrap;transition:background .14s,color .14s,border-color .14s;
+}
+.wallet-filters button:hover{border-color:#cdc9f7;color:var(--brand-ink)}
+.wallet-filters button.on{
+  background:var(--brand-soft);border-color:var(--brand-soft);color:var(--brand-ink);
+}
+
+/* ── 내역 목록 ───────────────────────────────────────── */
+.wallet-ledger{display:grid;gap:0;margin:0;padding:0;list-style:none;
+  border:1px solid var(--rule);border-radius:14px;background:var(--surface);overflow:hidden}
+.wallet-entry{
+  display:grid;align-items:center;gap:12px;
+  grid-template-columns:minmax(120px,1fr) 150px 130px 150px;
+  padding:14px 18px;border-bottom:1px solid var(--rule);
+}
+.wallet-entry:last-child{border-bottom:0}
+.wallet-entry:hover{background:var(--brand-softer)}
+.wallet-entry-reason{color:var(--ink);font-size:13.5px;font-weight:750}
+.wallet-entry-date{color:var(--muted);font-size:12.5px}
+.wallet-entry-delta{text-align:right;font-size:14.5px;font-weight:800}
+/* 획득은 브랜드색, 사용은 회색 — 등락 색(빨강·파랑)과 헷갈리지 않게 한다 */
+.wallet-entry-delta.gain{color:var(--brand)}
+.wallet-entry-delta.spend{color:var(--body)}
+.wallet-entry-tx{overflow:hidden;color:var(--faint);font-size:12px;text-align:right;text-overflow:ellipsis;white-space:nowrap}
+
+.wallet-more{
+  display:block;width:100%;height:44px;margin-top:14px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+  color:var(--body);font-size:13.5px;font-weight:750;
+}
+.wallet-more:hover{border-color:#cdc9f7;color:var(--brand-ink)}
+.wallet-more-hint{margin:14px 0 0;color:var(--faint);font-size:13px;text-align:center}
+
+@media(max-width:720px){
+  .wallet-entry{grid-template-columns:1fr auto;gap:4px 12px}
+  .wallet-entry-date{order:3;grid-column:1}
+  .wallet-entry-delta{order:2}
+  .wallet-entry-tx{order:4;text-align:right}
+  .wallet-filters{margin-left:0}
+}
