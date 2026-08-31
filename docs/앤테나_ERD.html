@@ -465,7 +465,7 @@
     <ul>
       <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">user_id <em>→users</em></span><span class="t">int</span></div><div class="note">작성자</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">본문 · 5000자 상한</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">본문 · NOT NULL · 5000자 상한은 앱에서 검증(본문 없는 글은 없다)</div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">report_id <em>→reports</em></span><span class="t">int</span></div><div class="note">리포스팅 원본 · 구독 게이팅은 원본에서 판정</div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">prediction_id <em>→predictions</em></span><span class="t">int</span></div><div class="note">함께 붙인 예측 카드</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">VISIBLE / BLOCKED · 신고 처리로 가림, 행은 안 지움</div></li>
@@ -518,6 +518,8 @@
       <li><div class="row"><span class="k no">·</span><span class="c">handled_at</span><span class="t">timestamptz</span></div><div class="note">처리 시각</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">접수 시각</div></li>
     </ul>
+    <div class="uqrow">UQ (reporter_id, target_post_id, status) · UQ (reporter_id, target_comment_id, status) · UQ (reporter_id, target_user_id, status)</div>
+    <div class="note">중복 신고 차단. status를 키에 넣은 것은 의도적이다 — 관리자가 처리(ACCEPTED/REJECTED)한 뒤의 재신고는 새 사안으로 받는다. NULL끼리는 서로 다른 값으로 취급되므로 대상 종류가 다른 신고끼리는 충돌하지 않는다.</div>
   </article>
 
   <article><header><h3>upload_files</h3><span class="v3">V5</span></header>
