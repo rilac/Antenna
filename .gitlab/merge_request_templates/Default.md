@@ -1,6 +1,10 @@
 ## 🔗 Jira
 
-<!-- 예: https://ssafy.atlassian.net/browse/S15P21A507-11 -->
+<!-- 번호만 채우면 됩니다. 머지되는 순간 이 줄이 지라 이슈를 완료로 넘깁니다.
+     이 MR 로 이슈가 끝나지 않으면 Closes 만 지우세요 — 링크와 코멘트는 그대로 남고
+     상태만 안 바뀝니다. 여러 개면 `Closes S15P21A507-11, S15P21A507-12`. -->
+Closes S15P21A507-NN
+
 - [ANT-XXX-NN] https://ssafy.atlassian.net/browse/S15P21A507-NN
 
 ## 📝 작업 내용
@@ -32,5 +36,6 @@
 ## ✅ 체크
 
 - [ ] 로컬에서 동작 확인함
+- [ ] 맨 위 `Closes` 줄에 지라 이슈 번호 채움 (미완료면 `Closes` 삭제)
 - [ ] 커밋 메시지 컨벤션 지킴 (`feat:BE_설명`)
 - [ ] 리뷰어 지정함
