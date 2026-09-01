@@ -35,4 +35,22 @@ public interface PostCommentRepository extends JpaRepository<PostComment, Long> 
             """)
     List<PostComment> findPreview(
             @Param("postId") Long postId, @Param("status") PostComment.Status status, Limit limit);
+
+    /**
+     * 댓글 목록 한 페이지. 오래된 순이라 커서는 {@code id >} 로 나아간다 — 목록 순서와
+     * 커서 방향이 어긋나면 다음 페이지가 앞쪽을 다시 준다. BLOCKED 는 제외한다.
+     */
+    @Query("""
+            select c from PostComment c
+              join fetch c.user
+             where c.post.id = :postId
+               and c.status = :status
+               and (:cursor is null or c.id > :cursor)
+             order by c.id asc
+            """)
+    List<PostComment> findPage(
+            @Param("postId") Long postId,
+            @Param("status") PostComment.Status status,
+            @Param("cursor") Long cursor,
+            Limit limit);
 }

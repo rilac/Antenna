@@ -44,4 +44,11 @@ public class CommentLike {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static CommentLike create(PostComment comment, User user) {
+        CommentLike like = new CommentLike();
+        like.comment = comment;
+        like.user = user;
+        return like;
+    }
 }

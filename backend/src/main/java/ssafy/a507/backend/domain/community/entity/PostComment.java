@@ -52,4 +52,17 @@ public class PostComment {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static PostComment create(FeedPost post, User user, String body) {
+        PostComment comment = new PostComment();
+        comment.post = post;
+        comment.user = user;
+        comment.body = body;
+        comment.status = Status.VISIBLE;
+        return comment;
+    }
+
+    public boolean isBlocked() {
+        return status == Status.BLOCKED;
+    }
 }
