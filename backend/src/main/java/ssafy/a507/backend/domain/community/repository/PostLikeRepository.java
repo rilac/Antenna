@@ -24,6 +24,9 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
 
     boolean existsByPostIdAndUserId(Long postId, Long userId);
 
+    /** 한 글의 공감 수. 등록·취소 응답에 갱신된 수를 담아 내리는 데 쓴다. */
+    long countByPostId(Long postId);
+
     /**
      * 이 페이지에서 내가 이미 공감한 글들. 글마다 exists 를 묻지 않고 한 번에 받아온다
      * (구독 여부를 한 번에 받아오는 것과 같은 이유).

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import ssafy.a507.backend.domain.community.dto.CommentCreateRequest;
 import ssafy.a507.backend.domain.community.dto.CommentCreateResponse;
 import ssafy.a507.backend.domain.community.dto.CommentListResponse;
+import ssafy.a507.backend.domain.community.dto.LikeResponse;
 import ssafy.a507.backend.domain.community.service.CommentService;
 
 /**
@@ -52,10 +53,14 @@ public class CommentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new CommentCreateResponse(id));
     }
 
+    /**
+     * 글 공감. 본문 없는 201 을 주지 않는다 — Content-Type 이 없어서 프론트 공용 클라이언트가
+     * JSON 파싱 실패로 처리한다({@link LikeResponse} 주석). 갱신된 수를 담아 내린다.
+     */
     @PostMapping("/posts/{postId}/like")
-    public ResponseEntity<Void> likePost(@PathVariable Long postId) {
-        commentService.likePost(postId);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<LikeResponse> likePost(@PathVariable Long postId) {
+        long likeCount = commentService.likePost(postId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new LikeResponse(likeCount));
     }
 
     @DeleteMapping("/posts/{postId}/like")
@@ -65,9 +70,9 @@ public class CommentController {
     }
 
     @PostMapping("/comments/{commentId}/like")
-    public ResponseEntity<Void> likeComment(@PathVariable Long commentId) {
-        commentService.likeComment(commentId);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<LikeResponse> likeComment(@PathVariable Long commentId) {
+        long likeCount = commentService.likeComment(commentId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new LikeResponse(likeCount));
     }
 
     @DeleteMapping("/comments/{commentId}/like")

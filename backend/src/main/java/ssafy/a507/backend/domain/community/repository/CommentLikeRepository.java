@@ -21,6 +21,9 @@ public interface CommentLikeRepository extends JpaRepository<CommentLike, Long> 
 
     boolean existsByCommentIdAndUserId(Long commentId, Long userId);
 
+    /** 한 댓글의 좋아요 수. */
+    long countByCommentId(Long commentId);
+
     /** 이 페이지에서 내가 이미 좋아요한 댓글들. */
     @Query("""
             select cl.comment.id

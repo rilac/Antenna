@@ -100,8 +100,9 @@ public class CommentService {
         return new CommentListResponse(items, nextCursor, hasNext);
     }
 
+    /** @return 등록 후 갱신된 공감 수. 화면이 재조회 없이 숫자를 바꿀 수 있다. */
     @Transactional
-    public void likePost(Long postId) {
+    public long likePost(Long postId) {
         Long userId = currentUserProvider.currentUserId();
         FeedPost post = visiblePost(postId);
 
@@ -110,6 +111,7 @@ public class CommentService {
         }
         User user = currentUser(userId);
         save(() -> postLikeRepository.save(PostLike.create(post, user)));
+        return postLikeRepository.countByPostId(postId);
     }
 
     /** 없던 공감의 취소도 204 다. 명세에 404 가 없고, 두 번 눌러도 결과가 같은 게 화면에 맞다. */
@@ -121,7 +123,7 @@ public class CommentService {
     }
 
     @Transactional
-    public void likeComment(Long commentId) {
+    public long likeComment(Long commentId) {
         Long userId = currentUserProvider.currentUserId();
         PostComment comment = visibleComment(commentId);
 
@@ -130,6 +132,7 @@ public class CommentService {
         }
         User user = currentUser(userId);
         save(() -> commentLikeRepository.save(CommentLike.create(comment, user)));
+        return commentLikeRepository.countByCommentId(commentId);
     }
 
     @Transactional

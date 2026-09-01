@@ -6,6 +6,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -204,11 +205,13 @@ class CommentControllerTest {
     // ── 글 좋아요 ───────────────────────────────────────────
 
     @Test
-    @DisplayName("글 공감은 201, 같은 사람이 다시 누르면 409 DUPLICATE_LIKE")
+    @DisplayName("글 공감은 201 과 갱신된 likeCount, 같은 사람이 다시 누르면 409 DUPLICATE_LIKE")
     void 글_공감과_중복() throws Exception {
         mockMvc.perform(post(postLikeUrl(postId))
                         .with(user(String.valueOf(viewerId))).with(csrf()))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.likeCount").value(1));
 
         mockMvc.perform(post(postLikeUrl(postId))
                         .with(user(String.valueOf(viewerId))).with(csrf()))
@@ -226,7 +229,8 @@ class CommentControllerTest {
                 .andExpect(status().isCreated());
         mockMvc.perform(post(postLikeUrl(postId))
                         .with(user(String.valueOf(authorId))).with(csrf()))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.likeCount").value(2));
 
         assertPostLikeCount(postId, 2);
     }
@@ -293,7 +297,9 @@ class CommentControllerTest {
 
         mockMvc.perform(post(commentLikeUrl(commentId))
                         .with(user(String.valueOf(viewerId))).with(csrf()))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.likeCount").value(1));
 
         mockMvc.perform(post(commentLikeUrl(commentId))
                         .with(user(String.valueOf(viewerId))).with(csrf()))
