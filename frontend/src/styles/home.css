@@ -1,19 +1,56 @@
 /* B-01 인사이트 홈. 전 선택자를 hm- 접두사로 두고 app.css 토큰만 쓴다.
    화면별 CSS 가 전역으로 함께 올라가므로 흔한 이름을 만들지 않는다. */
 
+/* 본문 폭과 가운데 정렬은 app.css 의 .main-inner 가 전 화면 공통으로 맡는다. */
+
+/* 좌(넓음)·우(좁음) 두 줄기. 카드는 칸이 아니라 칼럼 안에 쌓이므로
+   높이가 서로 달라도 좌우 경계선이 어긋나지 않는다. */
+/* 카드가 그리드 칸에 하나씩 들어간다. 같은 행의 두 칸은 높이가 같으므로
+   좌·우 카드의 아래끝이 저절로 맞는다 — 칼럼에 쌓았을 때처럼 카드 높이를
+   손으로 맞출 필요가 없다. */
 .hm-grid{
   display:grid; gap:16px;
   grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
-  align-items:start;
+  align-items:stretch;
 }
-.hm-card{display:flex; flex-direction:column; gap:14px; min-width:0}
-/* 한 칸에 카드를 여러 장 쌓을 때 */
-.hm-col{display:flex; flex-direction:column; gap:16px; min-width:0}
-/* 관심 종목은 표라서 두 칸을 다 쓴다 */
-.hm-wide{grid-column:1 / -1}
+/* 짧은 쪽 카드가 행 높이만큼 늘어나면 아래가 빈다. 마지막 줄(안내문·관리
+   링크·지표)을 바닥에 붙여 그 여백을 위로 몰아준다. 늘어날 자리가 없으면
+   auto 는 0 이라 평소 모습은 그대로다. */
+.hm-card > :last-child{margin-top:auto}
 
-.hm-head{display:flex; align-items:baseline; gap:10px}
-.hm-head h2{margin:0; color:var(--ink); font-size:17px; font-weight:750; letter-spacing:-.02em}
+/* 1행 오른쪽 칸. 배너는 제 높이(min-height)만 쓰고 아래끝이 히어로와
+   어긋나게 두는 것이 의도다. 그렇게 남는 자리는 바로가기가 받아 채운다. */
+.hm-stack{display:flex; flex-direction:column; gap:16px; min-width:0}
+.hm-stack > .hm-ad{flex:0 0 auto}
+
+/* 지름길 세 칸. 칸 사이를 선으로만 나누고 배경은 카드 흰색을 그대로 쓴다.
+   .card 의 padding 20px 을 지워야 칸이 카드 끝까지 닿으므로 겹쳐 적는다. */
+.card.hm-quick{
+  flex:0 0 auto; min-height:48px;
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  padding:0; overflow:hidden;
+}
+.hm-quick a{
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  padding:8px; border-left:1px solid var(--rule);
+  color:var(--body); font-size:12.5px; font-weight:700; white-space:nowrap;
+}
+.hm-quick a:first-child{border-left:0}
+.hm-quick a:hover{background:var(--surface-2); color:var(--brand-ink)}
+.hm-quick .hm-ico{color:var(--brand)}
+.hm-card{display:flex; flex-direction:column; gap:14px; min-width:0}
+
+.hm-sr{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+
+.hm-head{display:flex; align-items:center; gap:10px}
+.hm-head h2{
+  display:flex; align-items:center; gap:7px;
+  margin:0; color:var(--ink); font-size:17px; font-weight:750; letter-spacing:-.02em;
+}
+.hm-head h2 .hm-ico{color:var(--brand)}
 .hm-head a,.hm-head .hm-date,.hm-head .hm-badge{margin-left:auto; font-size:12.5px; color:var(--muted)}
 .hm-head a{font-weight:650}
 .hm-head a:hover{color:var(--brand)}
@@ -21,6 +58,7 @@
   padding:2px 8px; border:1px solid var(--rule); border-radius:99px;
   background:var(--surface-2); font-size:11px; font-weight:650;
 }
+.hm-ico{flex:none}
 
 /* 섹션 상태 */
 .hm-state{margin:0; padding:16px 0; color:var(--faint); font-size:13px}
@@ -31,6 +69,8 @@
 }
 .hm-retry:hover{color:var(--ink)}
 .hm-foot{margin:0; color:var(--faint); font-size:11.5px; line-height:1.5}
+.hm-foot a{color:var(--muted); font-weight:650; font-size:12.5px}
+.hm-foot a:hover{color:var(--brand)}
 
 /* 상승·하락 — 국내 관례대로 상승이 빨강이다. 숫자에 부호가 함께 있어 색만으로 전달하지 않는다. */
 .up{color:var(--up)}
@@ -38,59 +78,189 @@
 .spark{display:block; flex:none}
 .spark-empty{display:inline-block; width:88px; height:30px}
 
-/* 시장 Overview */
-.hm-indices{list-style:none; margin:0; padding:0; display:grid; gap:14px}
-.hm-indices li{
-  display:grid; grid-template-columns:1fr auto; gap:2px 12px; align-items:center;
-  padding-bottom:12px; border-bottom:1px solid var(--rule);
+/* ── 히어로 ──────────────────────────────────────────────── */
+.hm-hero{
+  position:relative; overflow:hidden;
+  display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:16px;
+  padding:28px 30px; border:1px solid var(--rule); border-radius:16px;
+  background:
+    radial-gradient(120% 140% at 88% 18%,var(--brand-soft) 0%,transparent 58%),
+    linear-gradient(135deg,#fbfaff 0%,var(--brand-softer) 100%);
+  box-shadow:var(--shadow);
 }
-.hm-indices li:last-child{padding-bottom:0; border-bottom:0}
-.hm-ix-name{color:var(--muted); font-size:12.5px; font-weight:650}
-.hm-ix-row{grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; gap:14px}
-.hm-ix-row b{color:var(--ink); font-size:22px; font-weight:700; letter-spacing:-.02em}
-.hm-delta{grid-column:1 / -1; font-size:12.5px; font-weight:700}
+.hm-hello{margin:0 0 10px; color:var(--brand-ink); font-size:13.5px; font-weight:700}
+.hm-hero h1{
+  margin:0; color:var(--ink); font-size:27px; font-weight:800;
+  line-height:1.34; letter-spacing:-.03em;
+}
+.hm-hero-sub{margin:12px 0 0; color:var(--muted); font-size:13.5px; line-height:1.62}
+.hm-cta{
+  display:inline-flex; align-items:center; gap:8px; margin-top:20px;
+  padding:11px 20px; border-radius:11px;
+  background:var(--brand); color:#fff; font-size:14px; font-weight:700;
+}
+.hm-cta:hover{background:var(--brand-ink)}
+/* 마스코트는 카드보다 크게 잡고 아래로 흘려보낸다. .hm-hero 가 overflow:hidden
+   이라 하체가 잘리고, 음수 마진 덕에 카드 높이는 글자가 정한다. */
+.hm-hero-art{
+  align-self:end; width:268px; height:auto;
+  margin:0 -10px -58px 0;
+}
 
-/* 내 자산 */
+/* ── 시장 Overview — 지수 셋을 가로로 세운다 ──────────────── */
+.hm-indices{
+  list-style:none; margin:0; padding:0;
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0;
+}
+/* 한 칸을 셋으로 나누면 지수 이름이 들어갈 자리가 없다(칸이 229px 뿐이다).
+   그래서 글자는 1열에 이름·값·변동 순으로 쌓고, 차트만 2열에서 세 줄을
+   가로지른다. 이름은 줄바꿈되면 값과 붙어 보이므로 한 줄로 묶는다. */
+.hm-indices li{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-rows:auto auto auto;
+  gap:2px 10px; align-items:center;
+  padding:2px 12px; border-left:1px solid var(--rule);
+}
+.hm-indices li:first-child{padding-left:0; border-left:0}
+.hm-ix-name{
+  grid-column:1; grid-row:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  color:var(--muted); font-size:12.5px; font-weight:650;
+}
+.hm-ix-val{
+  grid-column:1; grid-row:2; white-space:nowrap;
+  color:var(--ink); font-size:22px; font-weight:750; letter-spacing:-.025em;
+}
+.hm-ix-delta{
+  grid-column:1; grid-row:3; white-space:nowrap;
+  font-size:12.5px; font-weight:700; line-height:1.35;
+}
+.hm-ix-delta em{margin-left:3px; font-style:normal; font-size:11.5px; font-weight:650; opacity:.85}
+.hm-indices .spark{grid-column:2; grid-row:1 / span 3}
+
+/* ── 내 자산 ─────────────────────────────────────────────── */
+.hm-ant-box{
+  display:flex; align-items:center; gap:12px;
+  padding:14px 16px; border:1px solid var(--rule); border-radius:12px;
+  background:var(--brand-softer);
+}
+.hm-ant-label{
+  display:flex; align-items:center; gap:6px; margin:0 0 4px;
+  color:var(--muted); font-size:12px; font-weight:650;
+}
+.hm-ant-label .hm-ico{color:var(--brand)}
 .hm-ant{margin:0; color:var(--ink)}
-.hm-ant b{font-size:30px; font-weight:750; letter-spacing:-.03em}
+/* app.css 의 .card p 가 (0,1,1) 로 더 세서, 색을 b 에 직접 걸지 않으면
+   잔액이 회색(--muted)을 물려받는다. */
+.hm-ant b{color:var(--ink); font-size:28px; font-weight:750; letter-spacing:-.03em}
 .hm-ant em{font-style:normal; color:var(--muted); font-size:14px; font-weight:650}
+.hm-ant-btn{
+  margin-left:auto; flex:none; padding:9px 15px; border-radius:10px;
+  background:var(--brand); color:#fff; font-size:13px; font-weight:700;
+}
+.hm-ant-btn:hover{background:var(--brand-ink)}
 .hm-ant-grid{
   display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:0;
-  padding-top:12px; border-top:1px solid var(--rule);
 }
 .hm-ant-grid dt{color:var(--muted); font-size:11.5px}
-.hm-ant-grid dd{margin:4px 0 0; color:var(--ink); font-size:13.5px; font-weight:700}
-
-/* AI 브리핑 */
-.hm-brief{list-style:none; margin:0; padding:0; display:grid; gap:11px}
-.hm-brief li{
-  display:grid; grid-template-columns:auto 1fr; gap:9px; align-items:start;
-  color:var(--body); font-size:13.5px; line-height:1.6;
-}
-.hm-brief-mark{
-  width:6px; height:6px; margin-top:7px; border-radius:50%;
-  background:var(--brand); flex:none;
+.hm-ant-grid dd{
+  display:flex; align-items:center; gap:5px;
+  margin:5px 0 0; color:var(--ink); font-size:13.5px; font-weight:700;
 }
 
-/* 관심 종목 표 */
+/* ── AI 브리핑 띠 — 시장 Overview 안에 한 줄로 얹는다 ──────
+   카드를 따로 세우지 않으려고 한 문장만 두고 자동으로 넘긴다.
+   문장이 길면 자르되, 읽어 주는 기기에는 전체 목록이 따로 간다. */
+.hm-ticker{
+  display:flex; align-items:center; gap:10px; min-width:0;
+  padding:11px 13px; border-radius:11px; background:var(--brand-softer);
+}
+.hm-ticker-tag{
+  display:inline-flex; align-items:center; gap:5px; flex:none;
+  color:var(--brand-ink); font-size:11.5px; font-weight:700;
+}
+.hm-ticker-line{
+  flex:1; min-width:0; margin:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  color:var(--body); font-size:13px; line-height:1.5;
+  animation:hm-fade .45s ease both;
+}
+.hm-ticker-no{flex:none; color:var(--faint); font-size:11px; font-weight:650}
+
+@keyframes hm-fade{
+  from{opacity:0; transform:translateY(4px)}
+  to{opacity:1; transform:none}
+}
+/* 움직임을 줄이도록 설정했으면 넘김 자체가 멈추지만, 첫 장까지 흔들 이유는 없다 */
+@media (prefers-reduced-motion:reduce){
+  .hm-ticker-line{animation:none}
+}
+
+/* app.css 의 .card p 가 (0,1,1) 이라 .hm- 한 겹으로는 색이 밀린다.
+   카드 안 문단은 한 겹 더 얹어 의도한 위계를 되살린다. */
+.hm-card .hm-state{color:var(--faint)}
+.hm-card .hm-state.err{color:var(--danger)}
+.hm-card .hm-foot{color:var(--faint)}
+.hm-ticker .hm-ticker-line{color:var(--body)}
+
+/* ── 관심 종목 표 ────────────────────────────────────────── */
 .hm-table-wrap{overflow-x:auto}
-.hm-table{border-collapse:collapse; width:100%; min-width:460px; font-size:13.5px}
-.hm-table th,.hm-table td{padding:10px 12px; border-bottom:1px solid var(--rule); text-align:left}
+.hm-table{border-collapse:collapse; width:100%; min-width:520px; font-size:13.5px}
+/* 좁은 화면에서는 셀을 접지 않고 표째로 가로 스크롤한다(.hm-table-wrap).
+   종목명이 두 줄로 접히면 행 높이가 들쭉날쭉해져 읽기 더 어렵다. */
+.hm-table th,.hm-table td{
+  padding:11px 12px; border-bottom:1px solid var(--rule);
+  text-align:left; white-space:nowrap;
+}
 .hm-table thead th{
   padding-top:0; color:var(--muted); font-size:11.5px; font-weight:650; letter-spacing:.02em;
 }
 .hm-table tbody tr:last-child th,.hm-table tbody tr:last-child td{border-bottom:0}
-.hm-table tbody th{font-weight:650}
-.hm-table tbody th a{color:var(--ink)}
+.hm-table tbody th{font-weight:650; padding-left:0}
+.hm-table tbody th a{display:flex; align-items:center; gap:9px; color:var(--ink)}
 .hm-table tbody th a:hover{color:var(--brand)}
-.hm-table tbody th small{margin-left:6px; color:var(--faint); font-size:11.5px; font-weight:500}
+.hm-table tbody th small{color:var(--faint); font-size:11.5px; font-weight:500}
 .hm-table .r{text-align:right}
 .hm-table .c{text-align:center; width:104px}
 .hm-table .c .spark{margin:0 auto}
+.hm-table .s{width:34px; padding-right:0; text-align:right}
 .hm-table td.num{font-variant-numeric:tabular-nums}
+.hm-table td em{font-style:normal; font-size:12px; opacity:.85}
+.hm-logo{
+  display:grid; place-items:center; flex:none; width:26px; height:26px;
+  border-radius:50%; font-size:12px; font-weight:750;
+}
+.hm-star{display:inline-flex; color:var(--gold)}
 
-/* 주목할 예측가 */
-.hm-top{list-style:none; margin:0; padding:0; display:grid; gap:2px; counter-reset:none}
+/* ── 주목할 예측가 ───────────────────────────────────────── */
+.hm-lead{
+  display:grid; grid-template-columns:auto minmax(0,1fr); gap:12px 13px; align-items:center;
+  padding:15px; border:1px solid var(--rule); border-radius:13px; background:var(--surface-2);
+}
+.hm-avatar{
+  width:46px; height:46px; border-radius:50%; object-fit:cover;
+  background:var(--brand-soft);
+}
+.hm-lead-id{display:flex; flex-direction:column; gap:3px; min-width:0}
+.hm-lead-name{color:var(--ink); font-size:15px; font-weight:750; letter-spacing:-.02em}
+.hm-lead-name:hover{color:var(--brand)}
+.hm-lead-rank{
+  align-self:start; padding:2px 8px; border-radius:99px;
+  background:var(--brand-soft); color:var(--brand-ink); font-size:11px; font-weight:700;
+}
+.hm-lead-stats{
+  grid-column:1 / -1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px; margin:0; padding-top:12px; border-top:1px solid var(--rule);
+}
+.hm-lead-stats dt{color:var(--muted); font-size:11.5px}
+.hm-lead-stats dd{margin:4px 0 0; color:var(--ink); font-size:14px; font-weight:750}
+.hm-lead-btn{
+  grid-column:1 / -1; padding:9px 0; border-radius:10px;
+  background:var(--brand); color:#fff; font-size:13px; font-weight:700; text-align:center;
+}
+.hm-lead-btn:hover{background:var(--brand-ink)}
+
+.hm-top{list-style:none; margin:0; padding:0; display:grid; gap:2px}
 .hm-top li{
   display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:4px 10px; align-items:center;
   padding:9px 0; border-bottom:1px solid var(--rule);
@@ -102,23 +272,100 @@
 .hm-top-stat{color:var(--ink); font-size:12.5px; font-weight:700}
 .hm-top-sub{grid-column:2 / -1; color:var(--faint); font-size:11.5px}
 
-/* 스폰서드 */
-.hm-ad-body{
-  display:grid; grid-template-columns:76px minmax(0,1fr); gap:14px; align-items:center;
-  padding:14px; border-radius:12px;
-  background:linear-gradient(135deg,var(--brand-softer),var(--brand-soft));
+/* ── 스폰서드 — 어두운 면으로 흰 카드 흐름과 끊는다 ───────── */
+.hm-ad{
+  position:relative; overflow:hidden; isolation:isolate;
+  display:flex; flex-direction:column; align-items:flex-start;
+  /* 배너에 조금 더 무게를 준다(이전 217px 대비 10%) */
+  min-height:239px;
+  padding:20px; border-radius:16px; box-shadow:var(--shadow);
+  background:
+    radial-gradient(120% 130% at 82% 22%,#3d3aa8 0%,transparent 60%),
+    linear-gradient(150deg,#221f4d 0%,#141235 100%);
+  color:#fff;
 }
-.hm-ad-body img{width:100%; height:auto}
-.hm-ad-body span{color:var(--muted); font-size:12.5px; line-height:1.55}
-.hm-ad-body em{display:block; margin-top:3px; color:var(--ink); font-style:normal; font-weight:700; font-size:13.5px}
-.hm-ad-body:hover{outline:2px solid var(--brand); outline-offset:2px}
+/* 배지·상태글·점은 창(절대배치) 위에 떠야 한다 */
+.hm-ad-head{position:relative; z-index:2; display:flex; width:100%}
+.hm-ad .hm-state{position:relative; z-index:2}
+.hm-ad .hm-badge{
+  margin:0; border-color:rgba(255,255,255,.22);
+  background:rgba(255,255,255,.12); color:#fff;
+}
+.hm-ad .hm-state{color:rgba(255,255,255,.72)}
 
+/* 창 하나를 두고 띠를 옆으로 민다. 창이 넘치는 부분을 잘라 한 장만 보인다.
+   창을 카드에 꽉 채워 깔면(inset:0) 슬라이드 배경이 카드 네 변까지 닿는다 —
+   좌우만 넓히면 배지·점이 앉은 위아래에 색이 안 깔려 잘려 보인다.
+   창이 흐름에서 빠지므로 배지·점은 제자리에 남고, 슬라이드가 그 두 자리를
+   피하도록 위아래 여백을 스스로 갖는다. */
+.hm-ad-viewport{position:absolute; inset:0; z-index:0; overflow:hidden}
+.hm-ad-track{display:flex; height:100%; transition:transform .45s ease}
+.hm-ad-slide{
+  position:relative; isolation:isolate;
+  flex:0 0 100%; min-width:0; height:100%;
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+  /* 위는 배지, 아래는 점이 앉는 자리라 비워 둔다 */
+  padding:58px 20px 44px;
+  /* 광고마다 다른 광채를 깐다. 배경이 슬라이드에 붙어 있어 넘김과 함께 움직인다. */
+  background:radial-gradient(92% 128% at 84% 48%,var(--ad-accent) 0%,transparent 64%);
+}
+.hm-ad-slide.t-a{--ad-accent:rgba(124,109,255,.52)}
+.hm-ad-slide.t-b{--ad-accent:rgba(42,176,168,.44)}
+.hm-ad-slide.t-c{--ad-accent:rgba(236,116,168,.42)}
+/* 글자와 버튼이 마스코트 위로 오게 한 겹 올린다 */
+.hm-ad-slide > *{position:relative; z-index:1}
+@media (prefers-reduced-motion:reduce){
+  .hm-ad-track{transition:none}
+}
+
+.hm-ad-title{margin:0; font-size:16.5px; font-weight:800; letter-spacing:-.02em}
+.hm-ad-sub{margin:7px 0 0; color:rgba(255,255,255,.76); font-size:13px; line-height:1.55}
+.hm-ad-btn{
+  display:inline-flex; align-items:center; gap:7px; margin-top:18px;
+  padding:10px 17px; border:1px solid rgba(255,255,255,.3); border-radius:10px;
+  color:#fff; font-size:13px; font-weight:700;
+}
+.hm-ad-btn:hover{background:rgba(255,255,255,.12)}
+/* 캐릭터는 배경 장식이라 글자 뒤로 깔고 클릭을 가로채지 않는다 */
+/* 슬라이드 안에 깔리는 장식. 위의 .hm-ad-slide>* 규칙보다 뒤에 와야
+   z-index 0 이 살아 글자 뒤로 간다. */
+/* 슬라이드 높이(140px) 안에 통째로 들어오도록 상한을 둔다. 창이
+   overflow:hidden 이라 조금이라도 넘치면 발끝이 잘린다. */
+.hm-ad-art{
+  position:absolute; right:6px; bottom:0; z-index:0;
+  /* 카드(239px)에서 배지가 앉은 위쪽을 뺀 만큼까지 키운다. 더 올리면
+     배지와 머리가 부딪힌다. */
+  width:auto; height:auto; max-width:46%; max-height:178px;
+  opacity:.95; pointer-events:none;
+}
+/* 점은 장수를 알릴 뿐 아니라 눌러서 고르는 버튼이기도 하다.
+   자동으로 넘어가는 콘텐츠에는 손으로 멈출 길이 있어야 한다. */
+.hm-ad-dots{position:relative; z-index:2; display:flex; gap:6px; margin-top:auto}
+.hm-ad-dots button{
+  width:7px; height:7px; padding:0; border:0; border-radius:50%;
+  background:rgba(255,255,255,.32); cursor:pointer;
+}
+.hm-ad-dots button:hover{background:rgba(255,255,255,.6)}
+.hm-ad-dots button.on{background:#fff}
+
+/* ── 반응형 ─────────────────────────────────────────────── */
+@media (max-width:1180px){
+  .hm-hero-art{width:132px}
+  .hm-hero h1{font-size:23px}
+}
 @media (max-width:1080px){
   .hm-grid{grid-template-columns:minmax(0,1fr)}
-  .hm-wide{grid-column:auto}
+}
+@media (max-width:760px){
+  .hm-indices{grid-template-columns:minmax(0,1fr)}
+  .hm-indices li{padding:12px 0; border-left:0; border-top:1px solid var(--rule)}
+  .hm-indices li:first-child{padding-top:0; border-top:0}
 }
 @media (max-width:560px){
+  .hm-hero{grid-template-columns:minmax(0,1fr); padding:22px}
+  .hm-hero-art{display:none}
+  .hm-hero h1{font-size:21px}
   .hm-ant-grid{grid-template-columns:minmax(0,1fr); gap:8px}
-  .hm-ix-row b{font-size:19px}
-  .hm-ant b{font-size:26px}
+  .hm-ant b{font-size:24px}
+  .hm-ant-box{flex-wrap:wrap}
 }

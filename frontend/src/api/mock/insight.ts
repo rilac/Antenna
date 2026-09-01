@@ -63,9 +63,13 @@ export const rankings = (limit: number) => delay<{ computedAt: string; items: Ra
   ] as RankingRow[]).slice(0, limit),
 })
 
+/* 홈 배너는 여러 장을 돌려 보여주므로 목업도 여러 장 준다.
+   스키마에 문구가 없어(이미지·링크뿐) 장마다 그림만 달라진다. */
 export const activeAds = () => delay<{ items: ActiveAd[] }>({
   items: [
     { id: 1, imageUrl: '/assets/antena-character-transparent.png', linkUrl: '/ads/new' },
+    { id: 2, imageUrl: '/assets/antena-character-black.png', linkUrl: '/ads/new' },
+    { id: 3, imageUrl: '/assets/antena-profile.png', linkUrl: '/ads/new' },
   ],
 })
 
