@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,7 +53,11 @@ public class DailyQuoteIngestService {
     public List<IngestRun> ingestPending(LocalDate today) {
         // 배치가 도는 13시에는 오늘 종가가 아직 없다(장 마감 15:30). 어제가 마지막 대상이다.
         LocalDate lastTarget = today.minusDays(1);
-        return ingestMissing(lastTarget.minusDays(properties.lookbackDays()), lastTarget, NO_LIMIT);
+        return ingestMissing(
+                lastTarget.minusDays(properties.lookbackDays()),
+                lastTarget,
+                NO_LIMIT,
+                IngestRun::isCollected);
     }
 
     /**
@@ -66,10 +71,13 @@ public class DailyQuoteIngestService {
      * @param chunkSize 이번 회차가 집을 영업일 수
      */
     public List<IngestRun> backfill(LocalDate today, LocalDate from, int chunkSize) {
-        return ingestMissing(from, today.minusDays(1), chunkSize);
+        // 백필은 EMPTY 도 종결로 본다. 안 그러면 과거 공휴일이 영원히 대상으로 남아
+        // 백필이 스스로 끝나지 못한다. 최근 날짜의 "공개 전" EMPTY 는 일일 수집이 메운다.
+        return ingestMissing(from, today.minusDays(1), chunkSize, IngestRun::isSettled);
     }
 
-    private List<IngestRun> ingestMissing(LocalDate from, LocalDate to, int limit) {
+    private List<IngestRun> ingestMissing(
+            LocalDate from, LocalDate to, int limit, Predicate<IngestRun> settled) {
         if (!properties.isConfigured()) {
             log.warn("PUBLIC_DATA_SERVICE_KEY 가 비어 있어 일봉 수집을 건너뛴다.");
             return List.of();
@@ -79,7 +87,7 @@ public class DailyQuoteIngestService {
         }
 
         Set<LocalDate> collected = ingestRunRepository.findByBaseDateBetween(from, to).stream()
-                .filter(IngestRun::isCollected)
+                .filter(settled)
                 .map(IngestRun::getBaseDate)
                 .collect(Collectors.toSet());
 

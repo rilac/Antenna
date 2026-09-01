@@ -216,6 +216,41 @@ class DailyQuoteIngestIntegrationTest {
         verifyNoInteractions(client);
     }
 
+    /**
+     * 과거의 EMPTY 는 공휴일로 굳었다고 보고 백필의 종결로 친다. 그러지 않으면 백필이 끝난
+     * 뒤에도 매 회차 3년치 공휴일 50일을 다시 두드려, 2분 간격 기준 시간당 600콜이 나간다.
+     */
+    @Test
+    @DisplayName("백필은 공휴일(EMPTY)을 종결로 보고 다시 두드리지 않는다")
+    void 백필은_공휴일을_다시_두드리지_않는다() {
+        LocalDate from = LocalDate.of(2026, 8, 24);
+        seedCollected(LocalDate.of(2026, 8, 24));
+        seedEmpty(LocalDate.of(2026, 8, 25));
+        seedCollected(LocalDate.of(2026, 8, 26));
+        seedCollected(LocalDate.of(2026, 8, 27));
+        seedCollected(LocalDate.of(2026, 8, 28));
+
+        assertThat(service.backfill(MONDAY, from, 20)).isEmpty();
+
+        verifyNoInteractions(client);
+    }
+
+    /** 최근 날짜의 빈 응답은 공휴일일 수도, 아직 공개 전일 수도 있다 — 일일 수집은 계속 두드린다. */
+    @Test
+    @DisplayName("일일 수집은 EMPTY 를 다시 시도한다 — 아직 공개 전일 수 있어서다")
+    void 일일_수집은_EMPTY를_다시_시도한다() {
+        given(client.fetchDay(any())).willReturn(List.of());
+        seedCollected(LocalDate.of(2026, 8, 24));
+        seedCollected(LocalDate.of(2026, 8, 25));
+        seedCollected(LocalDate.of(2026, 8, 26));
+        seedCollected(LocalDate.of(2026, 8, 27));
+        seedEmpty(LocalDate.of(2026, 8, 28));
+
+        service.ingestPending(MONDAY);
+
+        verify(client).fetchDay(LocalDate.of(2026, 8, 28));
+    }
+
     private StockPriceRow rowOn(LocalDate tradeDate) {
         return new StockPriceRow(
                 "005930",
@@ -234,6 +269,13 @@ class DailyQuoteIngestIntegrationTest {
         IngestRun run = IngestRun.of(baseDate);
         run.start(Instant.parse("2026-08-28T04:00:00Z"));
         run.succeed(1, Instant.parse("2026-08-28T04:00:10Z"));
+        ingestRunRepository.save(run);
+    }
+
+    private void seedEmpty(LocalDate baseDate) {
+        IngestRun run = IngestRun.of(baseDate);
+        run.start(Instant.parse("2026-08-28T04:00:00Z"));
+        run.markEmpty(Instant.parse("2026-08-28T04:00:10Z"));
         ingestRunRepository.save(run);
     }
 
