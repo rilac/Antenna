@@ -3,15 +3,25 @@
    프로토타입이 정한 값을 그대로 쓰되, 카드마다 흩어져 있던 hex 를 --tone-* 로 묶어
    한 곳에서 바뀌게 했다. 그 외 색·서체는 app.css 토큰을 쓴다. */
 
-.sim-setup{position:relative;display:flex;flex-direction:column;gap:22px;max-width:1400px}
+/* margin-inline:auto 가 핵심이다. 셸의 .main-inner 는 max-width 만 있고 auto 여백이
+   없어서, 넓은 화면에서 본문이 왼쪽에 붙는다. 이 요소가 곧 .main-inner 라 여기서 잡는다.
+   word-break:keep-all 은 한글이 단어 중간에서 잘리지 않게 한다. */
+.sim-setup{
+  position:relative;display:flex;flex-direction:column;gap:22px;
+  max-width:1280px;margin-inline:auto;
+  word-break:keep-all;
+}
 
 /* ── 헤더 ───────────────────────────────────────────── */
 .ss-crumb{display:flex;align-items:center;gap:9px;color:#8a93ad;font-size:13.5px;font-weight:700}
 .ss-crumb a:hover{color:var(--brand)}
 .ss-crumb i{font-style:normal;color:#c2c8da}
 
-.ss-head h1{margin:14px 0 12px;color:#0e1330;font-size:42px;font-weight:850;letter-spacing:-.04em}
-.ss-head p{margin:0;color:#6b7291;font-size:16px;font-weight:650}
+.ss-head h1{
+  margin:14px 0 12px;color:#0e1330;font-size:42px;font-weight:850;letter-spacing:-.04em;
+  text-wrap:balance;
+}
+.ss-head p{margin:0;color:#6b7291;font-size:16px;font-weight:650;text-wrap:pretty}
 
 /* 검정 개미 — 헤더 오른쪽에서 가이드 바까지 걸쳐 놓는다.
 
@@ -39,11 +49,10 @@
 .ss-guide-rule{align-self:stretch;background:var(--rule)}
 
 /* 순서가 있는 절차가 아니라 "상황 → 모드" 대응이라 화살표를 쓰지 않는다.
-   칸 수는 모드 수(2)와 같다 — 시연이 빠지면서 3 → 2 가 됐다. */
-.ss-steps{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;
-  margin:0;padding:0;list-style:none;
-}
+   칸 수는 모드 수와 같다 — 관리자는 시연이 붙어 3, 그 외에는 2 다. */
+.ss-steps{display:grid;gap:14px;margin:0;padding:0;list-style:none}
+.ss-steps.n-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ss-steps.n-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .ss-step{
   display:flex;flex-direction:column;gap:5px;
   padding:13px 16px;border-radius:13px;background:var(--surface-2);
@@ -53,10 +62,12 @@
 .ss-step b{color:var(--tone);font-size:16.5px;font-weight:850;letter-spacing:-.02em}
 
 /* ── 모드 카드 ──────────────────────────────────────── */
-/* 두 칸이라 카드가 넓어진다(약 600px). 카드는 넓게 두어 가이드 바와 폭을 맞추고,
+/* 두 장이면 카드가 넓어진다(약 600px). 카드는 넓게 두어 가이드 바와 폭을 맞추고,
    글·버튼은 --inner 로 묶어 좁게 유지한다 — 넓은 카드에 문장이 늘어지면 읽기 나쁘다.
    경계선이 있는 .ss-facts 만 카드 폭을 꽉 채워 띠처럼 보이게 둔다. */
-.ss-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;align-items:start}
+.ss-modes{display:grid;gap:22px;align-items:start}
+.ss-modes.n-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ss-modes.n-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 .ss-mode{
   --inner:420px;
@@ -159,17 +170,19 @@
 .ss-others b{flex:none;color:var(--tone-ink);font-size:11.5px;font-weight:750}
 .ss-others span{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 
-/* ── 모드별 색 (프로토타입 값 유지) ─────────────────────
-   시연(--tone #2f7bf6 계열)은 관리자 화면으로 옮겨 가면서 여기서 뺐다. */
+/* ── 모드별 색 (프로토타입 값 유지) ───────────────────── */
 .learn,.t-learn{--tone:#16a06a;--tone-ink:#17805a;--tone-soft:#e7f6ef}
 .contest,.t-contest{--tone:#5457e8;--tone-ink:#5a52d8;--tone-soft:#ebe9fc}
+.demo,.t-demo{--tone:#2f7bf6;--tone-ink:#2a6ad8;--tone-soft:#e8f1fe}
 
-/* 추천(연습)이 채운 버튼, 대회가 테두리 버튼이다 —
-   프로토타입은 반대였지만 추천을 옮겼으니 주 동선도 함께 옮긴다. */
+/* 추천(연습)만 채운 버튼, 나머지는 테두리 버튼이다 —
+   프로토타입은 대회가 채운 버튼이었지만 추천을 옮겼으니 주 동선도 함께 옮긴다. */
 .ss-mode.learn .ss-cta{background:var(--tone);color:#fff}
 .ss-mode.learn .ss-cta:hover{background:var(--tone-ink)}
-.ss-mode.contest .ss-cta{border:1px solid var(--tone);color:var(--tone)}
-.ss-mode.contest .ss-cta:hover{background:var(--tone-soft)}
+.ss-mode.contest .ss-cta,
+.ss-mode.demo .ss-cta{border:1px solid var(--tone);color:var(--tone)}
+.ss-mode.contest .ss-cta:hover,
+.ss-mode.demo .ss-cta:hover{background:var(--tone-soft)}
 /* 위 모드별 규칙이 .ss-cta.is-off 보다 특이도가 높아 색을 덮는다 —
    비활성 모습을 되찾으려면 같은 특이도로 뒤에서 다시 눌러 줘야 한다. */
 .ss-mode .ss-cta.is-off,
@@ -189,16 +202,20 @@
   .ss-mascot{display:none}
   .ss-guide{padding:24px 28px}
 }
+/* 관리자(3장)는 한 칸 일찍 2열로 접는다 — 3열로 버티면 카드가 너무 좁아진다 */
+@media(max-width:1280px){
+  .ss-modes.n-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 @media(max-width:1020px){
   .ss-guide{grid-template-columns:minmax(0,1fr);gap:20px}
   .ss-guide-rule{display:none}
-  .ss-modes{grid-template-columns:minmax(0,1fr)}
+  .ss-modes.n-2,.ss-modes.n-3{grid-template-columns:minmax(0,1fr)}
   .ss-head h1{font-size:32px}
 }
 @media(max-width:680px){
   .ss-head h1{font-size:26px}
   .ss-mode{padding:32px 20px 24px}
-  .ss-steps{grid-template-columns:minmax(0,1fr)}
+  .ss-steps.n-2,.ss-steps.n-3{grid-template-columns:minmax(0,1fr)}
 }
 @media(prefers-reduced-motion:reduce){
   .ss-mode,.ss-cta,.ss-others a{transition:none}

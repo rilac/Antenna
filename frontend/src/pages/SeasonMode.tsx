@@ -27,6 +27,7 @@
    참가자 수는 넣지 않는다. /seasons 응답에 없다(설계서 §8). */
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../auth/context'
 import { api } from '../api/client'
 import { ApiError, CLIENT_ERROR_CODE } from '../api/errors'
 import ErrorState from '../components/state/ErrorState'
@@ -48,7 +49,9 @@ type Season = {
 type ModeSpec = {
   key: Mode
   /** 프로토타입의 모드별 색 클래스 */
-  tone: 'learn' | 'contest'
+  tone: 'learn' | 'contest' | 'demo'
+  /** 관리자에게만 보인다 */
+  adminOnly?: boolean
   title: string
   lead: React.ReactNode
   chips: string[]
@@ -61,10 +64,8 @@ type ModeSpec = {
   icon: React.ReactNode
 }
 
-/* 여기 있는 모드만 화면에 나온다.
-   DEMO(시연)는 관리자 전용 화면으로 따로 만들기로 해서 이 목록에서 뺐다 —
-   Mode 타입에는 남겨 둔다(서버가 여전히 DEMO 시즌을 내려줄 수 있고,
-   joinable() 이 모드로 걸러 내므로 목록에 없으면 화면에 나오지 않는다). */
+/* 시연(DEMO)은 관리자에게만 보인다. 일반 사용자는 연습·대회 두 장이다.
+   서버가 DEMO 시즌을 내려줘도 카드가 없으면 화면에 나오지 않는다. */
 const MODES: ModeSpec[] = [
   {
     key: 'PRACTICE',
@@ -210,13 +211,84 @@ const MODES: ModeSpec[] = [
       </>
     ),
   },
+  {
+    key: 'DEMO',
+    tone: 'demo',
+    adminOnly: true,
+    title: '시연',
+    lead: (
+      <>
+        발표와 체험을 위해 빠르게
+        <br />
+        핵심 흐름을 살펴보세요.
+      </>
+    ),
+    chips: ['빠른 체험', '발표용', '즉시 시작'],
+    /* 앞의 두 칸은 연습·대회와 같은 축이다(진행 주체 · 참가비). */
+    facts: [
+      {
+        label: (
+          <>
+            원하는 때
+            <br />
+            직접 진행
+          </>
+        ),
+        icon: (
+          <>
+            <circle cx="12" cy="12" r="9" />
+            <path d="m10 8.5 6 3.5-6 3.5z" />
+          </>
+        ),
+      },
+      {
+        label: (
+          <>
+            참가비
+            <br />
+            없음
+          </>
+        ),
+        icon: (
+          <>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8.5 15.5 15.5 8.5" />
+          </>
+        ),
+      },
+      {
+        label: (
+          <>
+            짧은
+            <br />
+            진행
+          </>
+        ),
+        icon: (
+          <>
+            <circle cx="12" cy="13" r="8" />
+            <path d="M12 9v4l2.5 1.5M9 2h6M19 6l1.5-1.5" />
+          </>
+        ),
+      },
+    ],
+    cta: '시연 시작하기',
+    icon: (
+      <>
+        <rect x="2.5" y="4" width="19" height="13" rx="2" />
+        <path d="M8 21h8M12 17v4" />
+        <path d="m6.5 13 3-3.5 2.5 2 4.5-4.5" />
+      </>
+    ),
+  },
 ]
 
 /* 가이드 바 — "어떤 상황이면 어느 모드" 를 한 줄로 보여준다.
    프로토타입 .ss-steps 를 그대로 옮겼다. */
-const GUIDE = [
-  { when: '처음 써보면', pick: '연습하기', tone: 'learn' as const },
-  { when: '경쟁하고 싶다면', pick: '대회', tone: 'contest' as const },
+const GUIDE: { when: string; pick: string; tone: string; adminOnly?: boolean }[] = [
+  { when: '처음 써보면', pick: '연습하기', tone: 'learn' },
+  { when: '경쟁하고 싶다면', pick: '대회', tone: 'contest' },
+  { when: '빠르게 보여주려면', pick: '시연', tone: 'demo', adminOnly: true },
 ]
 
 const Ico = ({ size = 24, children }: { size?: number; children: React.ReactNode }) => (
@@ -254,6 +326,12 @@ function seasonMeta(s: Season) {
 }
 
 export default function SeasonMode() {
+  const { user } = useAuth()
+  /* 시연은 관리자에게만 보인다. 카드 수가 2 ↔ 3 으로 바뀌므로 열 수도 함께 간다. */
+  const isAdmin = user?.role === 'ADMIN'
+  const modes = MODES.filter((m) => !m.adminOnly || isAdmin)
+  const guide = GUIDE.filter((g) => !g.adminOnly || isAdmin)
+
   const [seasons, setSeasons] = useState<Season[] | null>(null)
   const [error, setError] = useState<ApiError | null>(null)
   /* 다시 시도 트리거. 이펙트 안에서 동기 setState 를 하지 않으려고 키를 쓴다 */
@@ -320,8 +398,8 @@ export default function SeasonMode() {
 
           <span className="ss-guide-rule" aria-hidden="true" />
 
-          <ul className="ss-steps">
-            {GUIDE.map((g) => (
+          <ul className={`ss-steps n-${guide.length}`}>
+            {guide.map((g) => (
               <li className={`ss-step t-${g.tone}`} key={g.pick}>
                 <small>{g.when}</small>
                 <b>{g.pick}</b>
@@ -334,8 +412,8 @@ export default function SeasonMode() {
             모드별 차이는 서버와 무관하게 읽을 수 있어야 한다. */}
         {error && <ErrorState error={error} onRetry={reload} inline />}
 
-        <section className="ss-modes" aria-label="모드">
-          {MODES.map((m) => {
+        <section className={`ss-modes n-${modes.length}`} aria-label="모드">
+          {modes.map((m) => {
             const open = seasons ? joinable(seasons, m.key) : []
             const first = open[0]
             const rest = open.slice(1)
@@ -352,6 +430,7 @@ export default function SeasonMode() {
                 )}
 
                 {m.needsSignature && <span className="ss-sign">지갑 서명 필요</span>}
+                {m.adminOnly && <span className="ss-sign">관리자 전용</span>}
 
                 <span className="ss-mode-icon">
                   <Ico size={44}>{m.icon}</Ico>
