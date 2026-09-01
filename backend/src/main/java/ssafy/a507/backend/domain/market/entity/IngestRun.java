@@ -21,9 +21,12 @@ import lombok.NoArgsConstructor;
  * 유니크다. 수집이 같은 표를 쓰면 하루 한 행을 두고 판정 배치와 부딪힌다. 칸의 뜻도 다르다 —
  * opened·verified·hit 은 예측 이야기지 시세 이야기가 아니다.
  *
- * <p><b>SUCCESS 만 종결로 본다.</b> FAILED 는 물론이고 EMPTY 도 창 안에 있는 동안은 다시
- * 시도한다. 포털 응답이 비었다는 것만으로는 공휴일인지 아직 공개 전인지 구분할 수 없어서다.
- * 공휴일을 몇 번 더 두드리는 비용은 회차당 1콜이라, 공개가 늦은 날을 영영 놓치는 쪽보다 싸다.
+ * <p><b>종결 판정이 두 가지다.</b> 일일 수집은 SUCCESS 만 종결로 본다({@link #isCollected}) —
+ * 포털 응답이 비었다는 것만으로는 공휴일인지 아직 공개 전인지 구분할 수 없어, 창 안에 있는
+ * 동안은 EMPTY 도 다시 시도한다. 공휴일을 몇 번 더 두드리는 비용은 회차당 1콜이라, 공개가
+ * 늦은 날을 영영 놓치는 쪽보다 싸다. 반면 백필은 EMPTY 도 종결로 본다({@link #isSettled}) —
+ * 과거의 빈 날은 공휴일로 굳었으므로, 이걸 계속 두드리면 백필이 다 끝난 뒤에도 매 회차
+ * 3년치 공휴일 수십 일을 다시 불러 일 콜 한도를 갉아먹는다.
  */
 @Entity
 @Table(name = "ingest_runs")
@@ -112,9 +115,14 @@ public class IngestRun {
         this.message = truncate(message);
     }
 
-    /** 다시 집지 않아도 되는 날짜인가. */
+    /** 일일 수집이 다시 집지 않아도 되는 날짜인가. */
     public boolean isCollected() {
         return status == Status.SUCCESS;
+    }
+
+    /** 백필이 다시 집지 않아도 되는 날짜인가 — 과거의 EMPTY 는 공휴일로 굳었다고 본다. */
+    public boolean isSettled() {
+        return status == Status.SUCCESS || status == Status.EMPTY;
     }
 
     private static String truncate(String message) {

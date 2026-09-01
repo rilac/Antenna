@@ -67,7 +67,7 @@ class DailyQuoteIngestIntegrationTest {
     static class PropertiesConfig {
         @Bean
         PublicDataProperties publicDataProperties() {
-            return new PublicDataProperties("test-key", null, 100, 10);
+            return new PublicDataProperties("test-key", null, 100, 10, null, 0);
         }
     }
 
@@ -167,7 +167,7 @@ class DailyQuoteIngestIntegrationTest {
                         client,
                         marketUpsertRepository,
                         ingestRunRepository,
-                        new PublicDataProperties("", null, 100, 10));
+                        new PublicDataProperties("", null, 100, 10, null, 0));
 
         assertThat(unconfigured.ingestPending(MONDAY)).isEmpty();
 
@@ -175,10 +175,107 @@ class DailyQuoteIngestIntegrationTest {
         assertThat(ingestRunRepository.count()).isZero();
     }
 
+    // ── 과거 시세 백필 (ANT-DATA-03) ────────────────────────
+
+    /**
+     * 백필을 한 번에 다 돌리지 않는 이유가 여기 있다 — 회차가 잘려 있어야 포털을 몰아치지
+     * 않고, 앱이 중간에 죽어도 ingest_runs 에 남은 데까지가 그대로 이어진다.
+     */
+    @Test
+    @DisplayName("백필은 한 회차에 정해진 날짜 수만 집고 다음 회차가 이어받는다")
+    void 백필이_회차마다_이어진다() {
+        given(client.fetchDay(any())).willAnswer(call -> List.of(rowOn(call.getArgument(0))));
+        LocalDate from = LocalDate.of(2026, 8, 20);
+
+        List<IngestRun> first = service.backfill(MONDAY, from, 2);
+        List<IngestRun> second = service.backfill(MONDAY, from, 2);
+        entityManager.clear();
+
+        assertThat(first)
+                .extracting(IngestRun::getBaseDate)
+                .containsExactly(LocalDate.of(2026, 8, 20), LocalDate.of(2026, 8, 21));
+        assertThat(second)
+                .as("앞 회차가 SUCCESS 로 남아 그 다음 영업일부터 이어진다")
+                .extracting(IngestRun::getBaseDate)
+                .containsExactly(LocalDate.of(2026, 8, 24), LocalDate.of(2026, 8, 25));
+        assertThat(dailyQuoteRepository.count()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("백필할 영업일이 남지 않으면 빈 결과다 — 그때 cron 을 다시 끈다")
+    void 백필이_끝나면_빈_결과다() {
+        LocalDate from = LocalDate.of(2026, 8, 24);
+        seedCollected(LocalDate.of(2026, 8, 24));
+        seedCollected(LocalDate.of(2026, 8, 25));
+        seedCollected(LocalDate.of(2026, 8, 26));
+        seedCollected(LocalDate.of(2026, 8, 27));
+        seedCollected(LocalDate.of(2026, 8, 28));
+
+        assertThat(service.backfill(MONDAY, from, 20)).isEmpty();
+
+        verifyNoInteractions(client);
+    }
+
+    /**
+     * 과거의 EMPTY 는 공휴일로 굳었다고 보고 백필의 종결로 친다. 그러지 않으면 백필이 끝난
+     * 뒤에도 매 회차 3년치 공휴일 50일을 다시 두드려, 2분 간격 기준 시간당 600콜이 나간다.
+     */
+    @Test
+    @DisplayName("백필은 공휴일(EMPTY)을 종결로 보고 다시 두드리지 않는다")
+    void 백필은_공휴일을_다시_두드리지_않는다() {
+        LocalDate from = LocalDate.of(2026, 8, 24);
+        seedCollected(LocalDate.of(2026, 8, 24));
+        seedEmpty(LocalDate.of(2026, 8, 25));
+        seedCollected(LocalDate.of(2026, 8, 26));
+        seedCollected(LocalDate.of(2026, 8, 27));
+        seedCollected(LocalDate.of(2026, 8, 28));
+
+        assertThat(service.backfill(MONDAY, from, 20)).isEmpty();
+
+        verifyNoInteractions(client);
+    }
+
+    /** 최근 날짜의 빈 응답은 공휴일일 수도, 아직 공개 전일 수도 있다 — 일일 수집은 계속 두드린다. */
+    @Test
+    @DisplayName("일일 수집은 EMPTY 를 다시 시도한다 — 아직 공개 전일 수 있어서다")
+    void 일일_수집은_EMPTY를_다시_시도한다() {
+        given(client.fetchDay(any())).willReturn(List.of());
+        seedCollected(LocalDate.of(2026, 8, 24));
+        seedCollected(LocalDate.of(2026, 8, 25));
+        seedCollected(LocalDate.of(2026, 8, 26));
+        seedCollected(LocalDate.of(2026, 8, 27));
+        seedEmpty(LocalDate.of(2026, 8, 28));
+
+        service.ingestPending(MONDAY);
+
+        verify(client).fetchDay(LocalDate.of(2026, 8, 28));
+    }
+
+    private StockPriceRow rowOn(LocalDate tradeDate) {
+        return new StockPriceRow(
+                "005930",
+                "삼성전자",
+                Stock.Market.KOSPI,
+                tradeDate,
+                new BigDecimal("71000"),
+                new BigDecimal("71800"),
+                new BigDecimal("70900"),
+                new BigDecimal("71500"),
+                12_345_678L,
+                null);
+    }
+
     private void seedCollected(LocalDate baseDate) {
         IngestRun run = IngestRun.of(baseDate);
         run.start(Instant.parse("2026-08-28T04:00:00Z"));
         run.succeed(1, Instant.parse("2026-08-28T04:00:10Z"));
+        ingestRunRepository.save(run);
+    }
+
+    private void seedEmpty(LocalDate baseDate) {
+        IngestRun run = IngestRun.of(baseDate);
+        run.start(Instant.parse("2026-08-28T04:00:00Z"));
+        run.markEmpty(Instant.parse("2026-08-28T04:00:10Z"));
         ingestRunRepository.save(run);
     }
 
@@ -192,6 +289,7 @@ class DailyQuoteIngestIntegrationTest {
                 new BigDecimal("71800"),
                 new BigDecimal("70900"),
                 new BigDecimal(close),
-                12_345_678L);
+                12_345_678L,
+                null);
     }
 }

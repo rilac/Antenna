@@ -47,6 +47,10 @@ public enum ErrorCode {
     /** 이미 누른 좋아요를 다시 눌렀다. 취소는 멱등(204)이지만 등록은 중복을 알려준다. */
     DUPLICATE_LIKE(HttpStatus.CONFLICT, "이미 좋아요를 누른 대상입니다."),
 
+    // 시세 (ANT-DATA-03)
+    /** 종목코드가 종목 마스터에 없다. 구간에 시세가 없는 것(200 + 빈 목록)과 구분한다. */
+    STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "종목을 찾을 수 없습니다."),
+
     // 지갑 · 서명 (ANT-AUTH-04 · ANT-AUTH-06)
     INVALID_SIGNATURE(HttpStatus.BAD_REQUEST, "서명 형식이 올바르지 않습니다."),
     /** 발급받은 적이 없거나 이미 썼거나 5분이 지났다. 셋을 구분해 주지 않는다 — 대응은 "재발급"으로 같다. */

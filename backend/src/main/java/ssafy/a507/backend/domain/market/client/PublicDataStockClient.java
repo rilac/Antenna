@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -67,7 +68,11 @@ public class PublicDataStockClient {
     }
 
     /**
-     * 하루치를 전부 받는다. 공휴일·휴장이면 빈 목록이다 — 오류가 아니라 정상이다.
+     * 하루치를 받는다. 공휴일·휴장이면 빈 목록이다 — 오류가 아니라 정상이다.
+     *
+     * <p>수집 범위 설정(market-filter · top-count)이 있으면 여기서 적용한다. 시장은 포털에
+     * {@code mrktCls} 로도 보내지만 응답에서 한 번 더 거른다 — 파라미터가 무시돼도 결과가
+     * 틀어지지 않게. 상위 N 은 포털에 잘라 주는 파라미터가 없어 받은 뒤 시가총액으로 고른다.
      *
      * @throws PublicDataException 호출·응답이 실패했을 때. 그날은 수집하지 못한 것으로 남는다.
      */
@@ -106,13 +111,51 @@ public class PublicDataStockClient {
         if (dropped > 0) {
             log.warn("{} 응답에서 쓸 수 없는 행 {}건을 버렸다(종목코드 이상 또는 종가 없음).", baseDate, dropped);
         }
-        return rows;
+        return select(rows, baseDate);
+    }
+
+    /**
+     * 수집 범위 결정(예: KOSPI 시가총액 상위 300)의 실행 지점.
+     *
+     * <p>상위 N 을 날짜마다 그날의 시가총액으로 다시 고른다 — 백필에서는 날짜에 따라 경계
+     * 근처 종목이 들고나며, 그런 종목의 시계열에는 빈 날이 생길 수 있다. 데이터 양을 줄이려는
+     * 결정이라 그 흔들림은 감수한다.
+     */
+    private List<StockPriceRow> select(List<StockPriceRow> rows, LocalDate baseDate) {
+        List<StockPriceRow> selected = rows;
+
+        Stock.Market filter = properties.marketFilter();
+        if (filter != null) {
+            // 시장을 모르는 행(market null)도 함께 떨어진다 — 필터를 켰다면 확인된 것만 남긴다.
+            selected = selected.stream().filter(row -> row.market() == filter).toList();
+        }
+
+        int top = properties.topCount();
+        if (top > 0 && selected.size() > top) {
+            selected = selected.stream()
+                    .sorted(Comparator.comparing(
+                            StockPriceRow::marketCap,
+                            Comparator.nullsLast(Comparator.reverseOrder())))
+                    .limit(top)
+                    .toList();
+        }
+
+        if (selected.size() < rows.size()) {
+            log.info(
+                    "{} 수집 범위를 좁혔다 — 전체 {}건 중 {}건(market={}, top={})",
+                    baseDate,
+                    rows.size(),
+                    selected.size(),
+                    filter,
+                    top);
+        }
+        return selected;
     }
 
     private JsonNode requestPage(LocalDate baseDate, int pageNo) {
         // 인증키를 직접 인코딩하고 build(true) 로 넘긴다. 빌더에 맡기면 더하기 기호를 그대로
         // 두는데, 서버는 쿼리의 그 문자를 공백으로 읽어 등록되지 않은 키가 된다.
-        URI uri = UriComponentsBuilder.fromUriString(properties.baseUrl())
+        UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(properties.baseUrl())
                 .path(PATH)
                 .queryParam(
                         "serviceKey",
@@ -120,9 +163,13 @@ public class PublicDataStockClient {
                 .queryParam("resultType", "json")
                 .queryParam("numOfRows", properties.pageSize())
                 .queryParam("pageNo", pageNo)
-                .queryParam("basDt", BAS_DT.format(baseDate))
-                .build(true)
-                .toUri();
+                .queryParam("basDt", BAS_DT.format(baseDate));
+        if (properties.marketFilter() != null) {
+            // 서버가 걸러 주면 하루가 3콜에서 1콜로 준다. 응답에서 한 번 더 거르므로
+            // 이 파라미터가 무시돼도 결과는 같다.
+            builder.queryParam("mrktCls", properties.marketFilter().name());
+        }
+        URI uri = builder.build(true).toUri();
 
         byte[] raw;
         try {
@@ -195,7 +242,8 @@ public class PublicDataStockClient {
                 decimal(item, "hipr"),
                 decimal(item, "lopr"),
                 close,
-                volume(item));
+                volume(item),
+                decimal(item, "mrktTotAmt"));
     }
 
     private String name(JsonNode item) {

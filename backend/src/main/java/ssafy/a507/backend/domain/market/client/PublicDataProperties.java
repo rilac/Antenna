@@ -1,6 +1,7 @@
 package ssafy.a507.backend.domain.market.client;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import ssafy.a507.backend.domain.market.entity.Stock;
 
 /**
  * 공공데이터포털 「금융위원회_주식시세정보」 설정.
@@ -12,10 +13,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param baseUrl 서비스 기본 주소
  * @param pageSize 한 번에 받을 행 수(numOfRows) · 종목 수가 3천 안팎이라 3콜이면 하루가 끝난다
  * @param lookbackDays 되돌아보며 메울 구간(일) · 연휴와 실패 회차를 함께 덮을 만큼
+ * @param marketFilter 이 시장의 종목만 수집한다 · 비우면 전 시장 · 포털에는 {@code mrktCls} 로
+ *     전달돼 호출 수도 함께 준다
+ * @param topCount 시가총액({@code mrktTotAmt}) 상위 N 종목만 남긴다 · 0 이면 제한 없음
  */
 @ConfigurationProperties(prefix = "app.market-data")
 public record PublicDataProperties(
-        String serviceKey, String baseUrl, int pageSize, int lookbackDays) {
+        String serviceKey,
+        String baseUrl,
+        int pageSize,
+        int lookbackDays,
+        Stock.Market marketFilter,
+        int topCount) {
 
     private static final String DEFAULT_BASE_URL =
             "https://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoService";
@@ -35,6 +44,9 @@ public record PublicDataProperties(
         }
         if (lookbackDays <= 0) {
             lookbackDays = DEFAULT_LOOKBACK_DAYS;
+        }
+        if (topCount < 0) {
+            topCount = 0;
         }
     }
 
