@@ -95,14 +95,20 @@ export default function WalletLinkModal({
       setWalletLinked(true)
       setStep('done')
     } catch (e) {
-      setError(e as ApiError)
-      /* nonce 가 만료(5분)됐으면 payload 가 죽은 것이라 그 문자열로는 다시 못 한다.
-         연결 단계로 되돌려 nonce 를 새로 받게 한다. */
-      if ((e as ApiError).code === ERROR_CODE.NONCE_NOT_FOUND) {
+      const err = e as ApiError
+      setError(err)
+      /* 서버까지 갔다면 nonce 는 이미 소비됐다 — SignatureGuard.recover 가 검증보다
+         먼저 태운다(재시도로 서명을 갈아 끼우며 맞춰 보는 걸 막기 위해서다).
+         그래서 같은 payload 로 다시 서명해도 NONCE_NOT_FOUND 뿐이다.
+         연결 단계로 돌려 nonce 를 새로 받게 한다.
+
+         지갑에서 거부하거나 확장이 없어 서버에 닿지 못한 실패(status 0)만
+         payload 를 살려 둔다. 그때는 nonce 가 그대로 남아 있어 재서명이 된다. */
+      if (err.status === 0) {
+        setStep('confirm')
+      } else {
         setDraft(null)
         setStep('connect')
-      } else {
-        setStep('confirm')
       }
     }
   }
