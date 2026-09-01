@@ -23,6 +23,8 @@ export type AuthState = {
   signOut: () => void
   /** 온보딩에서 닉네임을 확정한 뒤 셸의 표시 이름을 갱신한다. */
   setNickname: (nickname: string) => void
+  /** M-01 연동 성공 뒤 세운다. 이게 없으면 연동하고도 C-01 이 계속 모달을 띄운다. */
+  setWalletLinked: (linked: boolean) => void
 }
 
 export const AuthCtx = createContext<AuthState | null>(null)
