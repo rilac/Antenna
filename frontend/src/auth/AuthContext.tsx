@@ -82,6 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     setNickname: (nickname: string) =>
       setUser((prev) => (prev ? { ...prev, nickname } : prev)),
+    setWalletLinked: (linked: boolean) =>
+      setUser((prev) => (prev ? { ...prev, walletLinked: linked } : prev)),
   }), [user, booting])
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>

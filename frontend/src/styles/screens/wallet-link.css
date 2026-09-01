@@ -1,0 +1,101 @@
+/* M-01 지갑 연동 모달 — [ANT-FE-WALLET-LINK]
+   색·그림자·글꼴은 app.css 의 토큰만 쓴다. 여기서 새 색을 만들지 않는다. */
+
+.wl-backdrop{
+  position:fixed; inset:0; z-index:60;   /* 사이드바(40)·상단바(30) 위 */
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  background:rgba(20,20,27,.44);
+}
+
+.wl-modal{
+  width:100%; max-width:440px;
+  background:var(--surface);
+  border-radius:14px;
+  box-shadow:0 24px 60px -20px rgba(20,20,27,.4);
+  outline:none;
+  /* 서명 payload 가 길어져도 화면 밖으로 나가지 않게 한다 */
+  max-height:calc(100vh - 40px);
+  display:flex; flex-direction:column;
+}
+
+.wl-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:16px 18px;
+  border-bottom:1px solid var(--rule);
+}
+.wl-head h2{ margin:0; font-size:15px; font-weight:700; color:var(--ink); }
+
+.wl-x{
+  display:grid; place-items:center;
+  width:28px; height:28px; padding:0;
+  border:0; border-radius:8px;
+  background:transparent; color:var(--muted); cursor:pointer;
+}
+.wl-x:hover:not(:disabled){ background:var(--surface-2); color:var(--ink); }
+.wl-x:disabled{ opacity:.4; cursor:not-allowed; }
+
+.wl-body{
+  padding:18px;
+  overflow-y:auto;              /* 넘치는 건 모달이 아니라 본문이 스크롤한다 */
+  display:flex; flex-direction:column; gap:14px;
+}
+
+.wl-lead{ margin:0; font-size:13.5px; line-height:1.6; color:var(--body); }
+.wl-note{ margin:0; font-size:12px; line-height:1.6; color:var(--muted); }
+
+.wl-field{ display:flex; flex-direction:column; gap:6px; }
+.wl-label{ font-size:11.5px; font-weight:600; color:var(--faint); }
+
+.wl-address{
+  font-family:var(--mono); font-size:12.5px; color:var(--ink);
+  background:var(--surface-2);
+  border-radius:8px; padding:9px 11px;
+  /* 42자 주소가 좁은 화면에서 창을 밀어내지 않게 한다 */
+  overflow-wrap:anywhere;
+}
+
+/* 서명 원문. 줄바꿈이 의미를 갖는 값이라 white-space 를 건드리지 않는다 */
+.wl-payload{
+  margin:0;
+  font-family:var(--mono); font-size:11.5px; line-height:1.75; color:var(--body);
+  background:var(--brand-softer);
+  border:1px solid var(--brand-soft);
+  border-radius:8px; padding:11px 12px;
+  overflow-x:auto;
+}
+
+.wl-error{
+  display:flex; flex-direction:column; gap:3px;
+  padding:11px 12px;
+  border-radius:8px;
+  background:#fdeeee;
+  border:1px solid #f6d5d5;
+}
+.wl-error b{ font-size:12.5px; font-weight:700; color:var(--danger); }
+.wl-error span{ font-size:11.5px; line-height:1.6; color:var(--body); }
+
+.wl-actions{
+  display:flex; gap:8px; justify-content:flex-end;
+  margin-top:2px;
+}
+
+.wl-btn{
+  padding:9px 15px;
+  border-radius:9px;
+  font-size:13px; font-weight:600;
+  cursor:pointer;
+}
+.wl-btn.solid{ border:1px solid var(--brand); background:var(--brand); color:#fff; }
+.wl-btn.solid:hover:not(:disabled){ background:var(--brand-ink); border-color:var(--brand-ink); }
+.wl-btn.ghost{ border:1px solid var(--rule); background:var(--surface); color:var(--body); }
+.wl-btn.ghost:hover:not(:disabled){ background:var(--surface-2); }
+.wl-btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+/* ── 완료 ─────────────────────────────────────── */
+.wl-done-mark{ margin:4px auto 0; color:var(--brand); line-height:0; }
+.wl-done-title{
+  margin:0; text-align:center;
+  font-size:14.5px; font-weight:700; color:var(--ink);
+}
+.wl-done-title + .wl-address{ text-align:center; }
