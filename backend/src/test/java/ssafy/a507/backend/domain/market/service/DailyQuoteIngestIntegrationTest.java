@@ -175,10 +175,10 @@ class DailyQuoteIngestIntegrationTest {
         assertThat(ingestRunRepository.count()).isZero();
     }
 
-    // ── 3년치 백필 (ANT-DATA-03) ────────────────────────────
+    // ── 과거 시세 백필 (ANT-DATA-03) ────────────────────────
 
     /**
-     * 백필을 한 번에 740일 돌리지 않는 이유가 여기 있다 — 회차가 잘려 있어야 포털을 몰아치지
+     * 백필을 한 번에 다 돌리지 않는 이유가 여기 있다 — 회차가 잘려 있어야 포털을 몰아치지
      * 않고, 앱이 중간에 죽어도 ingest_runs 에 남은 데까지가 그대로 이어진다.
      */
     @Test
