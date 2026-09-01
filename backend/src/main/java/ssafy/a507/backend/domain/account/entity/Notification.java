@@ -70,10 +70,16 @@ public class Notification {
         return notification;
     }
 
+    /**
+     * 컬럼 길이에 맞춰 자른다. 서로게이트 쌍은 쪼개지 않는다 — 이모지 한 글자의 앞쪽 절반만
+     * 남으면 Postgres 가 짝 없는 서로게이트를 거절해서, 자르기로 막으려던 발행 롤백이 그대로
+     * 일어난다. 한 칸 물러서면 이모지 하나가 빠지는 것으로 끝난다.
+     */
     private static String truncate(String value, int max) {
         if (value == null || value.length() <= max) {
             return value;
         }
-        return value.substring(0, max);
+        int end = Character.isHighSurrogate(value.charAt(max - 1)) ? max - 1 : max;
+        return value.substring(0, end);
     }
 }

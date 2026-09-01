@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.monetize.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Limit;
@@ -30,13 +31,15 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
                    or exists (select 1 from Subscription s
                                where s.subscriber.id = :subscriberId
                                  and s.publisher.id = r.user.id
-                                 and s.status = :activeStatus))
+                                 and s.status = :activeStatus
+                                 and (s.expiresAt is null or s.expiresAt > :now)))
               and (:cursorId is null or r.id < :cursorId)
             order by r.id desc
             """)
     List<Report> findFeedPageRecent(
             @Param("subscriberId") Long subscriberId,
             @Param("activeStatus") Subscription.Status activeStatus,
+            @Param("now") Instant now,
             @Param("cursorId") Long cursorId,
             Limit limit);
 
@@ -54,7 +57,8 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
                    or exists (select 1 from Subscription s
                                where s.subscriber.id = :subscriberId
                                  and s.publisher.id = r.user.id
-                                 and s.status = :activeStatus))
+                                 and s.status = :activeStatus
+                                 and (s.expiresAt is null or s.expiresAt > :now)))
               and (:cursorViewCount is null
                    or r.viewCount < :cursorViewCount
                    or (r.viewCount = :cursorViewCount and r.id < :cursorId))
@@ -63,6 +67,7 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     List<Report> findFeedPagePopular(
             @Param("subscriberId") Long subscriberId,
             @Param("activeStatus") Subscription.Status activeStatus,
+            @Param("now") Instant now,
             @Param("cursorViewCount") Integer cursorViewCount,
             @Param("cursorId") Long cursorId,
             Limit limit);

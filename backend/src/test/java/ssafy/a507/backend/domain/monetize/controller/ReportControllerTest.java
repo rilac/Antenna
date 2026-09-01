@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import jakarta.persistence.EntityManager;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -370,6 +371,18 @@ class ReportControllerTest {
                 .andExpect(jsonPath("$.field").value("cursor"));
     }
 
+    @Test
+    @DisplayName("인기순 커서의 열람 수가 int 범위를 넘으면 400 — 조용히 감싸 다른 페이지를 주지 않는다")
+    void 피드_인기순_커서_범위초과() throws Exception {
+        mockMvc.perform(get(URL)
+                        .param("sort", "POPULAR")
+                        .param("cursor", "4294967296:5")
+                        .with(user(String.valueOf(viewerId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.field").value("cursor"));
+    }
+
     // ── GET /reports/{id} ───────────────────────────────────
 
     @Test
@@ -411,6 +424,17 @@ class ReportControllerTest {
                 .andExpect(jsonPath("$.locked").value(true))
                 // JsonPath 의 length() 는 문자열에 쓰면 null 이라 값 자체로 단정한다
                 .andExpect(jsonPath("$.preview").value("가".repeat(300)));
+    }
+
+    @Test
+    @DisplayName("CRLF 본문의 미리보기에 \\r 이 남지 않는다")
+    void 열람_미리보기_CRLF() throws Exception {
+        Long reportId = insertReportWithBody(authorId, "CRLF 리포트", false, "1줄\r\n2줄\r\n3줄\r\n4줄");
+        flush();
+
+        mockMvc.perform(get(URL + "/" + reportId).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.preview").value("1줄\n2줄\n3줄"));
     }
 
     @Test
@@ -529,6 +553,130 @@ class ReportControllerTest {
                 .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
     }
 
+    // ── 파라미터 타입 오류는 500 이 아니라 400 ────────────────
+
+    @Test
+    @DisplayName("size 에 문자가 오면 500 이 아니라 400 이다")
+    void 파라미터_타입오류_size() throws Exception {
+        mockMvc.perform(get(URL).param("size", "abc").with(user(String.valueOf(viewerId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.field").value("size"));
+    }
+
+    @Test
+    @DisplayName("경로 변수에 문자가 오면 500 이 아니라 400 이다")
+    void 파라미터_타입오류_경로변수() throws Exception {
+        mockMvc.perform(get(URL + "/abc").with(user(String.valueOf(viewerId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.field").value("reportId"));
+    }
+
+    @Test
+    @DisplayName("채널 목록의 cursor 에 문자가 오면 500 이 아니라 400 이다")
+    void 파라미터_타입오류_채널_커서() throws Exception {
+        mockMvc.perform(get("/api/v1/channels/" + authorId + "/reports")
+                        .param("cursor", "abc")
+                        .with(user(String.valueOf(viewerId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.field").value("cursor"));
+    }
+
+    // ── 만료된 구독 · 닉네임 없음 · 이모지 경계 ─────────────────
+
+    @Test
+    @DisplayName("기간이 지난 ACTIVE 구독은 본문을 열어주지 않는다 — 만료 배치가 없어도 정확하다")
+    void 만료된_구독은_잠긴다() throws Exception {
+        Long reportId = insertReportWithBody(authorId, "구독자 전용", false, "1줄\n2줄\n3줄\n4줄");
+        insertSubscriptionExpiring(viewerId, authorId, "ACTIVE", Duration.ofDays(-1));
+        flush();
+
+        mockMvc.perform(get(URL + "/" + reportId).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.locked").value(true));
+    }
+
+    @Test
+    @DisplayName("기간이 남은 ACTIVE 구독은 그대로 열어준다")
+    void 기간_남은_구독은_열린다() throws Exception {
+        Long reportId = insertReportWithBody(authorId, "구독자 전용", false, "1줄\n2줄\n3줄\n4줄");
+        insertSubscriptionExpiring(viewerId, authorId, "ACTIVE", Duration.ofDays(30));
+        flush();
+
+        mockMvc.perform(get(URL + "/" + reportId).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.locked").value(false));
+    }
+
+    @Test
+    @DisplayName("만료된 구독자는 scope=SUBSCRIBED 목록에도 안 걸린다")
+    void 만료된_구독은_구독탭에서_빠진다() throws Exception {
+        insertReport(authorId, "구독한 채널 글", true, 0);
+        insertSubscriptionExpiring(viewerId, authorId, "ACTIVE", Duration.ofDays(-1));
+        flush();
+
+        mockMvc.perform(get(URL).param("scope", "SUBSCRIBED").with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @Test
+    @DisplayName("만료된 구독자에게는 발행 알림을 보내지 않는다")
+    void 만료된_구독자는_알림_제외() throws Exception {
+        insertSubscriptionExpiring(viewerId, authorId, "ACTIVE", Duration.ofDays(-1));
+        flush();
+
+        mockMvc.perform(post(URL)
+                        .with(user(String.valueOf(authorId)))
+                        .with(csrf())
+                        .header("Idempotency-Key", "key-expired")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"만료 알림 리포트","body":"본문","visibility":false}
+                                """))
+                .andExpect(status().isCreated());
+        flush();
+
+        assertThat(countNotifications(viewerId, "REPORT_PUBLISHED")).isZero();
+    }
+
+    @Test
+    @DisplayName("닉네임이 없는 발행자의 알림 본문에 null 이 찍히지 않는다")
+    void 닉네임_없는_발행자_알림() throws Exception {
+        Long noNameId = insertUserWithoutNickname();
+        insertSubscription(viewerId, noNameId, "ACTIVE");
+        flush();
+
+        mockMvc.perform(post(URL)
+                        .with(user(String.valueOf(noNameId)))
+                        .with(csrf())
+                        .header("Idempotency-Key", "key-nonick")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"닉없음 리포트","body":"본문","visibility":false}
+                                """))
+                .andExpect(status().isCreated());
+        flush();
+
+        assertThat(notificationBody(viewerId)).isEqualTo("닉없음 리포트");
+    }
+
+    @Test
+    @DisplayName("미리보기 300자 경계가 이모지를 반으로 쪼개지 않는다")
+    void 미리보기_이모지_경계() throws Exception {
+        // 299자 + 이모지(2칸) → 300번째 칸이 이모지의 앞쪽 절반이다
+        Long reportId = insertReportWithBody(authorId, "이모지 리포트", false, "가".repeat(299) + "😀");
+        flush();
+
+        mockMvc.perform(get(URL + "/" + reportId).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.locked").value(true))
+                // 반쪼가리를 남기지 않고 한 칸 물러서 299자로 끝낸다
+                .andExpect(jsonPath("$.preview").value("가".repeat(299)));
+    }
+
     // ── 픽스처 ──────────────────────────────────────────────
 
     private void flush() {
@@ -586,6 +734,49 @@ class ReportControllerTest {
                 .setParameter(2, publisherId)
                 .setParameter(3, status)
                 .executeUpdate();
+    }
+
+    /**
+     * 기간이 붙은 구독.
+     *
+     * <p>만료 시각을 SQL 의 INTERVAL 로 만들지 않고 Java 에서 계산해 바인딩한다 — H2 는
+     * 단위 없는 {@code CAST(? AS INTERVAL)} 을 받지 않고, 방언별 표현을 테스트가 알 이유도 없다.
+     */
+    private void insertSubscriptionExpiring(
+            Long subscriberId, Long publisherId, String status, Duration expiresIn) {
+        em.createNativeQuery("""
+                        INSERT INTO subscriptions
+                          (subscriber_id, publisher_id, fee, status, auto_renew,
+                           started_at, expires_at, created_at, updated_at)
+                        VALUES (?, ?, 0, ?, false, CURRENT_TIMESTAMP, ?,
+                                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        """)
+                .setParameter(1, subscriberId)
+                .setParameter(2, publisherId)
+                .setParameter(3, status)
+                .setParameter(4, Instant.now().plus(expiresIn))
+                .executeUpdate();
+    }
+
+    /** 온보딩 미완료 회원 — {@code nickname} 이 NULL 이다. */
+    private Long insertUserWithoutNickname() {
+        em.createNativeQuery("""
+                        INSERT INTO users (role, status, created_at, updated_at)
+                        VALUES ('USER', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        """)
+                .executeUpdate();
+        return ((Number) em.createNativeQuery(
+                                "SELECT max(id) FROM users WHERE nickname IS NULL")
+                        .getSingleResult())
+                .longValue();
+    }
+
+    private String notificationBody(Long userId) {
+        return (String) em.createNativeQuery("""
+                        SELECT body FROM notifications WHERE user_id = ? AND type = 'REPORT_PUBLISHED'
+                        """)
+                .setParameter(1, userId)
+                .getSingleResult();
     }
 
     private int viewCountOf(Long reportId) {

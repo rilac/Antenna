@@ -70,12 +70,25 @@ public record ReportDetailResponse(
             return null;
         }
         // limit 을 PREVIEW_LINES + 1 로 두면 앞 3줄까지만 쪼개고 나머지는 마지막 조각에 남는다.
-        String[] lines = body.split("\n", PREVIEW_LINES + 1);
+        // 개행은 \r?\n 으로 본다 — \n 만 보면 CRLF 본문의 각 줄 끝에 \r 이 남는다.
+        String[] lines = body.split("\r?\n", PREVIEW_LINES + 1);
         int take = Math.min(lines.length, PREVIEW_LINES);
         String head = String.join("\n", Arrays.copyOf(lines, take));
         if (head.length() <= PREVIEW_MAX_CHARS) {
             return head;
         }
-        return head.substring(0, PREVIEW_MAX_CHARS);
+        return cut(head, PREVIEW_MAX_CHARS);
+    }
+
+    /**
+     * 글자 수로 자르되 서로게이트 쌍을 쪼개지 않는다.
+     *
+     * <p>이모지는 UTF-16 에서 두 칸을 쓴다. 경계가 그 사이에 걸리면 앞쪽 절반만 남고, Jackson
+     * 은 짝 없는 이스케이프를 내보낸다 — 화면에는 깨진 글자가, 엄격한 JSON 파서에는 오류가 된다.
+     * 한 칸 물러서면 이모지 하나가 빠지는 것으로 끝난다.
+     */
+    static String cut(String value, int max) {
+        int end = Character.isHighSurrogate(value.charAt(max - 1)) ? max - 1 : max;
+        return value.substring(0, end);
     }
 }

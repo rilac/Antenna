@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /** 모든 오류 응답을 API 명세 §1 형식 하나로 모은다. */
 @Slf4j
@@ -50,6 +51,21 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, message, field));
+    }
+
+    /**
+     * 쿼리 파라미터·경로 변수의 <b>타입 변환</b> 실패 — {@code ?size=abc}, {@code /reports/abc}.
+     *
+     * <p>없으면 아래 마지막 그물로 떨어져 500 이 나간다. 클라이언트가 숫자 자리에 문자를 보낸
+     * 것이므로 400 이어야 하고, 명세 §1 의 오류 본문 형식도 맞춰야 한다. 컨트롤러마다 파라미터를
+     * 문자열로 받아 직접 파싱하는 대신 여기서 한 번에 처리한다 — 노출된 엔드포인트가
+     * ANT-COMMUNITY-01 뿐이 아니다.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        log.debug("파라미터 타입 변환 실패", e);
+        return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, e.getName()));
     }
 
     /**

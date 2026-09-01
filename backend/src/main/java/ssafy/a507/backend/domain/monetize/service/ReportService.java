@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.monetize.service;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -90,15 +91,17 @@ public class ReportService {
 
         // 한 건 더 읽어 다음 페이지가 있는지 본다. count 쿼리를 따로 돌리지 않는다.
         Limit limit = Limit.of(pageSize + 1);
+        Instant now = Instant.now();
         List<Report> found = sort == Sort.POPULAR
                 ? reportRepository.findFeedPagePopular(
                         subscriberId,
                         Subscription.Status.ACTIVE,
+                        now,
                         PopularCursor.viewCountOf(cursor),
                         PopularCursor.idOf(cursor),
                         limit)
                 : reportRepository.findFeedPageRecent(
-                        subscriberId, Subscription.Status.ACTIVE, recentCursor(cursor), limit);
+                        subscriberId, Subscription.Status.ACTIVE, now, recentCursor(cursor), limit);
 
         boolean hasNext = found.size() > pageSize;
         List<Report> reports = hasNext ? found.subList(0, pageSize) : found;
@@ -148,9 +151,14 @@ public class ReportService {
      * 리포트 열람. 잠기면 전문 대신 앞 3줄을 돌려준다.
      *
      * <p>읽기 전용이 아니다 — ERD 대로 이 엔드포인트가 {@code view_count} 를 증가시킨다.
-     * 작성자 본인의 열람은 세지 않는다: 인기순 정렬 키라서, 자기 글을 새로고침해 순위를 올릴
-     * 수 있는 구멍을 막는다. 잠긴 미리보기는 열람으로 센다 — 목록에서 눌러 들어온 유입이고,
-     * 그것이 인기순이 나타내려는 값이다.
+     * 잠긴 미리보기도 열람으로 센다 — 목록에서 눌러 들어온 유입이고, 그것이 인기순이
+     * 나타내려는 값이다.
+     *
+     * <p>작성자 본인의 열람은 세지 않는다. 다만 이것은 <b>어뷰징 방지가 아니다</b> — 열람자별
+     * 중복 제거가 없어서 다른 계정으로 새로고침하거나 이 엔드포인트를 반복 호출하면
+     * {@code sort=POPULAR} 순위는 얼마든지 움직인다. 자기 글을 눌렀다가 자기 순위를 올리는
+     * 무심한 경우 하나를 없애는 정도이고, 순위가 값을 가지게 되면 (열람자, 리포트) 단위
+     * 중복 제거(Redis SETNX + TTL)가 필요하다.
      */
     @Transactional
     public ReportDetailResponse detail(Long reportId) {
@@ -177,12 +185,15 @@ public class ReportService {
     /** 발행 알림. 구독자가 없으면 아무것도 하지 않는다. */
     private void notifySubscribers(User author, Report report) {
         List<Long> subscriberIds = subscriptionRepository.findSubscriberIds(
-                author.getId(), Subscription.Status.ACTIVE);
+                author.getId(), Subscription.Status.ACTIVE, Instant.now());
         if (subscriberIds.isEmpty()) {
             return;
         }
 
-        String body = author.getNickname() + " · " + report.getTitle();
+        // 닉네임은 nullable 이다 — NULL 이면 온보딩 미완료다(User.nickname). 그대로 이어붙이면
+        // 알림 한 줄이 "null · 제목" 으로 나간다. 발행을 막을 근거는 명세에 없으므로 제목만 남긴다.
+        String nickname = author.getNickname();
+        String body = nickname == null ? report.getTitle() : nickname + " · " + report.getTitle();
         String linkPath = "/reports/" + report.getId();
         List<Notification> notifications = subscriberIds.stream()
                 // getReferenceById 는 프록시라 SELECT 를 내지 않는다. 알림 행에 필요한 것은
@@ -219,7 +230,7 @@ public class ReportService {
             return Set.of();
         }
         return new HashSet<>(subscriptionRepository.findSubscribedPublisherIds(
-                viewerId, authorIds, Subscription.Status.ACTIVE));
+                viewerId, authorIds, Subscription.Status.ACTIVE, Instant.now()));
     }
 
     private String encodeCursor(Sort sort, Report last) {
@@ -257,6 +268,12 @@ public class ReportService {
      * <p>불투명한 문자열(base64 등)로 감싸지 않았다. 값 자체가 응답에 이미 들어 있는 공개
      * 정보(viewCount)이고, 조작해도 다른 사람의 리포트가 열리지 않는다 — 잠금은 커서와
      * 무관하게 구독 상태로 판정한다.
+     *
+     * <p><b>정렬 키가 변하는 값이라 페이지 경계가 흔들린다.</b> 1페이지를 받은 뒤 그 안의
+     * 리포트를 열면 그 리포트의 열람 수가 커서를 넘어가고, 2페이지에서는 경계를 함께 넘은
+     * 다른 리포트가 건너뛰어지거나 이미 본 줄이 다시 나온다. 커서로는 못 막는다 — 막으려면
+     * 순위를 스냅샷 컬럼으로 굳혀야 한다. "더 보기"가 정확한 집합을 보장하지 않는 화면이라
+     * 지금은 감수한다.
      */
     private static final class PopularCursor {
 
@@ -266,9 +283,23 @@ public class ReportService {
             return viewCount + SEPARATOR + id;
         }
 
+        /**
+         * 커서의 열람 수 부분.
+         *
+         * <p>{@code Integer.parseInt} 로 읽는다 — long 으로 읽어 int 로 캐스팅하면 범위를 넘은
+         * 값이 조용히 다른 숫자로 감싸져(예: {@code 4294967296} → {@code 0}) 엉뚱한 페이지가
+         * 정답처럼 나간다. 범위 초과는 잘못된 커서이므로 400 이어야 한다.
+         */
         static Integer viewCountOf(String cursor) {
             String[] parts = split(cursor);
-            return parts == null ? null : (int) parseNumber(parts[0]);
+            if (parts == null) {
+                return null;
+            }
+            try {
+                return Integer.parseInt(parts[0]);
+            } catch (NumberFormatException e) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "cursor");
+            }
         }
 
         static Long idOf(String cursor) {
