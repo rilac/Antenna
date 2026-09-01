@@ -3,12 +3,11 @@
    프로토타입이 정한 값을 그대로 쓰되, 카드마다 흩어져 있던 hex 를 --tone-* 로 묶어
    한 곳에서 바뀌게 했다. 그 외 색·서체는 app.css 토큰을 쓴다. */
 
-/* margin-inline:auto 가 핵심이다. 셸의 .main-inner 는 max-width 만 있고 auto 여백이
-   없어서, 넓은 화면에서 본문이 왼쪽에 붙는다. 이 요소가 곧 .main-inner 라 여기서 잡는다.
+/* 본문 폭과 가운데 정렬은 셸의 .main-inner 가 맡는다(app.css). 화면마다 따로
+   잡으면 화면끼리 폭이 어긋나므로 여기서는 손대지 않는다.
    word-break:keep-all 은 한글이 단어 중간에서 잘리지 않게 한다. */
 .sim-setup{
   position:relative;display:flex;flex-direction:column;gap:22px;
-  max-width:1280px;margin-inline:auto;
   word-break:keep-all;
 }
 
