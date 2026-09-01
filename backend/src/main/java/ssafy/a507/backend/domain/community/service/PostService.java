@@ -103,6 +103,7 @@ public class PostService {
         Map<Long, Long> likeCounts = countsByPostId(postLikeRepository.countByPostIds(postIds));
         Map<Long, Long> commentCounts = countsByPostId(
                 postCommentRepository.countByPostIds(postIds, PostComment.Status.VISIBLE));
+        Set<Long> liked = new HashSet<>(postLikeRepository.findLikedPostIds(viewerId, postIds));
         Set<Long> subscribed = subscribedPublisherIds(viewerId, posts);
 
         List<PostListItemResponse> items = posts.stream()
@@ -113,6 +114,7 @@ public class PostService {
                         reportCard(post.getReport(), viewerId, subscribed),
                         predictionCard(post.getPrediction(), viewerId, subscribed),
                         likeCounts.getOrDefault(post.getId(), 0L),
+                        liked.contains(post.getId()),
                         commentCounts.getOrDefault(post.getId(), 0L),
                         post.getCreatedAt()))
                 .toList();
@@ -138,6 +140,7 @@ public class PostService {
         long commentCount = countsByPostId(
                         postCommentRepository.countByPostIds(postIds, PostComment.Status.VISIBLE))
                 .getOrDefault(post.getId(), 0L);
+        boolean liked = postLikeRepository.existsByPostIdAndUserId(post.getId(), viewerId);
         Set<Long> subscribed = subscribedPublisherIds(viewerId, List.of(post));
 
         List<CommentPreviewResponse> comments = postCommentRepository
@@ -153,6 +156,7 @@ public class PostService {
                 reportCard(post.getReport(), viewerId, subscribed),
                 predictionCard(post.getPrediction(), viewerId, subscribed),
                 likeCount,
+                liked,
                 commentCount,
                 post.getCreatedAt(),
                 comments);
