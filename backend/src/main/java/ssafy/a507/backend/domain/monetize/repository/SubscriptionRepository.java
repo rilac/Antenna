@@ -26,4 +26,19 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
             @Param("subscriberId") Long subscriberId,
             @Param("publisherIds") Collection<Long> publisherIds,
             @Param("status") Subscription.Status status);
+
+    /**
+     * 이 발행자를 ACTIVE 로 구독 중인 사람들. 리포트 발행 알림 대상이다.
+     *
+     * <p>User 엔티티가 아니라 id 만 받는다 — 알림 행의 FK 에 필요한 것은 id 뿐이고, 구독자
+     * 수만큼 User 를 적재하면 발행 한 번에 그만큼 메모리를 쓴다.
+     */
+    @Query("""
+            select s.subscriber.id
+              from Subscription s
+             where s.publisher.id = :publisherId
+               and s.status = :status
+            """)
+    List<Long> findSubscriberIds(
+            @Param("publisherId") Long publisherId, @Param("status") Subscription.Status status);
 }

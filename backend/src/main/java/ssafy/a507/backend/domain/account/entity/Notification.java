@@ -51,4 +51,29 @@ public class Notification {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /**
+     * 알림 발송. 문구는 발송 시점에 굳혀 저장하므로 호출부가 완성된 문장을 넘긴다.
+     *
+     * <p>{@code title} 100자 · {@code body} 300자는 컬럼 길이 제약이고 이 값들은 사용자
+     * 입력(리포트 제목 등)에서 조립된다. 넘겨받은 값을 여기서 자르는 이유는, 길이를 넘기면
+     * INSERT 가 실패해 <b>알림 때문에 발행 자체가 롤백</b>되기 때문이다.
+     */
+    public static Notification create(
+            User user, String type, String title, String body, String linkPath) {
+        Notification notification = new Notification();
+        notification.user = user;
+        notification.type = type;
+        notification.title = truncate(title, 100);
+        notification.body = truncate(body, 300);
+        notification.linkPath = truncate(linkPath, 200);
+        return notification;
+    }
+
+    private static String truncate(String value, int max) {
+        if (value == null || value.length() <= max) {
+            return value;
+        }
+        return value.substring(0, max);
+    }
 }
