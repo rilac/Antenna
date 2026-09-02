@@ -3,7 +3,6 @@ package ssafy.a507.backend.domain.monetize.service;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
@@ -29,9 +28,6 @@ import ssafy.a507.backend.domain.upload.repository.UploadFileRepository;
 @RequiredArgsConstructor
 @EnableConfigurationProperties(AdProperties.class)
 public class AdService {
-
-    private static final List<AdBanner.Status> OCCUPYING =
-            List.of(AdBanner.Status.PENDING, AdBanner.Status.ACTIVE);
 
     private final AdBannerRepository adBannerRepository;
     private final UploadFileRepository uploadFileRepository;
@@ -71,12 +67,19 @@ public class AdService {
         // 게재 시작을 고를 수 없다 — 요청 본문에 기간(days)만 있고 시작일이 없다.
         Instant startsAt = Instant.now();
         Instant endsAt = startsAt.plus(request.days(), ChronoUnit.DAYS);
+        // 확정을 기다리다 시간이 지난 신청은 자리를 놓은 것으로 본다 — 접수가 토큰을 차감하지
+        // 않으므로, 그러지 않으면 잔액만 들고 신청만 해 두는 계정이 공짜로 자리를 막는다.
+        Instant pendingSince = startsAt.minus(properties.pendingGraceMinutes(), ChronoUnit.MINUTES);
         // ponytail: 세는 것과 만드는 것 사이가 열려 있어, 같은 순간에 들어온 두 신청이 둘 다
         // 슬롯을 통과할 수 있다. 제대로 막으려면 기간 겹침에 걸리는 배타 제약(Postgres 의
         // btree_gist + EXCLUDE)이나 슬롯 행 잠금이 필요하다. 자리가 하나뿐이고 신청이 하루
         // 몇 건인 단계라 넣지 않았다 — 실제로 부딪히면 EXCLUDE 제약이 가장 싸다.
-        if (adBannerRepository.countByStatusInAndStartsAtLessThanAndEndsAtGreaterThan(
-                        OCCUPYING, endsAt, startsAt)
+        if (adBannerRepository.countOccupying(
+                        AdBanner.Status.ACTIVE,
+                        AdBanner.Status.PENDING,
+                        startsAt,
+                        endsAt,
+                        pendingSince)
                 >= properties.slotCount()) {
             throw new BusinessException(ErrorCode.AD_SLOT_SOLD_OUT);
         }
@@ -95,7 +98,12 @@ public class AdService {
         AdBanner banner =
                 adBannerRepository.save(
                         AdBanner.request(
-                                advertiser, image.getUrl(), request.linkUrl(), startsAt, endsAt));
+                                advertiser,
+                                image.getUrl(),
+                                request.linkUrl(),
+                                startsAt,
+                                endsAt,
+                                price));
         Operation operation =
                 operationService.accept(
                         advertiser, Operation.Kind.AD, Operation.ResourceType.AD, banner.getId());

@@ -1,12 +1,9 @@
 package ssafy.a507.backend.domain.upload.service;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.domain.account.entity.User;
@@ -27,7 +24,10 @@ public class UploadService {
     private final UploadProperties properties;
 
     /**
-     * 업로드. 검증 순서가 용량 → 형식 → 용도별 규격인 것은 싼 판정을 먼저 돌리기 위해서다.
+     * 업로드. 바이트는 컨트롤러가 이미 읽어 넘긴다 — 멱등 지문에 한 번, 저장에 한 번 읽으면
+     * 5MB 를 두 번 읽는 데다 Part 스트림을 두 번 여는 것이 컨테이너 구현에 기댄다.
+     *
+     * <p>검증 순서가 용량 → 형식 → 용도별 규격인 것은 싼 판정을 먼저 돌리기 위해서다.
      *
      * <p>파일은 행을 먼저 만든 뒤에 쓴다. id 가 저장 경로이자 조회 URL 이라 순서를 뒤집을 수
      * 없고, 쓰기가 실패하면 트랜잭션이 되돌아 행도 남지 않는다.
@@ -37,13 +37,12 @@ public class UploadService {
      * 지우는 배치 하나로 끝난다.
      */
     @Transactional
-    public UploadResponse upload(Long userId, MultipartFile file, UploadFile.Purpose purpose) {
-        byte[] content = read(file);
+    public UploadResponse upload(Long userId, byte[] content, UploadFile.Purpose purpose) {
         if (content.length > properties.maxBytes()) {
             throw new BusinessException(ErrorCode.FILE_TOO_LARGE, "file");
         }
 
-        ImageProbe.Image image = ImageProbe.probe(content);
+        ImageProbe.Image image = ImageProbe.probe(content, properties.maxPixels());
         if (purpose == UploadFile.Purpose.AD) {
             validateBannerRatio(image);
         }
@@ -101,14 +100,4 @@ public class UploadService {
         }
     }
 
-    private byte[] read(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "file");
-        }
-        try {
-            return file.getBytes();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
 }

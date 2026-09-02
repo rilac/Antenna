@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import ssafy.a507.backend.common.security.SignatureScope;
 import ssafy.a507.backend.common.security.WalletSigned;
 
@@ -15,11 +16,13 @@ import ssafy.a507.backend.common.security.WalletSigned;
  * 열람자 IP 가 광고주에게 수집됨 ③ 승인 후 URL 내용만 바꿔치기, 셋이다.
  *
  * <p>{@code linkUrl} 은 https 만 받는다. http 링크는 중간에서 갈아 끼울 수 있고, 배너는
- * 클릭을 유도하는 자리라 피싱 대상이 된다.
+ * 클릭을 유도하는 자리라 피싱 대상이 된다. 길이 상한은 {@code ad_banners.link_url} 의
+ * varchar(500) 과 맞춘다 — 여기서 막지 않으면 INSERT 가 터져 400 이어야 할 것이 500 이 된다.
  */
 public record AdCreateRequest(
         @NotBlank(message = "배너 이미지를 올려주세요.") String imageFileId,
         @NotBlank(message = "이동할 주소를 입력해주세요.")
+                @Size(max = 500, message = "이동할 주소가 너무 깁니다.")
                 @Pattern(regexp = "^https://\\S+$", message = "https 주소만 등록할 수 있습니다.")
                 String linkUrl,
         @NotNull(message = "노출 기간을 입력해주세요.")

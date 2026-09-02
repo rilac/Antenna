@@ -1,11 +1,12 @@
 # 테스트는 DB 컨테이너 없이 돈다. 컨텍스트 로딩이 곧 엔티티 매핑 검증이다.
 spring:
-  # 업로드 상한(ANT-COMMUNITY-06). app.uploads.max-bytes 와 같은 값이어야 한다 —
-  # 여기가 작으면 서블릿이 먼저 끊어 서비스의 검증이 아예 실행되지 않는다.
+  # 업로드 상한(ANT-COMMUNITY-06). app.uploads.max-bytes(5MB) 보다 <b>커야</b> 한다 —
+  # 같은 값이면 서블릿이 먼저 끊어 서비스의 검사가 영영 실행되지 않고, 더 작으면 5MB 이하
+  # 파일까지 컨테이너가 잘라낸다. 여기는 마지막 방어선이고 실제 상한은 app.uploads 쪽이다.
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 6MB
+      max-request-size: 8MB
 
   datasource:
     url: jdbc:h2:mem:antenna;MODE=PostgreSQL;DB_CLOSE_DELAY=-1

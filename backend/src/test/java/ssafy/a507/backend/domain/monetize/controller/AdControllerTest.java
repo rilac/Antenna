@@ -130,6 +130,71 @@ class AdControllerTest {
     }
 
     @Test
+    @DisplayName("확정을 기다리는 신청도 자리를 차지한다 — 확정되는 순간 배너가 둘이 되면 안 된다")
+    void 최근_PENDING_은_슬롯을_막는다() throws Exception {
+        credit(advertiser, RICH);
+        insertBanner(AdBanner.Status.PENDING, Instant.now(), Instant.now().plus(30, ChronoUnit.DAYS));
+        em.flush();
+
+        mockMvc.perform(create(imageFileId, "https://ad.example.com", 7, "key-pending-blocks"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("AD_SLOT_SOLD_OUT"));
+    }
+
+    @Test
+    @DisplayName("유예 창이 지난 PENDING 은 자리를 놓는다 — 접수는 토큰을 차감하지 않아 공짜 스쿼팅이 된다")
+    void 오래된_PENDING_은_슬롯을_막지_않는다() throws Exception {
+        credit(advertiser, RICH);
+        AdBanner squatter =
+                insertBanner(
+                        AdBanner.Status.PENDING, Instant.now(), Instant.now().plus(30, ChronoUnit.DAYS));
+        backdate(squatter, Instant.now().minus(1, ChronoUnit.HOURS));
+
+        mockMvc.perform(create(imageFileId, "https://ad.example.com", 7, "key-squat"))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    @DisplayName("견적가를 배너에 박제한다 — 인덱서가 소각 tx 와 맞출 기대 금액이 필요하다")
+    void 게재료를_박제한다() throws Exception {
+        credit(advertiser, RICH);
+
+        String adId = jsonValue(
+                mockMvc.perform(create(imageFileId, "https://ad.example.com", 7, "key-price"))
+                        .andReturn(),
+                "adId");
+        em.flush();
+        em.clear();
+
+        AdBanner saved = em.find(AdBanner.class, Long.valueOf(adId));
+        assertThat(saved.getPriceWei()).isEqualTo(BigInteger.TEN.pow(18).multiply(BigInteger.valueOf(7)));
+    }
+
+    @Test
+    @DisplayName("이미 끝난 광고는 슬롯을 막지 않는다 — 겹침 판정이 기간 양쪽을 본다")
+    void 지난_광고는_슬롯을_막지_않는다() throws Exception {
+        credit(advertiser, RICH);
+        Instant now = Instant.now();
+        insertBanner(
+                AdBanner.Status.ACTIVE, now.minus(30, ChronoUnit.DAYS), now.minus(1, ChronoUnit.DAYS));
+        em.flush();
+
+        mockMvc.perform(create(imageFileId, "https://ad.example.com", 7, "key-past"))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    @DisplayName("링크가 컬럼 길이를 넘으면 400 — INSERT 가 터져 500 이 되게 두지 않는다")
+    void 너무_긴_링크는_400() throws Exception {
+        credit(advertiser, RICH);
+        String tooLong = "https://ad.example.com/" + "a".repeat(500);
+
+        mockMvc.perform(create(imageFileId, tooLong, 7, "key-longurl"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.field").value("linkUrl"));
+    }
+
+    @Test
     @DisplayName("잔액이 게재료보다 적으면 409 INSUFFICIENT_BALANCE")
     void 잔액_부족() throws Exception {
         credit(advertiser, BigInteger.ONE);
@@ -271,14 +336,30 @@ class AdControllerTest {
         return file.getId();
     }
 
-    private void insertBanner(AdBanner.Status status, Instant startsAt, Instant endsAt) {
+    private AdBanner insertBanner(AdBanner.Status status, Instant startsAt, Instant endsAt) {
         AdBanner banner =
                 AdBanner.request(
-                        advertiser, "/api/v1/uploads/x", "https://ad.example.com", startsAt, endsAt);
+                        advertiser,
+                        "/api/v1/uploads/x",
+                        "https://ad.example.com",
+                        startsAt,
+                        endsAt,
+                        BigInteger.TEN.pow(18));
         if (status == AdBanner.Status.ACTIVE) {
             banner.activate("0x" + "1".repeat(64));
         }
         em.persist(banner);
+        return banner;
+    }
+
+    /** @CreationTimestamp 라 코드로는 못 바꾼다. 유예 창이 지난 신청을 만들려면 되돌려야 한다. */
+    private void backdate(AdBanner banner, Instant createdAt) {
+        em.flush();
+        em.createNativeQuery("UPDATE ad_banners SET created_at = ? WHERE id = ?")
+                .setParameter(1, java.sql.Timestamp.from(createdAt))
+                .setParameter(2, banner.getId())
+                .executeUpdate();
+        em.clear();
     }
 
     /** 원장은 append-only 라 SUM(delta) 가 잔액이다. 엔티티에 팩터리가 없어 네이티브로 넣는다. */

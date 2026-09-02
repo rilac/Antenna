@@ -2,10 +2,12 @@ package ssafy.a507.backend.domain.upload.service;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import javax.imageio.stream.MemoryCacheImageInputStream;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
 
@@ -25,17 +27,27 @@ public final class ImageProbe {
 
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G'};
     private static final byte[] JPEG = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
+    private static final byte[] RIFF = "RIFF".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] WEBP = "WEBP".getBytes(StandardCharsets.US_ASCII);
 
     /** RIFF 헤더(12바이트) 다음에 청크가 온다 — WebP 크기는 그 청크 안에 있다. */
     private static final int RIFF_HEADER_BYTES = 12;
 
     private ImageProbe() {}
 
-    public static Image probe(byte[] data) {
+    /**
+     * @param maxPixels 가로×세로 상한. 헤더만 읽으므로 <b>파일이 작아도 크기는 얼마든지 클 수
+     *     있다</b> — 200바이트 PNG 가 65532×16383 을 선언해도 형식 검사와 비율 검사를 모두
+     *     통과한다. 그 이미지를 렌더하려는 클라이언트는 수 기가픽셀을 디코딩하려 든다.
+     */
+    public static Image probe(byte[] data, long maxPixels) {
         String mime = sniff(data);
         int[] size = "image/webp".equals(mime) ? webpSize(data) : imageIoSize(data);
         if (size == null || size[0] <= 0 || size[1] <= 0) {
             throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, "file");
+        }
+        if ((long) size[0] * size[1] > maxPixels) {
+            throw new BusinessException(ErrorCode.IMAGE_TOO_LARGE, "file");
         }
         return new Image(mime, size[0], size[1]);
     }
@@ -48,7 +60,7 @@ public final class ImageProbe {
             return "image/jpeg";
         }
         // RIFF 컨테이너는 "RIFF"(0) + 크기(4) + 포맷(8) 이라 두 마디를 함께 봐야 WebP 로 확정된다.
-        if (startsWith(data, "RIFF".getBytes(), 0) && startsWith(data, "WEBP".getBytes(), 8)) {
+        if (startsWith(data, RIFF, 0) && startsWith(data, WEBP, 8)) {
             return "image/webp";
         }
         throw new BusinessException(ErrorCode.UNSUPPORTED_IMAGE_TYPE, "file");
@@ -66,9 +78,16 @@ public final class ImageProbe {
         return true;
     }
 
-    /** PNG · JPEG. 등록된 리더에게 헤더만 읽혀 크기를 얻는다. */
+    /**
+     * PNG · JPEG. 등록된 리더에게 헤더만 읽혀 크기를 얻는다.
+     *
+     * <p>{@code ImageIO.createImageInputStream} 을 쓰지 않는다. 그쪽은 {@code ImageIO.getUseCache()}
+     * 기본값이 true 라 <b>임시 파일로 스풀</b>하는데, tmpdir 이 읽기 전용이거나 가득 찬 컨테이너에서는
+     * IIOException 이 나고 아래 catch 가 그것을 "이미지가 아님"(400)으로 뭉갠다 — 정상 PNG 업로드가
+     * 전부 실패한다. 바이트는 이미 메모리에 있으니 디스크를 거칠 이유도 없다.
+     */
     private static int[] imageIoSize(byte[] data) {
-        try (ImageInputStream in = ImageIO.createImageInputStream(new ByteArrayInputStream(data))) {
+        try (ImageInputStream in = new MemoryCacheImageInputStream(new ByteArrayInputStream(data))) {
             Iterator<ImageReader> readers = ImageIO.getImageReaders(in);
             if (!readers.hasNext()) {
                 return null;
@@ -97,7 +116,9 @@ public final class ImageProbe {
         if (data.length < RIFF_HEADER_BYTES + 8) {
             return null;
         }
-        String chunk = new String(data, RIFF_HEADER_BYTES, 4);
+        // 청크 이름은 ASCII 4글자다. 기본 charset 으로 읽으면 임의의 바이너리가 U+FFFD 로
+        // 뭉개져 서로 다른 청크가 같은 문자열이 될 수 있다.
+        String chunk = new String(data, RIFF_HEADER_BYTES, 4, StandardCharsets.US_ASCII);
         int payload = RIFF_HEADER_BYTES + 8;
 
         return switch (chunk) {

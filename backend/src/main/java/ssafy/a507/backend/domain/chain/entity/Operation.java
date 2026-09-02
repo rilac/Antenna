@@ -14,6 +14,7 @@ import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Check;
 import org.hibernate.annotations.CreationTimestamp;
 import ssafy.a507.backend.domain.account.entity.User;
 
@@ -29,6 +30,12 @@ import ssafy.a507.backend.domain.account.entity.User;
  */
 @Entity
 @Table(name = "operations")
+// ERD 가 약속한 제약이다. 한쪽만 채워지면 성공한 작업의 리소스를 찾을 수 없는데, 그때는 이미
+// 토큰이 나간 뒤라 되돌릴 수단이 없다. AbuseReport 와 같은 방식으로 DB 에 맡긴다.
+@Check(
+        constraints =
+                "(resource_type IS NULL AND resource_id IS NULL)"
+                        + " OR (resource_type IS NOT NULL AND resource_id IS NOT NULL)")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Operation {

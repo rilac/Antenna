@@ -7,12 +7,13 @@ spring:
     import:
       - optional:file:./.env[.properties]
 
-  # 업로드 상한(ANT-COMMUNITY-06). app.uploads.max-bytes 와 같은 값이어야 한다 —
-  # 여기가 작으면 서블릿이 먼저 끊어 서비스의 검증이 아예 실행되지 않는다.
+  # 업로드 상한(ANT-COMMUNITY-06). app.uploads.max-bytes(5MB) 보다 <b>커야</b> 한다 —
+  # 같은 값이면 서블릿이 먼저 끊어 서비스의 검사가 영영 실행되지 않고, 더 작으면 5MB 이하
+  # 파일까지 컨테이너가 잘라낸다. 여기는 마지막 방어선이고 실제 상한은 app.uploads 쪽이다.
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 6MB
+      max-request-size: 8MB
 
   datasource:
     url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
@@ -74,8 +75,10 @@ app:
   # S3 로 옮길 때 바뀌는 코드는 LocalFileStorage 하나다.
   uploads:
     dir: ${UPLOAD_DIR:./uploads}
-    # spring.servlet.multipart.max-file-size 와 같은 값을 유지한다.
+    # 실제 용량 상한. spring.servlet.multipart.max-file-size 는 이보다 크게 둔다.
     max-bytes: 5242880
+    # 가로×세로 상한(4000만 화소 = 8000×5000). 용량이 작아도 헤더가 큰 크기를 선언할 수 있다.
+    max-pixels: 40000000
     # 배너 가로/세로. 화면설계서로 확정되지 않아 조절 손잡이로 남긴다 — 시안이 나오면 이 값만 바꾼다.
     ad-aspect-ratio: 4.0
     ad-aspect-tolerance: 0.05
@@ -87,6 +90,9 @@ app:
     # 메인 배너 자리가 하나다. 자리를 늘리면 이 값만 올린다.
     slot-count: 1
     max-days: 30
+    # 확정을 기다리는 신청이 자리를 잡고 있는 시간. 접수는 토큰을 차감하지 않으므로 이 창이
+    # 없으면 신청만 해 두고 소각 tx 를 보내지 않는 계정이 공짜로 자리를 막는다.
+    pending-grace-minutes: 10
 
   # 온체인 (ANT-CHAIN-01~). 컨트랙트 주소는 재배포마다 바뀌므로 환경변수로만 받는다.
   chain:

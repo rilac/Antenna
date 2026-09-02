@@ -20,10 +20,12 @@ import ssafy.a507.backend.support.TestImages;
 @DisplayName("이미지 형식·크기 판독")
 class ImageProbeTest {
 
+    private static final long MAX_PIXELS = 40_000_000L;
+
     @Test
     @DisplayName("PNG 는 형식과 크기를 그대로 읽는다")
     void png() {
-        ImageProbe.Image image = ImageProbe.probe(TestImages.png(400, 100));
+        ImageProbe.Image image = ImageProbe.probe(TestImages.png(400, 100), MAX_PIXELS);
 
         assertThat(image.mime()).isEqualTo("image/png");
         assertThat(image.width()).isEqualTo(400);
@@ -33,7 +35,7 @@ class ImageProbeTest {
     @Test
     @DisplayName("WebP VP8X(확장)의 캔버스 크기는 24비트 · 실제값-1 로 들어 있다")
     void webpVp8x() {
-        ImageProbe.Image image = ImageProbe.probe(webpVp8x(800, 200));
+        ImageProbe.Image image = ImageProbe.probe(webpVp8x(800, 200), MAX_PIXELS);
 
         assertThat(image.mime()).isEqualTo("image/webp");
         assertThat(image.width()).isEqualTo(800);
@@ -43,16 +45,27 @@ class ImageProbeTest {
     @Test
     @DisplayName("WebP VP8L(무손실)의 크기는 14비트씩 붙어 있다")
     void webpVp8l() {
-        ImageProbe.Image image = ImageProbe.probe(webpVp8l(640, 160));
+        ImageProbe.Image image = ImageProbe.probe(webpVp8l(640, 160), MAX_PIXELS);
 
         assertThat(image.width()).isEqualTo(640);
         assertThat(image.height()).isEqualTo(160);
     }
 
     @Test
+    @DisplayName("헤더가 선언한 크기가 상한을 넘으면 거부한다 — 파일은 30바이트여도 된다")
+    void 픽셀_폭탄_거부() {
+        byte[] tiny = webpVp8x(65_532, 16_383);
+
+        assertThat(tiny.length).isLessThan(64);
+        assertThatThrownBy(() -> ImageProbe.probe(tiny, MAX_PIXELS))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("너무 큽니다");
+    }
+
+    @Test
     @DisplayName("이미지가 아니면 400 UNSUPPORTED_IMAGE_TYPE — 확장자·Content-Type 은 보지 않는다")
     void 이미지가_아니면_거부() {
-        assertThatThrownBy(() -> ImageProbe.probe("not an image".getBytes(StandardCharsets.UTF_8)))
+        assertThatThrownBy(() -> ImageProbe.probe("not an image".getBytes(StandardCharsets.UTF_8), MAX_PIXELS))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("이미지");
     }
@@ -62,7 +75,7 @@ class ImageProbeTest {
     void 깨진_파일도_거부() {
         byte[] broken = new byte[] {(byte) 0x89, 'P', 'N', 'G', 0, 0, 0, 0};
 
-        assertThatThrownBy(() -> ImageProbe.probe(broken))
+        assertThatThrownBy(() -> ImageProbe.probe(broken, MAX_PIXELS))
                 .isInstanceOf(BusinessException.class);
     }
 

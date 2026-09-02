@@ -51,13 +51,14 @@ public class UploadController {
 
         Long userId = currentUserProvider.currentUserId();
         UploadFile.Purpose parsed = parsePurpose(purpose);
+        byte[] content = read(file);
 
         String fileId = idempotencyStore.execute(
                 userId,
                 CREATE_ENDPOINT,
                 idempotencyKey,
-                IdempotencyStore.hash(parsed + ":" + contentFingerprint(file)),
-                () -> uploadService.upload(userId, file, parsed).fileId());
+                IdempotencyStore.hash(parsed + ":" + IdempotencyStore.hash(content)),
+                () -> uploadService.upload(userId, content, parsed).fileId());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(uploadService.describe(fileId));
@@ -92,13 +93,16 @@ public class UploadController {
         }
     }
 
-    /** 멱등 판정용 파일 지문. 실제 저장은 서비스가 다시 읽으므로 여기서는 해시만 만든다. */
-    private String contentFingerprint(MultipartFile file) {
+    /**
+     * 파일 바이트를 한 번만 읽는다. 멱등 지문과 저장이 같은 배열을 쓴다 — Part 스트림을 두 번
+     * 여는 것은 컨테이너 구현에 기대는 짓이고, 5MB 를 두 번 읽을 이유도 없다.
+     */
+    private byte[] read(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "file");
         }
         try {
-            return IdempotencyStore.hash(file.getBytes());
+            return file.getBytes();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
