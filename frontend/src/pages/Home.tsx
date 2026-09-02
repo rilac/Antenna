@@ -201,7 +201,7 @@ function Hero() {
           </svg>
         </Link>
       </div>
-      <img className="hm-hero-art" src="/assets/antena-character-black.png" alt=""
+      <img className="hm-hero-art" src="/assets/character/black_ant/antena-character-black.png" alt=""
            aria-hidden="true" />
     </section>
   )
@@ -386,7 +386,7 @@ function TopPredictor() {
       {lead && (
         <>
           <div className="hm-lead">
-            <img className="hm-avatar" src="/assets/antena-profile.png" alt="" aria-hidden="true" />
+            <img className="hm-avatar" src="/assets/character/white_ant/antena-profile.png" alt="" aria-hidden="true" />
             <div className="hm-lead-id">
               <Link className="hm-lead-name" to={`/channels/${lead.userId}`}>{lead.nickname}</Link>
               <span className="hm-lead-rank">랭킹 {lead.rank}위</span>
