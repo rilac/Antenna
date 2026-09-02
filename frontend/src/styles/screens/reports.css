@@ -1,0 +1,95 @@
+/* F-01 리포트 피드 — [ANT-FE-REPORTS]
+   색·간격은 app.css 의 토큰만 쓴다. */
+
+.rp-controls{
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:10px;
+  margin-bottom:16px;
+}
+
+/* ── 탭 (전체 / 구독 중) ─────────────────────── */
+.rp-tabs{ display:flex; gap:2px; }
+.rp-tabs button{
+  padding:8px 14px;
+  border:0; border-bottom:2px solid transparent;
+  background:transparent; color:var(--muted);
+  font-family:inherit; font-size:14px; font-weight:600;
+  cursor:pointer;
+}
+.rp-tabs button:hover{ color:var(--ink); }
+.rp-tabs button.on{ color:var(--brand-ink); border-bottom-color:var(--brand); }
+
+/* ── 정렬 ────────────────────────────────────── */
+.rp-sorts{ display:flex; gap:6px; }
+.rp-sorts button{
+  padding:6px 12px;
+  border:1px solid var(--rule); border-radius:999px;
+  background:var(--surface); color:var(--body);
+  font-family:inherit; font-size:12.5px; font-weight:600;
+  cursor:pointer;
+}
+.rp-sorts button:hover{ background:var(--surface-2); }
+.rp-sorts button.on{
+  background:var(--brand-soft); border-color:var(--brand-soft); color:var(--brand-ink);
+}
+
+/* ── 목록 ────────────────────────────────────── */
+.rp-list{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:10px; }
+
+.rp-item{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:12px;
+}
+.rp-item:hover{ border-color:var(--brand-soft); box-shadow:var(--shadow); }
+
+.rp-link{
+  display:flex; flex-direction:column; gap:8px;
+  padding:16px 18px;
+  text-decoration:none;
+}
+
+.rp-head{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+
+.rp-title{
+  margin:0;
+  font-size:15px; font-weight:700; line-height:1.45; color:var(--ink);
+}
+
+/* 잠금은 배지로만 알린다 — 제목·작성자는 그대로 보인다(구독 유인) */
+.rp-lock{
+  flex:0 0 auto;
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px;
+  border-radius:999px;
+  background:var(--surface-2); color:var(--muted);
+  font-size:11.5px; font-weight:600;
+}
+
+.rp-meta{
+  display:flex; align-items:center; flex-wrap:wrap; gap:6px;
+  font-size:12.5px; color:var(--muted);
+}
+.rp-author{ font-weight:600; color:var(--body); }
+.rp-dot{ color:var(--faint); }
+
+/* ── 더 보기 ─────────────────────────────────── */
+.rp-more{
+  display:block; width:100%;
+  margin-top:12px; padding:11px;
+  border:1px solid var(--rule); border-radius:10px;
+  background:var(--surface); color:var(--body);
+  font-family:inherit; font-size:13px; font-weight:600;
+  cursor:pointer;
+}
+.rp-more:hover{ background:var(--surface-2); }
+
+.rp-more-hint{
+  margin:12px 0 0; text-align:center;
+  font-size:12.5px; color:var(--muted);
+}
+
+@media (max-width: 560px){
+  .rp-controls{ align-items:stretch; }
+  .rp-sorts{ justify-content:flex-end; }
+}
