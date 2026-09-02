@@ -1,0 +1,63 @@
+/* F-02 리포트 상세 — [ANT-FE-REPORT-DETAIL]
+   색·간격은 app.css 의 토큰만 쓴다. */
+
+.rd-back{
+  display:inline-flex; align-items:center; gap:5px;
+  margin-bottom:14px;
+  color:var(--muted); font-size:13px; font-weight:600;
+  text-decoration:none;
+}
+.rd-back:hover{ color:var(--brand-ink); }
+
+.rd-loading{ margin:0; color:var(--muted); font-size:13px; }
+
+.rd{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:12px;
+  padding:26px 28px 30px;
+}
+
+.rd-head{
+  padding-bottom:18px;
+  border-bottom:1px solid var(--rule);
+  margin-bottom:22px;
+}
+
+.rd-title{
+  margin:0 0 10px;
+  font-size:23px; font-weight:800; line-height:1.35; letter-spacing:-.02em;
+  color:var(--ink);
+}
+
+.rd-meta{
+  display:flex; align-items:center; flex-wrap:wrap; gap:6px;
+  font-size:13px; color:var(--muted);
+}
+.rd-author{ color:var(--body); font-weight:700; text-decoration:none; }
+.rd-author:hover{ color:var(--brand-ink); text-decoration:underline; }
+.rd-dot{ color:var(--faint); }
+
+.rd-private{
+  margin-left:2px; padding:3px 9px;
+  border-radius:999px;
+  background:var(--brand-soft); color:var(--brand-ink);
+  font-size:11.5px; font-weight:700;
+}
+
+/* 작성자가 넣은 줄바꿈을 살린다. 서버가 본문을 그대로 보관하므로
+   여기서 접으면 문단 구분이 사라진다. */
+.rd-body{
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;      /* 공백 없는 긴 URL 이 카드를 밀어내지 않게 */
+  font-size:15px; line-height:1.85; color:var(--body);
+}
+
+/* 잠금 미리보기도 서버가 "앞 3줄"로 잘라 준 값이라 줄바꿈이 의미를 갖는다.
+   공용 LockedCard 는 건드리지 않고 이 화면 안에서만 살린다. */
+.rd .state-locked-preview p{ white-space:pre-line; }
+
+@media (max-width: 560px){
+  .rd{ padding:20px 18px 24px; }
+  .rd-title{ font-size:20px; }
+}
