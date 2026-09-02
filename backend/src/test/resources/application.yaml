@@ -18,6 +18,16 @@ spring:
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
+    defer-datasource-initialization: true
+
+  # append-only 트리거(db/append-only.sql)는 plpgsql 이라 H2 에서 돌지 않는다(mode: never).
+  # 이 파일이 main 의 application.yaml 을 가리므로 위치·구분자는 여기에도 같게 둔다.
+  # PostgreSQL Testcontainers 테스트(AppendOnlyTriggerTest)가 mode 만 always 로 켠다.
+  sql:
+    init:
+      mode: never
+      schema-locations: classpath:db/append-only.sql
+      separator: "^^^ END OF SCRIPT ^^^"
 
   # 컨텍스트 로딩용 더미. 테스트는 구글과 통신하지 않는다.
   security:
