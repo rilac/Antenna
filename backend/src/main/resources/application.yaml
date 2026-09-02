@@ -61,3 +61,10 @@ app:
       email-attribute: email
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+  # 온체인 (ANT-CHAIN-01~). 컨트랙트 주소는 재배포마다 바뀌므로 환경변수로만 받는다.
+  chain:
+    commit-anchor:
+      # 비어 있어도 앱이 뜬다 — 컨트랙트를 배포하지 않은 팀원의 로컬을 죽이지 않는다.
+      # 실제 tx 전송은 릴레이어(ANT-CHAIN-05)가 CommitAnchorProperties.isDeployed() 로 막는다.
+      address: ${CONTRACT_COMMIT_ANCHOR:}

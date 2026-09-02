@@ -1,0 +1,11 @@
+{
+  "contract": "CommitAnchor",
+  "network": "localhost",
+  "chainId": 31337,
+  "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "txHash": "0x420d1fcbb868b2c7ba661c6e4901faf3d685930024f6097aadaec6ab3c990728",
+  "blockNumber": 1,
+  "deployedAt": "2026-09-01T23:46:28.221Z"
+}

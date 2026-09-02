@@ -1,0 +1,21 @@
+{
+  "name": "antenna-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "앤테나 CommitAnchor — 머클루트 앵커링 컨트랙트 (ANT-CHAIN-01)",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:ssafy": "node scripts/deploy-ssafy.mjs"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "@openzeppelin/contracts": "^5.6.1",
+    "chai": "^4.5.0",
+    "ethers": "^6.15.0",
+    "hardhat": "^2.29.1"
+  }
+}
