@@ -39,9 +39,13 @@ export default function Reports() {
   return (
     <main className="main">
       <div className="main-inner">
-        <div className="page-head">
-          <h1>리포트</h1>
-          <p>예측가가 발행한 리서치를 모아 봅니다</p>
+        <div className="page-head rp-page-head">
+          <div>
+            <h1>리포트</h1>
+            <p>예측가가 발행한 리서치를 모아 봅니다</p>
+          </div>
+          {/* F-03 진입점. 이게 없으면 /reports/new 에 갈 길이 없다 */}
+          <Link className="rp-new" to="/reports/new">리포트 작성</Link>
         </div>
 
         <div className="rp-controls">
