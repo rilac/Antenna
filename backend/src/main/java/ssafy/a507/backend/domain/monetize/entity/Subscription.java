@@ -16,6 +16,7 @@ import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Check;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import ssafy.a507.backend.domain.account.entity.User;
@@ -23,15 +24,13 @@ import ssafy.a507.backend.domain.account.entity.User;
 /**
  * 구독. 근거 열람 게이팅의 판정값이다.
  *
- * <p>DDL에 두 제약이 더 필요하다. JPA 애너테이션으로는 표현할 수 없어 마이그레이션에서 건다.
- * <ul>
- *   <li>CHECK (subscriber_id &lt;&gt; publisher_id) — 자기 구독 금지
- *   <li>부분 유니크: (subscriber_id, publisher_id) WHERE status IN ('PENDING','ACTIVE')
- *       — 만료 후 재구독과 자동 갱신은 허용한다
- * </ul>
+ * <p>자기 구독 금지는 {@code @Check} 로 건다. 부분 유니크
+ * (subscriber_id, publisher_id) WHERE status IN ('PENDING','ACTIVE') — 만료 후 재구독과
+ * 자동 갱신 허용 — 는 JPA 애너테이션으로 표현할 수 없어 아직 DDL 에 없다.
  */
 @Entity
 @Table(name = "subscriptions")
+@Check(name = "ck_subscriptions_no_self_subscribe", constraints = "subscriber_id <> publisher_id")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Subscription {
