@@ -16,6 +16,9 @@ java {
 
 ext {
     web3jVersion = '4.14.0'
+    // 스프링 부트 BOM 이 testcontainers-bom 을 우리 설정까지 내려주지 않아 직접 맞춘다.
+    // spring-boot-dependencies 4.1.1 이 관리하는 값과 같은 버전이다.
+    testcontainersVersion = '2.0.5'
 }
 
 repositories {
@@ -27,6 +30,9 @@ dependencies {
     // 배포 헬스체크. DB·Redis 연결까지 확인해야 CI 가 기동 실패를 잡아낸다.
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-webclient'
+    // RestClient 자동설정. 부트 4 에서 별도 모듈로 빠져 이게 없으면
+    // RestClient.Builder 빈이 없다 — 외부 API 클라이언트가 주입받지 못한다.
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -46,6 +52,11 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
     // 데이터소스 미확정 상태에서 컨텍스트 로딩 테스트가 통과하도록 인메모리 DB 사용
     testRuntimeOnly 'com.h2database:h2'
+    // 일봉 upsert 는 PostgreSQL 의 ON CONFLICT 문법이라 H2 로는 검증할 수 없다.
+    // 그 테스트만 진짜 PostgreSQL 을 띄운다 — 도커가 없는 환경에서는 건너뛴다.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation "org.testcontainers:testcontainers-junit-jupiter:${testcontainersVersion}"
+    testImplementation "org.testcontainers:testcontainers-postgresql:${testcontainersVersion}"
     testCompileOnly 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'

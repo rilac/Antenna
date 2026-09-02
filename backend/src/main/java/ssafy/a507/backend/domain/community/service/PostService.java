@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.community.service;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -103,6 +104,7 @@ public class PostService {
         Map<Long, Long> likeCounts = countsByPostId(postLikeRepository.countByPostIds(postIds));
         Map<Long, Long> commentCounts = countsByPostId(
                 postCommentRepository.countByPostIds(postIds, PostComment.Status.VISIBLE));
+        Set<Long> liked = new HashSet<>(postLikeRepository.findLikedPostIds(viewerId, postIds));
         Set<Long> subscribed = subscribedPublisherIds(viewerId, posts);
 
         List<PostListItemResponse> items = posts.stream()
@@ -113,6 +115,7 @@ public class PostService {
                         reportCard(post.getReport(), viewerId, subscribed),
                         predictionCard(post.getPrediction(), viewerId, subscribed),
                         likeCounts.getOrDefault(post.getId(), 0L),
+                        liked.contains(post.getId()),
                         commentCounts.getOrDefault(post.getId(), 0L),
                         post.getCreatedAt()))
                 .toList();
@@ -138,6 +141,7 @@ public class PostService {
         long commentCount = countsByPostId(
                         postCommentRepository.countByPostIds(postIds, PostComment.Status.VISIBLE))
                 .getOrDefault(post.getId(), 0L);
+        boolean liked = postLikeRepository.existsByPostIdAndUserId(post.getId(), viewerId);
         Set<Long> subscribed = subscribedPublisherIds(viewerId, List.of(post));
 
         List<CommentPreviewResponse> comments = postCommentRepository
@@ -153,6 +157,7 @@ public class PostService {
                 reportCard(post.getReport(), viewerId, subscribed),
                 predictionCard(post.getPrediction(), viewerId, subscribed),
                 likeCount,
+                liked,
                 commentCount,
                 post.getCreatedAt(),
                 comments);
@@ -204,8 +209,10 @@ public class PostService {
         if (ownerIds.isEmpty()) {
             return Set.of();
         }
+        // 기간 조건은 리포지토리가 들고 있다 — 만료 배치(B4)가 없어 상태만 보면 만료된 구독이
+        // 계속 열어준다. ANT-COMMUNITY-01 에서 발견해 판정을 쿼리 한 곳으로 모았다.
         return new HashSet<>(subscriptionRepository.findSubscribedPublisherIds(
-                viewerId, ownerIds, Subscription.Status.ACTIVE));
+                viewerId, ownerIds, Subscription.Status.ACTIVE, Instant.now()));
     }
 
     /** {@code [postId, count]} 행들을 맵으로. 집계에 없는 글은 호출부가 0으로 채운다. */

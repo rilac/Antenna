@@ -1,0 +1,222 @@
+/* G-02 모드 선택 · /sim/modes — [ANT-FE-SEASON-MODE]
+   프로토타입 assets/sim-setup.css 를 옮겨온 것이다. 모드별 색(초록·보라·파랑)은
+   프로토타입이 정한 값을 그대로 쓰되, 카드마다 흩어져 있던 hex 를 --tone-* 로 묶어
+   한 곳에서 바뀌게 했다. 그 외 색·서체는 app.css 토큰을 쓴다. */
+
+/* 본문 폭과 가운데 정렬은 셸의 .main-inner 가 맡는다(app.css). 화면마다 따로
+   잡으면 화면끼리 폭이 어긋나므로 여기서는 손대지 않는다.
+   word-break:keep-all 은 한글이 단어 중간에서 잘리지 않게 한다. */
+.sim-setup{
+  position:relative;display:flex;flex-direction:column;gap:22px;
+  word-break:keep-all;
+}
+
+/* ── 헤더 ───────────────────────────────────────────── */
+.ss-crumb{display:flex;align-items:center;gap:9px;color:#8a93ad;font-size:13.5px;font-weight:700}
+.ss-crumb a:hover{color:var(--brand)}
+.ss-crumb i{font-style:normal;color:#c2c8da}
+
+.ss-head h1{
+  margin:14px 0 12px;color:#0e1330;font-size:42px;font-weight:850;letter-spacing:-.04em;
+  text-wrap:balance;
+}
+.ss-head p{margin:0;color:#6b7291;font-size:16px;font-weight:650;text-wrap:pretty}
+
+/* 검정 개미 — 헤더 오른쪽에서 가이드 바까지 걸쳐 놓는다.
+
+   top 은 음수로 두지 않는다. .sim-setup 의 상단이 곧 고정 상단바(.topbar, z-index 30)의
+   아래 경계라, 위로 올리면 그만큼이 상단바에 덮여 개미 더듬이가 잘린다.
+   프로토타입은 -26px 였지만 그 화면에는 상단바가 없었다.
+
+   높이는 폭이 정한다(이미지 1214×1295, 비율 1:1.07). 280px → 299px 이므로
+   상단바 아래(52px)에서 시작해도 가이드 바 바닥(약 404px)을 넘지 않는다. */
+.ss-mascot{position:absolute;right:6px;top:4px;width:280px;margin:0;pointer-events:none;z-index:2}
+.ss-mascot img{display:block;width:100%;height:auto;filter:drop-shadow(0 22px 32px rgba(70,66,229,.22))}
+
+/* ── 모드 선택 가이드 ───────────────────────────────── */
+.ss-guide{
+  display:grid;grid-template-columns:minmax(0,300px) 1px minmax(0,1fr);
+  align-items:center;gap:28px;padding:24px 300px 24px 28px;
+  background:var(--surface);border:1px solid var(--rule);border-radius:20px;box-shadow:var(--shadow);
+}
+.ss-guide-copy h2{
+  display:flex;align-items:center;gap:11px;margin:0 0 12px;
+  color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em;
+}
+.ss-guide-copy h2 svg{color:var(--brand)}
+.ss-guide-copy p{margin:0;color:#8a90ab;font-size:14px;line-height:1.7;font-weight:650}
+.ss-guide-rule{align-self:stretch;background:var(--rule)}
+
+/* 순서가 있는 절차가 아니라 "상황 → 모드" 대응이라 화살표를 쓰지 않는다.
+   칸 수는 모드 수와 같다 — 관리자는 시연이 붙어 3, 그 외에는 2 다. */
+.ss-steps{display:grid;gap:14px;margin:0;padding:0;list-style:none}
+.ss-steps.n-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ss-steps.n-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.ss-step{
+  display:flex;flex-direction:column;gap:5px;
+  padding:13px 16px;border-radius:13px;background:var(--surface-2);
+  border-left:3px solid var(--tone);
+}
+.ss-step small{color:#8a90ab;font-size:13px;font-weight:650}
+.ss-step b{color:var(--tone);font-size:16.5px;font-weight:850;letter-spacing:-.02em}
+
+/* ── 모드 카드 ──────────────────────────────────────── */
+/* 두 장이면 카드가 넓어진다(약 600px). 카드는 넓게 두어 가이드 바와 폭을 맞추고,
+   글·버튼은 --inner 로 묶어 좁게 유지한다 — 넓은 카드에 문장이 늘어지면 읽기 나쁘다.
+   경계선이 있는 .ss-facts 만 카드 폭을 꽉 채워 띠처럼 보이게 둔다. */
+.ss-modes{display:grid;gap:22px;align-items:start}
+.ss-modes.n-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ss-modes.n-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+.ss-mode{
+  --inner:420px;
+  position:relative;display:flex;flex-direction:column;align-items:center;
+  padding:38px 28px 28px;text-align:center;
+  background:var(--surface);border:1px solid var(--rule);border-radius:20px;
+  box-shadow:var(--shadow);transition:box-shadow .15s,transform .15s;
+}
+.ss-mode:hover{transform:translateY(-2px)}
+
+/* 추천 카드 — 테두리만으로는 약해서 아이콘 뒤에 옅은 색을 깔아 준다 */
+.ss-mode.pick{
+  border-color:var(--tone);
+  box-shadow:0 2px 4px rgba(20,20,27,.04),0 22px 46px -30px rgba(60,58,140,.55);
+  background:linear-gradient(180deg,var(--tone-soft) 0,rgba(255,255,255,0) 200px),var(--surface);
+}
+
+.ss-badge{
+  position:absolute;left:22px;top:22px;display:inline-flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:10px;background:var(--tone);color:#fff;
+  font-size:13px;font-weight:750;
+}
+
+/* 대회만 붙는다. 참가 조건이라 배지와 반대쪽에 둔다 */
+.ss-sign{
+  position:absolute;right:22px;top:24px;
+  padding:5px 11px;border-radius:999px;
+  background:var(--brand-softer);color:var(--brand-ink);
+  font-size:11.5px;font-weight:750;
+}
+
+.ss-mode-icon{
+  display:grid;place-items:center;width:96px;height:96px;margin-bottom:22px;
+  border-radius:50%;background:var(--tone-soft);color:var(--tone);
+}
+.ss-mode h3{margin:0 0 14px;color:var(--tone);font-size:27px;font-weight:850;letter-spacing:-.03em}
+.ss-mode > p{
+  max-width:380px;margin:0 auto 20px;
+  color:#6b7291;font-size:15px;line-height:1.7;font-weight:650;
+}
+
+.ss-chips{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:9px;
+  max-width:var(--inner);margin:0 auto 24px;
+}
+.ss-chips span{
+  padding:8px 15px;border-radius:10px;
+  background:var(--tone-soft);color:var(--tone-ink);
+  font-size:13.5px;font-weight:750;
+}
+
+.ss-facts{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;
+  padding:22px 0;margin-bottom:22px;
+  border-top:1px solid #eef0f6;border-bottom:1px solid #eef0f6;
+}
+.ss-fact{
+  display:flex;flex-direction:column;align-items:center;gap:11px;
+  padding:0 6px;border-left:1px solid #eef0f6;
+}
+.ss-fact:first-child{border-left:0}
+.ss-fact svg{color:#5b6280}
+.ss-fact span{color:#5b6280;font-size:13.5px;line-height:1.45;font-weight:700;word-break:keep-all}
+
+/* ── 진입 버튼 ──────────────────────────────────────── */
+.ss-cta{
+  display:flex;align-items:center;gap:10px;width:100%;max-width:var(--inner);
+  height:58px;padding:0 18px;margin-inline:auto;
+  border-radius:13px;font-size:16.5px;font-weight:800;letter-spacing:-.02em;
+  transition:background .15s,border-color .15s;
+}
+.ss-cta b{margin:0 auto;font-weight:800}
+.ss-cta > span{margin-left:auto;font-size:19px}
+
+/* 열린 시즌이 없을 때. 링크가 아니라 span 이라 커서·포커스가 생기지 않는다 */
+.ss-cta.is-off{
+  justify-content:center;
+  background:var(--surface-2);border:1px solid var(--rule);color:var(--faint);
+}
+.ss-cta.is-off b{color:inherit}
+
+.ss-cta-meta{
+  max-width:var(--inner);margin:10px auto 0;min-height:18px;
+  color:var(--muted);font-size:12.5px;font-weight:650;
+  font-variant-numeric:tabular-nums;
+}
+
+/* 같은 모드에 시즌이 둘 이상일 때만 나온다 */
+.ss-others{
+  width:100%;max-width:var(--inner);margin:14px auto 0;padding:14px 0 0;list-style:none;
+  border-top:1px dashed var(--rule);
+  display:flex;flex-direction:column;gap:7px;
+}
+.ss-others a{
+  display:flex;align-items:baseline;gap:8px;padding:8px 11px;
+  border:1px solid var(--rule);border-radius:10px;text-align:left;
+  transition:border-color .12s;
+}
+.ss-others a:hover{border-color:var(--tone)}
+.ss-others b{flex:none;color:var(--tone-ink);font-size:11.5px;font-weight:750}
+.ss-others span{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+
+/* ── 모드별 색 (프로토타입 값 유지) ───────────────────── */
+.learn,.t-learn{--tone:#16a06a;--tone-ink:#17805a;--tone-soft:#e7f6ef}
+.contest,.t-contest{--tone:#5457e8;--tone-ink:#5a52d8;--tone-soft:#ebe9fc}
+.demo,.t-demo{--tone:#2f7bf6;--tone-ink:#2a6ad8;--tone-soft:#e8f1fe}
+
+/* 추천(연습)만 채운 버튼, 나머지는 테두리 버튼이다 —
+   프로토타입은 대회가 채운 버튼이었지만 추천을 옮겼으니 주 동선도 함께 옮긴다. */
+.ss-mode.learn .ss-cta{background:var(--tone);color:#fff}
+.ss-mode.learn .ss-cta:hover{background:var(--tone-ink)}
+.ss-mode.contest .ss-cta,
+.ss-mode.demo .ss-cta{border:1px solid var(--tone);color:var(--tone)}
+.ss-mode.contest .ss-cta:hover,
+.ss-mode.demo .ss-cta:hover{background:var(--tone-soft)}
+/* 위 모드별 규칙이 .ss-cta.is-off 보다 특이도가 높아 색을 덮는다 —
+   비활성 모습을 되찾으려면 같은 특이도로 뒤에서 다시 눌러 줘야 한다. */
+.ss-mode .ss-cta.is-off,
+.ss-mode .ss-cta.is-off:hover{
+  background:var(--surface-2);border:1px solid var(--rule);color:var(--faint);
+}
+
+/* ── 안내 ───────────────────────────────────────────── */
+.ss-note{
+  display:flex;align-items:center;justify-content:center;gap:9px;margin:8px 0 0;
+  color:#8a93ad;font-size:14px;font-weight:650;
+}
+.ss-note svg{flex:none;color:#a8afc2}
+
+/* ── 좁은 화면 ──────────────────────────────────────── */
+@media(max-width:1180px){
+  .ss-mascot{display:none}
+  .ss-guide{padding:24px 28px}
+}
+/* 관리자(3장)는 한 칸 일찍 2열로 접는다 — 3열로 버티면 카드가 너무 좁아진다 */
+@media(max-width:1280px){
+  .ss-modes.n-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:1020px){
+  .ss-guide{grid-template-columns:minmax(0,1fr);gap:20px}
+  .ss-guide-rule{display:none}
+  .ss-modes.n-2,.ss-modes.n-3{grid-template-columns:minmax(0,1fr)}
+  .ss-head h1{font-size:32px}
+}
+@media(max-width:680px){
+  .ss-head h1{font-size:26px}
+  .ss-mode{padding:32px 20px 24px}
+  .ss-steps.n-2,.ss-steps.n-3{grid-template-columns:minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){
+  .ss-mode,.ss-cta,.ss-others a{transition:none}
+  .ss-mode:hover{transform:none}
+}

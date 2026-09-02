@@ -18,6 +18,7 @@ public record PostDetailResponse(
         ReportCardResponse reportCard,
         PredictionCardResponse predictionCard,
         long likeCount,
+        boolean liked,
         long commentCount,
         Instant createdAt,
         List<CommentPreviewResponse> comments) {
