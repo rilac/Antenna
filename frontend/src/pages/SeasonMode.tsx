@@ -366,7 +366,7 @@ export default function SeasonMode() {
         {/* 모의투자 캐릭터는 검정 개미다. 인사이트 쪽 캐릭터(antena-character-transparent)
             와 다른 이미지이며, 모의투자 화면에는 이쪽만 쓴다. */}
         <figure className="ss-mascot">
-          <img src="/assets/antena-character-black.png" alt="" aria-hidden="true" />
+          <img src="/assets/character/black_ant/antena-character-black.png" alt="" aria-hidden="true" />
         </figure>
 
         <nav className="ss-crumb" aria-label="위치">
