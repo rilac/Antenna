@@ -75,4 +75,35 @@ public class ResearchDocument {
 
     @Column(name = "collected_at", nullable = false)
     private Instant collectedAt;
+
+    /**
+     * 수집 시점의 생성 (ANT-RESEARCH-01).
+     *
+     * <p>{@code summary} 는 비워 둔다 — 요약 생성은 배치 B6(ANT-RESEARCH-02)의 몫이고, 여기서는
+     * 재료만 쌓는다.
+     */
+    public static ResearchDocument collected(
+            Stock stock,
+            Source source,
+            String externalId,
+            String title,
+            String originUrl,
+            Instant publishedAt) {
+        ResearchDocument document = new ResearchDocument();
+        document.stock = stock;
+        document.source = source;
+        document.externalId = externalId;
+        document.title = title;
+        document.originUrl = originUrl;
+        document.publishedAt = publishedAt;
+        document.collectedAt = Instant.now();
+        return document;
+    }
+
+    /** 배치 B6(ANT-RESEARCH-02)가 부른다. */
+    public void summarize(String summary, String promptVersion) {
+        this.summary = summary;
+        this.promptVersion = promptVersion;
+        this.summarizedAt = Instant.now();
+    }
 }
