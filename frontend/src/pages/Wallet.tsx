@@ -17,10 +17,13 @@ import {
 } from '../api/wallet'
 import EmptyState from '../components/state/EmptyState'
 import ErrorState from '../components/state/ErrorState'
+import WalletLinkModal from '../components/wallet/WalletLinkModal'
 import '../styles/screens/wallet.css'
 
 export default function Wallet() {
   const [reason, setReason] = useState<LedgerReason | null>(null)
+  // M-01 은 라우트가 없는 모달이라 이 화면이 열고 닫는다
+  const [linking, setLinking] = useState(false)
 
   const status = useApiQuery<WalletStatus>('/wallet')
   const balance = useApiQuery<WalletBalance>('/wallet/balance')
@@ -38,21 +41,26 @@ export default function Wallet() {
         {status.error && <ErrorState error={status.error} onRetry={status.reload} />}
 
         {/* 설계 제약 — 미연동이면 M-01 지갑 연동으로 보낸다.
-            M-01 은 라우트가 없는 모달이라 [ANT-FE-WALLET-LINK] 가 붙기 전까지
-            버튼만 자리를 잡아 둔다. 그 스토리는 onClick 한 줄만 바꾸면 된다. */}
+            M-01 은 라우트가 없는 모달이라 이 화면이 직접 띄운다. */}
         {!status.error && status.data && !status.data.linked && (
           <section className="wallet-unlinked">
             <p className="wallet-unlinked-title">아직 지갑을 연동하지 않았습니다</p>
             <p className="wallet-unlinked-hint">
               지갑을 연동해야 예측을 등록하고 토큰을 받을 수 있습니다
             </p>
-            <button
-              type="button" className="state-cta" disabled
-              title="[ANT-FE-WALLET-LINK] 에서 연동 모달을 붙입니다"
-            >
+            <button type="button" className="state-cta" onClick={() => setLinking(true)}>
               지갑 연동하기
             </button>
           </section>
+        )}
+
+        {/* 연동하면 GET /wallet 이 바뀐다 — 다시 불러 주소·잔액 칸으로 넘어가게 한다.
+            balance 도 함께 되살린다. 미연동 상태에서 이미 실패해 둔 조회다. */}
+        {linking && (
+          <WalletLinkModal
+            onClose={() => setLinking(false)}
+            onLinked={() => { status.reload(); balance.reload() }}
+          />
         )}
 
         {!status.error && status.data?.linked && (

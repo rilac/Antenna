@@ -40,13 +40,29 @@ export const ERROR_CODE = {
   INVALID_REQUEST: 'INVALID_REQUEST',
   UNAUTHENTICATED: 'UNAUTHENTICATED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
+  // 인증 (ANT-AUTH-02)
+  PROVIDER_NOT_SUPPORTED: 'PROVIDER_NOT_SUPPORTED',
+  ACCOUNT_BANNED: 'ACCOUNT_BANNED',
   // 멱등성
   IDEMPOTENCY_KEY_REQUIRED: 'IDEMPOTENCY_KEY_REQUIRED',
   IDEMPOTENCY_KEY_REUSED: 'IDEMPOTENCY_KEY_REUSED',
+  // 회원 (ANT-AUTH-03)
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  DUPLICATE_NICKNAME: 'DUPLICATE_NICKNAME',
   // 신고 (ANT-COMMUNITY-04)
   TARGET_NOT_FOUND: 'TARGET_NOT_FOUND',
   SELF_REPORT: 'SELF_REPORT',
   DUPLICATE_REPORT: 'DUPLICATE_REPORT',
+  // 피드 글 첨부 (ANT-COMMUNITY-02)
+  POST_NOT_FOUND: 'POST_NOT_FOUND',
+  REPORT_NOT_FOUND: 'REPORT_NOT_FOUND',
+  PREDICTION_NOT_FOUND: 'PREDICTION_NOT_FOUND',
+  // 지갑 · 서명 (ANT-AUTH-04 · ANT-AUTH-06)
+  INVALID_SIGNATURE: 'INVALID_SIGNATURE',
+  NONCE_NOT_FOUND: 'NONCE_NOT_FOUND',
+  SIGNER_MISMATCH: 'SIGNER_MISMATCH',
+  WALLET_NOT_LINKED: 'WALLET_NOT_LINKED',
+  WALLET_ALREADY_LINKED: 'WALLET_ALREADY_LINKED',
   // 예측 · 비동기 작업 · 모의투자 (백엔드 미구현)
   PREDICTION_SLOT_EXCEEDED: 'PREDICTION_SLOT_EXCEEDED',
   INSUFFICIENT_BALANCE: 'INSUFFICIENT_BALANCE',
@@ -59,15 +75,26 @@ export const CLIENT_ERROR_CODE = {
   CLIENT_NOT_JSON: 'CLIENT_NOT_JSON',
   /** 오류 계약을 따르지 않는 응답 */
   UNKNOWN: 'UNKNOWN',
+
+  /* 지갑은 브라우저 확장에서 실패할 수 있다. 서버가 볼 일이 없는 사유라
+     서버 어휘에 없고, 그래서 여기서 만든다. 셋을 한 문구로 합치지 않는다 —
+     설치·재시도·확장 열기로 사용자가 할 일이 서로 다르다(M-01 설계 제약). */
+  /** window.ethereum 이 없다 — 지갑 확장 미설치 */
+  CLIENT_WALLET_MISSING: 'CLIENT_WALLET_MISSING',
+  /** 사용자가 연결·서명 창에서 거부했다 (EIP-1193 4001) */
+  CLIENT_SIGN_REJECTED: 'CLIENT_SIGN_REJECTED',
+  /** 이미 뜬 지갑 창이 응답을 기다리는 중이다 (EIP-1193 -32002) */
+  CLIENT_WALLET_BUSY: 'CLIENT_WALLET_BUSY',
+  /** 잠긴 지갑 등으로 계정을 하나도 못 받았다 */
+  CLIENT_NO_ACCOUNT: 'CLIENT_NO_ACCOUNT',
 } as const
 
 /**
  * 인증 만료(M-08)인지 판별한다.
  *
- * 주의 — 명세상 UNAUTHENTICATED 하나가 "로그인 필요" 와 "서명 주소 불일치" 를
- * 모두 덮는다. 설계서 §6 은 둘을 다르게 처리하라고 하지만(M-08 vs 재서명 안내)
- * code 만으로는 가를 수 없다. 백엔드 협의 전까지는 지갑 서명이 오가는 요청에서만
- * 화면이 직접 재서명으로 분기한다.
+ * 401 이라고 다 세션 만료가 아니다 — 서명 주소 불일치(SIGNER_MISMATCH)도 401 이다.
+ * 그쪽은 재서명으로 풀리므로 로그아웃시키면 안 된다. 그래서 status 가 아니라
+ * code 로 가른다. (백엔드가 두 사유를 별도 code 로 나눠 주어 갈 수 있게 됐다.)
  */
 export function isUnauthenticated(e: ApiError) {
   return e.status === 401 && e.code === ERROR_CODE.UNAUTHENTICATED

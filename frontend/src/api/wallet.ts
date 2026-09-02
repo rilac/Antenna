@@ -2,7 +2,10 @@
 
    GET /wallet          { linked, walletAddress }
    GET /wallet/balance  { balance(wei), symbol, syncedAt }
-   GET /wallet/ledger   { items: [{ delta, reason, txHash, createdAt }], nextCursor, hasNext } */
+   GET /wallet/ledger   { items: [{ delta, reason, txHash, createdAt }], nextCursor, hasNext }
+   POST /wallet/nonce   { scope } → { nonce, chainId }
+   POST /wallet/link    { address, signature } → { walletAddress } */
+import { api } from './client'
 
 export type WalletStatus = {
   linked: boolean
@@ -81,4 +84,56 @@ export function formatDateTime(iso: string) {
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit',
   })
+}
+
+/* ── 지갑 연동 (M-01) ─────────────────────────────────────────
+   POST /wallet/nonce  { scope }            → { nonce, chainId }
+   POST /wallet/link   { address, signature } → { walletAddress } */
+
+/** 서명이 붙는 요청의 종류. payload 첫 줄의 용도 태그와 서버 nonce 칸을 동시에 정한다. */
+export const SIGNATURE_SCOPES = {
+  WALLET_LINK: 'wallet-link',
+  PREDICTION_BURN: 'prediction-burn',
+  SUBSCRIBE: 'subscribe',
+  AD: 'ad',
+  SEASON_JOIN: 'season-join',
+} as const
+
+export type SignatureScope = keyof typeof SIGNATURE_SCOPES
+
+export type WalletNonce = {
+  nonce: string
+  /** 지갑에서 eth_chainId 로 읽지 말고 이 값을 쓴다 — 서버 조립본과 어긋나면 401 */
+  chainId: number
+}
+
+/**
+ * 서버 WalletLinkRequest.signingPayload() 와 같은 문자열을 만든다.
+ *
+ * 서버는 본문 필드로 payload 를 다시 조립해 대조한다. 줄바꿈·순서·소문자
+ * 중 하나만 어긋나도 복원 주소가 달라져 원인이 로그에 남지 않는 401 이 난다.
+ * 그래서 이 함수는 서버 구현을 그대로 옮긴 것이고, 손대려면 양쪽을 같이 고쳐야 한다.
+ */
+export function signingPayload(scope: SignatureScope, address: string, nonce: WalletNonce) {
+  return [
+    `antenna:${SIGNATURE_SCOPES[scope]}:v1`,
+    `address=${address.toLowerCase()}`,
+    `chainId=${nonce.chainId}`,
+    `nonce=${nonce.nonce}`,
+  ].join('\n')
+}
+
+/** 1회성 nonce 발급(Redis TTL 5분). 같은 scope 에 재발급하면 그 칸의 이전 값만 죽는다. */
+export function requestNonce(scope: SignatureScope) {
+  return api.post<WalletNonce>('/wallet/nonce', { scope })
+}
+
+/** 서명 검증 → 주소 등록. nonce 는 본문에 넣지 않는다 — 서버가 userId 로 꺼내 쓴다. */
+export function linkWallet(address: string, signature: string) {
+  return api.post<{ walletAddress: string }>('/wallet/link', { address, signature })
+}
+
+/** 0x1234…cdef 로 줄인다. 주소 전체는 좁은 자리에 넣으면 줄바꿈으로 깨진다. */
+export function shortAddress(address: string) {
+  return address.length > 14 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address
 }

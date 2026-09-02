@@ -6,70 +6,29 @@
 
    지갑 연동도 필수 온보딩 단계지만(유저플로우 §3) 서버 API 가 아직 없어
    이 화면은 닉네임까지만 책임진다. */
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
+import { NICKNAME_MAX, useNicknameCheck, validateNickname } from '../api/useNicknameCheck'
 import { useAuth } from '../auth/context'
 import { takeReturnTo } from '../auth/returnTo'
 import '../styles/auth.css'
-
-const MIN = 2
-const MAX = 30
-/** 입력이 멈춘 뒤에야 중복 검사를 보낸다. 한 글자마다 때리면 서버가 낭비된다. */
-const DEBOUNCE_MS = 350
-
-type Check =
-  | { state: 'idle' }
-  | { state: 'checking' }
-  | { state: 'available' }
-  | { state: 'taken' }
-  | { state: 'invalid'; reason: string }
-
-function validate(value: string): string | null {
-  if (value.length < MIN || value.length > MAX) return `${MIN}~${MAX}자로 입력해 주세요.`
-  if (value !== value.trim()) return '닉네임 앞뒤에 공백을 둘 수 없습니다.'
-  return null
-}
 
 export default function OnboardingNickname() {
   const navigate = useNavigate()
   const { setNickname } = useAuth()
 
   const [value, setValue] = useState('')
-  /** 서버가 판정을 끝낸 닉네임. 입력이 이 값과 다르면 아직 확인 중이다. */
-  const [checked, setChecked] = useState<{ nickname: string; available: boolean } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  /* 늦게 도착한 응답이 최신 입력의 판정을 덮어쓰지 않도록 요청마다 번호를 매긴다. */
-  const seq = useRef(0)
-
-  const reason = value === '' ? null : validate(value)
-  const check: Check =
-    value === '' ? { state: 'idle' }
-      : reason ? { state: 'invalid', reason }
-      : checked?.nickname !== value ? { state: 'checking' }
-      : { state: checked.available ? 'available' : 'taken' }
-
-  useEffect(() => {
-    if (value === '' || validate(value)) return
-
-    const mine = ++seq.current
-    const timer = setTimeout(() => {
-      api
-        .get<{ available: boolean }>('/users/nickname/availability', { query: { nickname: value } })
-        .then((res) => {
-          if (mine === seq.current) setChecked({ nickname: value, available: res.available })
-        })
-        .catch(() => { /* 검사 실패는 확정 단계에서 서버가 다시 판정한다 */ })
-    }, DEBOUNCE_MS)
-
-    return () => clearTimeout(timer)
-  }, [value])
+  /* 디바운스·순번·검증은 훅이 맡는다. H-03 환경 설정도 같은 훅을 쓴다.
+     여기서는 현재 닉네임을 넘기지 않는다 — 최초 로그인이라 아직 없다. */
+  const { check, markTaken } = useNicknameCheck(value)
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    const reason = validate(value)
+    const reason = validateNickname(value)
     if (reason) {
       setError(reason)
       return
@@ -85,7 +44,7 @@ export default function OnboardingNickname() {
     } catch (e) {
       // 중복 검사와 확정 사이에 누가 먼저 가져갔을 수 있다. 최종 판정은 서버다.
       if (e instanceof ApiError && e.code === 'DUPLICATE_NICKNAME') {
-        setChecked({ nickname: value, available: false })
+        markTaken(value)
         setError('이미 사용 중인 닉네임입니다.')
       } else {
         setError('닉네임을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -101,6 +60,8 @@ export default function OnboardingNickname() {
     available: '사용할 수 있는 닉네임입니다.',
     taken: '이미 사용 중인 닉네임입니다.',
     invalid: check.state === 'invalid' ? check.reason : '',
+    // 현재 닉네임을 넘기지 않으므로 이 화면에서는 오지 않는다(H-03 전용 상태)
+    unchanged: '',
   }[check.state]
 
   return (
@@ -116,7 +77,7 @@ export default function OnboardingNickname() {
               type="text"
               value={value}
               onChange={(e) => { setValue(e.target.value); setError(null) }}
-              maxLength={MAX}
+              maxLength={NICKNAME_MAX}
               autoFocus
               aria-label="닉네임"
               aria-describedby="nickname-hint"

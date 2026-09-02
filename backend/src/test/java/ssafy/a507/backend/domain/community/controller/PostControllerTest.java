@@ -316,6 +316,36 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.items[0].reportCard.locked").value(false));
     }
 
+    @Test
+    @DisplayName("내가 공감한 글만 liked=true 로 내려간다 — ANT-COMMUNITY-03 에서 더한 필드")
+    void 목록의_liked는_보는_사람_기준() throws Exception {
+        Long likedPost = insertFeedPost(authorId, "내가 누른 글", "VISIBLE");
+        insertFeedPost(authorId, "안 누른 글", "VISIBLE");
+        insertPostLike(likedPost, viewerId);
+        flush();
+
+        mockMvc.perform(get(URL).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                // 최신순이라 "안 누른 글" 이 앞이다
+                .andExpect(jsonPath("$.items[0].liked").value(false))
+                .andExpect(jsonPath("$.items[1].id").value(likedPost))
+                .andExpect(jsonPath("$.items[1].liked").value(true))
+                .andExpect(jsonPath("$.items[1].likeCount").value(1));
+    }
+
+    @Test
+    @DisplayName("남이 누른 공감은 내 liked 를 바꾸지 않는다")
+    void 상세의_liked는_남의_공감과_무관() throws Exception {
+        Long post = insertFeedPost(authorId, "남만 누른 글", "VISIBLE");
+        insertPostLike(post, authorId);
+        flush();
+
+        mockMvc.perform(get(URL + "/" + post).with(user(String.valueOf(viewerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.likeCount").value(1))
+                .andExpect(jsonPath("$.liked").value(false));
+    }
+
     // ── 예측 카드 잠금 ──────────────────────────────────────
     // 명세에 없는 조합을 구현에서 정한 부분이다(PredictionCardResponse 주석). 규칙이
     // 바뀌면 여기서 걸리게 두려고 네 경우를 다 덮는다.
@@ -532,6 +562,13 @@ class PostControllerTest {
                 VALUES (?, ?, ?, 'VISIBLE', CURRENT_TIMESTAMP)
                 """).setParameter(1, userId).setParameter(2, body)
                 .setParameter(3, reportId).executeUpdate();
+    }
+
+    private void insertPostLike(Long postId, Long userId) {
+        em.createNativeQuery("""
+                INSERT INTO post_likes (post_id, user_id, created_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                """).setParameter(1, postId).setParameter(2, userId).executeUpdate();
     }
 
     private void insertPostComment(Long postId, Long userId, String body, String status) {

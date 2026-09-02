@@ -38,3 +38,19 @@ app:
     cookie-secure: false
   cors:
     allowed-origins: http://localhost:5173
+
+  # 테스트는 포털과 통신하지 않는다. 키가 비어 있을 때 수집이 스스로 멈추는 것도 검증 대상이다.
+  market-data:
+    service-key:
+    base-url: http://portal.test/GetStockSecuritiesInfoService
+    page-size: 100
+    lookback-days: 10
+    # 수집 범위 축소(KOSPI 300)는 운영 결정이라 테스트 기본값은 전 종목이다.
+    market-filter:
+    top-count: 0
+    # "-" 는 스프링의 스케줄 비활성 표시다. 등록은 검증되고 실행만 빠진다.
+    cron: "-"
+    backfill:
+      from: 2023-09-01
+      chunk-size: 20
+      cron: "-"
