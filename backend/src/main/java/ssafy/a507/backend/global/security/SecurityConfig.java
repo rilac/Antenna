@@ -53,6 +53,14 @@ public class SecurityConfig {
                                         // 외부에서는 닿지 않고 서버 안에서만 열린다.
                                         .requestMatchers("/actuator/health")
                                         .permitAll()
+                                        // 업로드 이미지 조회(ANT-COMMUNITY-06). 브라우저는
+                                        // <img src> 에 Authorization 헤더를 붙이지 않으므로
+                                        // 인증을 걸면 배너·첨부가 통째로 렌더되지 않는다.
+                                        // 보호는 주소의 UUID 가 맡는다 — 읽을 수 있는 본문에만
+                                        // 나오고 순회로 찾을 수 없다. 서명 URL 이 필요해지면
+                                        // 그때 이 줄을 빼고 만료 토큰을 붙인다.
+                                        .requestMatchers(HttpMethod.GET, "/api/v1/uploads/*")
+                                        .permitAll()
                                         .anyRequest()
                                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))

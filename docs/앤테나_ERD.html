@@ -337,7 +337,7 @@
 
 <!-- ── 온체인 ── -->
 <section style="--dc:#B06A21">
-  <h2>온체인 <span class="cnt">3</span></h2>
+  <h2>온체인 <span class="cnt">4</span></h2>
   <div class="grid">
 
   <article><header><h3>chain_events</h3></header>
@@ -375,6 +375,22 @@
       <li><div class="row"><span class="k no">·</span><span class="c">reason</span><span class="t">varchar(32)</span></div><div class="note">토큰 사용처 · 환금·충전 값은 목록에 없음(규제 대응)</div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">chain_event_id <em>→chain_events</em></span><span class="t">int</span></div><div class="note">근거 온체인 이벤트 · tx로 역추적</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">기입 시각 · 내역 정렬 키</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>operations</h3><span class="v3">V6</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">varchar(40)</span></div><div class="note">operationId · <b>202 접수 시점에 발급</b>하고 클라이언트가 폴링 키로 쓴다 · 명세 예시가 <code>op_8f3c…</code> 라 접두사 포함 길이(<code>op_</code>+UUID=39)를 담는다 — <code>upload_files.id</code>(36, 순수 UUID)와 길이가 다른 이유</div></li>
+      <li><div class="row"><span class="k fk">FK</span><span class="c">user_id →users</span><span class="t">int</span></div><div class="note">요청자 · <b>본인 작업만 조회</b>(타인 403) 판정에 쓴다 · 순차 int PK 였다면 남의 작업 id 를 추측해 조회할 수 있어 UUID 를 쓴다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">kind</span><span class="t">varchar(16)</span></div><div class="note">PREDICTION_BURN · SUBSCRIBE · AD · SEASON_JOIN · 202 를 쓰는 4곳 · <code>POST /wallet/nonce</code> 의 scope 어휘와 같다(WALLET_LINK 만 제외 — 온체인 전송이 없다)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">PENDING → SUCCEEDED / FAILED · <b>전이는 체인 인덱서가 <code>chain_events</code> 기입과 함께 수행</b>하므로 별도 폴링 배치가 없다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">resource_type</span><span class="t">varchar(16)</span></div><div class="note">SUBSCRIPTION · AD · PREDICTION · SEASON_PARTICIPANT · 성공 시 만들어진/전이된 도메인 리소스 · 대상별 FK 4개를 두는 대신 <code>notifications</code> 와 같은 방식으로 타입+id 로 가리킨다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">resource_id</span><span class="t">int</span></div><div class="note">위와 한 쌍 · CHECK (둘 다 NULL 이거나 둘 다 NOT NULL) — 한쪽만 채워지면 리소스를 못 찾는다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">tx_hash</span><span class="t">varchar(66)</span></div><div class="note">온체인 트랜잭션 · 접수 시 NULL, 전송 후 채운다 · <b>인덱서가 이 값으로 이 행을 찾는다</b> — 채우는 주체(API / 릴레이어)를 ANT-CHAIN 과 맞춰야 한다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">error_code</span><span class="t">varchar(32)</span></div><div class="note">FAILED 시 · 명세 <code>error.code</code> · 오류 code 어휘를 공유한다(INSUFFICIENT_BALANCE 등)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">error_message</span><span class="t">varchar(300)</span></div><div class="note">FAILED 시 · 명세 <code>error.message</code> · 202 작업 실패는 HTTP 200 + status=FAILED 로 내려가므로 표준 오류 본문이 아니라 여기 담긴다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">접수 시각</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">settled_at</span><span class="t">timestamptz</span></div><div class="note">종료 시각 · NULL = 진행 중 · <b>종료 상태는 24h 보관 후 정리</b>(명세)하므로 정리 배치의 스캔 키다</div></li>
     </ul>
   </article>
 
@@ -439,15 +455,16 @@
     </ul>
   </article>
 
-  <article><header><h3>ad_banners</h3><span class="v3">V4</span></header>
+  <article><header><h3>ad_banners</h3><span class="v3">V7</span></header>
     <ul>
       <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">advertiser_id <em>→users</em></span><span class="t">int</span></div><div class="note">배너를 산 회원 · 토큰 결제자</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">image_url</span><span class="t">varchar(500)</span></div><div class="note">배너 이미지 · <b>upload_files 가 발급한 내부 URL만</b> · 클라이언트가 넘긴 외부 URL은 저장하지 않는다(SSRF · 추적 픽셀 · 승인 후 바꿔치기 차단)</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">link_url</span><span class="t">varchar(500)</span></div><div class="note">클릭 시 이동 주소 · https만 허용(피싱 차단)</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">starts_at</span><span class="t">timestamptz</span></div><div class="note">게재 시작 · 메인 배너 자리는 1개라 기간 중복은 앱에서 차단</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">starts_at</span><span class="t">timestamptz</span></div><div class="note">게재 시작 · 접수 시각 그대로(요청 본문에 시작일이 없고 기간만 있다) · 메인 배너 자리는 1개라 기간 중복은 앱에서 차단 — <code>status</code> 가 ACTIVE 이거나 <b>유예 창 안의 PENDING</b> 인 행과 겹치면 409. 접수는 토큰을 차감하지 않아, 오래된 PENDING 까지 세면 신청만 해 두고 tx 를 안 보내는 계정이 공짜로 자리를 막는다</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">ends_at</span><span class="t">timestamptz</span></div><div class="note">게재 종료 · 지나면 노출 쿼리에서 자동 제외</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">PENDING→ACTIVE/REJECTED→ENDED · 관리자 승인 후에만 노출</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">price_wei</span><span class="t">numeric(30,0)</span></div><div class="note"><b>V7</b> · 접수 시점에 <b>박제한 게재료</b>(고정 단가 × 일수) · 단가는 설정값이라 바뀔 수 있는데 인덱서는 나중에 소각 tx 를 <b>기대 금액</b>과 맞춰야 한다 — 저장하지 않으면 30일치를 신청하고 1 ANT 만 태운 것과 30 ANT 를 태운 것을 구분할 수 없다 · <code>subscriptions.fee</code> 박제와 같은 이유</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">tx_hash</span><span class="t">varchar(66)</span></div><div class="note">게재료 소각 트랜잭션</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">created_at</span><span class="t">timestamptz</span></div><div class="note">신청 시각</div></li>
     </ul>
