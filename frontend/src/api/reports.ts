@@ -45,6 +45,30 @@ export type ReportFeedItem = {
   viewCount: number
 }
 
+/**
+ * 리포트 상세. 서버 ReportDetailResponse 와 짝이다.
+ *
+ * body 와 preview 는 둘 중 하나만 온다 — locked 가 그 둘을 가른다.
+ * 서버가 잠긴 리포트에 body 를 아예 담지 않으므로, 전문을 받아 CSS 로 가리는
+ * 방식이 애초에 불가능하다(설계 제약 그대로다).
+ */
+export type ReportDetail = {
+  id: number
+  title: string
+  author: Author
+  /** 작성자가 정한 공개 범위. locked 와 다른 값이다 — 아래 주석 참고 */
+  visibility: boolean
+  /** 이 열람자가 본문을 볼 수 없는 상태 */
+  locked: boolean
+  /** locked 면 null */
+  body: string | null
+  /** locked 일 때만 채워진다. 서버가 앞 3줄(최대 300자)로 잘라 준 값 */
+  preview: string | null
+  publishedAt: string
+  /** 서버가 이번 열람을 반영해 내려준다. 본인 글은 증가하지 않는다 */
+  viewCount: number
+}
+
 /** 발행일 표기. 목록에서는 시각까지 필요 없다. */
 export function formatDate(iso: string) {
   const d = new Date(iso)
