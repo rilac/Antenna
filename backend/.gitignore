@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# 로컬 업로드 볼륨 (ANT-COMMUNITY-06). 실제 파일은 배포 볼륨에 있고 저장소에 넣지 않는다.
+uploads/

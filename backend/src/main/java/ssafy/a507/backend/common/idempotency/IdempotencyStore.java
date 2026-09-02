@@ -86,9 +86,13 @@ public class IdempotencyStore {
 
     /** 요청 본문 해시. 같은 키로 다른 본문이 왔는지 판별하는 용도라 충돌 저항만 있으면 된다. */
     public static String hash(String requestBody) {
+        return hash(requestBody.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** multipart 처럼 본문이 바이트인 경우. 문자열로 옮겨 담으면 인코딩에서 값이 뒤틀린다. */
+    public static String hash(byte[] requestBody) {
         try {
-            byte[] digest = MessageDigest.getInstance("SHA-256")
-                    .digest(requestBody.getBytes(StandardCharsets.UTF_8));
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(requestBody);
             return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException e) {
             // SHA-256 은 모든 JVM 이 갖춰야 하는 알고리즘이다. 여기 오면 런타임이 깨진 것이다.

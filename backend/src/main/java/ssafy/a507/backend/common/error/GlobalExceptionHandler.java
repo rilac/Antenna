@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /** 모든 오류 응답을 API 명세 §1 형식 하나로 모은다. */
 @Slf4j
@@ -77,6 +78,17 @@ public class GlobalExceptionHandler {
         log.debug("본문 파싱 실패", e);
         return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST));
+    }
+
+    /**
+     * multipart 상한 초과. 서블릿이 본문을 다 읽기 전에 끊으므로 컨트롤러까지 오지 못한다 —
+     * 이 핸들러가 없으면 마지막 그물로 떨어져 500 이 나간다. 명세 §첨부·업로드는 413 이다.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleTooLarge(MaxUploadSizeExceededException e) {
+        log.debug("업로드 용량 초과", e);
+        return ResponseEntity.status(ErrorCode.FILE_TOO_LARGE.getStatus())
+                .body(ErrorResponse.of(ErrorCode.FILE_TOO_LARGE, "file"));
     }
 
     /** 마지막 그물. 여기까지 온 것은 예상 못 한 오류이므로 스택을 남긴다. */
