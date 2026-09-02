@@ -30,7 +30,7 @@ pre code{background:none;padding:0;color:inherit}.callout{background:var(--soft)
 footer{margin-top:50px;padding-top:14px;border-top:1px solid var(--line);color:var(--sub);font-size:12px}.small{font-size:12.3px;color:var(--sub)}
 @media(max-width:880px){.layout{grid-template-columns:1fr}nav{display:none}}
 </style></head>
-<body><div class=layout><nav><div class=brand>엔테나 API 명세서</div><div class=ver>v0.7 · 2026-08-31</div>
+<body><div class=layout><nav><div class=brand>엔테나 API 명세서</div><div class=ver>v0.10 · 2026-09-02</div>
 <a href="#map">0. 큰그림(인터페이스 맵)</a><a href="#common">1. 공통 규약</a>
 <div class=grp>2. REST API</div>
 <a href="#tag-async">비동기 작업</a><a href="#tag-auth">인증</a><a href="#tag-users">회원</a><a href="#tag-wallet">지갑·토큰</a>
@@ -67,7 +67,7 @@ footer{margin-top:50px;padding-top:14px;border-top:1px solid var(--line);color:v
 <tr><td><b>관리자</b></td><td>신고·블라인드·제재·시즌 운영</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
 <tr><td><b>시스템</b></td><td>—</td><td>—</td><td>이벤트 인덱싱</td><td>—</td><td>B1~B6</td></tr></table>
 
-<div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v0.9</b> · 2026-08-31 · 임대연(DY) · <code>DY_ANT-DATA-03</code> — <b>공공데이터 일봉 수집·조회 구현(ANT-DATA-01~03).</b> <code>GET /stocks</code> 는 최소판으로 먼저 낸다 — 섹터·시장 필터, PER 범위, 예측 심리 집계는 재료가 되는 <code>corp_financials</code>·<code>predictions</code> 가 아직 없어 그 표가 생기는 스토리에서 얹는다. 지금 빈 값을 내리면 화면이 그것을 진짜 0 으로 읽는다. 응답에 <code>baseDate</code>(종가 기준 영업일)를 추가했다 — 화면이 "종가 기준 YYYY.MM.DD" 를 한 번만 찍으려면 행이 아니라 응답에 있어야 한다. 그날 거래정지였던 종목은 <code>prevClose</code> 가 <code>null</code> 이다. §1 오류 code 어휘 표에 <code>STOCK_NOT_FOUND</code>(404) 추가. ERD 에 없던 <code>stocks.market</code> 와 수집 회차 기록 <code>ingest_runs</code> 를 신설했다 — <code>batch_runs</code> 는 예측 판정 배치의 것이고 <code>business_date</code> 가 유니크라 수집이 같은 표를 쓰면 하루 한 행을 두고 부딪힌다. 수집 범위는 팀 결정으로 <b>KOSPI 시가총액 상위 300 종목</b>만 — 포털 <code>mrktCls</code> 필터로 시장을 거르고(하루 1콜), 수신 후 <code>mrktTotAmt</code> 상위로 선별한다(<code>market-filter</code>·<code>top-count</code> 설정, 지우면 전 종목). 날짜마다 그날 기준이라 백필 구간에서는 경계 근처 종목이 들고날 수 있다.</div><div><b>v0.8</b> · 2026-08-31 · 임대연(DY) · <code>DY_ANT-AUTH-02</code> — <b>SSAFY OAuth 로그인 구현.</b> 개발자센터 문서로 엔드포인트 확정 — 인가 <code>project.ssafy.com/oauth/sso-check</code>, 토큰·userInfo는 <code>/ssafy</code> 아래(<code>/ssafy/oauth2/token</code> · <code>/ssafy/resources/userInfo</code>). <b>id_token이 없어 userInfo를 한 번 더 호출</b>한다. 매칭 키는 <code>userId</code> — <code>email</code>·<code>name</code>은 필수 동의일 때만 와서 매칭 키로 쓸 수 없다. 인가 요청에 <code>scope</code>를 받지 않는다.<br>§1 오류 code 어휘 표에 <b><code>PROVIDER_NOT_SUPPORTED</code>(501) · <code>ACCOUNT_BANNED</code>(403)</b> 추가. <code>GlobalExceptionHandler</code>의 마지막 그물이 <code>ResponseStatusException</code>을 삼켜 <b>로그인 실패가 전부 500으로 나가던 문제</b>를 함께 고쳤다(구글 로그인도 같은 상태였다) — auth 도메인의 throw를 <code>BusinessException</code>으로 통일했다.</div>
+<div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v0.10</b> · 2026-09-02 · 김성령(KSR) · <code>KSR_ANT-CHAIN-01</code> — <b>§4.3 CommitAnchor 시그니처 정정.</b> <code>anchor</code>에 <code>batchId</code> 인자 추가(서버 지정 = <code>anchor_batches.id</code>). 기존 표기는 내부 모순이었다 — <code>anchor</code>엔 batchId가 없는데 <code>rootOf</code>·<code>Anchored</code>는 batchId를 쓴다. 서버 지정으로 통일한 결정적 이유는 <b>온체인 멱등키</b>: 자동 증가면 릴레이어 재시도 시 같은 루트가 두 번 박히는 걸 막을 수단이 없다. custom error 4종 명시. 지라 AC의 "salt 리빌 이벤트"는 온체인에 두지 않는 것으로 확정(§4.3 원문과 일치) — salt 무결성은 이미 루트가 보증하므로 온체인 리빌은 하루 1 tx 설계를 깨면서 얻는 게 없다. 구현·근거: <code>contracts/</code> · 지라 S15P21A507-27.</div><div><b>v0.9</b> · 2026-08-31 · 임대연(DY) · <code>DY_ANT-DATA-03</code> — <b>공공데이터 일봉 수집·조회 구현(ANT-DATA-01~03).</b> <code>GET /stocks</code> 는 최소판으로 먼저 낸다 — 섹터·시장 필터, PER 범위, 예측 심리 집계는 재료가 되는 <code>corp_financials</code>·<code>predictions</code> 가 아직 없어 그 표가 생기는 스토리에서 얹는다. 지금 빈 값을 내리면 화면이 그것을 진짜 0 으로 읽는다. 응답에 <code>baseDate</code>(종가 기준 영업일)를 추가했다 — 화면이 "종가 기준 YYYY.MM.DD" 를 한 번만 찍으려면 행이 아니라 응답에 있어야 한다. 그날 거래정지였던 종목은 <code>prevClose</code> 가 <code>null</code> 이다. §1 오류 code 어휘 표에 <code>STOCK_NOT_FOUND</code>(404) 추가. ERD 에 없던 <code>stocks.market</code> 와 수집 회차 기록 <code>ingest_runs</code> 를 신설했다 — <code>batch_runs</code> 는 예측 판정 배치의 것이고 <code>business_date</code> 가 유니크라 수집이 같은 표를 쓰면 하루 한 행을 두고 부딪힌다. 수집 범위는 팀 결정으로 <b>KOSPI 시가총액 상위 300 종목</b>만 — 포털 <code>mrktCls</code> 필터로 시장을 거르고(하루 1콜), 수신 후 <code>mrktTotAmt</code> 상위로 선별한다(<code>market-filter</code>·<code>top-count</code> 설정, 지우면 전 종목). 날짜마다 그날 기준이라 백필 구간에서는 경계 근처 종목이 들고날 수 있다.</div><div><b>v0.8</b> · 2026-08-31 · 임대연(DY) · <code>DY_ANT-AUTH-02</code> — <b>SSAFY OAuth 로그인 구현.</b> 개발자센터 문서로 엔드포인트 확정 — 인가 <code>project.ssafy.com/oauth/sso-check</code>, 토큰·userInfo는 <code>/ssafy</code> 아래(<code>/ssafy/oauth2/token</code> · <code>/ssafy/resources/userInfo</code>). <b>id_token이 없어 userInfo를 한 번 더 호출</b>한다. 매칭 키는 <code>userId</code> — <code>email</code>·<code>name</code>은 필수 동의일 때만 와서 매칭 키로 쓸 수 없다. 인가 요청에 <code>scope</code>를 받지 않는다.<br>§1 오류 code 어휘 표에 <b><code>PROVIDER_NOT_SUPPORTED</code>(501) · <code>ACCOUNT_BANNED</code>(403)</b> 추가. <code>GlobalExceptionHandler</code>의 마지막 그물이 <code>ResponseStatusException</code>을 삼켜 <b>로그인 실패가 전부 500으로 나가던 문제</b>를 함께 고쳤다(구글 로그인도 같은 상태였다) — auth 도메인의 throw를 <code>BusinessException</code>으로 통일했다.</div>
 <div><b>v0.7</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — dev 병합 후 정리. §오류 code 어휘 표(ANT-COMMUNITY-04에서 신설)에 <b>지갑·서명 code 5종</b> 편입 — "표에 없는 code를 즉석에서 만들지 않는다"는 그 표의 규칙을 따른 것. 내 <code>UNAUTHORIZED</code>는 dev의 <code>UNAUTHENTICATED</code>로 통일했다.</div><div><b>v0.6</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — <b><code>POST /wallet/nonce</code> 요청·응답 변경.</b> 요청에 <code>scope</code> 필수, 응답에 <code>chainId</code> 추가. ① 프론트가 서버의 chainId를 알 방법이 없어 지갑에서 읽으면 사용자가 고른 네트워크 값이 와서 payload가 어긋났다(원인 없는 401). ② nonce 칸이 계정당 1개라 온체인 요청 4종이 서로를 죽였다 → <code>sig:nonce:{userId}:{scope}</code>로 분리.</div><div><b>v0.5</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — <code>POST /wallet/nonce</code> 설명 정정: 지갑 연동 전용이 아니라 <b>지갑 서명이 붙는 모든 요청의 공용 창구</b>다. §1.2가 온체인 동반 요청도 이 nonce를 쓰라고 하는데 엔드포인트 설명이 "연동용"으로 남아 있어 서로 어긋났다. 계정당 nonce 1개라는 제약도 명시.</div><div><b>v0.4</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — §1.2 지갑 서명 규격 확정 — EIP-191 <code>personal_sign</code> + <b>줄 구분 문자열</b>(JSON 아님), nonce는 본문에 넣지 않고 서버가 userId로 조회해 payload 재조립. <code>/wallet/link</code> 요청 본문·응답 오류 코드 구체화. 근거: 지라 S15P21A507-55·21</div><div><b>v0.3</b> · 2026-08-27 · (이전 판) · <code>—</code> — clean 판</div></div><h2 id=common>1. 공통 규약</h2>
 <div class=callout><b>인증</b> — 전 API <code>Authorization: Bearer &lt;accessToken&gt;</code> 필요
 (예외: <code>POST /auth/login/{provider}</code>·<code>POST /auth/refresh</code>).
@@ -229,10 +229,20 @@ nonce=&lt;POST /wallet/nonce 로 발급받은 값&gt;</pre>
 ④ 잔액 부족·위임 해제로 실패 시 EXPIRED 전이 + 알림.<br>
 <span class=muted>⚠️ 오퍼레이터 승인/해제의 정확한 토큰증권 엔드포인트는 스펙 확인 필요(여부 조회만 목록에 있음: <code>GET …/roles/operator</code>).</span></div>
 <h3 class=tag>4.3 CommitAnchor 컨트랙트 <span class=d>자체 배포 · Hardhat</span></h3>
-<pre><code>function anchor(bytes32 merkleRoot, uint256 commitCount) external onlyAnchorRole; // 영업일 1회, 배치 B2가 호출
-function rootOf(uint256 batchId) external view returns (bytes32);
-event Anchored(uint256 indexed batchId, bytes32 merkleRoot, uint256 commitCount);</code></pre>
-<p class=small>매 영업일 당일 봉인 커밋들의 머클루트 1건 앵커, 실패분은 다음 회차 재시도. salt 리빌은 오프체인
+<pre><code>function anchor(uint256 batchId, bytes32 merkleRoot, uint256 commitCount) external; // ANCHOR_ROLE. 영업일 1회, 배치 B2가 호출
+function rootOf(uint256 batchId) external view returns (bytes32);   // 누구나. 미앵커면 0
+event Anchored(uint256 indexed batchId, bytes32 merkleRoot, uint256 commitCount);
+
+// custom error — 릴레이어는 이 이름으로 재시도 여부를 가른다
+error BatchAlreadyAnchored(uint256 batchId);  // 재시도 금지: 이미 성공한 배치다
+error InvalidBatchId();                       // batchId 0 (0은 "미앵커" 센티널)
+error EmptyRoot();                            // merkleRoot 0
+error EmptyCommitCount();                     // commitCount 0</code></pre>
+<p class=small><b>batchId는 서버가 넘긴다(= <code>anchor_batches.id</code>)</b> — 온체인 멱등키.
+릴레이어가 "tx는 나갔는데 응답을 못 받은" 상태에서 재시도해도 같은 루트가 두 번 박히지 않고,
+<code>GET /anchors/{id}</code>의 번호로 체인에서 직접 <code>rootOf</code> 조회가 된다.
+같은 batchId 재전송은 <code>BatchAlreadyAnchored</code>로 revert — 덮어쓰기는 관리자도 못 한다.
+매 영업일 당일 봉인 커밋들의 머클루트 1건 앵커, 실패분은 다음 회차 재시도. salt 리빌은 오프체인
 (만기 후 <code>GET /predictions/{id}/proof</code>) — 온체인 루트와 대조해 누구나 재검증.</p>
 <h3 class=tag>4.4 이벤트 인덱싱 <span class=d>상시 데몬</span></h3>
 <p class=small>Anchored·Transfer(위임 전송 포함)·발행 이벤트를 구독해 <code>chain_events</code>(append-only · UQ tx_hash+log_index)에 기록,
@@ -278,5 +288,5 @@ event Anchored(uint256 indexed batchId, bytes32 merkleRoot, uint256 commitCount)
 <tr><td>B6</td><td>AI 생성</td><td>일 배치 · 시즌 종료 트리거</td><td>브리핑·요약·포인트 생성 · 시즌 CLOSED 시 복기 리포트</td><td>생성물 UQ(대상+날짜)</td></tr></table>
 <p class=small>상시 데몬: <b>체인 이벤트 인덱서</b>.</p>
 
-<footer>엔테나 API 명세서 v0.7 · 2026-08-31</footer>
+<footer>엔테나 API 명세서 v0.10 · 2026-09-02</footer>
 </main></div></body></html>

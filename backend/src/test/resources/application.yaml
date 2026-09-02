@@ -39,6 +39,11 @@ app:
   cors:
     allowed-origins: http://localhost:5173
 
+  # 주소 미설정 상태가 곧 검증 대상이다 — 배포 전에도 컨텍스트가 떠야 한다.
+  chain:
+    commit-anchor:
+      address:
+
   # 테스트는 포털과 통신하지 않는다. 키가 비어 있을 때 수집이 스스로 멈추는 것도 검증 대상이다.
   market-data:
     service-key:
