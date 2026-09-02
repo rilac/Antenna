@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Check;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import ssafy.a507.backend.domain.account.entity.User;
@@ -35,6 +36,15 @@ import ssafy.a507.backend.domain.season.entity.SeasonTicker;
  */
 @Entity
 @Table(name = "predictions")
+// 대상·기간 규칙은 앱 검증이 놓쳐도 DB 가 막는다. 값 집합은 ERD v0.4(REAL 캘린더 일수 7/14/30/90) 기준.
+@Check(
+        name = "ck_predictions_target_matches_track",
+        constraints = "(track = 'REAL' and stock_code is not null and season_ticker_id is null)"
+                + " or (track = 'REPLAY' and season_ticker_id is not null and stock_code is null)")
+@Check(
+        name = "ck_predictions_horizon",
+        constraints = "(track = 'REAL' and horizon in (7, 14, 30, 90))"
+                + " or (track = 'REPLAY' and horizon > 0)")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Prediction {
