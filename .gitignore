@@ -28,6 +28,12 @@ $RECYCLE.BIN/
 # local tooling
 .erd-render/
 
+# 컨트랙트 빌드 산출물 (ANT-CHAIN-01)
+# deployments/ 는 배포 기록이라 추적한다 — 어느 주소에 뭘 올렸는지가 팀 정보다.
+contracts/node_modules/
+contracts/artifacts/
+contracts/cache/
+
 # 대외비 문서 (커밋 금지)
 docs/토큰증권_API_명세.md
 docs/금융망_API_명세.md
