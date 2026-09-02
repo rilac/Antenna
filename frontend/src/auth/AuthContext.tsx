@@ -31,7 +31,7 @@ function writeStub(role: Role | null) {
 function demoUser(role: Role): AuthUser {
   return {
     nickname: '안테나',
-    avatarUrl: '/assets/antena-profile.png',
+    avatarUrl: '/assets/character/white_ant/antena-profile.png',
     role,
     walletLinked: false,
   }

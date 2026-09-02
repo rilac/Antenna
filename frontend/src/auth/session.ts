@@ -18,7 +18,7 @@ export function toAuthUser(me: MeResponse): AuthUser {
     // 닉네임 미설정은 빈 문자열로 넘긴다 — 화면은 이 값이 비었는지로 온보딩을 판단한다.
     nickname: me.nickname ?? '',
     // 프로필 이미지는 아직 서버가 주지 않는다.
-    avatarUrl: '/assets/antena-profile.png',
+    avatarUrl: '/assets/character/white_ant/antena-profile.png',
     role: me.role,
     walletLinked: me.walletLinked,
   }
