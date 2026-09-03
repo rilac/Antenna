@@ -1,6 +1,8 @@
 package ssafy.a507.backend.domain.market.service;
 
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -57,6 +59,14 @@ public class StockService {
     /** 커서가 없을 때의 시작점. 모든 종목코드가 이 값보다 크다. */
     private static final String FIRST_PAGE_CURSOR = "";
 
+    /**
+     * "지금 우리 범위 안" 판정 창(달력 일). 수집 범위(KOSPI 시가총액 상위 300)를 날짜마다 다시
+     * 고르므로 한 번이라도 들었던 종목이 stocks 에 남는다 — 2020년에 잠깐 들었다 빠진 종목은
+     * 시세가 그때 끊겨 목록에 종가 없는 줄로 뜬다. 마지막 수집일 기준 이 창 안에 시세가 한 점도
+     * 없으면 목록·요약에서 뺀다. 하루 이틀 거래정지는 창 안이라 남는다.
+     */
+    private static final int ACTIVE_WINDOW_DAYS = 7;
+
     private final StockRepository stockRepository;
     private final DailyQuoteRepository dailyQuoteRepository;
     private final WatchlistItemRepository watchlistItemRepository;
@@ -76,15 +86,27 @@ public class StockService {
             String cursor,
             Integer size) {
         int pageSize = pageSize(size);
-        Set<String> watched = new HashSet<>(watchlistItemRepository.findWatchedCodes(userId));
-        if (watchedOnly && watched.isEmpty()) {
+        LocalDate baseDate = dailyQuoteRepository.findLatestTradeDate().orElse(null);
+        if (baseDate == null) {
+            // 시세가 한 건도 없다. 종가 없는 종목 목록은 화면이 그릴 것이 없다.
             return new StockListResponse(List.of(), null, null, false);
         }
+        Set<String> watched = new HashSet<>(watchlistItemRepository.findWatchedCodes(userId));
+        if (watchedOnly && watched.isEmpty()) {
+            return new StockListResponse(List.of(), baseDate, null, false);
+        }
 
+        LocalDate activeSince = baseDate.minusDays(ACTIVE_WINDOW_DAYS);
         Specification<Stock> spec = (root, query, cb) -> {
             List<Predicate> where = new ArrayList<>();
             where.add(cb.isTrue(root.get("listed")));
             where.add(cb.greaterThan(root.get("code"), cursor == null ? FIRST_PAGE_CURSOR : cursor));
+            // 창 안에 시세가 있는 종목만 — 범위 밖으로 밀린 옛 종목을 거른다.
+            Subquery<String> active = query.subquery(String.class);
+            Root<DailyQuote> quote = active.from(DailyQuote.class);
+            active.select(quote.get("stock").get("code"))
+                    .where(cb.greaterThanOrEqualTo(quote.get("tradeDate"), activeSince));
+            where.add(root.get("code").in(active));
             if (sector != null) {
                 where.add(cb.equal(root.get("sector"), sector));
             }
@@ -103,10 +125,9 @@ public class StockService {
         List<Stock> stocks = hasNext ? found.subList(0, pageSize) : found;
 
         if (stocks.isEmpty()) {
-            return new StockListResponse(List.of(), null, null, false);
+            return new StockListResponse(List.of(), baseDate, null, false);
         }
 
-        LocalDate baseDate = dailyQuoteRepository.findLatestTradeDate().orElse(null);
         LocalDate previousDate = previousTradeDate(baseDate);
         List<String> codes = stocks.stream().map(Stock::getCode).toList();
         Map<String, BigDecimal> closes = closesOn(baseDate, codes);
@@ -139,8 +160,11 @@ public class StockService {
      * 읽어 메모리에서 묶는다 — 표가 커지면 그때 집계 쿼리로 바꾼다.
      */
     public SectorSummaryResponse sectors() {
-        List<Stock> listed = stockRepository.findByListedTrue();
         LocalDate baseDate = dailyQuoteRepository.findLatestTradeDate().orElse(null);
+        if (baseDate == null) {
+            return new SectorSummaryResponse(List.of());
+        }
+        List<Stock> listed = activeStocks(baseDate);
         LocalDate previousDate = previousTradeDate(baseDate);
         List<String> codes = listed.stream().map(Stock::getCode).toList();
         Map<String, BigDecimal> closes = closesOn(baseDate, codes);
@@ -205,6 +229,19 @@ public class StockService {
                         .map(quote -> new StockPricePoint(quote.getTradeDate(), quote.getClose()))
                         .toList();
         return new StockPriceListResponse(items);
+    }
+
+    /** 상장 종목 중 창 안에 시세가 있는 것만 — 목록의 같은 판정을 요약에도 쓴다. */
+    private List<Stock> activeStocks(LocalDate baseDate) {
+        List<Stock> listed = stockRepository.findByListedTrue();
+        Set<String> active = dailyQuoteRepository
+                .findByStock_CodeInAndTradeDateGreaterThanEqualOrderByStock_CodeAscTradeDateAsc(
+                        listed.stream().map(Stock::getCode).toList(),
+                        baseDate.minusDays(ACTIVE_WINDOW_DAYS))
+                .stream()
+                .map(quote -> quote.getStock().getCode())
+                .collect(Collectors.toSet());
+        return listed.stream().filter(stock -> active.contains(stock.getCode())).toList();
     }
 
     private LocalDate previousTradeDate(LocalDate baseDate) {

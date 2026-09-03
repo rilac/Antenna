@@ -53,6 +53,8 @@ class StockControllerFilterTest {
         insertStock("035720", "카카오", "인터넷", "KOSDAQ", true);
         insertStock("900000", "거래정지", null, "KOSDAQ", true);
         insertStock("111111", "폐지종목", "반도체", "KOSPI", false);
+        // 2020년에 잠깐 상위 300 에 들었다 빠진 종목 — 시세가 두 달 전에서 끊겼다.
+        insertStock("800000", "옛종목", "반도체", "KOSPI", true);
 
         insertQuote("005930", PREVIOUS, "70000");
         insertQuote("005930", LATEST, "71500");
@@ -62,6 +64,7 @@ class StockControllerFilterTest {
         insertQuote("900000", PREVIOUS, "1200");
         insertQuote("111111", PREVIOUS, "100");
         insertQuote("111111", LATEST, "500");
+        insertQuote("800000", LATEST.minusDays(60), "3000");
 
         em.createNativeQuery(
                         """
@@ -177,6 +180,25 @@ class StockControllerFilterTest {
                 .andExpect(jsonPath("$.items[2].changeRate").value(3.13))
                 // 섹터 없는 종목은 전체 수에는 들어가지만 칩으로는 나오지 않는다
                 .andExpect(jsonPath("$.items.length()").value(3));
+    }
+
+    @Test
+    @DisplayName("최근 7일 안에 시세가 없는 종목은 목록·요약에서 빠진다 — 수집 범위 밖으로 밀린 옛 종목")
+    void 오래된_시세뿐인_종목은_빠진다() throws Exception {
+        mockMvc.perform(get(URL).with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(4))
+                .andExpect(jsonPath("$.items[?(@.code == '800000')]").isEmpty());
+
+        // 하루 거래정지(900000, 전날 시세만 있음)는 남는다 — 창 안이다.
+        mockMvc.perform(get(URL).with(user(me)))
+                .andExpect(jsonPath("$.items[?(@.code == '900000')]").isNotEmpty());
+
+        mockMvc.perform(get(URL + "/sectors").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].count").value(4))
+                .andExpect(jsonPath("$.items[1].sector").value("반도체"))
+                .andExpect(jsonPath("$.items[1].count").value(2));
     }
 
     @Test
