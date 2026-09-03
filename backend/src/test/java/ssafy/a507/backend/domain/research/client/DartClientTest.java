@@ -117,7 +117,7 @@ class DartClientTest {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
         // 스텁 서버가 붙인 요청 팩터리를 살려야 하므로 이미 만들어진 RestClient 를 넘긴다.
-        client = new DartClient(builder.build(), new DartProperties(API_KEY, "http://dart.test/api", 7, 0));
+        client = new DartClient(builder.build(), new DartProperties(API_KEY, "http://dart.test/api", 7));
     }
 
     @Test

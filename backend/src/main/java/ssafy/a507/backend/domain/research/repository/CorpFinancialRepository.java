@@ -10,6 +10,6 @@ public interface CorpFinancialRepository extends JpaRepository<CorpFinancial, Lo
     Optional<CorpFinancial> findByStockCodeAndFiscalYearAndQuarter(
             String stockCode, int fiscalYear, int quarter);
 
-    /** 재무 탭·밸류에이션이 읽는 경로. 최신 연도가 위로 온다. */
+    /** 최신 연도가 위로 온다. 지금은 적재 결과를 되읽어 검증하는 테스트가 쓴다. */
     List<CorpFinancial> findByStockCodeOrderByFiscalYearDescQuarterDesc(String stockCode);
 }

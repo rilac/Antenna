@@ -247,10 +247,12 @@ public class DartIngestService {
         return today.minusDays(properties.lookbackDays());
     }
 
-    /** 재무 기준 연도. 설정이 비면 "작년" — 올해 사업보고서는 아직 나오지 않았다. */
+    /**
+     * 재무 기준 연도는 "작년"이다 — 올해 사업보고서는 아직 나오지 않았다. 그 해가 비어 있으면
+     * 수집이 한 해 더 물러선다.
+     */
     public int financialYear(LocalDate today) {
-        int configured = properties.financialYear();
-        return configured > 0 ? configured : today.getYear() - 1;
+        return today.getYear() - 1;
     }
 
     // ── 내부 ─────────────────────────────────────────────────

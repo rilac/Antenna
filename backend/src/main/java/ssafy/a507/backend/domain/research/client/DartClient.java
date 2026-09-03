@@ -72,7 +72,7 @@ public class DartClient {
     private static final int MAX_PAGES = 20;
 
     /** {@code fnlttSinglAcnt} 의 사업보고서(연간) 코드. */
-    public static final String ANNUAL_REPORT = "11011";
+    private static final String ANNUAL_REPORT = "11011";
 
     /**
      * 응답을 읽기만 하는 용도라 앱의 직렬화 설정을 물려받을 이유가 없다. 우리 API 응답 규약이

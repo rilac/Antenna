@@ -1,15 +1,10 @@
 package ssafy.a507.backend.domain.research.repository;
 
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import ssafy.a507.backend.domain.research.entity.ResearchDocument;
 
 public interface ResearchDocumentRepository extends JpaRepository<ResearchDocument, Long> {
-
-    /** 재수집 멱등 판정. {@code (source, external_id)} 유니크와 같은 조합이다. */
-    Optional<ResearchDocument> findBySourceAndExternalId(
-            ResearchDocument.Source source, String externalId);
 
     /** 이번 회차에 받은 것 중 이미 있는 건을 한 번에 걸러낸다 — 건별 조회는 왕복이 너무 잦다. */
     List<ResearchDocument> findAllBySourceAndExternalIdIn(

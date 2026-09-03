@@ -12,11 +12,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param baseUrl OpenAPI 기본 주소
  * @param lookbackDays 공시 목록을 되돌아보며 훑을 구간(일) · 접수번호가 멱등 키라 겹쳐 받아도
  *     중복이 생기지 않는다. 연휴와 실패 회차를 함께 덮을 만큼 넉넉히 둔다
- * @param financialYear 재무 수집 기준 연도 · 0 이면 "작년"을 쓴다. 한 번 호출에 3개년이 오므로
- *     이 값 하나로 3년치가 채워진다
  */
 @ConfigurationProperties(prefix = "app.dart")
-public record DartProperties(String apiKey, String baseUrl, int lookbackDays, int financialYear) {
+public record DartProperties(String apiKey, String baseUrl, int lookbackDays) {
 
     private static final String DEFAULT_BASE_URL = "https://opendart.fss.or.kr/api";
     private static final int DEFAULT_LOOKBACK_DAYS = 7;
@@ -31,9 +29,6 @@ public record DartProperties(String apiKey, String baseUrl, int lookbackDays, in
         }
         if (lookbackDays <= 0) {
             lookbackDays = DEFAULT_LOOKBACK_DAYS;
-        }
-        if (financialYear < 0) {
-            financialYear = 0;
         }
     }
 

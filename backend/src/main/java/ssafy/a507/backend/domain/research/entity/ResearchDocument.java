@@ -99,11 +99,4 @@ public class ResearchDocument {
         document.collectedAt = Instant.now();
         return document;
     }
-
-    /** 배치 B6(ANT-RESEARCH-02)가 부른다. */
-    public void summarize(String summary, String promptVersion) {
-        this.summary = summary;
-        this.promptVersion = promptVersion;
-        this.summarizedAt = Instant.now();
-    }
 }
