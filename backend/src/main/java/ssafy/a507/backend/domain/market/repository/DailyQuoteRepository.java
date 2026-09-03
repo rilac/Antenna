@@ -34,4 +34,11 @@ public interface DailyQuoteRepository extends JpaRepository<DailyQuote, Long> {
     /** 시세 시계열 구간 조회. 미니차트·리서치 차트가 공유하는 재료다. */
     List<DailyQuote> findByStock_CodeAndTradeDateBetweenOrderByTradeDate(
             String stockCode, LocalDate from, LocalDate to);
+
+    /**
+     * 여러 종목의 최근 시세를 한 번에 읽는다 — 관심 종목 미니차트 재료. 종목마다 구간 조회를 돌리면
+     * N+1 이다. 종목·날짜 오름차순이라 호출 쪽이 종목별로 끊어 담기만 하면 된다.
+     */
+    List<DailyQuote> findByStock_CodeInAndTradeDateGreaterThanEqualOrderByStock_CodeAscTradeDateAsc(
+            Collection<String> stockCodes, LocalDate from);
 }
