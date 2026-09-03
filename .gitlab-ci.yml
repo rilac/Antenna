@@ -48,6 +48,9 @@ deploy-backend:
     # 이 파일을 또 고치지 않도록 미리 전달만 해 둔다.
     # KOREAEXIM_AUTH_KEY 는 환율 수집(ANT-DATA-04)이다. CI/CD 변수가 없으면 빈 값이 넘어가
     # 환율만 건너뛰고 지수·일봉은 그대로 돈다 — 기동은 깨지지 않는다.
+    # DART_API_KEY(ANT-RESEARCH-01) · NAVER_API_KEY_ID/NAVER_API_KEY · AI_API_KEY/AI_MODEL
+    # (ANT-RESEARCH-02)도 같다 — 이 목록에 없는 CI/CD 변수는 .env 에 안 적히므로 컨테이너가
+    # 영영 못 본다. 변수만 등록하고 여기 줄을 안 넣으면 "키를 넣었는데 수집이 안 돈다" 가 된다.
     - |
       umask 077
       cat > .env <<EOF
@@ -69,6 +72,11 @@ deploy-backend:
       CORS_ALLOWED_ORIGINS=https://stock-antenna.com
       PUBLIC_DATA_SERVICE_KEY=$PUBLIC_DATA_SERVICE_KEY
       KOREAEXIM_AUTH_KEY=$KOREAEXIM_AUTH_KEY
+      DART_API_KEY=$DART_API_KEY
+      NAVER_API_KEY_ID=$NAVER_API_KEY_ID
+      NAVER_API_KEY=$NAVER_API_KEY
+      AI_API_KEY=$AI_API_KEY
+      AI_MODEL=$AI_MODEL
       SSAFY_FIN_BASE_URL=$SSAFY_FIN_BASE_URL
       SSAFY_FIN_API_KEY=$SSAFY_FIN_API_KEY
       BACKFILL_CRON=${BACKFILL_CRON:--}
