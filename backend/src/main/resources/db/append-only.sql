@@ -57,3 +57,11 @@ $$;
 
 CREATE OR REPLACE TRIGGER trg_predictions_guard
     BEFORE UPDATE ON predictions FOR EACH ROW EXECUTE FUNCTION antenna_predictions_guard();
+
+-- ── ddl-auto: update 가 못 고치는 옛 스키마 바로잡기 ─────────────────────────────
+-- update 는 컬럼을 더하기만 하고 NOT NULL 을 풀지 않는다. 엔티티가 바뀌기 전에 만들어진 배포 DB 는
+-- 옛 제약이 그대로 남는다. 아래는 전부 멱등이라 매 부팅마다 돌아도 같다.
+
+-- users.nickname: 08-31 에 NULL 허용(온보딩 전엔 닉네임이 없다)으로 바뀌었는데 그 전에 만들어진
+-- 배포 DB 에 NOT NULL 이 남아 신규 가입 INSERT 가 500 이었다(2026-09-03 장애).
+ALTER TABLE users ALTER COLUMN nickname DROP NOT NULL;
