@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import jakarta.persistence.EntityManager;
@@ -15,9 +16,11 @@ import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 import ssafy.a507.backend.domain.research.client.CorpCodeRow;
@@ -211,6 +214,49 @@ class DartIngestServiceTest {
         assertThat(ingestService.financialYear(LocalDate.of(2026, 9, 2))).isEqualTo(2025);
     }
 
+    @Test
+    @DisplayName("고유번호가 바뀌어도 이미 받아 둔 기업개황은 남는다")
+    void 시드_재바인딩은_개황을_지우지_않는다() {
+        CorpProfile profile = corpProfileRepository.save(
+                CorpProfile.of(SAMSUNG, "00000001", "삼성전자"));
+        profile.update("삼성전자", "SEC", "대표", "264", "수원", null, null, "19690113", "12");
+        corpProfileRepository.save(profile);
+        em.flush();
+        em.clear();
+
+        // 합병·재상장으로 고유번호가 바뀐 상황이다.
+        given(dartClient.fetchListedCorpCodes())
+                .willReturn(List.of(new CorpCodeRow(SAMSUNG_CORP, "삼성전자", SAMSUNG)));
+
+        int changed = ingestService.seedCorpCodes();
+        em.flush();
+        em.clear();
+
+        CorpProfile after = corpProfileRepository.findById(SAMSUNG).orElseThrow();
+        assertThat(changed).isEqualTo(1);
+        assertThat(after.getCorpCode()).isEqualTo(SAMSUNG_CORP);
+        assertThat(after.getCeoName()).as("개황이 null 로 덮이면 안 된다").isEqualTo("대표");
+        assertThat(after.getAddress()).isEqualTo("수원");
+    }
+
+    @Test
+    @DisplayName("기준 연도가 비면 한 해 뒤로 물러선다 — 1분기 회차엔 작년 사업보고서가 아직 없다")
+    void 빈_연도는_한_해_뒤로_물러선다() {
+        seedSamsung();
+        given(dartClient.fetchAnnualFinancials(SAMSUNG_CORP, 2026)).willReturn(List.of());
+        given(dartClient.fetchAnnualFinancials(SAMSUNG_CORP, 2025))
+                .willReturn(List.of(
+                        snapshot(2025, "300870903000000"), snapshot(2024, "258935494000000")));
+
+        int saved = ingestService.ingestAnnualFinancials(2026);
+        em.flush();
+
+        assertThat(saved).isEqualTo(2);
+        assertThat(corpFinancialRepository.findByStockCodeOrderByFiscalYearDescQuarterDesc(SAMSUNG))
+                .extracting(CorpFinancial::getFiscalYear)
+                .containsExactly(2025, 2024);
+    }
+
     // ── 픽스처 ──────────────────────────────────────────────
 
     private void seedSamsung() {
@@ -253,5 +299,38 @@ class DartIngestServiceTest {
                 .setParameter(1, code)
                 .setParameter(2, name)
                 .executeUpdate();
+    }
+
+    /**
+     * 저장이 깨지는 경우. 수집 범위가 좁아져 {@code stocks} 에서 빠진 종목의 프로필이 남아
+     * 있으면 공시 저장이 FK 위반으로 터지는데, 그 예외는 {@code DartException} 이 아니라
+     * 회차 전체를 끌고 내려간다. 리포지토리를 목으로 두는 이유는 실제 FK 위반이 테스트
+     * 트랜잭션의 커밋 시점에야 터져 서비스 안에서 잡히지 않기 때문이다.
+     */
+    @Nested
+    @DisplayName("저장 실패")
+    class 저장_실패 {
+
+        @MockitoBean ResearchDocumentRepository failingRepository;
+
+        @Test
+        @DisplayName("한 종목의 저장이 깨져도 남은 종목을 계속 훑는다")
+        void 저장_실패는_회차를_죽이지_않는다() {
+            seedSamsung();
+            seedKakao();
+            given(failingRepository.findAllBySourceAndExternalIdIn(any(), any()))
+                    .willReturn(List.of());
+            willThrow(new DataIntegrityViolationException("stocks 에 없는 종목"))
+                    .given(failingRepository)
+                    .saveAll(any());
+            given(dartClient.fetchDisclosures(anyString(), any(), any()))
+                    .willReturn(List.of(disclosure("20260831000066", "사업보고서")));
+
+            LocalDate today = LocalDate.of(2026, 9, 2);
+            int created = ingestService.ingestDisclosures(today.minusDays(7), today);
+
+            assertThat(created).isZero();
+            verify(dartClient, times(2)).fetchDisclosures(anyString(), any(), any());
+        }
     }
 }

@@ -13,6 +13,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import ssafy.a507.backend.domain.market.entity.Stock;
 import ssafy.a507.backend.domain.market.repository.StockRepository;
@@ -96,8 +97,10 @@ public class DartIngestService {
             if (profile == null) {
                 changed.add(CorpProfile.of(row.stockCode(), row.corpCode(), row.corpName()));
             } else if (!row.corpCode().equals(profile.getCorpCode())) {
-                // 합병·재상장으로 고유번호가 바뀌는 일이 있다. 바뀐 것만 다시 쓴다.
-                changed.add(CorpProfile.of(row.stockCode(), row.corpCode(), row.corpName()));
+                // 합병·재상장으로 고유번호가 바뀌는 일이 있다. 바뀐 것만 다시 쓰되, 새 인스턴스로
+                // 덮지 않는다 — 그러면 이미 받아 둔 기업개황이 통째로 null 이 된다.
+                profile.rebind(row.corpCode(), row.corpName());
+                changed.add(profile);
             }
         }
 
@@ -159,6 +162,12 @@ public class DartIngestService {
             try {
                 List<DartFinancialSnapshot> snapshots =
                         dartClient.fetchAnnualFinancials(profile.getCorpCode(), year);
+                if (snapshots.isEmpty()) {
+                    // 사업보고서는 결산 후 3개월 안에 나온다 — 12월 결산법인이면 3월 말이다.
+                    // 1분기 회차에는 작년치가 아직 세상에 없어 전 종목이 빈손으로 끝난다.
+                    // 한 해 뒤로 물러서면 그 응답에도 3개년이 담겨 필요한 연도가 함께 온다.
+                    snapshots = dartClient.fetchAnnualFinancials(profile.getCorpCode(), year - 1);
+                }
                 for (DartFinancialSnapshot snapshot : snapshots) {
                     upsertFinancial(profile.getStockCode(), snapshot);
                     saved++;
@@ -195,6 +204,10 @@ public class DartIngestService {
                     break;
                 }
                 log.warn("[DART] 공시 목록 실패 {} — {}", profile.getStockCode(), e.getMessage());
+            } catch (DataAccessException e) {
+                // 저장 실패는 그 종목만의 문제다 — 수집 범위가 좁아져 stocks 에서 빠진 종목의
+                // 프로필이 남아 있으면 FK 위반이 나는데, 그대로 두면 남은 종목이 통째로 밀린다.
+                log.warn("[DART] 공시 저장 실패 {} — {}", profile.getStockCode(), e.getMessage());
             }
         }
         log.info("[DART] 공시 목록 {}~{} — 신규 {}건", from, to, created);

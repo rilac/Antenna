@@ -89,6 +89,19 @@ public class CorpProfile {
     }
 
     /**
+     * 고유번호만 갈아끼운다. 합병·재상장으로 {@code corp_code} 가 바뀌는 일이 있는데, 그때
+     * {@link #of} 로 새 인스턴스를 만들어 저장하면 <b>기업개황 컬럼이 전부 null 로 덮인다</b> —
+     * 그 종목의 {@code company.json} 이 실패하거나 한도에 걸리면 빈 프로필이 한 달간 남는다.
+     */
+    public void rebind(String corpCode, String corpName) {
+        this.corpCode = corpCode;
+        if (corpName != null && !corpName.isBlank()) {
+            this.corpName = corpName;
+        }
+        this.updatedAt = Instant.now();
+    }
+
+    /**
      * 기업개황으로 채운다. 고유번호 파일만으로 만들어 둔 행을 나중에 완성하는 경로이기도 해서,
      * 이름은 들어온 값이 있을 때만 덮는다 — {@code company.json} 이 실패해도 매핑은 남는다.
      */
