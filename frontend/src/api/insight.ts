@@ -96,7 +96,9 @@ export function getTopPredictors(limit = 5) {
 
 export type ActiveAd = { id: number; imageUrl: string; linkUrl: string }
 
+/* 광고는 등록된 배너가 아직 없어 화면이 비어 보인다 — 시연 동안 목업을 둔다(2026-09-03 결정). */
 export function getActiveAds() {
+  if (MOCK) return mock.activeAds()
   return api.get<{ items: ActiveAd[] }>('/ads/active')
 }
 
