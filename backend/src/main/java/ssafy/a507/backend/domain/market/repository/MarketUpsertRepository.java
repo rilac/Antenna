@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ssafy.a507.backend.domain.market.dto.DailyQuoteUpsert;
+import ssafy.a507.backend.domain.market.dto.IndexQuoteUpsert;
 import ssafy.a507.backend.domain.market.dto.StockUpsert;
 
 /**
@@ -61,6 +62,15 @@ public class MarketUpsertRepository {
                 close = EXCLUDED.close,
                 volume = EXCLUDED.volume,
                 collected_at = EXCLUDED.collected_at
+            """;
+
+    /** 지수·환율은 종가 하나뿐이다. 같은 (지수, 영업일)이 다시 오면 값만 덮는다. */
+    private static final String UPSERT_INDEX_QUOTE =
+            """
+            INSERT INTO index_quotes (index_code, trade_date, close)
+            VALUES (?, ?, ?)
+            ON CONFLICT (index_code, trade_date) DO UPDATE SET
+                close = EXCLUDED.close
             """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -126,6 +136,37 @@ public class MarketUpsertRepository {
                         ps.setObject(6, row.close(), Types.NUMERIC);
                         ps.setObject(7, row.volume(), Types.BIGINT);
                         ps.setObject(8, collectedAtUtc, Types.TIMESTAMP_WITH_TIMEZONE);
+                    }
+
+                    @Override
+                    public int getBatchSize() {
+                        return rows.size();
+                    }
+                });
+        return rows.size();
+    }
+
+    /**
+     * 지수·환율 종가를 적재한다(ANT-DATA-04). 일봉과 같은 이유로 JDBC upsert 다 —
+     * 대리키 PK + UQ(index_code, trade_date) 라 {@code save()} 로는 멱등해지지 않는다.
+     *
+     * @return DB 로 보낸 행 수
+     */
+    @Transactional
+    public int upsertIndexQuotes(List<IndexQuoteUpsert> rows) {
+        if (rows.isEmpty()) {
+            return 0;
+        }
+
+        jdbcTemplate.batchUpdate(
+                UPSERT_INDEX_QUOTE,
+                new BatchPreparedStatementSetter() {
+                    @Override
+                    public void setValues(PreparedStatement ps, int i) throws SQLException {
+                        IndexQuoteUpsert row = rows.get(i);
+                        ps.setString(1, row.indexCode().name());
+                        ps.setObject(2, row.tradeDate(), Types.DATE);
+                        ps.setObject(3, row.close(), Types.NUMERIC);
                     }
 
                     @Override

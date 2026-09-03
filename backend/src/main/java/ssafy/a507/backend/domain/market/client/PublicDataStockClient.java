@@ -1,8 +1,10 @@
 package ssafy.a507.backend.domain.market.client;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import static ssafy.a507.backend.domain.market.client.PublicDataJson.decimal;
+import static ssafy.a507.backend.domain.market.client.PublicDataJson.items;
+import static ssafy.a507.backend.domain.market.client.PublicDataJson.text;
+
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -42,21 +44,12 @@ public class PublicDataStockClient {
 
     private static final String PATH = "/getStockPriceInfo";
     private static final DateTimeFormatter BAS_DT = DateTimeFormatter.ofPattern("yyyyMMdd");
-    private static final String RESULT_OK = "00";
 
     /** 종목 수는 3천 안팎이다. 페이지 크기를 잘못 잡아도 무한히 돌지 않게 상한을 둔다. */
     private static final int MAX_PAGES = 50;
 
     /** stocks.name 컬럼 폭. 넘치면 배치 전체가 깨지므로 잘라서라도 넣는다(표시 전용 값). */
     private static final int MAX_NAME_LENGTH = 60;
-
-    private static final int ERROR_BODY_PREVIEW = 200;
-
-    /**
-     * 응답을 읽기만 하는 용도라 앱의 직렬화 설정을 물려받을 이유가 없다. 우리 API 응답 규약이
-     * 바뀐다고 포털 응답 해석이 함께 흔들리면 안 된다.
-     */
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final RestClient restClient;
     private final PublicDataProperties properties;
@@ -182,43 +175,7 @@ public class PublicDataStockClient {
                     "포털 호출이 실패했다 — basDt=%s pageNo=%d".formatted(baseDate, pageNo), e);
         }
         String body = raw == null ? null : new String(raw, StandardCharsets.UTF_8);
-        return readBody(body, baseDate, pageNo);
-    }
-
-    private JsonNode readBody(String raw, LocalDate baseDate, int pageNo) {
-        if (raw == null || raw.isBlank()) {
-            throw new PublicDataException(
-                    "포털이 빈 응답을 보냈다 — basDt=%s pageNo=%d".formatted(baseDate, pageNo));
-        }
-
-        JsonNode root;
-        try {
-            root = objectMapper.readTree(raw);
-        } catch (JsonProcessingException e) {
-            // 인증키가 틀리면 200 에 XML 오류 문서가 온다. 본문 앞부분을 같이 남기지 않으면
-            // "JSON 파싱 실패" 로만 보여 원인을 못 찾는다. Decoding 키인지부터 의심할 것.
-            throw new PublicDataException("포털이 JSON 이 아닌 응답을 보냈다(인증키 확인) — " + preview(raw), e);
-        }
-
-        JsonNode header = root.path("response").path("header");
-        String resultCode = header.path("resultCode").asText("");
-        if (!RESULT_OK.equals(resultCode)) {
-            throw new PublicDataException(
-                    "포털이 오류를 돌려줬다 — basDt=%s resultCode=%s resultMsg=%s"
-                            .formatted(baseDate, resultCode, header.path("resultMsg").asText("")));
-        }
-        return root.path("response").path("body");
-    }
-
-    /** 데이터가 없는 날의 items 는 빈 문자열이거나 아예 없고, 한 건뿐이면 배열이 아닌 객체다. */
-    private List<JsonNode> items(JsonNode body) {
-        JsonNode item = body.path("items").path("item");
-        if (item.isArray()) {
-            List<JsonNode> nodes = new ArrayList<>(item.size());
-            item.forEach(nodes::add);
-            return nodes;
-        }
-        return item.isObject() ? List.of(item) : List.of();
+        return PublicDataJson.body(body, "basDt=%s pageNo=%d".formatted(baseDate, pageNo));
     }
 
     /** 쓸 수 없는 행은 null 로 돌려 그 줄만 버린다 — 한 종목 때문에 하루를 통째로 잃지 않는다. */
@@ -284,38 +241,5 @@ public class PublicDataStockClient {
     private Long volume(JsonNode item) {
         BigDecimal value = decimal(item, "trqu");
         return value == null ? null : value.longValue();
-    }
-
-    private BigDecimal decimal(JsonNode item, String field) {
-        String value = text(item, field);
-        if (value == null) {
-            return null;
-        }
-        // 값이 없는 칸을 하이픈으로 채워 보내는 경우가 있고, 천 단위 쉼표도 섞여 온다.
-        String normalized = value.replace(",", "");
-        if (normalized.isEmpty() || "-".equals(normalized)) {
-            return null;
-        }
-        try {
-            return new BigDecimal(normalized);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private String text(JsonNode item, String field) {
-        JsonNode node = item.path(field);
-        if (node.isMissingNode() || node.isNull()) {
-            return null;
-        }
-        String value = node.asText().trim();
-        return value.isEmpty() ? null : value;
-    }
-
-    private String preview(String raw) {
-        String flat = raw.replaceAll("\\s+", " ").trim();
-        return flat.length() <= ERROR_BODY_PREVIEW
-                ? flat
-                : flat.substring(0, ERROR_BODY_PREVIEW) + "...";
     }
 }

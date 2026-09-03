@@ -15,13 +15,17 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Limit;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import ssafy.a507.backend.domain.market.dto.DailyQuoteUpsert;
+import ssafy.a507.backend.domain.market.dto.IndexQuoteUpsert;
 import ssafy.a507.backend.domain.market.dto.StockUpsert;
 import ssafy.a507.backend.domain.market.entity.DailyQuote;
+import ssafy.a507.backend.domain.market.entity.IndexQuote;
+import ssafy.a507.backend.domain.market.entity.IndexQuote.IndexCode;
 import ssafy.a507.backend.domain.market.entity.Stock;
 
 /**
@@ -50,10 +54,38 @@ class MarketUpsertRepositoryTest {
     @Autowired MarketUpsertRepository marketUpsertRepository;
     @Autowired DailyQuoteRepository dailyQuoteRepository;
     @Autowired StockRepository stockRepository;
+    @Autowired IndexQuoteRepository indexQuoteRepository;
     @Autowired JdbcTemplate jdbcTemplate;
 
     /** JDBC 로 쓴 값을 JPA 로 읽으려면 영속성 컨텍스트를 비워야 한다 — 안 그러면 캐시된 옛 행이 온다. */
     @PersistenceContext EntityManager entityManager;
+
+    // ── 지수·환율 (ANT-DATA-04) ─────────────────────────────
+
+    @Test
+    @DisplayName("지수·환율은 (지수, 영업일) 로 멱등하다 — 다시 받으면 종가만 바뀌고 환율 소수 넷째 자리가 남는다")
+    void 지수_재수집이_멱등하다() {
+        marketUpsertRepository.upsertIndexQuotes(List.of(
+                new IndexQuoteUpsert(IndexCode.KOSPI, TRADE_DATE, new BigDecimal("6835.8")),
+                new IndexQuoteUpsert(IndexCode.USDKRW, TRADE_DATE, new BigDecimal("1385.1425"))));
+        // 다음 회차가 같은 날을 다시 받았다 — 코스피 종가가 정정됐다.
+        marketUpsertRepository.upsertIndexQuotes(List.of(
+                new IndexQuoteUpsert(IndexCode.KOSPI, TRADE_DATE, new BigDecimal("6850.1"))));
+        entityManager.clear();
+
+        assertThat(indexQuoteRepository.count()).isEqualTo(2);
+
+        IndexQuote kospi = indexQuoteRepository
+                .findByIndexCodeOrderByTradeDateDesc(IndexCode.KOSPI, Limit.of(1)).get(0);
+        assertThat(kospi.getClose()).isEqualByComparingTo("6850.1");
+
+        IndexQuote usd = indexQuoteRepository
+                .findByIndexCodeOrderByTradeDateDesc(IndexCode.USDKRW, Limit.of(1)).get(0);
+        assertThat(usd.getClose()).isEqualByComparingTo("1385.1425");
+        assertThat(usd.getClose().scale()).as("환율은 numeric(14,4) 그대로다").isEqualTo(4);
+    }
+
+    // ── 종목·일봉 (ANT-DATA-01) ─────────────────────────────
 
     @Test
     @DisplayName("같은 날짜를 다시 수집해도 행이 늘지 않고 값만 최신으로 바뀐다")
