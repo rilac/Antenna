@@ -6,13 +6,16 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
+import java.net.http.HttpClient;
 import java.util.zip.ZipInputStream;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -54,6 +57,14 @@ public class DartClient {
 
     private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyyMMdd");
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+    /** 연결까지 기다리는 시간. 스케줄러 스레드가 하나뿐이라 무한정 기다리면 다른 배치가 함께 멈춘다. */
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
+
+    /** 응답을 다 받기까지 기다리는 시간. 고유번호 파일이 3MB 라 넉넉히 준다. */
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(60);
+
     /** 공시 목록 페이지 크기. DART 상한이 100 이다. */
     private static final int PAGE_SIZE = 100;
 
@@ -73,6 +84,12 @@ public class DartClient {
     private final DartProperties properties;
 
     /**
+     * 일일 한도를 소진한 날. 한도는 키 단위라 갈래를 나눠도 함께 소진된다 — 갈래마다 break 로
+     * 접어 봐야 같은 날 뒤따르는 회차가 다시 300 번을 헛되이 부른다. 하루 동안 문을 닫는다.
+     */
+    private volatile LocalDate quotaExhaustedOn;
+
+    /**
      * <b>요청 팩터리를 JDK HttpClient 로 바꾼다.</b> 기본값인 Reactor Netty 로는 DART 에
      * 접속조차 못 한다 — {@code handshake_failure} 로 끊긴다.
      *
@@ -90,7 +107,19 @@ public class DartClient {
      */
     @Autowired
     public DartClient(RestClient.Builder restClientBuilder, DartProperties properties) {
-        this(restClientBuilder.requestFactory(new JdkClientHttpRequestFactory()).build(), properties);
+        this(restClientBuilder.requestFactory(timeoutAwareFactory()).build(), properties);
+    }
+
+    /**
+     * <b>타임아웃을 반드시 건다.</b> JDK HttpClient 는 기본값이 "무한"이라, 반쯤 열린 소켓 하나가
+     * 스케줄러 스레드를 영영 붙잡는다. 스레드 풀이 1개(Boot 기본)라 그 순간 일봉 수집을 포함한
+     * 모든 배치가 재시작 전까지 멈춘다 — 예외도 로그도 남지 않아 가장 늦게 발견된다.
+     */
+    private static JdkClientHttpRequestFactory timeoutAwareFactory() {
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build());
+        factory.setReadTimeout(READ_TIMEOUT);
+        return factory;
     }
 
     /**
@@ -110,6 +139,11 @@ public class DartClient {
      */
     public List<CorpCodeRow> fetchListedCorpCodes() {
         byte[] archive = get("/corpCode.xml", builder -> {}, byte[].class);
+        if (archive == null || archive.length == 0) {
+            // 빈 200 이 온다. 아래 zip 생성에서 NPE 가 나면 그 예외는 DartException 이 아니라
+            // 월간 회차(시드 + 기업개황)를 통째로 끌고 내려간다.
+            throw new DartException("고유번호 파일이 비어 있다");
+        }
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(archive))) {
             ZipEntry entry = zip.getNextEntry();
             if (entry == null) {
@@ -235,6 +269,12 @@ public class DartClient {
      */
     private JsonNode getJson(String path, java.util.function.Consumer<UriComponentsBuilder> query) {
         String raw = get(path, query, String.class);
+        if (raw == null || raw.isBlank()) {
+            // 점검 페이지·게이트웨이 오작동으로 본문 없는 200 이 온다. readTree(null) 은
+            // IllegalArgumentException 이라 아래 IOException 으로도, 호출부의 DartException
+            // 으로도 잡히지 않아 남은 종목 전부를 건너뛰게 만든다.
+            throw new DartException("DART 가 빈 응답을 보냈다: " + path);
+        }
         JsonNode body;
         try {
             body = objectMapper.readTree(raw);
@@ -250,6 +290,7 @@ public class DartClient {
             return null;
         }
         if (RATE_LIMITED.equals(status)) {
+            quotaExhaustedOn = LocalDate.now(KST);
             throw DartException.rateLimited();
         }
         throw new DartException("DART 오류 status=" + status + " message=" + text(body, "message"));
@@ -260,12 +301,16 @@ public class DartClient {
         if (!properties.isConfigured()) {
             throw new DartException("DART_API_KEY 가 비어 있다");
         }
+        if (LocalDate.now(KST).equals(quotaExhaustedOn)) {
+            // 오늘은 이미 한도를 넘겼다. 갈래가 달라도 키가 같아 결과는 같다.
+            throw DartException.rateLimited();
+        }
         UriComponentsBuilder builder =
                 UriComponentsBuilder.fromUriString(properties.baseUrl() + path)
                         .queryParam("crtfc_key", properties.apiKey());
         query.accept(builder);
         try {
-            return restClient.get().uri(builder.build(true).toUri()).retrieve().body(type);
+            return restClient.get().uri(builder.build().encode().toUri()).retrieve().body(type);
         } catch (RestClientException e) {
             throw new DartException("DART 호출 실패: " + path, e);
         }
@@ -422,12 +467,24 @@ public class DartClient {
                     fsDiv,
                     currency,
                     receiptNo,
-                    values.get("매출액"),
-                    values.get("영업이익"),
-                    values.get("당기순이익(손실)"),
-                    values.get("자산총계"),
-                    values.get("부채총계"),
-                    values.get("자본총계"));
+                    first("매출액"),
+                    // 금융지주는 "영업이익" 대신 "영업이익(손실)" 로 낸다(KB금융 실측).
+                    first("영업이익", "영업이익(손실)"),
+                    first("당기순이익(손실)", "당기순이익"),
+                    first("자산총계"),
+                    first("부채총계"),
+                    first("자본총계"));
+        }
+
+        /** 계정명은 제출인이 쓴 라벨이 그대로 온다. 같은 뜻의 표기를 순서대로 찾는다. */
+        private BigInteger first(String... accounts) {
+            for (String account : accounts) {
+                BigInteger value = values.get(account);
+                if (value != null) {
+                    return value;
+                }
+            }
+            return null;
         }
     }
 }

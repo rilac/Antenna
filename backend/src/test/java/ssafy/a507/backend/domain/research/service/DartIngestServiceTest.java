@@ -257,6 +257,50 @@ class DartIngestServiceTest {
                 .containsExactly(2025, 2024);
     }
 
+    @Test
+    @DisplayName("재적재가 이미 받아 둔 값을 지우지 않는다 — 빈 계정으로 덮지 않는다")
+    void 재적재는_기존_값을_지우지_않는다() {
+        seedSamsung();
+        // 1회차: 자산총계까지 온전히 받는다.
+        given(dartClient.fetchAnnualFinancials(anyString(), anyInt()))
+                .willReturn(List.of(full(2023, "232723000000000", "455905980000000")));
+        ingestService.ingestAnnualFinancials(2023);
+        em.flush();
+
+        // 2회차: 같은 연도가 전전기 자리로 오면서 재무상태표 계정이 "-" 로 빈다.
+        given(dartClient.fetchAnnualFinancials(anyString(), anyInt()))
+                .willReturn(List.of(full(2023, "232723000000000", null)));
+        ingestService.ingestAnnualFinancials(2025);
+        em.flush();
+        em.clear();
+
+        CorpFinancial row = corpFinancialRepository
+                .findByStockCodeAndFiscalYearAndQuarter(SAMSUNG, 2023, CorpFinancial.ANNUAL_QUARTER)
+                .orElseThrow();
+        assertThat(row.getTotalAssets())
+                .as("빈 값이 덮으면 3개년 부채비율·ROE 가 두 해만 남는다")
+                .isEqualTo(new BigInteger("455905980000000"));
+    }
+
+    @Test
+    @DisplayName("기업개황 값이 컬럼보다 길어도 저장이 깨지지 않는다")
+    void 개황은_컬럼_폭에_맞춰_잘린다() {
+        seedSamsung();
+        String longAddress = "서울특별시 강남구 테헤란로".repeat(30);
+        given(dartClient.fetchCompany(SAMSUNG_CORP))
+                .willReturn(new DartCompany(SAMSUNG_CORP, "삼성전자(주)", null, "005930",
+                        "대표".repeat(80), "264", longAddress, null, null, "19690113", "12"));
+
+        int updated = ingestService.ingestProfiles();
+        em.flush();
+        em.clear();
+
+        CorpProfile profile = corpProfileRepository.findById(SAMSUNG).orElseThrow();
+        assertThat(updated).isEqualTo(1);
+        assertThat(profile.getAddress()).hasSize(200);
+        assertThat(profile.getCeoName()).hasSize(100);
+    }
+
     // ── 픽스처 ──────────────────────────────────────────────
 
     private void seedSamsung() {
@@ -283,6 +327,20 @@ class DartIngestServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null);
+    }
+
+    private static DartFinancialSnapshot full(int year, String revenue, String assets) {
+        return new DartFinancialSnapshot(
+                year,
+                "CFS",
+                "KRW",
+                "20260310002820",
+                new BigInteger(revenue),
+                null,
+                null,
+                assets == null ? null : new BigInteger(assets),
                 null,
                 null);
     }

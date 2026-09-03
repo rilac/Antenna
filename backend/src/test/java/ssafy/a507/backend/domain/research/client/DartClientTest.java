@@ -68,6 +68,25 @@ class DartClientTest {
             ]}
             """;
 
+    /** KB금융 실측 형태. 매출액이 없고 영업이익 라벨이 다르다. */
+    private static final String FINANCIALS_BANK =
+            """
+            {"status":"000","message":"정상","list":[
+             {"rcept_no":"20260311000001","bsns_year":"2025","fs_div":"CFS","fs_nm":"연결재무제표",
+              "sj_div":"IS","account_nm":"영업이익(손실)","currency":"KRW",
+              "thstrm_amount":"5,000,000,000,000","frmtrm_amount":"4,500,000,000,000",
+              "bfefrmtrm_amount":"4,000,000,000,000"},
+             {"rcept_no":"20260311000001","bsns_year":"2025","fs_div":"CFS","fs_nm":"연결재무제표",
+              "sj_div":"IS","account_nm":"당기순이익(손실)","currency":"KRW",
+              "thstrm_amount":"4,000,000,000,000","frmtrm_amount":"3,500,000,000,000",
+              "bfefrmtrm_amount":"3,000,000,000,000"},
+             {"rcept_no":"20260311000001","bsns_year":"2025","fs_div":"CFS","fs_nm":"연결재무제표",
+              "sj_div":"BS","account_nm":"자산총계","currency":"KRW",
+              "thstrm_amount":"700,000,000,000,000","frmtrm_amount":"650,000,000,000,000",
+              "bfefrmtrm_amount":"600,000,000,000,000"}
+            ]}
+            """;
+
     private static final String DISCLOSURES_PAGE_1 =
             """
             {"status":"000","message":"정상","page_no":1,"total_page":2,"total_count":3,"list":[
@@ -254,5 +273,57 @@ class DartClientTest {
             throw new UncheckedIOException(e);
         }
         return out.toByteArray();
+    }
+
+    @Test
+    @DisplayName("한도를 넘긴 날은 다음 호출이 서버에 나가지도 않는다")
+    void 한도_초과는_하루_동안_문을_닫는다() {
+        server.expect(requestTo(containsString("company.json")))
+                .andRespond(withSuccess(RATE_LIMIT, JSON));
+
+        assertThatThrownBy(() -> client.fetchCompany("00126380")).isInstanceOf(DartException.class);
+        // 두 번째는 스텁을 하나만 걸어 뒀으므로, 서버로 나갔다면 "요청이 더 왔다"로 깨진다.
+        assertThatThrownBy(() -> client.fetchDisclosures("00258801", LocalDate.now(), LocalDate.now()))
+                .isInstanceOfSatisfying(DartException.class, e -> assertThat(e.isRateLimited()).isTrue());
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("본문 없는 200 도 실패다 — 파싱 예외로 회차가 죽으면 안 된다")
+    void 빈_응답() {
+        server.expect(requestTo(containsString("company.json")))
+                .andRespond(withSuccess("", JSON));
+
+        assertThatThrownBy(() -> client.fetchCompany("00126380"))
+                .isInstanceOf(DartException.class)
+                .hasMessageContaining("빈 응답");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("고유번호 파일이 비어 와도 실패다 — NPE 가 아니라")
+    void 빈_고유번호_파일() {
+        server.expect(requestTo(containsString("corpCode.xml")))
+                .andRespond(withSuccess(new byte[0], MediaType.APPLICATION_OCTET_STREAM));
+
+        assertThatThrownBy(() -> client.fetchListedCorpCodes())
+                .isInstanceOf(DartException.class)
+                .hasMessageContaining("비어 있다");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("금융지주는 영업이익을 '영업이익(손실)' 로 낸다 — 그것도 읽는다")
+    void 금융지주_계정명() {
+        server.expect(requestTo(containsString("bsns_year=2025")))
+                .andRespond(withSuccess(FINANCIALS_BANK, JSON));
+
+        List<DartFinancialSnapshot> rows = client.fetchAnnualFinancials("00688996", 2025);
+
+        assertThat(rows).isNotEmpty();
+        assertThat(rows.get(0).operatingProfit()).isEqualTo(new BigInteger("5000000000000"));
+        assertThat(rows.get(0).netIncome()).isEqualTo(new BigInteger("4000000000000"));
+        assertThat(rows.get(0).revenue()).as("금융지주에는 매출액 계정이 없다").isNull();
+        server.verify();
     }
 }

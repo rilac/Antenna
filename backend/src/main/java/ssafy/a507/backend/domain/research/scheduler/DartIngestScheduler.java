@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import ssafy.a507.backend.domain.research.client.DartException;
 import ssafy.a507.backend.domain.research.service.DartIngestService;
 
 /**
@@ -46,7 +47,14 @@ public class DartIngestScheduler {
      */
     @Scheduled(cron = "${app.dart.profile-cron:0 0 4 1 * *}", zone = "Asia/Seoul")
     public void ingestProfiles() {
-        ingestService.seedCorpCodes();
+        try {
+            ingestService.seedCorpCodes();
+        } catch (DartException e) {
+            // 시드는 호출이 한 번뿐이라 종목 단위로 격리할 곳이 없다. 여기서 끊지 않으면
+            // 기업개황 갱신이 함께 취소되고, 이 cron 은 한 달에 한 번뿐이라 30일을 잃는다.
+            // 고유번호 매핑은 이미 DB 에 있으므로 개황은 그대로 돌 수 있다.
+            log.warn("[DART] 고유번호 시드 실패 — 기존 매핑으로 기업개황만 진행한다: {}", e.getMessage());
+        }
         ingestService.ingestProfiles();
     }
 

@@ -22,6 +22,10 @@ public record DartProperties(String apiKey, String baseUrl, int lookbackDays, in
     private static final int DEFAULT_LOOKBACK_DAYS = 7;
 
     public DartProperties {
+        if (apiKey != null) {
+            // .env 를 윈도우에서 편집하면 캐리지리턴이 붙는다. 그대로 쿼리에 실으면 요청이 깨진다.
+            apiKey = apiKey.trim();
+        }
         if (baseUrl == null || baseUrl.isBlank()) {
             baseUrl = DEFAULT_BASE_URL;
         }

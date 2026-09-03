@@ -100,8 +100,12 @@ public class CorpFinancial {
     }
 
     /**
-     * 값을 덮어쓴다. 같은 연도를 여러 해에 걸쳐 다시 받게 되는 구조라(한 호출에 3개년이 온다)
-     * 재적재가 기본 동작이다 — 정정 공시가 나오면 최신 보고서 숫자로 갱신된다.
+     * 값을 갱신한다. 같은 연도를 여러 해에 걸쳐 다시 받게 되는 구조라(한 호출에 3개년이 온다)
+     * 재적재가 기본 동작이고, 정정 공시가 나오면 최신 보고서 숫자로 바뀐다.
+     *
+     * <p><b>들어온 값이 null 이면 기존 값을 지우지 않는다.</b> 같은 연도가 어떤 회차에는 당기로,
+     * 다음 회차에는 전전기 자리로 온다. 신규 상장사처럼 그 자리가 비어 오는 회사가 있는데,
+     * 그대로 덮으면 이미 받아 둔 재무제표가 재적재 때마다 지워진다.
      */
     public void update(
             String fsDiv,
@@ -116,12 +120,16 @@ public class CorpFinancial {
         this.fsDiv = fsDiv;
         this.currency = currency;
         this.receiptNo = receiptNo;
-        this.revenue = revenue;
-        this.operatingProfit = operatingProfit;
-        this.netIncome = netIncome;
-        this.totalAssets = totalAssets;
-        this.totalLiabilities = totalLiabilities;
-        this.totalEquity = totalEquity;
+        this.revenue = keep(revenue, this.revenue);
+        this.operatingProfit = keep(operatingProfit, this.operatingProfit);
+        this.netIncome = keep(netIncome, this.netIncome);
+        this.totalAssets = keep(totalAssets, this.totalAssets);
+        this.totalLiabilities = keep(totalLiabilities, this.totalLiabilities);
+        this.totalEquity = keep(totalEquity, this.totalEquity);
         this.updatedAt = Instant.now();
+    }
+
+    private static BigInteger keep(BigInteger incoming, BigInteger current) {
+        return incoming != null ? incoming : current;
     }
 }

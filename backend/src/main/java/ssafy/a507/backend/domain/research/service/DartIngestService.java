@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -89,10 +90,12 @@ public class DartIngestService {
         Map<String, CorpProfile> existing = existingProfiles(targets);
 
         List<CorpProfile> changed = new ArrayList<>();
+        Set<String> matched = new HashSet<>();
         for (CorpCodeRow row : rows) {
             if (!targets.contains(row.stockCode())) {
                 continue;
             }
+            matched.add(row.stockCode());
             CorpProfile profile = existing.get(row.stockCode());
             if (profile == null) {
                 changed.add(CorpProfile.of(row.stockCode(), row.corpCode(), row.corpName()));
@@ -106,7 +109,24 @@ public class DartIngestService {
 
         corpProfileRepository.saveAll(changed);
         log.info("[DART] 고유번호 시드 — 대상 {}종목 중 {}건 반영", targets.size(), changed.size());
+        warnUnmatched(targets, matched);
         return changed.size();
+    }
+
+    /**
+     * 고유번호를 못 찾은 종목을 드러낸다. <b>우선주가 여기 걸린다</b> — 고유번호 파일은 회사당
+     * 한 행이고 보통주 코드만 싣는데(005930 은 있고 005935 는 없다), 우리 종목 목록은 시가총액
+     * 상위라 삼성전자우 같은 우선주가 들어온다. 조용히 빠지면 그 종목의 리서치 탭이 영원히
+     * 비어 있고, 정상 회차의 로그(0건 반영)와 구분되지 않는다.
+     */
+    private void warnUnmatched(Set<String> targets, Set<String> matched) {
+        List<String> missing =
+                targets.stream().filter(code -> !matched.contains(code)).sorted().toList();
+        if (missing.isEmpty()) {
+            return;
+        }
+        log.warn("[DART] 고유번호 미매칭 {}종목 — 우선주는 보통주 코드로만 등재된다: {}",
+                missing.size(), missing.size() > 20 ? missing.subList(0, 20) + " …" : missing);
     }
 
     /** 기업개황. 고유번호가 잡힌 종목만 돈다. */
@@ -140,6 +160,8 @@ public class DartIngestService {
                     break;
                 }
                 log.warn("[DART] 기업개황 실패 {} — {}", profile.getStockCode(), e.getMessage());
+            } catch (DataAccessException e) {
+                log.warn("[DART] 기업개황 저장 실패 {} — {}", profile.getStockCode(), e.getMessage());
             }
         }
         log.info("[DART] 기업개황 — {}/{}종목 반영", updated, profiles.size());
@@ -157,6 +179,7 @@ public class DartIngestService {
             return 0;
         }
         List<CorpProfile> profiles = corpProfileRepository.findAll();
+        Set<Integer> savedYears = new TreeSet<>();
         int saved = 0;
         for (CorpProfile profile : profiles) {
             try {
@@ -170,6 +193,7 @@ public class DartIngestService {
                 }
                 for (DartFinancialSnapshot snapshot : snapshots) {
                     upsertFinancial(profile.getStockCode(), snapshot);
+                    savedYears.add(snapshot.year());
                     saved++;
                 }
             } catch (DartException e) {
@@ -178,9 +202,13 @@ public class DartIngestService {
                     break;
                 }
                 log.warn("[DART] 연간 재무 실패 {} — {}", profile.getStockCode(), e.getMessage());
+            } catch (DataAccessException e) {
+                log.warn("[DART] 연간 재무 저장 실패 {} — {}", profile.getStockCode(), e.getMessage());
             }
         }
-        log.info("[DART] 연간 재무 {}년 기준 — {}행 반영", year, saved);
+        // 실제로 채운 연도를 찍는다. 한 해 뒤로 물러선 회차는 요청 연도가 비어 있어서,
+        // "{year}년 기준" 만 남기면 그 해 데이터가 들어온 것으로 읽힌다.
+        log.info("[DART] 연간 재무 {}년 요청 — {}행 반영, 채운 연도 {}", year, saved, savedYears);
         return saved;
     }
 

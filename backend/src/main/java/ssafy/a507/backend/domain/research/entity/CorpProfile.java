@@ -116,17 +116,30 @@ public class CorpProfile {
             String establishedDate,
             String accountMonth) {
         if (corpName != null && !corpName.isBlank()) {
-            this.corpName = corpName;
+            this.corpName = cut(corpName, 100);
         }
-        this.corpNameEng = corpNameEng;
-        this.ceoName = ceoName;
-        this.industryCode = industryCode;
-        this.address = address;
-        this.homepageUrl = homepageUrl;
-        this.irUrl = irUrl;
+        this.corpNameEng = cut(corpNameEng, 150);
+        // 공동대표는 쉼표로 이어 붙여 온다("전영현, 노태문") — 세 명이면 100자를 넘길 수 있다.
+        this.ceoName = cut(ceoName, 100);
+        this.industryCode = cut(industryCode, 10);
+        this.address = cut(address, 200);
+        this.homepageUrl = cut(homepageUrl, 200);
+        this.irUrl = cut(irUrl, 200);
         this.establishedOn = parseDate(establishedDate);
         this.accountMonth = accountMonth;
         this.updatedAt = Instant.now();
+    }
+
+    /**
+     * 컬럼 폭에 맞춰 자른다. DART 값에는 상한 약속이 없어 한 회사가 넘치면 그 저장이 터지는데,
+     * 서비스는 트랜잭션을 종목마다 끊으므로 그 예외가 회차 전체를 끌고 내려간다.
+     */
+    private static String cut(String raw, int max) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        return trimmed.length() <= max ? trimmed : trimmed.substring(0, max);
     }
 
     private static LocalDate parseDate(String raw) {
