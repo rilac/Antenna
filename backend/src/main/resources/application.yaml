@@ -119,6 +119,17 @@ app:
       # 실제 tx 전송은 릴레이어(ANT-CHAIN-05)가 CommitAnchorProperties.isDeployed() 로 막는다.
       address: ${CONTRACT_COMMIT_ANCHOR:}
 
+  # DART 전자공시 수집(ANT-RESEARCH-01). 주소는 문서로 확정된 값이라 환경변수로 받지 않는다.
+  # 키가 비어 있으면 수집을 건너뛴다 — 키 없는 팀원의 로컬도 그대로 부팅된다.
+  dart:
+    api-key: ${DART_API_KEY:}
+    # 공시 목록을 되돌아보며 훑을 구간(일). 접수번호가 멱등 키라 겹쳐 받아도 중복이 안 생긴다.
+    lookback-days: 7
+    # 주기가 셋으로 갈린다. 매일 달라지는 것은 공시 목록뿐이다.
+    disclosure-cron: "0 30 19 * * *"
+    profile-cron: "0 0 4 1 * *"
+    financial-cron: "0 0 5 1 1,4,7,10 *"
+
   # 공공데이터포털 「금융위원회_주식시세정보」 일봉 수집(ANT-DATA-02).
   market-data:
     # 포털이 인증키를 Encoding/Decoding 두 벌로 준다. 여기에는 Decoding 키를 넣는다 —

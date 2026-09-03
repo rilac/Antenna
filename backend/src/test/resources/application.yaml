@@ -71,6 +71,15 @@ app:
     commit-anchor:
       address:
 
+  # 테스트는 DART 와 통신하지 않는다. 키가 없을 때 수집이 스스로 멈추는 것도 검증 대상이다.
+  dart:
+    api-key:
+    lookback-days: 7
+    # "-" 는 스프링의 스케줄 비활성 표시다. 등록은 검증되고 실행만 빠진다.
+    disclosure-cron: "-"
+    profile-cron: "-"
+    financial-cron: "-"
+
   # 테스트는 포털과 통신하지 않는다. 키가 비어 있을 때 수집이 스스로 멈추는 것도 검증 대상이다.
   market-data:
     service-key:

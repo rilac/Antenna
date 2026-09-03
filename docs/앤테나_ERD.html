@@ -287,10 +287,47 @@
 
 <!-- ── 리서치·AI ── -->
 <section style="--dc:#2E8A96">
-  <h2>리서치 · AI <span class="cnt">3</span></h2>
+  <h2>리서치 · AI <span class="cnt">5</span></h2>
   <div class="grid">
 
-  <article><header><h3>research_documents</h3><span class="v3">V3</span></header>
+    <article><header><h3>corp_profiles</h3><span class="v3">V8</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">stock_code</span><span class="t">varchar(6)</span></div><div class="note">종목코드 · <b>stocks 와 1:1</b> 이지만 FK 는 걸지 않는다 — stocks 는 KOSPI 상위 300 으로 좁혀져 있고 DART 상장사는 4천 곳이라, 수집 범위를 바꿀 때마다 적재가 깨진다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">corp_code</span><span class="t">varchar(8)</span></div><div class="note"><b>DART 고유번호</b> · 다른 모든 DART API 가 종목코드가 아니라 이 값을 받는다 — <b>이 컬럼이 없으면 나머지 수집이 시작조차 안 된다</b> · 인덱스</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">corp_name</span><span class="t">varchar(100)</span></div><div class="note">정식 법인명 · <code>stocks.name</code>(거래소 표기)과 다를 수 있다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">corp_name_eng</span><span class="t">varchar(150)</span></div><div class="note">영문명</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">ceo_name</span><span class="t">varchar(100)</span></div><div class="note">대표자 · 공동대표는 쉼표로 이어진다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">industry_code</span><span class="t">varchar(10)</span></div><div class="note">DART 업종코드 · <code>stocks.sector</code>(KRX 분류)와 다른 체계라 따로 둔다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">address</span><span class="t">varchar(200)</span></div><div class="note">본사 주소</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">homepage_url</span><span class="t">varchar(200)</span></div><div class="note">홈페이지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">ir_url</span><span class="t">varchar(200)</span></div><div class="note">IR 페이지 · 비어 있는 회사가 많다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">established_on</span><span class="t">date</span></div><div class="note">설립일 · DART 가 yyyyMMdd 문자열로 주는데 형식이 깨진 회사가 있어 실패는 NULL</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">account_month</span><span class="t">varchar(2)</span></div><div class="note">결산월 · "12월 결산법인" 표기와 분기 판단에 쓴다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">updated_at</span><span class="t">timestamptz</span></div><div class="note">갱신 시각</div></li>
+    </ul>
+  </article>
+
+  <article><header><h3>corp_financials</h3><span class="v3">V8</span></header>
+    <ul>
+      <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div><div class="note"></div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">stock_code</span><span class="t">varchar(6)</span></div><div class="note">대상 종목 · corp_profiles 와 같은 이유로 FK 없음</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">fiscal_year</span><span class="t">int</span></div><div class="note">회계연도 · <b>DART 응답 한 건이 3개년(당기·전기·전전기)을 함께 담아</b> 호출 한 번에 세 행이 나온다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">quarter</span><span class="t">int</span></div><div class="note">1~4 · 4 = 사업보고서(연간) · 지금은 항상 4 이고 분기 수집을 붙일 자리를 열어 둔 것이다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">fs_div</span><span class="t">varchar(3)</span></div><div class="note"><code>CFS</code>(연결) / <code>OFS</code>(별도) · <b>연결 우선, 없으면 별도</b> — 종속회사가 없는 회사는 연결 재무제표 자체가 없다 · 같은 회사도 두 값이 배로 차이 나므로 화면에 반드시 밝힌다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">currency</span><span class="t">varchar(5)</span></div><div class="note">통화 · KRW 가 아닌 회사가 있어 숫자와 함께 보관</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">receipt_no</span><span class="t">varchar(20)</span></div><div class="note">이 숫자가 실린 보고서 접수번호 · "어느 공시에서 왔는가"를 되짚는 끈</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">revenue</span><span class="t">numeric(30,0)</span></div><div class="note">매출액 · <b>계정이 보고서에 없을 수 있어 전부 NULL 허용</b> — 0 으로 채우면 "실적 0"으로 읽힌다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">operating_profit</span><span class="t">numeric(30,0)</span></div><div class="note">영업이익 · 음수 가능</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">net_income</span><span class="t">numeric(30,0)</span></div><div class="note">당기순이익(손실)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">total_assets</span><span class="t">numeric(30,0)</span></div><div class="note">자산총계</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">total_liabilities</span><span class="t">numeric(30,0)</span></div><div class="note">부채총계</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">total_equity</span><span class="t">numeric(30,0)</span></div><div class="note">자본총계</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">updated_at</span><span class="t">timestamptz</span></div><div class="note">갱신 시각 · 정정 공시가 나오면 최신 보고서 숫자로 덮는다</div></li>
+      <li><div class="row"><span class="k uq">UQ</span><span class="c">(stock_code, fiscal_year, quarter)</span><span class="t"></span></div><div class="note">재적재 멱등 키 · 같은 연도를 여러 회차에 걸쳐 다시 받는 구조라 업서트가 기본 동작이다</div></li>
+    </ul>
+  </article>
+
+<article><header><h3>research_documents</h3><span class="v3">V3</span></header>
     <ul>
       <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">대상 종목 · NULL이면 시장 전체 뉴스</div></li>
