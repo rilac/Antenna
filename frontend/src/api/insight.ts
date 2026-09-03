@@ -35,7 +35,6 @@ export type IndexQuote = {
 }
 
 export function getMarketIndices(days = 30) {
-  if (MOCK) return mock.marketIndices()
   return api.get<{ items: IndexQuote[] }>('/market/indices', { query: { days } })
 }
 
