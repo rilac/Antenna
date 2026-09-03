@@ -39,6 +39,15 @@ spring:
             client-secret: test-client-secret
             scope: openid,email,profile
 
+  # 이 파일이 main 의 application.yaml 을 가리므로 KoreaeximFxClient 가 찾는 신뢰 묶음도 여기 있어야
+  # 컨텍스트가 뜬다. 인증서는 main 리소스의 것을 그대로 읽는다 — 파일이 깨지면 여기서 먼저 잡힌다.
+  ssl:
+    bundle:
+      pem:
+        koreaexim:
+          truststore:
+            certificate: classpath:certs/koreaexim-ca.crt
+
 app:
   auth:
     # SSAFY 는 미설정 상태를 그대로 둔다 — 테스트는 SSAFY 와 통신하지 않고,
@@ -77,3 +86,12 @@ app:
       from: 2023-09-01
       chunk-size: 20
       cron: "-"
+    # 지수·환율(ANT-DATA-04)도 통신하지 않는다. 환율 키가 비었을 때 건너뛰는 것이 검증 대상이다.
+    index:
+      base-url: http://portal.test/GetMarketIndexInfoService
+      lookback-days: 45
+      from: 2020-01-02
+      cron: "-"
+    fx:
+      base-url: http://fx.test/exchangeJSON
+      auth-key:
