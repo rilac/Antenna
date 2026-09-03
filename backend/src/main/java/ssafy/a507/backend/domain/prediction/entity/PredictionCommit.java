@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.prediction.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -38,7 +39,8 @@ public class PredictionCommit {
     @Column(name = "commit_hash", nullable = false, unique = true, length = 66)
     private String commitHash;
 
-    /** hex 난수. */
+    /** hex 난수. 리빌 전에는 어떤 응답에도 실리면 안 되므로 직렬화에서 뺀다. */
+    @JsonIgnore
     @Column(nullable = false, length = 64)
     private String salt;
 

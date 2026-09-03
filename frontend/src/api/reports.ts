@@ -4,6 +4,7 @@
    GET /reports/{reportId}                  전문 또는 3줄 미리보기 + locked
    POST /reports                            Idempotency-Key 필수
    GET /channels/{userId}/reports           채널별 목록 (E-02 · 최신순 고정) */
+import { api } from './client'
 
 /** 글·리포트·예측 카드가 공유하는 작성자 표기. 서버 AuthorResponse 와 짝이다. */
 export type Author = {
@@ -67,6 +68,27 @@ export type ReportDetail = {
   publishedAt: string
   /** 서버가 이번 열람을 반영해 내려준다. 본인 글은 증가하지 않는다 */
   viewCount: number
+}
+
+/* ── 발행 (F-03) ──────────────────────────────────────────
+   서버 ReportCreateRequest 의 제약을 그대로 옮긴다. */
+export const TITLE_MAX = 100
+export const BODY_MAX = 20000
+
+/**
+ * 리포트 발행. 명세 §1 의 멱등성 필수 대상이라 Idempotency-Key 가 붙는다.
+ *
+ * 같은 scope 로 재시도하면 같은 키가 나가 서버가 최초 결과를 그대로 돌려준다.
+ * 리포트에는 삭제 API 가 없어, 타임아웃 후 재시도로 두 건이 생기면 지울 방법이
+ * 없고 발행 알림도 구독자 전원에게 두 번 간다.
+ *
+ * 본문이 바뀌면 다른 요청이므로 호출부가 키를 놓아 주어야 한다
+ * — 같은 키로 다른 본문을 보내면 409 IDEMPOTENCY_KEY_REUSED 다.
+ */
+export const REPORT_CREATE_SCOPE = 'report:new'
+
+export function createReport(body: { title: string; body: string; visibility: boolean }) {
+  return api.post<{ id: number }>('/reports', body, { idempotencyScope: REPORT_CREATE_SCOPE })
 }
 
 /** 발행일 표기. 목록에서는 시각까지 필요 없다. */

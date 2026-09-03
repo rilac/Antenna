@@ -93,3 +93,15 @@
   .rp-controls{ align-items:stretch; }
   .rp-sorts{ justify-content:flex-end; }
 }
+
+/* F-03 작성 진입점 — [ANT-FE-REPORT-NEW] 가 붙였다 */
+.rp-page-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+
+.rp-new{
+  flex:0 0 auto;
+  padding:9px 15px;
+  border:1px solid var(--brand); border-radius:9px;
+  background:var(--brand); color:#fff;
+  font-size:13px; font-weight:600; text-decoration:none;
+}
+.rp-new:hover{ background:var(--brand-ink); border-color:var(--brand-ink); }
