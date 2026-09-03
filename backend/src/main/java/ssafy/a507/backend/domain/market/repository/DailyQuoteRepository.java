@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import ssafy.a507.backend.domain.market.entity.DailyQuote;
 
 public interface DailyQuoteRepository extends JpaRepository<DailyQuote, Long> {
@@ -22,6 +23,10 @@ public interface DailyQuoteRepository extends JpaRepository<DailyQuote, Long> {
      */
     @Query("select max(q.tradeDate) from DailyQuote q")
     Optional<LocalDate> findLatestTradeDate();
+
+    /** 기준일 직전 영업일. 목록의 "전일 대비" 가 어느 날과 비교한 것인지를 이 값 하나로 정한다. */
+    @Query("select max(q.tradeDate) from DailyQuote q where q.tradeDate < :date")
+    Optional<LocalDate> findPreviousTradeDate(@Param("date") LocalDate date);
 
     /**
      * 한 영업일의 종가를 종목 묶음으로 한 번에 읽는다. 행마다 단건 조회를 돌리면 N+1 이다.

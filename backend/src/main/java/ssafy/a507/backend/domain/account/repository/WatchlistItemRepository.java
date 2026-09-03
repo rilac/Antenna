@@ -23,6 +23,10 @@ public interface WatchlistItemRepository extends JpaRepository<WatchlistItem, Lo
 
     boolean existsByUser_IdAndStock_Code(Long userId, String stockCode);
 
+    /** 내가 담은 종목코드 전부. 탐색 목록이 행마다 exists 를 묻지 않고 한 번에 받는다. */
+    @Query("select w.stock.code from WatchlistItem w where w.user.id = :userId")
+    List<String> findWatchedCodes(@Param("userId") Long userId);
+
     /** 빼기. 엔티티를 읽어 지우면 select 가 한 번 더 나가므로 한 문장으로 지운다. 없으면 0 — 오류가 아니다. */
     @Modifying
     @Query("delete from WatchlistItem w where w.user.id = :userId and w.stock.code = :stockCode")
