@@ -54,6 +54,15 @@ spring:
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid,email,profile
 
+  # 한국수출입은행 환율 API 전용 신뢰 묶음(ANT-DATA-04). KoreaeximFxClient 만 쓴다 — 다른
+  # 외부 호출(구글·SSAFY·포털)은 JDK 기본 신뢰 저장소 그대로다. 왜 필요한지는 crt 파일 머리말에.
+  ssl:
+    bundle:
+      pem:
+        koreaexim:
+          truststore:
+            certificate: classpath:certs/koreaexim-ca.crt
+
 app:
   auth:
     jwt-secret: ${JWT_SECRET}
@@ -156,3 +165,22 @@ app:
       # 끝나면 변수를 지운다. 빈 값("BACKFILL_CRON=")은 금지 — 기본값이 아니라 빈 cron 이
       # 되어 기동이 깨진다. 변수를 아예 없애면 기본 "-" 로 돌아온다.
       cron: ${BACKFILL_CRON:-}
+
+    # 지수·환율 수집(ANT-DATA-04). 코스피·코스닥은 「금융위원회_지수시세정보」(같은 포털 키,
+    # 활용신청은 따로), 원/달러는 한국수출입은행 환율 API. 둘 다 index_quotes 에 들어간다.
+    # 백필 스위치가 없다 — DB 가 비어 있으면 첫 회차가 from 부터 어제까지 한 번에 받는다.
+    # 지수는 구간 조회라 페이지 300장쯤, 환율은 날짜별 1콜이라 일 1,000콜 한도로 이틀에 걸쳐 끝난다.
+    index:
+      base-url: https://apis.data.go.kr/1160100/service/GetMarketIndexInfoService
+      # 매 회차 마지막 날짜에서 이만큼 되돌아가 다시 받는다. 홈 미니차트가 30 영업일이라
+      # 달력 45일은 덮어야 한다. 값이 커도 페이지 몇 장 차이다.
+      lookback-days: 45
+      # 포털이 지수 데이터를 주는 첫 날. 주식 backfill.from 과 같다.
+      from: 2020-01-02
+      # 포털이 지수를 "영업일 하루 뒤 13시 이후"에 올린다 — 일봉(13:00)보다 한 시간 늦춘다.
+      cron: "0 0 14 * * MON-FRI"
+    fx:
+      # 2025-06-25 부터 oapi. 도메인이다. 옛 www. 도메인은 2026-04-30 에 끊겼다.
+      base-url: https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON
+      # 수출입은행 인증키. 비어 있으면 환율 수집만 건너뛴다 — 지수는 그대로 받는다.
+      auth-key: ${KOREAEXIM_AUTH_KEY:}

@@ -1,0 +1,179 @@
+/* G-01 모의투자 홈 · /sim — [ANT-FE-SEASON-HOME]
+   프로토타입 assets/sim-home.css 를 옮겨온 것이다. 색·서체는 app.css 토큰을 쓰고,
+   프로토타입이 hex 로 박아 둔 값 중 토큰에 대응이 있는 것은 토큰으로 바꿨다.
+
+   프로토타입에서 뺀 규칙 두 가지 —
+   1. .sh-kpis(KPI 4종)가 없다. 설계서 §9.2 가 G-01 에서 제외한 항목이라
+      마크업 자체를 만들지 않는다.
+   2. 히어로 배경의 sim-home-banner.png 를 쓰지 않는다. 그 배너에 그려진 캐릭터는
+      인사이트 쪽 흰 개미이고, 모의투자 화면은 검정 개미로 통일한다. 배경은
+      배너 없이 그라데이션만 두고 개미를 별도 이미지로 얹는다. */
+
+/* 본문 폭과 가운데 정렬은 셸의 .main-inner 가 맡는다(app.css). 화면마다 따로
+   잡으면 화면끼리 폭이 어긋나므로 여기서는 손대지 않는다.
+   word-break:keep-all 은 한글이 단어 중간에서 잘리지 않게 한다. */
+.sim-home{
+  display:flex;flex-direction:column;gap:18px;
+  word-break:keep-all;
+}
+
+/* ── 히어로 ─────────────────────────────────────────── */
+/* 왼쪽 글 · 가운데 개미 · 오른쪽 버튼 세 칸이다. 개미 칸은 auto 라
+   좁아지면 먼저 사라지고(아래 미디어쿼리), 글과 버튼만 남는다.
+
+   overflow:hidden 을 걸지 않는다 — 개미 더듬이가 이미지 맨 위 끝에 붙어 있어
+   위쪽이 조금만 잘려도 바로 티가 난다. 배경이 카드 밖으로 새지 않으므로
+   자를 이유도 없다. */
+.sh-hero{
+  position:relative;
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(220px,248px);
+  align-items:center;gap:28px;padding:26px 32px;
+  border:1px solid #e6e5f7;border-radius:22px;
+  background:linear-gradient(115deg,#f4f3fd 0%,#f7f7fe 44%,#eeeefb 100%);
+}
+.sh-hero-copy{min-width:0}
+.sh-flag{
+  display:inline-block;margin-bottom:10px;padding:5px 13px;border-radius:8px;
+  background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:750;
+}
+.sh-title{
+  margin:0 0 8px;color:#141a3c;font-size:32px;font-weight:850;letter-spacing:-.035em;
+  text-wrap:balance;
+}
+.sh-lead{margin:0 0 18px;color:#666d90;font-size:15.5px;line-height:1.75;font-weight:600}
+
+.sh-progress-label{margin:0 0 6px;color:#4a5170;font-size:14px;font-weight:750}
+.sh-progress{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.sh-bar{flex:1;min-width:0;height:11px;border-radius:999px;background:#e0e0ee;overflow:hidden}
+.sh-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#6f66ec,var(--brand))}
+.sh-progress b{flex:none;color:#2a3054;font:800 17px var(--mono)}
+
+.sh-stats{display:flex;flex-wrap:wrap;gap:12px;margin:0}
+.sh-stat{
+  display:flex;align-items:center;gap:12px;margin:0;padding:10px 16px;
+  border:1px solid #e3e2f3;border-radius:14px;background:rgba(255,255,255,.72);
+}
+.sh-stat svg{flex:none;color:#6f66ec}
+.sh-stat dt{margin:0 0 3px;color:#8a90ab;font-size:12.5px;font-weight:700}
+.sh-stat dd{margin:0;color:#1c2245;font-size:16px;font-weight:800;white-space:nowrap}
+
+/* 개미 높이는 폭이 정한다(이미지 1214×1295, 비율 1:1.07). 210px → 225px 이라
+   히어로 안쪽 높이 안에 들어간다. 카드가 이보다 낮아지는 경우(진행 중인 것이
+   없어 진행률·통계가 빠질 때)에는 카드가 개미 높이만큼 늘어난다. */
+.sh-hero-art{
+  display:block;width:210px;height:auto;align-self:end;
+  filter:drop-shadow(0 22px 32px rgba(70,66,229,.22));
+}
+
+.sh-cta{display:flex;flex-direction:column;gap:13px}
+.sh-btn{
+  display:flex;align-items:center;justify-content:center;gap:11px;height:54px;
+  border-radius:14px;font-size:17px;font-weight:800;letter-spacing:-.02em;
+  transition:background .15s,border-color .15s,transform .06s;
+}
+.sh-btn:active{transform:translateY(1px)}
+.sh-btn.solid{background:var(--brand);color:#fff;box-shadow:0 12px 26px -14px rgba(70,66,229,.65)}
+.sh-btn.solid:hover{background:var(--brand-ink)}
+.sh-btn.ghost{border:1px solid #cdc9f7;color:var(--brand);background:rgba(255,255,255,.6)}
+.sh-btn.ghost:hover{background:#fff;border-color:var(--brand)}
+
+/* ── 하단 3분할 ─────────────────────────────────────── */
+.sh-panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+.sh-panel{
+  display:flex;flex-direction:column;padding:22px 24px;
+  background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow);
+}
+.sh-panel-head{display:flex;align-items:center;gap:10px;margin:0 0 16px}
+.sh-panel-head h2{
+  display:flex;align-items:center;gap:9px;margin:0;
+  color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em;
+}
+.sh-panel-head h2 svg{color:var(--brand)}
+.sh-panel-head a{margin-left:auto;color:#8a93ad;font-size:13.5px;font-weight:700;white-space:nowrap}
+.sh-panel-head a:hover{color:var(--brand)}
+.sh-panel-foot{
+  display:block;margin-top:16px;padding-top:4px;
+  color:var(--brand);font-size:14px;font-weight:750;text-align:center;
+}
+.sh-panel-foot:hover{color:var(--brand-ink)}
+
+/* 로딩·빈 상태 한 줄. 오류는 공용 ErrorState(state.css)가 그린다. */
+.sh-state{margin:0;padding:18px 0;color:var(--faint);font-size:14px;font-weight:650;text-align:center}
+
+/* 상태 배지 — 최근 목록과 참가 가능 목록이 함께 쓴다 */
+.sh-state-tag{padding:4px 10px;border-radius:7px;font-size:12px;font-weight:750;white-space:nowrap}
+.sh-state-tag.live{background:var(--brand-soft);color:var(--brand)}
+.sh-state-tag.soon{background:#fdf2e3;color:#b0762a}
+.sh-state-tag.done{background:var(--surface-2);color:#7b8298}
+
+/* ── 최근 모의투자 ──────────────────────────────────── */
+.sh-runs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.sh-run{
+  display:grid;grid-template-columns:auto minmax(0,1fr);
+  grid-template-areas:"state main" "btn btn";
+  align-items:center;gap:12px;padding:14px 16px;
+  border:1px solid var(--rule);border-radius:14px;
+}
+.sh-run .sh-state-tag{grid-area:state;align-self:start;margin-top:2px}
+.sh-run-main{grid-area:main;min-width:0}
+.sh-run-main b{display:block;color:#1b2245;font-size:14.5px;font-weight:750;line-height:1.45}
+.sh-run-main small{display:block;margin-top:4px;color:#98a0b6;font:650 12.5px var(--mono)}
+.sh-replay{
+  grid-area:btn;justify-self:end;padding:9px 15px;
+  border:1px solid #cdc9f7;border-radius:10px;
+  color:var(--brand);font-size:13.5px;font-weight:750;white-space:nowrap;
+}
+.sh-replay:hover{background:var(--brand-softer);border-color:var(--brand)}
+
+/* ── 참가 가능한 모의투자 ───────────────────────────── */
+/* 프로토타입의 시나리오 썸네일(.sh-thumb) 자리를 모드 아이콘이 받는다.
+   그림으로 시대를 알려주지 않으려는 것이라 색만 모드별로 다르다. */
+.sh-opens{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.sh-open{display:flex;align-items:center;gap:13px}
+.sh-open-ic{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:13px}
+.sh-open-ic.m-practice{background:#e6f7ef;color:#16a06a}
+.sh-open-ic.m-competition{background:var(--brand-soft);color:var(--brand)}
+.sh-open-ic.m-demo{background:#e7f0fd;color:#2f6fd0}
+.sh-open-main{flex:1;min-width:0}
+.sh-open-name{display:flex;align-items:center;gap:8px;margin:0 0 5px}
+.sh-open-name b{color:#1b2245;font-size:15px;font-weight:800;line-height:1.4}
+.sh-open-meta{
+  margin:0;overflow:hidden;color:#8a90ab;font-size:12.5px;font-weight:650;
+  text-overflow:ellipsis;white-space:nowrap;
+}
+.sh-pick{flex:none;padding:7px 14px;border-radius:9px;background:#f0effc;color:var(--brand);font-size:13px;font-weight:750}
+.sh-pick:hover{background:var(--brand-soft)}
+
+/* ── 보상 ───────────────────────────────────────────── */
+/* 금액을 쓰지 않는다(§1 규칙 3) — 오른쪽은 규모가 아니라 조건 설명이다. */
+.sh-rewards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sh-reward{display:flex;align-items:center;gap:13px;padding:12px 0}
+.sh-reward + .sh-reward{border-top:1px solid #f0f2f7}
+.sh-reward b{flex:none;color:#28304f;font-size:15px;font-weight:750}
+.sh-reward em{
+  flex:1;min-width:0;overflow:hidden;
+  color:#79809c;font-style:normal;font-size:13px;font-weight:700;text-align:right;
+  text-overflow:ellipsis;white-space:nowrap;
+}
+.sh-hex{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:11px}
+.sh-hex.t-a{background:#e7f0fd;color:#2f6fd0}
+.sh-hex.t-b{background:#e6f7ef;color:#16a06a}
+.sh-hex.t-c{background:#fdf2e3;color:#c98518}
+.sh-note{margin:14px 0 0;color:var(--faint);font-size:12.5px;font-weight:650;line-height:1.6}
+
+/* ── 좁은 화면 ──────────────────────────────────────── */
+@media(max-width:1260px){
+  /* 개미부터 내린다 — 글과 버튼이 먼저다 */
+  .sh-hero{grid-template-columns:minmax(0,1fr) minmax(200px,230px)}
+  .sh-hero-art{display:none}
+  .sh-panels{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:760px){
+  .sh-hero{grid-template-columns:minmax(0,1fr);padding:22px 20px}
+  .sh-title{font-size:25px}
+  .sh-cta{flex-direction:row}
+  .sh-cta .sh-btn{flex:1}
+}
+@media(max-width:520px){
+  .sh-cta{flex-direction:column}
+}
