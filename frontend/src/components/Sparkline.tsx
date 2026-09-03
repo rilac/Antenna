@@ -3,7 +3,8 @@
    설계 의도
    - 단일 계열이라 범례를 두지 않는다. 옆에 등락률 숫자가 같이 있어
      방향을 색으로만 전달하지 않는다(색맹 대비).
-   - 상승·하락 색은 앱 토큰(--up / --down)을 쓴다. 국내 관례대로 상승이 빨강이다.
+   - 상승·하락 색은 앱 토큰을 쓴다. 국내 관례대로 상승이 빨강이다. 선·면은
+     글자가 아니라 그래픽이므로 밝은 쪽(--up-vivid / --down-vivid)을 쓴다.
    - 끝점을 점으로 강조한다. 축·격자는 이 크기에서 읽히지 않아 넣지 않는다.
    - 이 크기에서는 툴팁을 붙이지 않는다. 값 확인은 행을 눌러 종목 상세로 간다.
    - area 를 켜면 선 아래를 옅은 그라디언트로 채운다. 지수 카드처럼 차트가
@@ -41,7 +42,7 @@ export default function Sparkline({
   })
   const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
   const [ex, ey] = pts[pts.length - 1]
-  const color = up ? 'var(--up)' : 'var(--down)'
+  const color = up ? 'var(--up-vivid)' : 'var(--down-vivid)'
   /* 면은 선을 따라간 뒤 바닥으로 내려 닫는다 */
   const fill = `${d} L${ex.toFixed(1)} ${height} L${pts[0][0].toFixed(1)} ${height} Z`
 

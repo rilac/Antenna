@@ -1,0 +1,250 @@
+/* B-02 종목 탐색. 전 선택자를 st- 접두사로 두고 app.css 토큰만 쓴다.
+   화면별 CSS 가 전역으로 함께 올라가므로 흔한 이름을 만들지 않는다.
+
+   app.css 의 .card p{color:muted} · .card{padding:20px} 이 특정도 (0,1,1)/(0,1,0)
+   으로 세다. 카드 안 문단·여백을 덮을 때는 .st-panel 을 한 겹 얹어 적는다. */
+
+.st-sr{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+
+/* ── 머리글 ─────────────────────────────────────────────── */
+.st-hero{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:20px;
+  margin-bottom:18px;
+}
+.st-eyebrow{
+  margin:0 0 10px; color:var(--brand); font-size:11.5px; font-weight:800;
+  letter-spacing:.16em;
+}
+.st-hero h1{
+  margin:0; color:var(--ink); font-size:29px; font-weight:800; letter-spacing:-.03em;
+}
+.st-hero-sub{margin:10px 0 0; color:var(--muted); font-size:13.5px}
+.st-asof{
+  display:flex; align-items:center; gap:7px; flex:none; margin:0;
+  color:var(--muted); font-size:12.5px; font-weight:650; white-space:nowrap;
+}
+.st-asof i{width:7px; height:7px; border-radius:50%; background:#16a06a; flex:none}
+.st-asof b{color:var(--ink); font-weight:750}
+
+/* ── 섹터 요약 칩 ───────────────────────────────────────── */
+/* 칸 수가 섹터 수라 늘어난다. 한 줄에 다 넣지 않고 넘치면 접는다. */
+.st-sectors{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px}
+.st-sector-chip{
+  flex:1 1 148px; display:flex; flex-direction:column; gap:7px; align-items:flex-start;
+  padding:13px 15px; border:1px solid var(--rule); border-radius:13px;
+  background:var(--surface); text-align:left; box-shadow:var(--shadow);
+  transition:border-color .12s, background .12s;
+}
+.st-sector-chip:hover{border-color:#c8c9f5}
+.st-sector-chip.on{border-color:var(--brand); background:var(--brand-softer)}
+.st-sector-name{color:var(--ink); font-size:14px; font-weight:750; letter-spacing:-.02em}
+.st-sector-chip.on .st-sector-name{color:var(--brand-ink)}
+.st-sector-meta{display:flex; align-items:baseline; gap:8px; width:100%}
+.st-sector-meta em{color:var(--faint); font-style:normal; font-size:12px; font-weight:650}
+.st-sector-meta b{margin-left:auto; font-size:12.5px; font-weight:750}
+
+/* ── 본문 2단 ───────────────────────────────────────────── */
+.st-body{
+  display:grid; gap:16px;
+  grid-template-columns:minmax(0,268px) minmax(0,1fr);
+  align-items:start;
+}
+
+/* ── 상세 필터 ──────────────────────────────────────────── */
+.st-filter{display:flex; flex-direction:column; gap:18px}
+.st-filter h2{
+  margin:0; color:var(--ink); font-size:16px; font-weight:750; letter-spacing:-.02em;
+}
+/* fieldset 은 브라우저 기본이 min-width:min-content 라 안쪽이 줄어들지 않는다.
+   그대로 두면 PER 두 칸이 제 내재 폭(각 195px)을 고집해 카드를 뚫고 나간다.
+   0 으로 눌러야 flex:1 이 먹는다. */
+.st-field{
+  min-width:0;
+  margin:0; padding:0; border:0; display:flex; flex-direction:column; gap:9px;
+}
+.st-field legend{
+  padding:0; color:var(--ink); font-size:12.5px; font-weight:750;
+}
+.st-chips{display:flex; flex-wrap:wrap; gap:7px}
+.st-chip{
+  padding:7px 13px; border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface); color:var(--muted); font-size:12.5px; font-weight:700;
+}
+.st-chip:hover{color:var(--ink); border-color:#c8c9f5}
+.st-chip.on{
+  border-color:var(--brand); background:var(--brand-softer); color:var(--brand-ink);
+}
+
+.st-range{display:flex; align-items:center; gap:9px}
+.st-range input{
+  flex:1; min-width:0; height:36px; padding:0 11px;
+  border:1px solid var(--rule); border-radius:9px; background:var(--surface);
+  color:var(--ink); font-size:13px; font-variant-numeric:tabular-nums;
+}
+.st-range input::placeholder{color:var(--faint)}
+.st-range input:focus{border-color:var(--brand); outline:none}
+.st-range input[aria-invalid='true']{border-color:var(--danger)}
+.st-range span{color:var(--faint); flex:none}
+.st-panel .st-field-err,.st-filter .st-field-err{
+  margin:0; color:var(--danger); font-size:12px; font-weight:650;
+}
+
+.st-check{
+  display:flex; align-items:center; gap:9px;
+  color:var(--body); font-size:12.5px; font-weight:650; cursor:pointer;
+}
+.st-check input{width:15px; height:15px; flex:none; accent-color:var(--brand)}
+
+.st-apply{
+  padding:11px 0; border-radius:10px; background:var(--brand); color:#fff;
+  font-size:13.5px; font-weight:750;
+}
+.st-apply:hover{background:var(--brand-ink)}
+.st-apply:disabled{background:var(--surface-2); color:var(--faint); cursor:not-allowed}
+.st-reset{
+  padding:10px 0; border:1px solid var(--rule); border-radius:10px;
+  background:var(--surface); color:var(--muted); font-size:13px; font-weight:700;
+}
+.st-reset:hover{color:var(--ink); border-color:#c8c9f5}
+
+/* ── 목록 패널 ──────────────────────────────────────────── */
+.st-panel{display:flex; flex-direction:column; gap:14px; min-width:0}
+.st-panel-head{display:flex; align-items:center; gap:10px}
+.st-panel-head h2{
+  margin:0; color:var(--ink); font-size:17px; font-weight:750; letter-spacing:-.02em;
+}
+.st-count{
+  padding:3px 9px; border-radius:99px;
+  background:var(--brand-softer); color:var(--brand-ink);
+  font-size:11.5px; font-weight:750;
+}
+.st-sort{margin-left:auto; flex:none}
+.st-sort select{
+  height:34px; padding:0 30px 0 12px; border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface); color:var(--body); font-size:12.5px; font-weight:700;
+  appearance:none; cursor:pointer;
+  /* 화살표는 배경으로 그린다 — 아이콘 하나 때문에 요소를 더하지 않는다 */
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+                   linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 15px,calc(100% - 11px) 15px;
+  background-size:5px 5px,5px 5px;
+  background-repeat:no-repeat;
+}
+.st-sort select:focus{border-color:var(--brand); outline:none}
+
+/* 칸 나눔은 머리글과 행이 같은 값을 써야 어긋나지 않는다 */
+.st-cols,.st-link{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 92px 82px 62px 64px minmax(0,176px);
+  align-items:center; gap:12px;
+}
+/* 오른쪽 여백은 행의 관심 버튼 칸과 같아야 한다 — 이 값이 어긋나면 그 차이가
+   여섯 칸 모두에 그대로 밀려 머리글과 값이 따로 논다. .st-item 의 44px 과 한 쌍이다. */
+.st-cols{
+  margin:0 -20px; padding:0 44px 10px 20px; border-bottom:1px solid var(--rule);
+  color:var(--muted); font-size:11.5px; font-weight:650; letter-spacing:.02em;
+}
+.st-cols .r{text-align:right}
+
+/* 재무 지표(PER·PBR)와 예측 현황 사이를 한 뼘 벌린다 — 붙어 있으면 어디까지가
+   숫자 칸인지 경계가 흐려진다. 머리글과 행에 같은 값을 줘야 어긋나지 않는다.
+   PER·PBR 이 접히는 좁은 화면에서도 nth-child 번호는 그대로다. */
+.st-cols > :nth-child(6),
+.st-link > :nth-child(6){padding-left:18px}
+
+.st-list{list-style:none; margin:0 -20px; padding:0}
+/* 행은 링크(정보)와 관심 버튼 두 칸이다 — a 안에 button 을 둘 수 없다 */
+.st-item{
+  display:grid; grid-template-columns:minmax(0,1fr) 44px;
+  align-items:center; border-bottom:1px solid var(--rule);
+}
+.st-item:last-child{border-bottom:0}
+.st-item:hover{background:var(--surface-2)}
+.st-link{padding:12px 0 12px 20px; color:var(--ink)}
+.st-item:hover .st-name{color:var(--brand-ink)}
+
+.st-id{display:flex; align-items:center; gap:11px; min-width:0}
+.st-logo{
+  display:grid; place-items:center; flex:none; width:36px; height:36px;
+  border-radius:10px; font-size:14px; font-weight:750;
+}
+.st-id-text{display:flex; flex-direction:column; gap:2px; min-width:0}
+.st-name{font-size:14.5px; font-weight:750; letter-spacing:-.01em}
+.st-sub{
+  color:var(--faint); font-size:11.5px; font-weight:500;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+.st-close,.st-rate,.st-per{
+  text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.st-close{color:var(--ink); font-size:14px; font-weight:750}
+.st-rate{font-size:13px; font-weight:750}
+.st-per{color:var(--body); font-size:12.5px; font-weight:650}
+
+/* ── 예측 심리 막대 ─────────────────────────────────────── */
+.st-senti{display:flex; flex-direction:column; gap:5px; min-width:0}
+.st-senti-head{display:flex; align-items:baseline; gap:8px}
+.st-senti-head b{font-size:11.5px; font-weight:800; letter-spacing:.02em}
+.st-senti-head em{margin-left:auto; color:var(--faint); font-style:normal; font-size:11px}
+.st-senti-track{display:flex; height:5px; border-radius:99px; overflow:hidden}
+/* 막대는 글자가 아니라 그래픽이라 밝은 쪽을 쓴다 */
+.st-senti-up{background:var(--up-vivid)}
+.st-senti-down{background:var(--down-vivid)}
+.st-senti-none{color:var(--faint); font-size:11.5px}
+
+/* ── 관심 별 ────────────────────────────────────────────── */
+.st-star{
+  display:grid; place-items:center; width:32px; height:32px; margin:0 6px 0 auto;
+  border-radius:9px; color:var(--faint);
+}
+.st-star:hover{background:var(--brand-softer); color:var(--brand)}
+.st-star.on{color:var(--gold)}
+
+/* ── 더 보기·꼬리말 ─────────────────────────────────────── */
+.st-more{
+  align-self:center; padding:10px 22px; border:1px solid var(--rule); border-radius:10px;
+  background:var(--surface); color:var(--body); font-size:13px; font-weight:700;
+}
+.st-more:hover{border-color:var(--brand); color:var(--brand-ink)}
+.st-panel .st-more-hint,.st-panel .st-foot{
+  margin:0; align-self:center; color:var(--faint); font-size:12px;
+}
+
+/* ── 반응형 ─────────────────────────────────────────────── */
+@media (max-width:1180px){
+  /* 필터를 위로 올리고 목록에 폭을 준다 */
+  .st-body{grid-template-columns:minmax(0,1fr)}
+  .st-filter{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:16px 20px; align-items:start;
+  }
+  .st-filter h2{grid-column:1 / -1}
+  .st-apply,.st-reset{grid-column:span 1; align-self:end}
+}
+@media (max-width:980px){
+  /* PER·PBR 을 접는다 — 종목·종가·등락률·심리가 먼저다 */
+  .st-cols,.st-link{grid-template-columns:minmax(0,1fr) 92px 78px minmax(0,150px)}
+  .st-cols span:nth-child(4),.st-cols span:nth-child(5),
+  .st-link .st-per{display:none}
+}
+@media (max-width:900px){
+  .st-hero{flex-direction:column; align-items:flex-start; gap:12px}
+  .st-hero h1{font-size:24px}
+}
+@media (max-width:680px){
+  /* 심리 막대까지 접고 종목·종가·등락률만 남긴다 */
+  .st-cols{display:none}
+  .st-cols,.st-link{grid-template-columns:minmax(0,1fr) auto}
+  .st-link{
+    grid-template-areas:'id close' 'id rate';
+    gap:2px 12px; padding:12px 0 12px 16px;
+  }
+  .st-id{grid-area:id}
+  .st-close{grid-area:close}
+  .st-rate{grid-area:rate}
+  .st-link .st-senti,.st-link .st-senti-none{display:none}
+}
