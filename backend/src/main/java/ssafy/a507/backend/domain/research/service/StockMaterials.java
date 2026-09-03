@@ -130,11 +130,11 @@ class StockMaterials {
     }
 
     private void appendFinancials(StringBuilder sb, String stockCode) {
-        List<CorpFinancial> rows =
-                corpFinancialRepository.findByStockCodeOrderByFiscalYearDescQuarterDesc(stockCode).stream()
-                        .filter(f -> f.getQuarter() == CorpFinancial.ANNUAL_QUARTER)
-                        .limit(3)
-                        .toList();
+        List<CorpFinancial> rows = corpFinancialRepository
+                .findByStockCodeAndQuarterOrderByFiscalYearDesc(stockCode, CorpFinancial.ANNUAL_QUARTER)
+                .stream()
+                .limit(3)
+                .toList();
         if (rows.isEmpty()) {
             sb.append("재무: (없음)\n");
             return;
@@ -149,15 +149,14 @@ class StockMaterials {
         sb.setLength(sb.length() - 2);
         sb.append('\n');
         CorpFinancial latest = rows.get(0);
-        if (latest.getTotalEquity() == null || latest.getTotalEquity().signum() <= 0) {
-            return;
-        }
         List<String> ratios = new ArrayList<>();
-        if (latest.getTotalLiabilities() != null) {
-            ratios.add("부채비율 " + ratio(latest.getTotalLiabilities(), latest.getTotalEquity()) + "%");
+        BigDecimal debtRatio = ratio(latest.getTotalLiabilities(), latest.getTotalEquity());
+        if (debtRatio != null) {
+            ratios.add("부채비율 " + debtRatio + "%");
         }
-        if (latest.getNetIncome() != null) {
-            ratios.add("ROE " + ratio(latest.getNetIncome(), latest.getTotalEquity()) + "%");
+        BigDecimal roe = ratio(latest.getNetIncome(), latest.getTotalEquity());
+        if (roe != null) {
+            ratios.add("ROE " + roe + "%");
         }
         if (!ratios.isEmpty()) {
             sb.append(String.join(" · ", ratios)).append(" (").append(latest.getFiscalYear()).append("년 기준)\n");
@@ -196,7 +195,17 @@ class StockMaterials {
         return won == null ? "-" : won.divide(BigInteger.valueOf(100_000_000L)).toString();
     }
 
-    private static BigDecimal ratio(BigInteger numerator, BigInteger denominator) {
+    /**
+     * 백분율 소수 1자리. 밸류에이션 API(-05)도 이 메서드를 써야 브리핑 문장과 화면 숫자가 일치한다.
+     *
+     * <p><b>가드도 여기에 둔다.</b> 계정이 비었거나(보고서에 그 계정이 없다) 자본총계가 0 이하면
+     * (완전자본잠식) 비율이 뒤집혀 의미가 없어 null 이다. 호출 쪽에 가드를 두면 한쪽만 바뀌었을 때
+     * 같은 회사의 브리핑 문장과 밸류에이션 카드가 다른 숫자를 말하게 된다.
+     */
+    static BigDecimal ratio(BigInteger numerator, BigInteger denominator) {
+        if (numerator == null || denominator == null || denominator.signum() <= 0) {
+            return null;
+        }
         return new BigDecimal(numerator)
                 .multiply(BigDecimal.valueOf(100))
                 .divide(new BigDecimal(denominator), 1, RoundingMode.HALF_UP);
