@@ -187,3 +187,30 @@ app:
       base-url: https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON
       # 수출입은행 인증키. 비어 있으면 환율 수집만 건너뛴다 — 지수는 그대로 받는다.
       auth-key: ${KOREAEXIM_AUTH_KEY:}
+
+  # 뉴스 수집(ANT-RESEARCH-02). 네이버가 검색 API 를 NAVER API HUB(네이버 클라우드 플랫폼)로
+  # 옮기면서 주소와 인증 헤더가 모두 바뀌었다 — 구 개발자센터의 X-Naver-Client-Id 가 아니라
+  # X-NCP-APIGW-API-KEY-ID 다. 자격증명이 비어 있으면 수집을 건너뛴다.
+  naver-news:
+    key-id: ${NAVER_API_KEY_ID:}
+    key: ${NAVER_API_KEY:}
+    base-url: https://naverapihub.apigw.ntruss.com/search/v1
+    # 종목당 한 회차에 받을 기사 수. HUB 상한이 100 이다. 매일 도는 배치라 하루치를 덮으면 된다.
+    display-per-stock: 20
+    # 이 구간보다 오래된 기사는 버린다. 뉴스가 뜸한 종목에서 몇 달 전 기사가 딸려 온다.
+    lookback-days: 14
+    # 매일 20:00 KST. 장 마감(15:30) 뒤 마감 기사까지 담는다.
+    cron: "0 0 20 * * *"
+
+  # LLM 생성(배치 B6). SSAFY GMS 는 OpenAI Chat Completions 를 그대로 프록시한다 —
+  # 주소만 게이트웨이 앞단이 다르고 요청·응답 모양은 OpenAI 규격과 같다.
+  # 키가 비어 있으면 생성 배치만 건너뛴다 — 수집과 조회는 그대로 돈다.
+  ai:
+    api-key: ${AI_API_KEY:}
+    base-url: https://gms.ssafy.io/gmsapi/api.openai.com/v1
+    model: ${AI_MODEL:gpt-5.4-mini}
+    # 생성물에 남기는 세대 태그. 프롬프트를 고치면 이 값을 올린다 — 옛 값 행만 골라
+    # 다시 생성된다. 값을 그대로 두고 프롬프트만 고치면 이미 만들어진 문장이 갱신되지 않는다.
+    prompt-version: v1
+    # 뉴스 요약(B6) — 수집 30분 뒤. 같은 시각에 두면 그날 기사가 다음 날에야 요약된다.
+    news-summary-cron: "0 30 20 * * *"

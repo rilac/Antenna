@@ -62,6 +62,19 @@ public class ResearchDocument {
     @Column(name = "published_at", nullable = false)
     private Instant publishedAt;
 
+    /**
+     * 원천이 함께 준 발췌. 뉴스 검색 응답의 {@code description} 이 여기 들어간다.
+     *
+     * <p><b>원문 본문이 아니다.</b> API 가 공식으로 내려 주는 두어 줄짜리 발췌이고, 저장하는
+     * 이유는 요약을 다시 만들 수 있어야 해서다 — 프롬프트를 고쳐 재생성할 때 재료가 없으면
+     * 제목만 남는데, 뉴스 제목은 잘려서 오는 일이 흔해 그것만으로는 요약이 되지 않는다.
+     * 검색 API 로는 특정 기사를 다시 지목해 받을 수 없으므로 수집 때 함께 남긴다.
+     *
+     * <p>DART 공시에는 없다 — 공시는 보고서명이 곧 요약이라 발췌라 할 것이 따로 없다.
+     */
+    @Column(columnDefinition = "text")
+    private String snippet;
+
     /** AI 요약 카드 본문. NULL이면 아직 요약 전이다. */
     @Column(columnDefinition = "text")
     private String summary;
@@ -88,6 +101,7 @@ public class ResearchDocument {
             String externalId,
             String title,
             String originUrl,
+            String snippet,
             Instant publishedAt) {
         ResearchDocument document = new ResearchDocument();
         document.stock = stock;
@@ -95,8 +109,21 @@ public class ResearchDocument {
         document.externalId = externalId;
         document.title = title;
         document.originUrl = originUrl;
+        document.snippet = snippet;
         document.publishedAt = publishedAt;
         document.collectedAt = Instant.now();
         return document;
+    }
+
+    /**
+     * 요약 반영 (ANT-RESEARCH-02, 배치 B6).
+     *
+     * <p>{@code promptVersion} 을 함께 남기는 것이 요점이다 — 프롬프트를 고친 뒤에는 옛
+     * 세대 행만 골라 다시 생성해야 하고, 이 값이 없으면 전부 다시 돌리는 수밖에 없다.
+     */
+    public void summarize(String summary, String promptVersion) {
+        this.summary = summary;
+        this.promptVersion = promptVersion;
+        this.summarizedAt = Instant.now();
     }
 }
