@@ -85,7 +85,7 @@ export default function OAuthCallback() {
                 </svg>
               </span>
               <h2>로그인하지 못했습니다</h2>
-              <p className="sub cb-reason">{error}</p>
+              <p className="cb-reason">{error}</p>
               <button type="button" className="sso-btn ssafy"
                       onClick={() => navigate('/login', { replace: true })}>
                 로그인 화면으로

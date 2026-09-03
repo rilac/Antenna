@@ -164,8 +164,10 @@
 .auth .cb-card h2{margin:0 0 10px;font-size:23px}
 .auth .cb-card .sub{margin:0}
 .auth .cb-hint{margin:22px 0 0;color:var(--faint);font-size:12.5px}
+/* 실패 사유 상자. 색·크기·정렬을 스스로 정하므로 .sub 를 겸하지 않는다 —
+   두 클래스를 겹치면 .cb-card .sub{margin:0} 과 특정도로 다투게 된다. */
 .auth .cb-reason{
-  margin:0 0 26px;padding:12px 14px;
+  margin:0 0 26px;padding:12px 14px;text-align:center;
   border:1px solid var(--rule);border-radius:12px;background:var(--surface-2);
   color:var(--body);font-size:13.5px;line-height:1.6;word-break:keep-all;
 }
