@@ -60,4 +60,25 @@ public class ResearchPoint {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /**
+     * 생성 (ANT-RESEARCH-04, 배치 B6).
+     *
+     * <p>세대 태그를 두지 않는다. 브리핑은 프롬프트를 고치면 같은 행을 다시 썼지만, 포인트는
+     * 종목·날짜마다 여러 행이라 재생성이 곧 삭제 후 삽입이 된다. 그런데 사용자가 고른 포인트는
+     * {@code prediction_evidences} 가 FK 로 물고 있어, 배치가 지우면 남의 예측 근거가 사라진다.
+     * 포인트는 그날의 스냅샷으로 굳히고, 프롬프트 변경은 다음 영업일부터 반영한다.
+     *
+     * @param document 근거가 된 원문 · null 이면 여러 재료를 묶은 종합 포인트다
+     */
+    public static ResearchPoint of(
+            Stock stock, LocalDate targetDate, Kind kind, String body, ResearchDocument document) {
+        ResearchPoint point = new ResearchPoint();
+        point.stock = stock;
+        point.targetDate = targetDate;
+        point.kind = kind;
+        point.body = body;
+        point.document = document;
+        return point;
+    }
 }
