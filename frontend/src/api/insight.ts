@@ -60,13 +60,15 @@ export function getBriefings(scope: 'MARKET' | 'STOCK' = 'MARKET') {
 export type WatchlistRow = {
   stockCode: string
   name: string
-  prevClose: number
+  /** 수집 범위(KOSPI 300) 밖으로 밀려 시세가 없으면 null */
+  prevClose: number | null
+  /** 점이 둘 미만이면 0 */
   changeRate: number
+  /** 최근 30 영업일 종가, 오래된 순. 시세가 없으면 빈 배열 */
   series: number[]
 }
 
 export function getWatchlist() {
-  if (MOCK) return mock.watchlist()
   return api.get<{ items: WatchlistRow[] }>('/watchlist')
 }
 
@@ -95,7 +97,6 @@ export function getTopPredictors(limit = 5) {
 export type ActiveAd = { id: number; imageUrl: string; linkUrl: string }
 
 export function getActiveAds() {
-  if (MOCK) return mock.activeAds()
   return api.get<{ items: ActiveAd[] }>('/ads/active')
 }
 
