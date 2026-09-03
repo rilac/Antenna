@@ -51,6 +51,9 @@ deploy-backend:
     # DART_API_KEY(ANT-RESEARCH-01) · NAVER_API_KEY_ID/NAVER_API_KEY · AI_API_KEY/AI_MODEL
     # (ANT-RESEARCH-02)도 같다 — 이 목록에 없는 CI/CD 변수는 .env 에 안 적히므로 컨테이너가
     # 영영 못 본다. 변수만 등록하고 여기 줄을 안 넣으면 "키를 넣었는데 수집이 안 돈다" 가 된다.
+    # CHAIN_ID 는 SignatureGuard 가 지갑 서명 payload 에 박는 값이다. 빠지면 코드 기본값 31337
+    # (로컬 Hardhat)이 돼 SSAFY 네트워크(31221) 지갑 서명이 전부 SIGNER_MISMATCH 로 떨어진다.
+    # 비밀값이 아니라 운영 고정값이므로 여기 적는다.
     - |
       umask 077
       cat > .env <<EOF
@@ -70,6 +73,7 @@ deploy-backend:
       JWT_REFRESH_TTL_DAYS=14
       COOKIE_SECURE=true
       CORS_ALLOWED_ORIGINS=https://stock-antenna.com
+      CHAIN_ID=31221
       PUBLIC_DATA_SERVICE_KEY=$PUBLIC_DATA_SERVICE_KEY
       KOREAEXIM_AUTH_KEY=$KOREAEXIM_AUTH_KEY
       DART_API_KEY=$DART_API_KEY
