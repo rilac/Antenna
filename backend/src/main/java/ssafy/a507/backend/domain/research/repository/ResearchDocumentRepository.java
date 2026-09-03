@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.research.repository;
 
+import java.time.Instant;
 import java.util.List;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,6 +34,16 @@ public interface ResearchDocumentRepository extends JpaRepository<ResearchDocume
             @Param("source") ResearchDocument.Source source,
             @Param("promptVersion") String promptVersion,
             Limit limit);
+
+    /**
+     * 브리핑 재료 — 기준일 안에 나온 뉴스 중 최신 몇 건 (ANT-RESEARCH-03).
+     *
+     * <p>기준일로 묶는 이유: 브리핑 기준일은 일봉이 들어온 마지막 영업일(D-1)인데 뉴스는 그날 저녁
+     * 것(D)까지 들어와 있다. 묶지 않으면 D-1 시세에 D 기사가 붙어 "3% 급등" 요약과 "-0.8%" 수치가
+     * 한 프롬프트에 들어간다.
+     */
+    List<ResearchDocument> findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
+            String stockCode, ResearchDocument.Source source, Instant before, Limit limit);
 
     /**
      * 종목별 문서 한 페이지. 최신순 고정이라 커서는 id 하나다.

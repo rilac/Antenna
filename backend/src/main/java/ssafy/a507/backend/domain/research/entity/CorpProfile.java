@@ -134,7 +134,7 @@ public class CorpProfile {
      * 컬럼 폭에 맞춰 자른다. DART 값에는 상한 약속이 없어 한 회사가 넘치면 그 저장이 터지는데,
      * 서비스는 트랜잭션을 종목마다 끊으므로 그 예외가 회차 전체를 끌고 내려간다.
      */
-    private static String cut(String raw, int max) {
+    static String cut(String raw, int max) {
         if (raw == null) {
             return null;
         }

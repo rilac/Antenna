@@ -73,6 +73,9 @@ public enum ErrorCode {
     /** 종목코드가 종목 마스터에 없다. 구간에 시세가 없는 것(200 + 빈 목록)과 구분한다. */
     STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "종목을 찾을 수 없습니다."),
 
+    // AI 브리핑 (ANT-RESEARCH-03)
+    BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),
+
     // 관심 종목 (ANT-DATA-06)
     /** 이미 담은 종목을 다시 담았다. 빼기(DELETE)는 멱등(204)이라 이 code 를 쓰지 않는다. */
     DUPLICATE_WATCHLIST_ITEM(HttpStatus.CONFLICT, "이미 관심 종목에 있습니다."),

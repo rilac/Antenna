@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import java.time.LocalDate;
 import lombok.AccessLevel;
@@ -24,7 +25,12 @@ import ssafy.a507.backend.domain.market.entity.Stock;
  * 종목 추천·미래 예측 문구는 넣지 않는다.
  */
 @Entity
-@Table(name = "ai_briefings")
+@Table(
+        name = "ai_briefings",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uq_ai_briefings_target",
+                        columnNames = {"scope", "stock_code", "target_date"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AiBriefing {
@@ -33,6 +39,12 @@ public class AiBriefing {
         MARKET,
         STOCK
     }
+
+    /** {@code headline} 컬럼 폭. */
+    public static final int MAX_HEADLINE_LENGTH = 200;
+
+    /** ERD 가 정한 본문 상한(≤5000자). 모델이 길이를 넘기면 잘라 저장한다. */
+    public static final int MAX_BODY_LENGTH = 5000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,4 +76,38 @@ public class AiBriefing {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /**
+     * 배치 B6 의 생성 (ANT-RESEARCH-03).
+     *
+     * <p>UQ 는 {@code (scope, stock_code, target_date)} 지만 MARKET 행은 {@code stock_code}
+     * 가 NULL 이라 Postgres 유니크가 겹침을 잡지 못한다 — MARKET 의 멱등은 저장 전에 같은
+     * 날짜 행을 찾아 {@link #rewrite} 하는 서비스 쪽 책임이고, UQ 는 STOCK 의 안전판이다.
+     *
+     * @param stock STOCK 이면 필수 · MARKET 이면 null
+     */
+    public static AiBriefing of(
+            Scope scope,
+            Stock stock,
+            LocalDate targetDate,
+            String headline,
+            String body,
+            String promptVersion) {
+        AiBriefing briefing = new AiBriefing();
+        briefing.scope = scope;
+        briefing.stock = stock;
+        briefing.targetDate = targetDate;
+        briefing.rewrite(headline, body, promptVersion);
+        return briefing;
+    }
+
+    /**
+     * 같은 대상·날짜의 재생성. 프롬프트 세대를 올렸을 때 옛 행을 지우고 새로 넣는 대신 제자리에서
+     * 바꾼다 — id 가 유지되어 이미 열어 둔 상세 링크가 깨지지 않는다.
+     */
+    public void rewrite(String headline, String body, String promptVersion) {
+        this.headline = CorpProfile.cut(headline, MAX_HEADLINE_LENGTH);
+        this.body = CorpProfile.cut(body, MAX_BODY_LENGTH);
+        this.promptVersion = promptVersion;
+    }
 }
