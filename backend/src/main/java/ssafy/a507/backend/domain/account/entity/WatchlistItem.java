@@ -45,4 +45,11 @@ public class WatchlistItem {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static WatchlistItem of(User user, Stock stock) {
+        WatchlistItem item = new WatchlistItem();
+        item.user = user;
+        item.stock = stock;
+        return item;
+    }
 }
