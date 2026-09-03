@@ -8,8 +8,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import ssafy.a507.backend.common.security.CurrentUserProvider;
+import ssafy.a507.backend.domain.market.dto.SectorSummaryResponse;
 import ssafy.a507.backend.domain.market.dto.StockListResponse;
 import ssafy.a507.backend.domain.market.dto.StockPriceListResponse;
+import ssafy.a507.backend.domain.market.entity.Stock;
 import ssafy.a507.backend.domain.market.service.StockService;
 
 /**
@@ -25,12 +28,27 @@ import ssafy.a507.backend.domain.market.service.StockService;
 public class StockController {
 
     private final StockService stockService;
+    private final CurrentUserProvider currentUserProvider;
 
+    /**
+     * 탐색 목록. 명세의 나머지 쿼리(sentiment · perMin/perMax · hasOpenPrediction · sort)는
+     * 재료가 없어 받지 않는다 — 모르는 파라미터는 스프링이 무시하므로 화면은 그대로 보내도 된다.
+     */
     @GetMapping
     public StockListResponse list(
+            @RequestParam(required = false) String sector,
+            @RequestParam(required = false) Stock.Market market,
+            @RequestParam(required = false, defaultValue = "false") boolean watchedOnly,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) Integer size) {
-        return stockService.list(cursor, size);
+        return stockService.list(
+                currentUserProvider.currentUserId(), sector, market, watchedOnly, cursor, size);
+    }
+
+    /** 섹터 요약 칩 — 전체 + 섹터별 종목 수·평균 등락률. */
+    @GetMapping("/sectors")
+    public SectorSummaryResponse sectors() {
+        return stockService.sectors();
     }
 
     /**

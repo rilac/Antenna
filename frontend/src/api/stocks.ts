@@ -6,26 +6,12 @@
    POST   /watchlist              { stockCode }
    DELETE /watchlist/{stockCode}
 
-   ── 백엔드가 붙으면 지울 것 ────────────────────────────────
-   아래 MOCK 을 false 로 바꾸면 전부 실제 호출로 넘어간다. 그다음
-   api/mock/stocks.ts 와 각 함수의 `if (MOCK)` 한 줄씩만 지우면 흔적이 없다.
-   실제 호출부는 명세서 경로·쿼리대로 미리 적어 두었다.
-
-   지금 서버에 있는 것은 GET /stocks 최소판(cursor · size)뿐이다. 재료가 되는
-   corp_financials · predictions 표가 없어 필터·정렬·집계가 빠졌다(명세서 v0.9).
-   화면을 먼저 세우고 백엔드에 아래를 요청한다:
-
-     GET /stocks 쿼리 추가   sector · market · sentiment · perMin/perMax ·
-                             hasOpenPrediction · watchedOnly · sort(5종)
-     GET /stocks 응답 추가   changeRate · per · pbr · predictionCount · upRatio · watched
-     GET /stocks/sectors     섹터 요약 칩 — 섹터명 · 종목 수 · 평균 등락률
-     POST·DELETE /watchlist  관심 토글 (엔티티만 있고 엔드포인트가 없다)
-   ─────────────────────────────────────────────────────── */
+   전부 실제 호출이다(명세서 v0.15). 서버가 아직 재료가 없어 무시하는 것 —
+   sentiment · perMin/perMax · hasOpenPrediction · sort 는 보내도 결과가 안 바뀌고,
+   per · pbr · upRatio 는 null, predictionCount 는 0 으로 온다. corp_financials ·
+   predictions 가 생기면 서버만 바뀌고 이 파일은 그대로다. */
 import { api } from './client'
-import * as mock from './mock/stocks'
 import type { CursorList } from './types'
-
-const MOCK = true
 
 /** 서버 Stock.Market 과 짝이다. */
 export const MARKETS = ['KOSPI', 'KOSDAQ', 'KONEX'] as const
@@ -121,23 +107,19 @@ export const EMPTY_FILTER: StockFilter = { sort: 'PREDICTION_COUNT' }
 export function fetchStocks(filter: StockFilter) {
   return (query: Record<string, string | number | boolean | undefined>) => {
     const q = { ...filter, size: STOCK_PAGE_SIZE, ...query }
-    if (MOCK) return mock.stockList(q)
     return api.get<StockList>('/stocks', { query: q })
   }
 }
 
 export function getSectorSummary() {
-  if (MOCK) return mock.sectorSummary()
   return api.get<{ items: SectorSummary[] }>('/stocks/sectors')
 }
 
 /** 관심 담기·빼기. 화면은 낙관적으로 먼저 바꾸고 실패하면 되돌린다(§4 B-02). */
 export function addWatch(stockCode: string) {
-  if (MOCK) return mock.setWatch(stockCode, true)
   return api.post<void>('/watchlist', { stockCode })
 }
 
 export function removeWatch(stockCode: string) {
-  if (MOCK) return mock.setWatch(stockCode, false)
   return api.delete<void>(`/watchlist/${stockCode}`)
 }
