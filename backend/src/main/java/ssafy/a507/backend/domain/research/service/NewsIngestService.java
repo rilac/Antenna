@@ -80,6 +80,12 @@ public class NewsIngestService {
                         .toList();
                 created += save(stock, items);
             } catch (NaverNewsException e) {
+                if (e.abortsRun()) {
+                    // 자격증명 오류나 한도 초과는 다음 종목도 똑같이 실패한다. 남은 종목을
+                    // 돌면 경고 300줄과 헛호출 300번만 남는다. 회차를 접고 다음 날을 기다린다.
+                    log.warn("[NEWS] 수집 회차를 접는다 ({}건 반영) — {}", created, e.getMessage());
+                    break;
+                }
                 log.warn("[NEWS] 수집 실패 {} — {}", stock.getCode(), e.getMessage());
             } catch (DataAccessException e) {
                 log.warn("[NEWS] 저장 실패 {} — {}", stock.getCode(), e.getMessage());
@@ -117,7 +123,7 @@ public class NewsIngestService {
                 continue;
             }
             fresh.add(ResearchDocument.collected(
-                    stockRepository.getReferenceById(stock.getCode()),
+                    stock,
                     ResearchDocument.Source.NEWS,
                     externalId,
                     truncate(item.title()),

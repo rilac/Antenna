@@ -80,6 +80,16 @@ app:
     profile-cron: "-"
     financial-cron: "-"
 
+  # 테스트는 네이버·GMS 와 통신하지 않는다. 키가 비어 있을 때 수집·요약이 스스로 멈추는 것도 검증 대상이다.
+  naver-news:
+    key-id:
+    key:
+    cron: "-"
+  ai:
+    api-key:
+    prompt-version: v1
+    news-summary-cron: "-"
+
   # 테스트는 포털과 통신하지 않는다. 키가 비어 있을 때 수집이 스스로 멈추는 것도 검증 대상이다.
   market-data:
     service-key:

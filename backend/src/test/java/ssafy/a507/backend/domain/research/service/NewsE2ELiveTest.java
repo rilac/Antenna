@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import ssafy.a507.backend.domain.research.client.NaverNewsClient;
 import ssafy.a507.backend.domain.research.dto.ResearchDocumentItemResponse;
 import ssafy.a507.backend.domain.research.entity.ResearchDocument;
 import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
@@ -28,13 +29,14 @@ import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
             "app.naver-news.key-id=${NAVER_API_KEY_ID:}",
             "app.naver-news.key=${NAVER_API_KEY:}",
             "app.ai.api-key=${AI_API_KEY:}",
-            "app.naver-news.display-per-stock=5"
+            "app.naver-news.display-per-stock=50"
         })
 @DisplayName("뉴스 수집·요약 실호출 E2E")
 class NewsE2ELiveTest {
 
     private static final String SAMSUNG = "005930";
 
+    @Autowired NaverNewsClient newsClient;
     @Autowired NewsIngestService ingestService;
     @Autowired DocumentSummaryService summaryService;
     @Autowired ResearchDocumentService documentService;
@@ -58,10 +60,17 @@ class NewsE2ELiveTest {
     @Test
     @DisplayName("수집 → 요약 → 조회가 실제로 이어진다")
     void 전체_파이프라인() {
+        // 필터 통과율을 먼저 본다. 종목명 검색 결과 중 제목에 종목명이 든 것은 2026-09-03
+        // 실측으로 15% 안팎이라, display 를 작게 잡으면 어느 날은 0건이 정상이다.
+        var raw = newsClient.searchLatest("삼성전자");
+        long kept = raw.stream().filter(item -> NewsIngestService.mentions(item.title(), "삼성전자")).count();
+        System.out.println("[E2E] 검색 " + raw.size() + "건 중 제목 필터 통과 " + kept + "건");
+        assertThat(raw).as("검색 자체가 비면 자격증명·주소 문제다").isNotEmpty();
+
         long t0 = System.currentTimeMillis();
         int collected = ingestService.ingestNews();
         System.out.println("[E2E] 뉴스 수집 " + collected + "건 (" + (System.currentTimeMillis() - t0) + "ms)");
-        assertThat(collected).as("삼성전자 뉴스가 하루도 없을 리 없다").isPositive();
+        assertThat(collected).as("50건 중 제목에 종목명 든 기사가 하나도 없을 리 없다").isPositive();
 
         researchDocumentRepository.findAll().stream()
                 .limit(3)

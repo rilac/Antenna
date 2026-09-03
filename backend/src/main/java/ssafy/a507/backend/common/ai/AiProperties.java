@@ -33,6 +33,10 @@ public record AiProperties(String apiKey, String baseUrl, String model, String p
         if (baseUrl == null || baseUrl.isBlank()) {
             baseUrl = DEFAULT_BASE_URL;
         }
+        // 경로를 붙일 때 "/" 를 우리가 넣는다. 설정에 끝 슬래시가 있으면 "//" 가 된다.
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
         if (model == null || model.isBlank()) {
             model = DEFAULT_MODEL;
         }

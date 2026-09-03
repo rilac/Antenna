@@ -1,7 +1,10 @@
 package ssafy.a507.backend.domain.research.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
@@ -12,9 +15,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 import ssafy.a507.backend.domain.research.client.NaverNewsClient;
+import ssafy.a507.backend.domain.research.client.NaverNewsException;
 import ssafy.a507.backend.domain.research.client.NaverNewsItem;
 import ssafy.a507.backend.domain.research.entity.ResearchDocument;
 import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
@@ -46,6 +53,10 @@ class NewsIngestServiceTest {
         em.createNativeQuery("INSERT INTO stocks (code, name, listed) VALUES (?, ?, TRUE)")
                 .setParameter(1, SAMSUNG)
                 .setParameter(2, "삼성전자")
+                .executeUpdate();
+        em.createNativeQuery("INSERT INTO stocks (code, name, listed) VALUES (?, ?, TRUE)")
+                .setParameter(1, "035720")
+                .setParameter(2, "카카오")
                 .executeUpdate();
         em.flush();
     }
@@ -134,6 +145,36 @@ class NewsIngestServiceTest {
     void 주소_정규화() {
         assertThat(NewsIngestService.externalId("https://a.com/b/"))
                 .isEqualTo(NewsIngestService.externalId("https://a.com/b"));
+    }
+
+    @Test
+    @DisplayName("한도 초과(429)면 남은 종목을 부르지 않고 회차를 접는다")
+    void 한도_초과는_회차_중단() {
+        given(newsClient.searchLatest(anyString()))
+                .willThrow(new NaverNewsException(
+                        "뉴스 검색 실패",
+                        HttpClientErrorException.create(
+                                HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests",
+                                HttpHeaders.EMPTY, new byte[0], null)));
+
+        assertThat(ingestService.ingestNews()).isZero();
+
+        verify(newsClient, times(1)).searchLatest(anyString());
+    }
+
+    @Test
+    @DisplayName("일시적 실패(5xx)는 그 종목만 건너뛰고 다음 종목으로 간다")
+    void 일시_실패는_종목_격리() {
+        given(newsClient.searchLatest(anyString()))
+                .willThrow(new NaverNewsException(
+                        "뉴스 검색 실패",
+                        HttpClientErrorException.create(
+                                HttpStatus.BAD_GATEWAY, "Bad Gateway",
+                                HttpHeaders.EMPTY, new byte[0], null)));
+
+        ingestService.ingestNews();
+
+        verify(newsClient, times(2)).searchLatest(anyString());
     }
 
     private static NaverNewsItem item(String title, String url) {
