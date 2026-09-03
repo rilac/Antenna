@@ -1,0 +1,142 @@
+package ssafy.a507.backend.domain.research.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.annotation.Transactional;
+import ssafy.a507.backend.domain.research.client.NaverNewsClient;
+import ssafy.a507.backend.domain.research.client.NaverNewsItem;
+import ssafy.a507.backend.domain.research.entity.ResearchDocument;
+import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
+
+/**
+ * 뉴스 수집의 재실행 안전성과 걸러내기를 본다.
+ *
+ * <p><b>멱등 키가 DART 와 다르다.</b> 뉴스 검색은 고유 ID 를 주지 않아 원문 주소를 해시해
+ * 쓰는데, 그 계산이 어긋나면 매일 도는 배치가 같은 기사를 날마다 새로 쌓는다.
+ *
+ * <p>네이버는 스텁이다 — 테스트는 외부와 통신하지 않는다.
+ */
+@SpringBootTest(properties = {"app.naver-news.key-id=test-id", "app.naver-news.key=test-key"})
+@Transactional
+@DisplayName("뉴스 수집")
+class NewsIngestServiceTest {
+
+    private static final String SAMSUNG = "005930";
+    private static final String URL = "https://news.example.com/article?id=1";
+
+    @Autowired NewsIngestService ingestService;
+    @Autowired EntityManager em;
+    @Autowired ResearchDocumentRepository researchDocumentRepository;
+
+    @MockitoBean NaverNewsClient newsClient;
+
+    @BeforeEach
+    void setUp() {
+        em.createNativeQuery("INSERT INTO stocks (code, name, listed) VALUES (?, ?, TRUE)")
+                .setParameter(1, SAMSUNG)
+                .setParameter(2, "삼성전자")
+                .executeUpdate();
+        em.flush();
+    }
+
+    @Test
+    @DisplayName("같은 기사를 다시 받아도 한 건이다 — 원문 주소 해시가 멱등 키다")
+    void 재수집_멱등() {
+        given(newsClient.searchLatest("삼성전자"))
+                .willReturn(List.of(item("삼성전자, 신공장 착공", URL)));
+
+        int first = ingestService.ingestNews();
+        em.flush();
+        int second = ingestService.ingestNews();
+        em.flush();
+
+        assertThat(first).isEqualTo(1);
+        assertThat(second).as("두 번째 회차는 새로 쌓을 게 없다").isZero();
+        assertThat(researchDocumentRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("한 응답에 같은 주소가 두 번 와도 한 건만 쌓인다")
+    void 같은_회차_중복() {
+        given(newsClient.searchLatest("삼성전자"))
+                .willReturn(List.of(item("삼성전자 실적", URL), item("삼성전자 실적 [재송]", URL)));
+
+        assertThat(ingestService.ingestNews()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("제목에 종목명이 없는 기사는 버린다 — 종목명 검색은 무관 기사를 데려온다")
+    void 노이즈_필터() {
+        given(newsClient.searchLatest("삼성전자"))
+                .willReturn(List.of(
+                        item("삼성전자 신제품 공개", URL),
+                        item("프로야구 한화 이글스 승리", "https://news.example.com/article?id=2")));
+
+        assertThat(ingestService.ingestNews()).isEqualTo(1);
+        assertThat(researchDocumentRepository.findAll())
+                .extracting(ResearchDocument::getTitle)
+                .containsExactly("삼성전자 신제품 공개");
+    }
+
+    @Test
+    @DisplayName("매체가 띄어 쓴 회사명도 같은 것으로 본다")
+    void 공백_차이는_무시() {
+        assertThat(NewsIngestService.mentions("삼성 전자, 신공장 착공", "삼성전자")).isTrue();
+        assertThat(NewsIngestService.mentions("현대차 판매 호조", "삼성전자")).isFalse();
+    }
+
+    @Test
+    @DisplayName("되돌아보기 구간보다 오래된 기사는 버린다")
+    void 오래된_기사() {
+        given(newsClient.searchLatest("삼성전자"))
+                .willReturn(List.of(new NaverNewsItem(
+                        "삼성전자 옛 기사",
+                        URL,
+                        "발췌",
+                        Instant.now().minus(400, ChronoUnit.DAYS))));
+
+        assertThat(ingestService.ingestNews()).isZero();
+    }
+
+    @Test
+    @DisplayName("발췌를 함께 남긴다 — 요약을 다시 만들 때의 유일한 재료다")
+    void 발췌_저장() {
+        given(newsClient.searchLatest("삼성전자"))
+                .willReturn(List.of(item("삼성전자, 신공장 착공", URL)));
+
+        ingestService.ingestNews();
+        em.flush();
+
+        assertThat(researchDocumentRepository.findAll())
+                .singleElement()
+                .satisfies(document -> {
+                    assertThat(document.getSnippet()).isEqualTo("발췌 본문");
+                    assertThat(document.getSummary()).as("요약은 B6 의 몫이다").isNull();
+                    assertThat(document.getExternalId())
+                            .as("주소 해시는 64자 고정 — external_id 컬럼이 100자다")
+                            .hasSize(64);
+                });
+    }
+
+    @Test
+    @DisplayName("끝의 슬래시만 다른 주소는 같은 기사다")
+    void 주소_정규화() {
+        assertThat(NewsIngestService.externalId("https://a.com/b/"))
+                .isEqualTo(NewsIngestService.externalId("https://a.com/b"));
+    }
+
+    private static NaverNewsItem item(String title, String url) {
+        return new NaverNewsItem(title, url, "발췌 본문", Instant.now().minus(1, ChronoUnit.HOURS));
+    }
+}

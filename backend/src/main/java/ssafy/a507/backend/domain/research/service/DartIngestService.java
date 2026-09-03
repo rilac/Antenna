@@ -288,6 +288,8 @@ public class DartIngestService {
                     disclosure.receiptNo(),
                     truncate(disclosure.reportName()),
                     disclosure.originUrl(),
+                    // 공시에는 발췌가 없다 — 보고서명이 곧 요약이라 따로 받을 것이 없다.
+                    null,
                     receivedOn.atStartOfDay(KST).toInstant()));
         }
         researchDocumentRepository.saveAll(fresh);
