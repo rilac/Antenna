@@ -339,7 +339,8 @@ function Watchlist() {
             <tbody>
               {data.items.slice(0, WATCH_ROWS).map((s) => {
                 const up = s.changeRate >= 0
-                const delta = deltaOf(s.prevClose, s.changeRate)
+                // 시세가 없는 종목은 종가·변동액을 지어내지 않고 빈칸으로 둔다
+                const delta = s.prevClose === null ? null : deltaOf(s.prevClose, s.changeRate)
                 return (
                   <tr key={s.stockCode}>
                     <th scope="row">
@@ -348,10 +349,14 @@ function Watchlist() {
                         {s.name} <small className="num">{s.stockCode}</small>
                       </Link>
                     </th>
-                    <td className="r num">{won(s.prevClose)} 원</td>
+                    <td className="r num">{s.prevClose === null ? '—' : `${won(s.prevClose)} 원`}</td>
                     <td className={`r num ${up ? 'up' : 'down'}`}>
-                      {signedAmt(Math.round(delta))}
-                      <em> ({signed(s.changeRate)})</em>
+                      {delta === null ? '—' : (
+                        <>
+                          {signedAmt(Math.round(delta))}
+                          <em> ({signed(s.changeRate)})</em>
+                        </>
+                      )}
                     </td>
                     <td className="c"><Sparkline series={s.series} up={up} /></td>
                     {/* 목록에 담긴 종목이라 채운 별이다. 담기·빼기는 B-04 의 몫이다. */}
