@@ -152,6 +152,43 @@
 .auth .dev-signin-row button:hover{background:#fff;color:var(--ink)}
 .auth .dev-signin-row button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 
+/* A-01 복귀 구간 — /oauth/callback/:provider
+   로그인 화면에서 넘어와 잠깐 머무는 자리다. 카드 하나만 가운데 두고, 배경과
+   카드 모양은 .auth · .sso 를 그대로 물려받아 두 화면이 이어져 보이게 한다. */
+.auth .cb-shell{
+  width:min(420px,100%);margin:0 auto;
+  display:flex;flex-direction:column;align-items:center;
+}
+.auth .cb-brand{margin-bottom:20px}
+.auth .cb-card{width:100%;padding:40px 36px;align-items:center;text-align:center}
+.auth .cb-card h2{margin:0 0 10px;font-size:23px}
+.auth .cb-card .sub{margin:0}
+.auth .cb-hint{margin:22px 0 0;color:var(--faint);font-size:12.5px}
+.auth .cb-reason{
+  margin:0 0 26px;padding:12px 14px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface-2);
+  color:var(--body);font-size:13.5px;line-height:1.6;word-break:keep-all;
+}
+.auth .cb-card .sso-btn{width:100%}
+
+/* 진행 표시. 색만으로 상태를 전하지 않도록 아래에 문구가 함께 있다. */
+.auth .cb-spinner{
+  width:42px;height:42px;margin:0 auto 20px;border-radius:50%;
+  border:3px solid var(--brand-soft);border-top-color:var(--brand);
+  animation:cb-spin .8s linear infinite;
+}
+@keyframes cb-spin{to{transform:rotate(360deg)}}
+
+.auth .cb-icon{
+  display:grid;place-items:center;width:52px;height:52px;margin:0 auto 18px;
+  border-radius:16px;
+}
+.auth .cb-icon.is-error{background:#fdeceb;color:var(--danger)}
+
+@media (prefers-reduced-motion:reduce){
+  .auth .cb-spinner{animation:none}
+}
+
 /* A-02 온보딩 닉네임 — [ANT-AUTH-03] */
 .auth .nickname-input{width:100%;height:56px;padding:0 16px;border:1px solid var(--rule);border-radius:14px;background:#fff;color:var(--ink);font-family:inherit;font-size:16px;font-weight:600}
 .auth .nickname-input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(88,80,244,.14)}
