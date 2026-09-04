@@ -64,4 +64,11 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // 실호출 E2E(*E2ELiveTest)는 사람이 --tests 로 지목할 때만 돈다. 이 테스트들은 API 키가 env 에
+    // 있으면 스스로 살아나는데, GitLab CI 잡은 CI/CD 변수를 env 로 받으므로 배포 파이프라인이 외부
+    // API 를 실제로 부르고, 공유 H2 에 커밋한 행(005930)이 뒤에 도는 테스트를 중복키로 깨뜨렸다
+    // (2026-09-04 master 배포 실패). 지목해서 돌릴 때는 원래 명령 그대로다.
+    if (!gradle.startParameter.taskRequests.any { it.args.contains('--tests') }) {
+        exclude '**/*E2ELiveTest*'
+    }
 }
