@@ -30,8 +30,11 @@ public class CommitAnchorAbi {
 
     private static final String RESOURCE_PATH = "abi/CommitAnchor.json";
 
-    /** 이 이름들이 없으면 배포된 컨트랙트와 서버가 보는 인터페이스가 어긋난 것이다. */
-    private static final List<String> REQUIRED_FUNCTIONS = List.of("anchor", "rootOf");
+    /**
+     * 이 이름들이 없으면 배포된 컨트랙트와 서버가 보는 인터페이스가 어긋난 것이다.
+     * isIncluded 는 v2(ANT-CHAIN-08)에서 생겼다 — v1 ABI 가 남아 있으면 여기서 부팅이 막힌다.
+     */
+    private static final List<String> REQUIRED_FUNCTIONS = List.of("anchor", "rootOf", "isIncluded");
 
     private static final String REQUIRED_EVENT = "Anchored";
 

@@ -20,7 +20,7 @@ import java.util.List;
  * 재배포돼 주소가 갈려도(CHAIN-01 대안 F1이 감수한 것), 이미 발급된 번들은 자기가
  * 대조할 옛 주소를 정확히 가리킨다.
  *
- * <p>필드 계약은 verify.html과 공유한다. 이름을 바꾸면 이미 발급된 번들이 죽으므로
+ * <p>필드 계약은 FE 검증 화면과 공유한다(정적 verify.html은 ANT-CHAIN-08에서 폐기). 이름을 바꾸면 이미 발급된 번들이 죽으므로
  * <b>한 번 정한 이름은 바꾸지 않는다</b> — 바꿀 일이 생기면 {@code version}을 올린다.
  */
 public record ProofBundle(

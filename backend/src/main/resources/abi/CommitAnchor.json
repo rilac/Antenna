@@ -7,6 +7,11 @@
           "internalType": "address",
           "name": "admin",
           "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "relayer",
+          "type": "address"
         }
       ],
       "stateMutability": "nonpayable",
@@ -60,6 +65,22 @@
       "type": "error"
     },
     {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "expected",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "computed",
+          "type": "bytes32"
+        }
+      ],
+      "name": "RootMismatch",
+      "type": "error"
+    },
+    {
       "anonymous": false,
       "inputs": [
         {
@@ -76,9 +97,9 @@
         },
         {
           "indexed": false,
-          "internalType": "uint256",
-          "name": "commitCount",
-          "type": "uint256"
+          "internalType": "bytes32[]",
+          "name": "commitHashes",
+          "type": "bytes32[]"
         }
       ],
       "name": "Anchored",
@@ -198,9 +219,9 @@
           "type": "bytes32"
         },
         {
-          "internalType": "uint256",
-          "name": "commitCount",
-          "type": "uint256"
+          "internalType": "bytes32[]",
+          "name": "commitHashes",
+          "type": "bytes32[]"
         }
       ],
       "name": "anchor",
@@ -259,6 +280,35 @@
         }
       ],
       "name": "hasRole",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "batchId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "commitHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32[]",
+          "name": "proof",
+          "type": "bytes32[]"
+        }
+      ],
+      "name": "isIncluded",
       "outputs": [
         {
           "internalType": "bool",
