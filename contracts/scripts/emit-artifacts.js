@@ -39,7 +39,7 @@ function readArtifact() {
 }
 
 /**
- * @param {object} info { network, chainId, address, deployer, admin, txHash, blockNumber }
+ * @param {object} info { network, chainId, address, deployer, admin, relayer, txHash, blockNumber }
  */
 function emit(info, artifact) {
   const deployDir = path.join(ROOT, 'deployments');
@@ -47,6 +47,7 @@ function emit(info, artifact) {
 
   const record = {
     contract: 'CommitAnchor',
+    version: 2, // ANT-CHAIN-08. v1 배포본과 ABI 가 다르다 — 서버 설정에 v1 주소를 넣으면 anchor 가 revert 한다.
     ...info,
     deployedAt: new Date().toISOString(),
   };
