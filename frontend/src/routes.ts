@@ -33,6 +33,7 @@ import PostDetail from './pages/PostDetail'
 import PostNew from './pages/PostNew'
 import SeasonHome from './pages/SeasonHome'
 import SeasonMode from './pages/SeasonMode'
+import SeasonPractice from './pages/SeasonPractice'
 import SeasonJoin from './pages/SeasonJoin'
 import SeasonPlay from './pages/SeasonPlay'
 import SeasonResearch from './pages/SeasonResearch'
@@ -119,6 +120,10 @@ export const ROUTES: PageMeta[] = [
   // ── G. 모의투자 ──────────────────────────────────────
   { screen: 'G-01', element: SeasonHome, path: '/sim', title: '모의투자 홈', access: 'user', mode: 'sim', nav: 'home', bodyClass: 'sim-home-page', story: 'ANT-FE-SEASON-HOME' },
   { screen: 'G-02', element: SeasonMode, path: '/sim/modes', title: '모드 선택', access: 'user', mode: 'sim', nav: 'play', bodyClass: 'sim-setup-page', story: 'ANT-FE-SEASON-MODE' },
+  /* G-02 에서 PRACTICE 를 고른 사람이 머무는 허브. 화면설계서 §3 에는 없는 경로라
+     A-01 의 OAuth 복귀 구간과 같이 부모 화면 ID(G-02)를 그대로 쓴다.
+     프로토타입 screens/sim-practice.html 이 원본이다. */
+  { screen: 'G-02', element: SeasonPractice, path: '/sim/practice', title: '연습하기', access: 'user', mode: 'sim', nav: 'play', bodyClass: 'sim-practice-page', story: 'ANT-FE-SEASON-PRACTICE' },
   { screen: 'G-03', element: SeasonJoin, path: '/sim/seasons/:id', title: '시즌 상세 · 참가', access: 'user', mode: 'sim', nav: 'play', story: 'ANT-FE-SEASON-JOIN' },
   { screen: 'G-04', element: SeasonPlay, path: '/sim/:id/play', title: '시즌 진행', access: 'user', mode: 'sim', nav: 'play', bodyClass: 'sim-play-page', story: 'ANT-FE-SEASON-PLAY' },
   // G-05 는 프로토타입에서 제거됐지만 설계서 §3 G 와 스토리가 아직 살아 있다 — 결론 나면 정리한다
