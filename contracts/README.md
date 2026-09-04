@@ -88,8 +88,8 @@ docker compose down -v  →  id 시퀀스가 1 로 리셋  →  다음 앵커가
 | 3 | CHAIN-05 Live 테스트(3리프) | 2026-09-04 | `0x95a9ac4e` |
 | 4 | CHAIN-02 PostgreSQL 실기 — 서버 스케줄러가 보낸 첫 배치(2리프) | 2026-09-04 | `0xe44f2a9f` |
 
-서버가 이 컨트랙트에 처음 앵커할 때 DB `anchor_batches` 시퀀스가 위 번호와 겹치면 **`ALREADY_ANCHORED` 로 잘못 CONFIRMED** 된다
-(체인의 그 번호는 데모 루트다). 대응은 둘 중 하나 — ① 컨트랙트를 새로 배포하고 `CONTRACT_COMMIT_ANCHOR` 교체(운영 권장, 가스 0)
+서버가 이 컨트랙트에 처음 앵커할 때 DB `anchor_batches` 시퀀스가 위 번호와 겹치면 서버는 체인 루트와 자기 루트를 비교해
+**`BATCH_ID_COLLISION` 으로 FAILED** 처리한다(잘못 확정하진 않는다 — ANT-CHAIN-02). 그래도 그 배치는 사람이 풀어야 한다. 대응은 둘 중 하나 — ① 컨트랙트를 새로 배포하고 `CONTRACT_COMMIT_ANCHOR` 교체(운영 권장, 가스 0)
 ② `ALTER TABLE anchor_batches ALTER COLUMN id RESTART WITH <표의 최대 + 1>` (로컬 개발용). 로컬 실기에서 새 번호를 태웠으면 표에 추가한다.
 
 ## 함정 3 — SSAFY 배포는 Hardhat 을 거치지 않는다
