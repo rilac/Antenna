@@ -17,8 +17,11 @@ import ssafy.a507.backend.domain.chain.merkle.MerkleTree;
  *
  * <pre>
  * CHAIN_RPC_URL=wss://ws.ssafy-blockchain.com RELAYER_PRIVATE_KEY=0x… CONTRACT_COMMIT_ANCHOR=0x… \
- * LIVE_BATCH_ID=2 ./gradlew test --tests '*Web3jAnchorRelayerLiveTest*'
+ * LIVE_BATCH_ID=2 ./gradlew test --tests '*Web3jAnchorRelayerE2ELiveTest*'
  * </pre>
+ *
+ * <p>이름의 E2ELiveTest 는 팀 컨벤션(build.gradle, 임대연 bd36570) — CI 전체 빌드에서 제외되고 --tests 로 지목할 때만 돈다.
+ * CI 변수에 체인 키가 있어도 배포 파이프라인이 실체인에 tx 를 보내지 않게 하려는 것이다.
  *
  * <p>SpringBootTest 가 아니다 — DB 없이 릴레이어만 실제 노드에 붙여 본다. 같은 batchId 를 두 번 보내면
  * 두 번째가 ALREADY_ANCHORED 로 돌아오는 것까지 본다. 재실행 시 LIVE_BATCH_ID 를 올려라.
@@ -26,7 +29,7 @@ import ssafy.a507.backend.domain.chain.merkle.MerkleTree;
 @EnabledIfEnvironmentVariable(named = "CHAIN_RPC_URL", matches = "wss?://.+")
 @EnabledIfEnvironmentVariable(named = "RELAYER_PRIVATE_KEY", matches = "0x[0-9a-fA-F]{64}")
 @EnabledIfEnvironmentVariable(named = "CONTRACT_COMMIT_ANCHOR", matches = "0x[0-9a-fA-F]{40}")
-class Web3jAnchorRelayerLiveTest {
+class Web3jAnchorRelayerE2ELiveTest {
 
     private Web3jAnchorRelayer relayer() {
         ChainProperties props =
