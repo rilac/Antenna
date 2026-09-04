@@ -219,16 +219,50 @@ class AnchorRunnerTest {
     }
 
     @Test
-    @DisplayName("재전송이 BatchAlreadyAnchored 로 막히면 그건 성공이다 — CONFIRMED")
-    void 이미_앵커됨은_성공() {
+    @DisplayName("BatchAlreadyAnchored 인데 체인의 루트가 우리 루트와 같으면 성공이다 — CONFIRMED")
+    void 이미_앵커됨_우리_루트면_성공() {
         insertCommit("x", "BASE");
         relayer.thenAlreadyAnchored();
+        relayer.rootOfEchoesLastAnchor(); // 체인엔 우리가 방금 보내려던 그 루트가 이미 있다(이전 시도가 성공했던 것)
 
         Long id = runner.run(TODAY).orElseThrow();
 
         AnchorBatch batch = batches.findById(id).orElseThrow();
         assertThat(batch.getStatus()).isEqualTo(AnchorBatch.Status.CONFIRMED);
         assertThat(batch.getTxHash()).isNull(); // 이번엔 보내지 않았으니 해시를 모른다
+    }
+
+    @Test
+    @DisplayName("BatchAlreadyAnchored 인데 체인의 루트가 남의 것이면 batchId 충돌 — FAILED, 절대 CONFIRMED 아님")
+    void 이미_앵커됨_남의_루트면_충돌_실패() {
+        // contracts/README.md 함정 2: 데모·테스트가 먼저 태운 번호를 DB 시퀀스가 다시 쓰는 상황.
+        insertCommit("x", "BASE");
+        relayer.thenAlreadyAnchored();
+        relayer.setForeignRoot(Hash.sha3("someone-else".getBytes()));
+
+        Long id = runner.run(TODAY).orElseThrow();
+
+        AnchorBatch batch = batches.findById(id).orElseThrow();
+        assertThat(batch.getStatus()).isEqualTo(AnchorBatch.Status.FAILED);
+        assertThat(batch.getLastError()).startsWith("BATCH_ID_COLLISION");
+        assertThat(batch.getConfirmedAt()).isNull();
+        assertThat(relayer.calls()).hasSize(1); // 재시도하지 않는다 — 다시 보내도 같다
+    }
+
+    @Test
+    @DisplayName("보냈는데 미확정인 배치를 다음 실행이 rootOf 로 볼 때, 남의 루트면 CONFIRMED 가 아니라 충돌 FAILED")
+    void 미확정_재시도에서도_남의_루트는_충돌() {
+        insertCommit("x", "BASE");
+        relayer.thenUnconfirmed();
+        Long id = runner.run(TODAY).orElseThrow();
+
+        relayer.setForeignRoot(Hash.sha3("someone-else".getBytes()));
+        runner.run(TODAY.plusDays(1));
+
+        AnchorBatch batch = batches.findById(id).orElseThrow();
+        assertThat(batch.getStatus()).isEqualTo(AnchorBatch.Status.FAILED);
+        assertThat(batch.getLastError()).startsWith("BATCH_ID_COLLISION");
+        assertThat(relayer.calls()).hasSize(1); // 재전송 안 함
     }
 
     @Test

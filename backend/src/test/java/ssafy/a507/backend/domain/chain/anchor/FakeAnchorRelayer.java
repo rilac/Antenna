@@ -51,6 +51,8 @@ public class FakeAnchorRelayer implements AnchorRelayer {
         rootOfCalls = 0;
         rootOfUnavailable = false;
         txSeq = 0;
+        echoLastAnchor = false;
+        foreignRoot = null;
     }
 
     public void disable() {
@@ -92,6 +94,19 @@ public class FakeAnchorRelayer implements AnchorRelayer {
         roots.put(batchId, root);
     }
 
+    /** 배치 id 를 모르는 시나리오용 — 마지막 anchor() 호출의 루트를 rootOf 가 돌려준다("우리 tx 가 실제로 박혔다"). */
+    public void rootOfEchoesLastAnchor() {
+        echoLastAnchor = true;
+    }
+
+    /** 어떤 batchId 를 물어도 이 루트 — "남이 먼저 박아 둔 번호" 시나리오. */
+    public void setForeignRoot(byte[] root) {
+        foreignRoot = root;
+    }
+
+    private boolean echoLastAnchor = false;
+    private byte[] foreignRoot = null;
+
     public void rootOfUnavailable() {
         rootOfUnavailable = true;
     }
@@ -126,6 +141,12 @@ public class FakeAnchorRelayer implements AnchorRelayer {
         rootOfCalls++;
         if (rootOfUnavailable) {
             throw new BusinessException(ErrorCode.CHAIN_UNAVAILABLE);
+        }
+        if (foreignRoot != null) {
+            return foreignRoot;
+        }
+        if (echoLastAnchor && !calls.isEmpty()) {
+            return calls.get(calls.size() - 1).root();
         }
         return roots.getOrDefault(batchId, new byte[32]);
     }
