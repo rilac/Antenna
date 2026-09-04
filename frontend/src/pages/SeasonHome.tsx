@@ -26,61 +26,19 @@
      GET /seasons                   → { items: [{ id, mode, lengthDays, initialCash, entryFee, status }] }
    셋 다 커서 페이징이 없는 목록이라(§1 규칙 6 의 예외) useCursorList 를 쓰지 않는다. */
 import { Link } from 'react-router-dom'
-import { api } from '../api/client'
 import type { ApiError } from '../api/errors'
+import {
+  ant, getMyRuns, getOpenRuns, isJoinable, joinableFirst, MODE_LABEL, progressOf, recentFirst, won,
+  type MyRun, type SeasonMode,
+} from '../api/seasons'
 import { useAsync } from '../api/useAsync'
 import { useAuth } from '../auth/context'
 import ErrorState from '../components/state/ErrorState'
 import '../styles/screens/sim-home.css'
 
-type Mode = 'PRACTICE' | 'COMPETITION' | 'DEMO'
-type Status = 'SCHEDULED' | 'RUNNING' | 'CLOSED'
-
-/** GET /seasons/me 한 줄. 이름·수익률은 응답에 없다 */
-type MyRun = {
-  seasonId: number
-  mode: Mode
-  currentDay: number
-  lengthDays: number
-  progress: number
-}
-
-/** GET /seasons 한 줄 */
-type OpenRun = {
-  id: number
-  mode: Mode
-  lengthDays: number
-  initialCash: number
-  /** 대회만 값이 있다. 연습·시연은 참가비가 없다 */
-  entryFee?: number
-  status: Status
-}
-
-/* 모드는 시즌 정체가 아니라 진행 방식이라 그대로 쓴다 — 시대 단서가 아니다. */
-const MODE_LABEL: Record<Mode, string> = { PRACTICE: '연습', COMPETITION: '대회', DEMO: '시연' }
-
 /* 홈은 요약이라 몇 줄만 보여준다. 전체는 G-09 기록에서 본다. */
 const RECENT_ROWS = 4
 const OPEN_ROWS = 3
-
-const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
-const ant = (n: number) => `${n.toLocaleString('ko-KR')} ANT`
-
-/* 진행률은 currentDay/lengthDays 로 낸다. 응답의 progress 를 쓰지 않는 이유는
-   명세에 단위(0~1 인지 0~100 인지)가 적혀 있지 않아서다. 두 값에서 직접 구하면
-   바 옆에 함께 적는 "D+n / 총 n일" 과 어긋날 수 없다. */
-const pct = (cur: number, len: number) =>
-  len > 0 ? Math.max(0, Math.min(100, Math.round((cur / len) * 100))) : 0
-
-/* 시작한 순서를 드러내는 값이 응답에 없어 seasonId 로 대신한다. 큰 쪽이 나중에
-   만들어진 것이라 최근이 위로 온다. 번호 자체는 화면에 쓰지 않는다. */
-const recentFirst = (a: MyRun, b: MyRun) => b.seasonId - a.seasonId
-
-/* 참가할 수 있는 것만 쓴다. CLOSED 는 G-09 기록에서 본다.
-   진행 중인 쪽을 먼저 — 바로 들어갈 수 있는 것이 우선이다. */
-const RANK: Record<string, number> = { RUNNING: 0, SCHEDULED: 1 }
-const joinableFirst = (a: OpenRun, b: OpenRun) =>
-  (RANK[a.status] ?? 9) - (RANK[b.status] ?? 9) || a.id - b.id
 
 /* 401 은 배너로 띄우지 않는다. 세션이 정말 끊겼으면 API 클라이언트가 로그아웃시켜
    로그인 화면으로 보내므로 여기까지 오지 않는다. 여기 남는 401 은 백엔드에 아직 그
@@ -88,15 +46,6 @@ const joinableFirst = (a: OpenRun, b: OpenRun) =>
    온다), 그 사정을 "로그인이 필요합니다" 로 보여주면 로그인한 사람이 헷갈린다.
    그때는 오류가 아니라 빈 상태로 그린다 — 참가한 것이 없는 화면과 같은 모습이다. */
 const shown = (error: ApiError | null) => (error && error.status !== 401 ? error : null)
-
-/* 렌더마다 새로 만들어지면 useAsync 가 계속 다시 읽는다. 모듈 스코프에 둔다. */
-const loadMine = () =>
-  Promise.all([
-    api.get<{ items: MyRun[] }>('/seasons/me', { query: { status: 'ONGOING' } }),
-    api.get<{ items: MyRun[] }>('/seasons/me', { query: { status: 'DONE' } }),
-  ]).then(([ongoing, done]) => ({ ongoing: ongoing.items, done: done.items }))
-
-const loadOpen = () => api.get<{ items: OpenRun[] }>('/seasons')
 
 const Ico = ({ size = 22, children }: { size?: number; children: React.ReactNode }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -127,7 +76,7 @@ const GiftIcon = () => (
 
 /* 모드 배지에 쓰는 도형. 모드마다 달라야 목록에서 구분이 되는데, 시나리오 썸네일은
    그림 자체가 시대를 알려주므로(프로토타입의 야경·유전 일러스트) 쓰지 않는다. */
-const MODE_ICON: Record<Mode, React.ReactNode> = {
+const MODE_ICON: Record<SeasonMode, React.ReactNode> = {
   PRACTICE: <><path d="M22 9 12 4 2 9l10 5z" /><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5" /></>,
   COMPETITION: <><path d="M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5a3.5 3.5 0 0 1-3.5 3.5" /><path d="M10 19h4M12 14v5M8.5 21h7" /></>,
   DEMO: <><rect x="2.5" y="4" width="19" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></>,
@@ -138,7 +87,7 @@ const MODE_ICON: Record<Mode, React.ReactNode> = {
    여러 개 진행 중이면 가장 최근 것을 세우고 나머지는 아래 목록에서 본다. */
 function Hero({ run }: { run: MyRun | null }) {
   const { user } = useAuth()
-  const percent = run ? pct(run.currentDay, run.lengthDays) : 0
+  const percent = run ? progressOf(run.currentDay, run.lengthDays) : 0
   const left = run ? Math.max(0, run.lengthDays - run.currentDay) : 0
 
   return (
@@ -292,11 +241,11 @@ function RecentRuns({ ongoing, done, loading, error, onRetry }: {
 function OpenRuns() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'ADMIN'
-  const { data, loading, error, reload } = useAsync(loadOpen)
+  const { data, loading, error, reload } = useAsync(getOpenRuns)
 
   /* 시연은 관리자에게만 보인다 — 일반 사용자 노출 대상이 아니다. */
   const rows = (data?.items ?? [])
-    .filter((s) => s.status !== 'CLOSED')
+    .filter(isJoinable)
     .filter((s) => s.mode !== 'DEMO' || isAdmin)
     .sort(joinableFirst)
     .slice(0, OPEN_ROWS)
@@ -392,7 +341,7 @@ function Rewards() {
 }
 
 export default function SeasonHome() {
-  const { data, loading, error, reload } = useAsync(loadMine)
+  const { data, loading, error, reload } = useAsync(getMyRuns)
 
   const ongoing = data?.ongoing ?? []
   const done = data?.done ?? []

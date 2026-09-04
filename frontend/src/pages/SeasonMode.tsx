@@ -10,6 +10,8 @@
    1. CTA 목적지: 프로토타입은 모드별 화면으로 바로 갔지만, 확정된 흐름은
       G-02 → G-03 시즌 상세·참가(/sim/seasons/:id)다. 시즌 id 가 필요하므로
       GET /seasons 로 참가 가능한 시즌을 받아 그중 하나로 보낸다.
+      단 연습은 허브 화면(/sim/practice)을 한 번 거친다 — 이어서 할 연습과
+      지난 기록이 거기 있어, 참가 가능한 시즌이 없어도 갈 이유가 있다(HUB 참고).
    2. '추천' 배지를 대회 → 연습으로 옮겼다. 대회는 참가에 지갑 서명과 참가비
       소각이 걸려 있어 처음 오는 사람이 바로 갈 곳이 아니다. 되돌리려면
       MODES 의 recommended 를 COMPETITION 쪽으로 옮기면 된다.
@@ -130,7 +132,7 @@ const MODES: ModeSpec[] = [
         ),
       },
     ],
-    cta: '연습하기 시작',
+    cta: '시작',
     icon: (
       <>
         <path d="M22 9 12 4 2 9l10 5z" />
@@ -306,6 +308,11 @@ const ant = (n: number) => `${n.toLocaleString('ko-KR')} ANT`
 
 /* 참가할 수 있는 시즌만 쓴다. CLOSED 는 G-09 기록에서 본다.
    진행 중인 것을 먼저 보여준다 — 바로 들어갈 수 있는 쪽이 우선이다. */
+/* 연습은 허브 화면이 따로 있다 — 진행 중인 연습 이어하기·완료 기록·연습 주제를
+   거기서 본다. 그래서 시즌 상세로 바로 보내지 않고 허브를 거친다.
+   대회·시연은 허브가 없어 종전대로 G-03 시즌 상세로 곧장 간다. */
+const HUB: Partial<Record<Mode, string>> = { PRACTICE: '/sim/practice' }
+
 const RANK: Record<string, number> = { RUNNING: 0, SCHEDULED: 1 }
 const joinable = (all: Season[], mode: Mode) =>
   all
@@ -423,6 +430,9 @@ export default function SeasonMode() {
             const open = seasons ? joinable(seasons, m.key) : []
             const first = open[0]
             const rest = open.slice(1)
+            /* 허브가 있으면 시즌 유무와 무관하게 그리로 간다. 없으면 종전대로
+               참가 가능한 시즌 하나를 골라 G-03 으로 보낸다. */
+            const target = HUB[m.key] ?? (first ? `/sim/seasons/${first.id}` : null)
 
             return (
               <article className={`ss-mode ${m.tone}${m.recommended ? ' pick' : ''}`} key={m.key}>
@@ -460,14 +470,18 @@ export default function SeasonMode() {
                   ))}
                 </div>
 
-                {/* 참가는 G-03 시즌 상세에서 한다. 여기서는 진입만 한다. */}
-                {first ? (
+                {/* 참가는 G-03 시즌 상세에서 한다. 여기서는 진입만 한다.
+                    허브가 있는 모드(연습)는 참가 가능한 시즌이 없어도 눌러야 한다 —
+                    이어서 할 연습과 지난 기록이 그 화면에 있기 때문이다. */}
+                {target ? (
                   <>
-                    <Link className="ss-cta" to={`/sim/seasons/${first.id}`}>
+                    <Link className="ss-cta" to={target}>
                       <b>{m.cta}</b>
                       <span aria-hidden="true">›</span>
                     </Link>
-                    <p className="ss-cta-meta">{seasonMeta(first)}</p>
+                    <p className="ss-cta-meta">
+                      {first ? seasonMeta(first) : '연습 화면에서 이어하기와 지난 기록을 봅니다'}
+                    </p>
                   </>
                 ) : (
                   <>

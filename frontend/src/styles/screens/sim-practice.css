@@ -1,0 +1,132 @@
+/* 연습하기 · /sim/practice — [ANT-FE-SEASON-PRACTICE]
+   프로토타입 assets/sim-practice.css 를 옮겨온 것이다. 색·서체는 app.css 토큰을 쓰고,
+   프로토타입이 hex 로 박아 둔 값 중 토큰에 대응이 있는 것은 토큰으로 바꿨다.
+
+   프로토타입에서 지운 규칙 —
+   1. .pr-levels(난이도 토글)와 body[data-level] 분기. §9.1 "시즌 난이도" 제외 항목이라
+      마크업이 없다.
+   2. .pr-results / .pr-spark(적중률·평균 수익률·성장 추이). 집계 API 가 없어 만들지 않는다.
+      그 자리는 .pr-dones(최근 완료 목록)가 받는다.
+
+   카드 아이콘 색은 프로토타입이 style 속성으로 흩뿌려 둔 hex 를 --tone-* 로 묶었다. */
+
+/* 본문 폭과 가운데 정렬은 셸의 .main-inner 가 맡는다(app.css).
+   word-break:keep-all 은 한글이 단어 중간에서 잘리지 않게 한다. */
+.practice{
+  display:flex;flex-direction:column;gap:20px;
+  word-break:keep-all;
+}
+.pr-card{background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow)}
+
+/* 아이콘 타일 3색. 카드마다 다른 색을 주되 값은 여기 한 곳에만 둔다. */
+.t-v{background:#eeecfd;color:#6355e8}
+.t-g{background:#e6f7ef;color:#16a06a}
+.t-b{background:#e8f1fe;color:#2f7bf6}
+
+/* ── 헤더 ───────────────────────────────────────────── */
+.pr-head{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.pr-head h1{margin:0 0 8px;color:#0e1330;font-size:34px;font-weight:850;letter-spacing:-.04em}
+.pr-head p{margin:0;color:#79809c;font-size:15px;font-weight:650}
+
+/* ── 요약 스트립 ────────────────────────────────────── */
+.pr-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:0;margin:0}
+.pr-stat{display:flex;align-items:center;gap:20px;padding:24px 28px;border-left:1px solid var(--rule)}
+.pr-stat:first-child{border-left:0}
+.pr-ring{position:relative;width:78px;height:78px;flex:none}
+.pr-ring svg{transform:rotate(-90deg)}
+.pr-ring > span{position:absolute;inset:0;display:grid;place-content:center;color:#16a06a;font:850 15px var(--mono)}
+.pr-stat > i{display:grid;place-items:center;width:70px;height:70px;flex:none;border-radius:50%}
+.pr-tone-v{background:#eeecfd;color:#6355e8}
+.pr-tone-o{background:#fdf1e6;color:#ef7f1a}
+.pr-stat div{min-width:0}
+.pr-stat dt{margin:0 0 8px;color:#5b6280;font-size:15px;font-weight:800}
+.pr-stat dd{margin:0;color:#0e1330;font:850 27px var(--mono);letter-spacing:-.03em}
+.pr-stat dd.brand{color:var(--brand)}
+.pr-stat dd.hot{color:#ef7f1a}
+.pr-stat small{display:block;margin-top:7px;color:#8a90ab;font-size:13.5px;line-height:1.55;font-weight:650}
+
+/* ── 본문 2열 ───────────────────────────────────────── */
+.pr-body{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(0,1fr);gap:20px;align-items:start}
+.pr-col{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+.pr-panel{padding:22px 24px}
+.pr-panel-head{display:flex;align-items:center;gap:11px;margin:0 0 18px}
+.pr-panel-head h2{margin:0;color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em}
+.pr-num{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;background:var(--brand);color:#fff;font:800 13px var(--mono)}
+.pr-more{margin-left:auto;color:#8a93ad;font-size:13.5px;font-weight:700;white-space:nowrap}
+.pr-more:hover{color:var(--brand)}
+
+/* 로딩·빈 상태. 오류는 공용 ErrorState(state.css)가 그린다. */
+.pr-state,.pr-empty{margin:0;padding:22px 0;color:var(--faint);font-size:14px;font-weight:650;text-align:center}
+.pr-empty a{display:block;margin-top:10px;color:var(--brand);font-weight:750}
+.pr-empty a:hover{color:var(--brand-ink)}
+.pr-note{margin:14px 0 0;color:var(--faint);font-size:12.5px;font-weight:650;line-height:1.6}
+
+/* ── ① 이어서 할 연습 ───────────────────────────────── */
+.pr-courses{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.pr-course{display:flex;flex-direction:column;padding:20px;border:1px solid var(--rule);border-radius:16px}
+.pr-course > i{display:grid;place-items:center;width:52px;height:52px;margin-bottom:16px;border-radius:15px}
+.pr-course b{display:block;margin-bottom:8px;color:#161c37;font-size:17px;font-weight:850;letter-spacing:-.02em}
+.pr-course p{margin:0 0 12px;color:#79809c;font-size:13.5px;font-weight:700}
+/* 카드마다 진행률이 다르므로 숫자만이 아니라 막대로도 보여 준다 */
+.pr-bar{display:block;height:8px;margin-bottom:20px;border-radius:999px;background:#e9e9f4;overflow:hidden}
+.pr-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#6f66ec,var(--brand))}
+.pr-start{display:flex;align-items:center;justify-content:center;gap:10px;height:48px;margin-top:auto;border:1px solid #cdc9f7;border-radius:12px;color:var(--brand);font-size:14.5px;font-weight:800}
+.pr-start:hover{background:var(--brand-softer);border-color:var(--brand)}
+.pr-start em{font-style:normal;font-size:17px}
+
+/* ── ② 연습 주제 ────────────────────────────────────── */
+.pr-scenarios{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.pr-scenario{display:flex;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--rule);border-radius:16px;transition:border-color .14s,background .14s}
+.pr-scenario:hover{border-color:#cdc9f7;background:#fbfbff}
+.pr-scenario > i{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:15px}
+.pr-scenario div{flex:1;min-width:0}
+.pr-scenario b{display:block;margin-bottom:6px;color:#161c37;font-size:16.5px;font-weight:850;letter-spacing:-.02em}
+.pr-scenario small{color:#79809c;font-size:13.5px;font-weight:650}
+.pr-scenario em{flex:none;font-style:normal;color:#b3b9c9;font-size:19px}
+.pr-scenario:hover em{color:var(--brand)}
+
+/* ── ③ 최근 완료한 연습 ─────────────────────────────── */
+.pr-dones{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.pr-done{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--rule);border-radius:14px}
+.pr-done > i{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:12px;background:var(--surface-2);color:#7b8298}
+.pr-done div{flex:1;min-width:0}
+.pr-done b{display:block;color:#1b2245;font-size:14.5px;font-weight:750}
+.pr-done small{display:block;margin-top:4px;color:#98a0b6;font:650 12.5px var(--mono)}
+.pr-done-go{flex:none;padding:9px 15px;border:1px solid #cdc9f7;border-radius:10px;color:var(--brand);font-size:13.5px;font-weight:750;white-space:nowrap}
+.pr-done-go:hover{background:var(--brand-softer);border-color:var(--brand)}
+
+/* ── ④ AI 가이드 ────────────────────────────────────── */
+/* 온디맨드 생성 버튼이 없다(§9.1) — 링크는 이미 만들어진 복기를 보러 간다. */
+.pr-ai{position:relative;overflow:hidden;padding:22px 24px;border:1px solid #dedbf8;border-radius:18px;background:linear-gradient(135deg,#f4f3fe 0%,#f8f8ff 58%,#f0effd 100%)}
+.pr-ai-inner{position:relative;z-index:1;max-width:64%;padding:22px 24px;background:rgba(255,255,255,.86);border:1px solid #e6e4f7;border-radius:16px}
+.pr-ai-inner b{display:block;margin-bottom:12px;color:var(--brand-ink);font-size:19px;font-weight:850;letter-spacing:-.025em}
+.pr-ai-inner p{margin:0 0 20px;color:#5b6280;font-size:14px;line-height:1.7;font-weight:650}
+.pr-hint{display:inline-flex;align-items:center;justify-content:center;gap:9px;width:100%;height:50px;border:1px solid #cdc9f7;border-radius:12px;background:var(--surface);color:var(--brand);font-size:14.5px;font-weight:800}
+.pr-hint:hover{background:var(--brand-softer);border-color:var(--brand)}
+.pr-ai-art{position:absolute;right:6px;bottom:0;width:190px;margin:0;pointer-events:none}
+.pr-ai-art img{display:block;width:100%;height:auto;filter:drop-shadow(0 18px 26px rgba(70,66,229,.22))}
+
+/* ── 시작 버튼 ──────────────────────────────────────── */
+.pr-cta{display:flex;justify-content:flex-end}
+.pr-cta a{display:inline-flex;align-items:center;justify-content:center;gap:14px;min-width:340px;height:66px;padding:0 34px;border-radius:14px;background:var(--brand);color:#fff;font-size:19px;font-weight:850;letter-spacing:-.02em;box-shadow:0 14px 30px -16px rgba(70,66,229,.7)}
+.pr-cta a:hover{background:var(--brand-ink)}
+.pr-cta a:active{transform:translateY(1px)}
+.pr-cta em{font-style:normal;font-size:22px}
+
+/* ── 좁은 화면 ──────────────────────────────────────── */
+@media(max-width:1180px){
+  .pr-body{grid-template-columns:minmax(0,1fr)}
+  .pr-ai-inner{max-width:100%}
+  .pr-ai-art{display:none}
+}
+@media(max-width:900px){
+  .pr-stats{grid-template-columns:minmax(0,1fr)}
+  .pr-stat{border-left:0;border-top:1px solid var(--rule)}
+  .pr-stat:first-child{border-top:0}
+  .pr-courses{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:640px){
+  .pr-head h1{font-size:26px}
+  .pr-cta a{width:100%;min-width:0}
+}
