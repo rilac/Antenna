@@ -35,7 +35,7 @@ class PublicDataStockClientTest {
             "body":{"numOfRows":2,"pageNo":1,"totalCount":2,"items":{"item":[
             {"basDt":"20260828","srtnCd":"005930","isinCd":"KR7005930003","itmsNm":"삼성전자",
              "mrktCtg":"KOSPI","clpr":"71500","mkp":"71000","hipr":"71800","lopr":"70900",
-             "trqu":"12345678"},
+             "trqu":"12345678","lstgStCnt":"5969782550","mrktTotAmt":"426839452325000"},
             {"basDt":"20260828","srtnCd":"035720","itmsNm":"카카오","mrktCtg":"KOSDAQ",
              "clpr":"41,250","mkp":"-","hipr":"41500","lopr":"41000","trqu":"987654"}
             ]}}}}
@@ -83,11 +83,13 @@ class PublicDataStockClientTest {
         assertThat(samsung.tradeDate()).isEqualTo(BASE_DATE);
         assertThat(samsung.close()).isEqualByComparingTo("71500");
         assertThat(samsung.volume()).isEqualTo(12_345_678L);
+        assertThat(samsung.listedShares()).as("PER·PBR 의 분모 재료").isEqualTo(5_969_782_550L);
 
         StockPriceRow kakao = rows.get(1);
         assertThat(kakao.close()).as("천 단위 쉼표를 떼고 읽는다").isEqualByComparingTo("41250");
         assertThat(kakao.open()).as("값 없는 칸의 하이픈은 null 이다").isNull();
         assertThat(kakao.market()).isEqualTo(Stock.Market.KOSDAQ);
+        assertThat(kakao.listedShares()).as("칸이 없으면 null — 0 주로 읽히면 안 된다").isNull();
 
         server.verify();
     }

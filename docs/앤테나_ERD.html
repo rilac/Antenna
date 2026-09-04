@@ -85,7 +85,7 @@
 </head>
 <body>
 <div class="wrap">
-<h1>엔테나 테이블 맵</h1><div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v0.2</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — <code>prediction_commits.signature</code> 주석의 "EIP-712"를 <b>EIP-191 personal_sign</b>으로 정정. API 명세서 v0.4 §1.2와 일치시킨 것. 스키마 변경은 없다.</div><div><b>v0.1</b> · ~2026-08-28 · (이전 판) · <code>—</code> — 버전 표기가 없던 최초 판</div></div>
+<h1>엔테나 테이블 맵</h1><div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v0.3</b> · 2026-09-04 · 임대연(DY) · <code>DY_ANT-DATA-03-VALUATION</code> — <code>stocks</code> 에 <b>listed_shares · per · pbr</b> 추가. 상장주식수는 「주식시세정보」<code>lstgStCnt</code> 를 회차마다 COALESCE 로 덮고, per·pbr 는 종가·연간 재무에서 배치가 다시 쓰는 <b>파생 컬럼</b>이다(API 명세 v0.18). 원천 표가 아니라 언제든 다시 계산할 수 있다. 아울러 이미 코드에 있던 <code>market</code> 칸을 표에 적었다.</div><div><b>v0.2</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — <code>prediction_commits.signature</code> 주석의 "EIP-712"를 <b>EIP-191 personal_sign</b>으로 정정. API 명세서 v0.4 §1.2와 일치시킨 것. 스키마 변경은 없다.</div><div><b>v0.1</b> · ~2026-08-28 · (이전 판) · <code>—</code> — 버전 표기가 없던 최초 판</div></div>
 
 <!-- ── 계정 ── -->
 <section style="--dc:#435268">
@@ -193,7 +193,11 @@
       <li><div class="row"><span class="k pk">PK</span><span class="c">code</span><span class="t">varchar(6)</span></div><div class="note">6자리 종목코드 · 불변 자연키</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">name</span><span class="t">varchar(60)</span></div><div class="note">종목명 · 표시 전용</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">sector</span><span class="t">varchar(30)</span></div><div class="note">섹터 · KRX 업종분류 CSV 시드</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">market</span><span class="t">varchar(8)</span></div><div class="note">KOSPI · KOSDAQ · KONEX · 「주식시세정보」<code>mrktCtg</code> · 필터·표시용</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">listed</span><span class="t">boolean</span></div><div class="note">상장 여부 · 폐지 시 false, 행은 유지</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">listed_shares</span><span class="t">bigint</span></div><div class="note"><b>v0.3</b> · 상장주식수 · <code>lstgStCnt</code> · 값이 온 회차만 덮는다 · PER·PBR 분모 재료</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">per</span><span class="t">numeric(12,2)</span></div><div class="note"><b>v0.3</b> · 파생 · 종가 × 상장주식수 / 최신 연간 순이익 · 적자·재료 없음 null · 일봉·재무 회차 뒤 재계산</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">pbr</span><span class="t">numeric(12,2)</span></div><div class="note"><b>v0.3</b> · 파생 · 종가 × 상장주식수 / 최신 연간 자본총계 · 자본잠식·재료 없음 null</div></li>
     </ul>
   </article>
 

@@ -14,4 +14,7 @@ public interface StockRepository extends JpaRepository<Stock, String>, JpaSpecif
 
     /** 상장 종목 전부 — 섹터 요약 재료. 300개 안팎이라 한 번에 읽는다. */
     List<Stock> findByListedTrue();
+
+    /** 상장주식수를 한 종목이라도 받았는가 — 칸이 생긴 배포의 첫 부팅 판정. */
+    boolean existsByListedSharesIsNotNull();
 }

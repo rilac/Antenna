@@ -200,6 +200,7 @@ public class PublicDataStockClient {
                 decimal(item, "lopr"),
                 close,
                 volume(item),
+                longValue(item, "lstgStCnt"),
                 decimal(item, "mrktTotAmt"));
     }
 
@@ -239,7 +240,11 @@ public class PublicDataStockClient {
     }
 
     private Long volume(JsonNode item) {
-        BigDecimal value = decimal(item, "trqu");
+        return longValue(item, "trqu");
+    }
+
+    private static Long longValue(JsonNode item, String field) {
+        BigDecimal value = decimal(item, field);
         return value == null ? null : value.longValue();
     }
 }

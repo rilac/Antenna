@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import ssafy.a507.backend.domain.market.entity.Stock;
+import ssafy.a507.backend.domain.market.repository.MarketUpsertRepository;
 import ssafy.a507.backend.domain.market.repository.StockRepository;
 import ssafy.a507.backend.domain.research.client.CorpCodeRow;
 import ssafy.a507.backend.domain.research.client.DartClient;
@@ -62,6 +63,7 @@ public class DartIngestService {
     private final DartClient dartClient;
     private final DartProperties properties;
     private final StockRepository stockRepository;
+    private final MarketUpsertRepository marketUpsertRepository;
     private final CorpProfileRepository corpProfileRepository;
     private final CorpFinancialRepository corpFinancialRepository;
     private final ResearchDocumentRepository researchDocumentRepository;
@@ -209,6 +211,9 @@ public class DartIngestService {
         // 실제로 채운 연도를 찍는다. 한 해 뒤로 물러선 회차는 요청 연도가 비어 있어서,
         // "{year}년 기준" 만 남기면 그 해 데이터가 들어온 것으로 읽힌다.
         log.info("[DART] 연간 재무 {}년 요청 — {}행 반영, 채운 연도 {}", year, saved, savedYears);
+        // 순이익·자본총계가 바뀌었으니 stocks.per/pbr 도 바뀐다. 13시 일봉 회차를 기다리면 첫 적재
+        // 뒤 주말이 끼어 사흘을 빈 채로 보낸다.
+        marketUpsertRepository.refreshValuations();
         return saved;
     }
 

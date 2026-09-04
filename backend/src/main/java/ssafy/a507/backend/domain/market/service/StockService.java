@@ -40,9 +40,10 @@ import ssafy.a507.backend.domain.market.repository.StockRepository;
  * 실시간 시세 제공은 법적 제약이라 애초에 수집하지 않는다(명세 §1, 화면설계 D17).
  *
  * <p>목록은 명세의 GET /stocks 중 재료가 있는 것만 낸다 — 섹터·시장·관심 필터, 행별 등락률·관심
- * 여부. PER 범위·예측 심리 필터와 정렬 5종은 corp_financials·predictions 가 아직 없어 받아도
- * 무시한다(400 이 아니다 — 화면 컨트롤이 이미 있고, 재료가 생기면 서버만 바꾸면 된다). 그 값들은
- * 키를 남긴 채 null · 0 으로 내린다 — 키가 없으면 화면이 undefined 를 만나 죽는다.
+ * 여부·PER·PBR(배치가 stocks 에 써 둔 파생 컬럼을 읽기만 한다). PER 범위·예측 심리 필터와 정렬
+ * 5종은 predictions 가 아직 없어 받아도 무시한다(400 이 아니다 — 화면 컨트롤이 이미 있고, 재료가
+ * 생기면 서버만 바꾸면 된다). 그 값들은 키를 남긴 채 null · 0 으로 내린다 — 키가 없으면 화면이
+ * undefined 를 만나 죽는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -143,8 +144,8 @@ public class StockService {
                             stock.getMarket(),
                             close,
                             changeRate(close, previousCloses.get(stock.getCode())),
-                            null,
-                            null,
+                            stock.getPer(),
+                            stock.getPbr(),
                             0,
                             null,
                             watched.contains(stock.getCode()));
