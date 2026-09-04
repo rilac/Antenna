@@ -88,7 +88,14 @@ public enum ErrorCode {
     SIGNER_MISMATCH(HttpStatus.UNAUTHORIZED, "서명한 지갑이 일치하지 않습니다."),
     /** 프론트가 이 코드를 보고 지갑 연동 화면으로 유도한다. */
     WALLET_NOT_LINKED(HttpStatus.BAD_REQUEST, "지갑을 먼저 연동해주세요."),
-    WALLET_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 연동된 지갑입니다.");
+    WALLET_ALREADY_LINKED(HttpStatus.CONFLICT, "이미 연동된 지갑입니다."),
+
+    // 온체인 (ANT-CHAIN-05)
+    /**
+     * RPC 노드에 닿지 못했거나 릴레이어가 설정되지 않았다. 온체인 동반 요청만 이 코드로 실패하고
+     * 조회 API 는 정상이다(명세 §1). 503 인 이유: 서버 잘못이 아니라 의존 서비스가 없는 상태라서다.
+     */
+    CHAIN_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "블록체인 네트워크에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
 
     private final HttpStatus status;
     private final String message;
