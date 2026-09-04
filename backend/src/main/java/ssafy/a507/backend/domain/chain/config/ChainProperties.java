@@ -17,9 +17,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param rpcUrl   웹소켓 RPC. SSAFY 는 wss 뿐이다(HTTP 미확인).
  * @param relayer  앵커 tx 를 보낼 서버 키. ANCHOR_ROLE 만 가진다(관리자 키는 서버 밖).
  * @param anchor   앵커 배치 주기·재시도.
+ * @param indexer  앵커 인덱서(ANT-CHAIN-04) 폴링 주기·시작 블록·구간 상한.
  */
 @ConfigurationProperties(prefix = "app.chain")
-public record ChainProperties(long chainId, String rpcUrl, Relayer relayer, Anchor anchor) {
+public record ChainProperties(long chainId, String rpcUrl, Relayer relayer, Anchor anchor, Indexer indexer) {
 
     public record Relayer(String privateKey) {
         public boolean isConfigured() {
@@ -35,6 +36,14 @@ public record ChainProperties(long chainId, String rpcUrl, Relayer relayer, Anch
     public record Anchor(String cron, int receiptTimeoutSeconds, Retry retry) {
         public record Retry(int count, int delaySeconds) {}
     }
+
+    /**
+     * @param cron          기본 5초(`*&#47;5 * * * * *`). 테스트는 "-" 로 끈다
+     * @param fromBlock     DB 에 이벤트가 하나도 없을 때의 시작 블록. 0 이면 제네시스부터 — SSAFY 에서도 전 구간
+     *     getLogs 가 되지만(검증정보 §3.1) 배포 블록을 주면 첫 동기화가 한 회차로 끝난다
+     * @param maxBlockRange getLogs 한 번에 물어보는 블록 수 상한. 첫 동기화·장기 정지 후 복구가 이 단위로 쪼개진다
+     */
+    public record Indexer(String cron, long fromBlock, int maxBlockRange) {}
 
     public boolean hasRpcUrl() {
         return rpcUrl != null && !rpcUrl.isBlank();
