@@ -114,10 +114,27 @@ app:
 
   # 온체인 (ANT-CHAIN-01~). 컨트랙트 주소는 재배포마다 바뀌므로 환경변수로만 받는다.
   chain:
+    # 서명 payload(SignatureGuard)와 tx 서명(릴레이어)에 박힌다. 원천은 env CHAIN_ID 하나 — 31221 = SSAFY.
+    chain-id: ${CHAIN_ID:31337}
+    # 웹소켓 RPC. 비어 있으면 릴레이어만 꺼지고 앱은 뜬다(주소·키도 같은 규칙).
+    rpc-url: ${CHAIN_RPC_URL:}
+    # 앵커 tx 를 보내는 서버 키. CommitAnchor 의 ANCHOR_ROLE 만 갖는다 — 관리자 키는 서버 밖.
+    relayer:
+      private-key: ${RELAYER_PRIVATE_KEY:}
     commit-anchor:
       # 비어 있어도 앱이 뜬다 — 컨트랙트를 배포하지 않은 팀원의 로컬을 죽이지 않는다.
       # 실제 tx 전송은 릴레이어(ANT-CHAIN-05)가 CommitAnchorProperties.isDeployed() 로 막는다.
       address: ${CONTRACT_COMMIT_ANCHOR:}
+    # 앵커 배치(ANT-CHAIN-02). 매일 00:05 KST, 주말 포함 — 앵커는 시세가 필요 없고 주말 등록분을
+    # 월요일까지 무보호로 두면 안 된다. 실행 시각에 anchor_batch_id 가 NULL 인 커밋 전부가 한 배치다.
+    anchor:
+      cron: ${ANCHOR_CRON:0 5 0 * * *}
+      # receipt 를 이만큼 기다리고 못 받으면 "전송됨·미확정"으로 둔다. 다음 실행이 rootOf 로 확인한다.
+      receipt-timeout-seconds: 60
+      # RPC 장애일 때만 즉시 재시도. revert 는 다시 보내도 같아서 재시도하지 않는다.
+      retry:
+        count: 3
+        delay-seconds: 10
 
   # DART 전자공시 수집(ANT-RESEARCH-01). 주소는 문서로 확정된 값이라 환경변수로 받지 않는다.
   # 키가 비어 있으면 수집을 건너뛴다 — 키 없는 팀원의 로컬도 그대로 부팅된다.

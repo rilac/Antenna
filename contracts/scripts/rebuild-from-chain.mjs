@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 /**
  * 체인만 읽어 앵커 배치를 되살린다 (ANT-CHAIN-08, 수용 기준 4).
  *
- *   node scripts/rebuild-from-chain.mjs --batch-id N [--from-block B] [--network ssafy|localhost]
+ *   node scripts/rebuild-from-chain.mjs --batch-id N [--address 0x…] [--from-block B] [--network ssafy|localhost]
+ *   --address: 재배포 뒤 옛 배치를 옛 컨트랙트(anchor_batches.contract_address)에서 조회할 때
  *
  * DB 를 전혀 보지 않는다. 컨트랙트 주소는 deployments/<network>.json 에서, 나머지는 전부 체인에서:
  *   ① eth_getLogs(address, Anchored, batchId)  → 커밋 해시 목록(순서 = 리프 순서)
@@ -26,6 +27,8 @@ const argOf = (name, fallback) => {
 };
 
 const NETWORK = argOf('--network', 'ssafy');
+// 재배포 뒤 옛 배치는 옛 주소에 있다(anchor_batches.contract_address). 안 주면 현재 배포 주소.
+const ADDRESS = argOf('--address', '');
 const BATCH_ID = Number(argOf('--batch-id', '0'));
 const FROM_BLOCK = Number(argOf('--from-block', '0'));
 const OUT_DIR = argOf('--out', '');
@@ -122,6 +125,11 @@ async function main() {
     process.exit(1);
   }
   const dep = JSON.parse(fs.readFileSync(path.resolve(here, '..', 'deployments', `${NETWORK}.json`), 'utf8'));
+  if (ADDRESS) {
+    // 옛 주소 조회: 배포 블록을 모르니 --from-block 이 없으면 0부터(SSAFY 는 전 구간 getLogs 가 된다, 검증정보 §3.1).
+    dep.address = ADDRESS;
+    dep.blockNumber = 0;
+  }
   const provider = new WebSocketProvider(RPC_URL);
   try {
     const r = await rebuild(provider, dep.address, BATCH_ID, FROM_BLOCK || dep.blockNumber || 0);

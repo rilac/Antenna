@@ -46,6 +46,15 @@ RELAYER_PRIVATE_KEY=0x… npm run demo:recovery -- --batch-id 2 --leaves 5
 `revokeRole` + 새 키 `grantRole` 하면 재배포 없이 끝난다. 관리자 키까지 서버에 있으면
 공격자가 롤을 영구히 가져가 재배포밖에 답이 없다 — 그래서 나눈다.
 
+**지금 상태 (2026-09-04)**: 두 키 모두 `backend/.env` 에 있다(`RELAYER_PRIVATE_KEY` · `ANCHOR_ADMIN_PRIVATE_KEY`).
+개발망(가스 0·자산 0)이라 편의를 택했다. 서버 코드는 관리자 키를 읽지 않는다. 운영 전환 시 관리자 키만 빼서 비밀번호 관리자로.
+
+```bash
+# 배포 (관리자 키로 서명, 릴레이어는 주소만)
+ANCHOR_ADMIN_PRIVATE_KEY=$(grep ^ANCHOR_ADMIN_PRIVATE_KEY= ../backend/.env | cut -d= -f2) \
+ANCHOR_RELAYER=0xb7f2De5b4821EE386Aeac037b096f28693cA2a47 npm run deploy:ssafy
+```
+
 ## 함정 1 — evmVersion 은 paris 에서 올리면 안 된다
 
 SSAFY 체인엔 Shanghai 가 도입한 `PUSH0` opcode 가 없다. solc 0.8.20+ 기본 설정은 PUSH0 를
@@ -66,10 +75,22 @@ docker compose down -v  →  id 시퀀스가 1 로 리셋  →  다음 앵커가
 | 상황 | 대응 |
 |---|---|
 | 개발 중 DB 초기화 | **컨트랙트를 새로 배포**하고 `CONTRACT_COMMIT_ANCHOR` 교체. 가스가 0 이라 비용 없음 |
-| 운영 DB 복구·이관 | `ALTER SEQUENCE anchor_batches_id_seq RESTART WITH <온체인 최대 batchId + 1>` |
+| 운영 DB 복구·이관 | `ALTER TABLE anchor_batches ALTER COLUMN id RESTART WITH <온체인 최대 batchId + 1>` (identity 컬럼이라 `ALTER SEQUENCE` 가 아니다) |
 
 `BatchAlreadyAnchored` 가 갑자기 계속 난다면 컨트랙트 버그가 아니라 십중팔구 이 상황이다.
-현재 SSAFY 배포본(`deployments/ssafy.json`)은 **batchId 1 이 복구 데모로 소모된 상태**다.
+
+**⚠️ 현재 SSAFY 배포본(`deployments/ssafy.json`, `0x07f8CfE2…6D6a`)의 소모된 batchId — 여기에 계속 적는다:**
+
+| batchId | 누가 | 언제 | 루트(앞 8자) |
+|---|---|---|---|
+| 1 | CHAIN-08 복구 데모(`demo-recovery.mjs`, 7리프) | 2026-09-04 | `0x5c9ab357` |
+| 2 | CHAIN-05 Live 테스트 첫 실행(3리프) | 2026-09-04 | — |
+| 3 | CHAIN-05 Live 테스트(3리프) | 2026-09-04 | `0x95a9ac4e` |
+| 4 | CHAIN-02 PostgreSQL 실기 — 서버 스케줄러가 보낸 첫 배치(2리프) | 2026-09-04 | `0xe44f2a9f` |
+
+서버가 이 컨트랙트에 처음 앵커할 때 DB `anchor_batches` 시퀀스가 위 번호와 겹치면 서버는 체인 루트와 자기 루트를 비교해
+**`BATCH_ID_COLLISION` 으로 FAILED** 처리한다(잘못 확정하진 않는다 — ANT-CHAIN-02). 그래도 그 배치는 사람이 풀어야 한다. 대응은 둘 중 하나 — ① 컨트랙트를 새로 배포하고 `CONTRACT_COMMIT_ANCHOR` 교체(운영 권장, 가스 0)
+② `ALTER TABLE anchor_batches ALTER COLUMN id RESTART WITH <표의 최대 + 1>` (로컬 개발용). 로컬 실기에서 새 번호를 태웠으면 표에 추가한다.
 
 ## 함정 3 — SSAFY 배포는 Hardhat 을 거치지 않는다
 

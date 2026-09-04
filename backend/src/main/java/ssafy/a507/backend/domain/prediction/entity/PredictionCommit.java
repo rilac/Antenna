@@ -60,4 +60,26 @@ public class PredictionCommit {
     /** salt 공개 시각. NULL이면 아직 비공개다. */
     @Column(name = "revealed_at")
     private Instant revealedAt;
+
+    /**
+     * 앵커 배치에 넣는다 (ANT-CHAIN-02). 한 번 넣으면 바꾸지 않는다 — 배치가 FAILED 여도 같은 배치로
+     * 재전송하지, 다른 배치로 옮기지 않는다(옮기면 이미 계산된 루트와 리프 목록이 어긋난다).
+     */
+    public void assignBatch(AnchorBatch batch) {
+        if (this.anchorBatch != null) {
+            throw new IllegalStateException("이미 배치에 속한 커밋이다: prediction " + predictionId);
+        }
+        this.anchorBatch = batch;
+    }
+
+    /** salt 를 공개한다. 판정(HIT/MISS) 뒤에만 부른다 — 호출자가 status 를 확인한다. 이미 공개됐으면 그대로 둔다. */
+    public void reveal(Instant now) {
+        if (this.revealedAt == null) {
+            this.revealedAt = now;
+        }
+    }
+
+    public boolean isRevealed() {
+        return revealedAt != null;
+    }
 }
