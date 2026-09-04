@@ -23,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
+import ssafy.a507.backend.domain.market.entity.Stock;
 import ssafy.a507.backend.domain.research.client.CorpCodeRow;
 import ssafy.a507.backend.domain.research.client.DartClient;
 import ssafy.a507.backend.domain.research.client.DartCompany;
@@ -255,6 +256,34 @@ class DartIngestServiceTest {
         assertThat(corpFinancialRepository.findByStockCodeOrderByFiscalYearDescQuarterDesc(SAMSUNG))
                 .extracting(CorpFinancial::getFiscalYear)
                 .containsExactly(2025, 2024);
+    }
+
+    @Test
+    @DisplayName("연간 재무가 들어오면 PER·PBR 파생값을 다시 쓴다 — 분기 회차와 첫 적재 모두")
+    void 재무_적재_뒤에_밸류에이션을_갱신한다() {
+        seedSamsung();
+        em.createNativeQuery("UPDATE stocks SET listed_shares = 5969782550 WHERE code = '005930'")
+                .executeUpdate();
+        em.createNativeQuery(
+                        """
+                        INSERT INTO daily_quotes (stock_code, trade_date, close, collected_at)
+                        VALUES ('005930', DATE '2026-08-28', 71500, CURRENT_TIMESTAMP)
+                        """)
+                .executeUpdate();
+        given(dartClient.fetchAnnualFinancials(anyString(), anyInt()))
+                .willReturn(List.of(new DartFinancialSnapshot(
+                        2024, "CFS", "KRW", "20250311000000",
+                        new BigInteger("300870903000000"), null,
+                        new BigInteger("34451351000000"), null, null,
+                        new BigInteger("400000000000000"))));
+
+        ingestService.ingestAnnualFinancials(2024);
+        em.flush();
+        em.clear();
+
+        Stock samsung = em.find(Stock.class, SAMSUNG);
+        assertThat(samsung.getPer()).isEqualByComparingTo("12.39");
+        assertThat(samsung.getPbr()).isEqualByComparingTo("1.07");
     }
 
     @Test

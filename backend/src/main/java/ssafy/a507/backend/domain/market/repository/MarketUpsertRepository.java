@@ -39,15 +39,16 @@ public class MarketUpsertRepository {
     /**
      * sector 와 listed 는 갱신하지 않는다. 섹터의 원천은 KRX 업종분류 CSV 이고, 상장 여부는
      * 3년치 백필이 옛 날짜의 폐지 종목을 다시 살려 놓지 않도록 수집이 건드리지 않는다.
-     * market 은 COALESCE 로 덮는다 — 값이 안 온 회차가 이미 아는 시장을 지우면 안 된다.
+     * market·listed_shares 는 COALESCE 로 덮는다 — 값이 안 온 회차가 이미 아는 값을 지우면 안 된다.
      */
     private static final String UPSERT_STOCK =
             """
-            INSERT INTO stocks (code, name, market, listed)
-            VALUES (?, ?, ?, true)
+            INSERT INTO stocks (code, name, market, listed, listed_shares)
+            VALUES (?, ?, ?, true, ?)
             ON CONFLICT (code) DO UPDATE SET
                 name = EXCLUDED.name,
-                market = COALESCE(EXCLUDED.market, stocks.market)
+                market = COALESCE(EXCLUDED.market, stocks.market),
+                listed_shares = COALESCE(EXCLUDED.listed_shares, stocks.listed_shares)
             """;
 
     private static final String UPSERT_DAILY_QUOTE =
@@ -73,6 +74,40 @@ public class MarketUpsertRepository {
                 close = EXCLUDED.close
             """;
 
+    /**
+     * PER = 종가 × 상장주식수 / 순이익, PBR = 종가 × 상장주식수 / 자본총계. 종가는 종목별 마지막
+     * 영업일, 재무는 최신 연간(사업보고서) 한 해다. 순이익·자본총계가 0 이하(적자·자본잠식)면 그
+     * 지표만 null — 음수 PER 은 "싸다" 로 읽혀 더 해롭다. 원화 종가를 달러 재무로 나누면 안 되므로
+     * 통화가 KRW 가 아닌 재무는 없는 것으로 본다. 재료가 사라진 종목은 옛 값이 지워진다 — 전 종목을
+     * 매번 다시 쓰기 때문이다(300 행이라 값싸다).
+     *
+     * <p>UPDATE … FROM 이 아니라 MERGE 인 이유 — H2 가 전자를 지원하지 않아 SpringBootTest 에서
+     * 깨진다. MERGE 는 PostgreSQL 15+ 와 H2 양쪽에서 같은 문장으로 돈다.
+     */
+    private static final String REFRESH_VALUATIONS =
+            """
+            MERGE INTO stocks s
+            USING (
+                SELECT st.code,
+                       CASE WHEN f.net_income > 0
+                            THEN ROUND(q.close * st.listed_shares / f.net_income, 2) END AS per,
+                       CASE WHEN f.total_equity > 0
+                            THEN ROUND(q.close * st.listed_shares / f.total_equity, 2) END AS pbr
+                FROM stocks st
+                LEFT JOIN daily_quotes q
+                       ON q.stock_code = st.code
+                      AND q.trade_date = (SELECT MAX(trade_date) FROM daily_quotes
+                                          WHERE stock_code = st.code)
+                LEFT JOIN corp_financials f
+                       ON f.stock_code = st.code
+                      AND f.quarter = 4
+                      AND COALESCE(f.currency, 'KRW') = 'KRW'
+                      AND f.fiscal_year = (SELECT MAX(fiscal_year) FROM corp_financials
+                                           WHERE stock_code = st.code AND quarter = 4)
+            ) v ON v.code = s.code
+            WHEN MATCHED THEN UPDATE SET per = v.per, pbr = v.pbr
+            """;
+
     private final JdbcTemplate jdbcTemplate;
 
     /**
@@ -96,6 +131,7 @@ public class MarketUpsertRepository {
                         ps.setString(1, row.code());
                         ps.setString(2, row.name());
                         ps.setString(3, row.market() == null ? null : row.market().name());
+                        ps.setObject(4, row.listedShares(), Types.BIGINT);
                     }
 
                     @Override
@@ -104,6 +140,17 @@ public class MarketUpsertRepository {
                     }
                 });
         return rows.size();
+    }
+
+    /**
+     * 전 종목의 PER·PBR 파생 컬럼을 다시 쓴다. 일봉 13:00 회차와 DART 연간 재무 회차 뒤에 부른다 —
+     * 두 재료 중 하나라도 바뀌면 값이 바뀐다.
+     *
+     * @return 다시 쓴 종목 수(전 종목)
+     */
+    @Transactional
+    public int refreshValuations() {
+        return jdbcTemplate.update(REFRESH_VALUATIONS);
     }
 
     /**

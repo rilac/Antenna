@@ -65,6 +65,9 @@ class StockControllerFilterTest {
         insertQuote("111111", PREVIOUS, "100");
         insertQuote("111111", LATEST, "500");
         insertQuote("800000", LATEST.minusDays(60), "3000");
+        // 13:00 회차가 써 둔 파생값. 목록은 계산하지 않고 읽기만 한다.
+        em.createNativeQuery("UPDATE stocks SET per = 12.39, pbr = 1.07 WHERE code = '005930'")
+                .executeUpdate();
 
         em.createNativeQuery(
                         """
@@ -78,7 +81,7 @@ class StockControllerFilterTest {
     }
 
     @Test
-    @DisplayName("행마다 전일 대비 등락률·관심 여부가 실리고, 재료 없는 값은 키를 남긴 채 null · 0 이다")
+    @DisplayName("행마다 등락률·관심 여부·PER·PBR 이 실리고, 재료 없는 값은 키를 남긴 채 null · 0 이다")
     void 행에_등락률과_관심_여부와_자리표시가_실린다() throws Exception {
         mockMvc.perform(get(URL).with(user(me)))
                 .andExpect(status().isOk())
@@ -91,8 +94,11 @@ class StockControllerFilterTest {
                 // (71500 - 70000) / 70000 = 2.142…%
                 .andExpect(jsonPath("$.items[1].changeRate").value(2.14))
                 .andExpect(jsonPath("$.items[1].watched").value(true))
-                .andExpect(jsonPath("$.items[1].per").value(nullValue()))
-                .andExpect(jsonPath("$.items[1].pbr").value(nullValue()))
+                .andExpect(jsonPath("$.items[1].per").value(12.39))
+                .andExpect(jsonPath("$.items[1].pbr").value(1.07))
+                // 재무가 없는 종목은 키를 남긴 채 null
+                .andExpect(jsonPath("$.items[0].per").value(nullValue()))
+                .andExpect(jsonPath("$.items[0].pbr").value(nullValue()))
                 .andExpect(jsonPath("$.items[1].predictionCount").value(0))
                 .andExpect(jsonPath("$.items[1].upRatio").value(nullValue()))
                 // 기준일에 거래가 없던 종목은 종가도 등락률도 비어 있다

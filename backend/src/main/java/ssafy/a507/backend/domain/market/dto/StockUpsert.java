@@ -11,5 +11,6 @@ import ssafy.a507.backend.domain.market.entity.Stock;
  * @param code 6자리 종목코드({@code srtnCd} 뒤 6자리)
  * @param name 종목명({@code itmsNm})
  * @param market 상장 시장({@code mrktCtg}) · 알 수 없으면 null
+ * @param listedShares 상장주식수({@code lstgStCnt}) · 없으면 null — 이미 아는 값을 지우지 않는다
  */
-public record StockUpsert(String code, String name, Stock.Market market) {}
+public record StockUpsert(String code, String name, Stock.Market market, Long listedShares) {}

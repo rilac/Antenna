@@ -99,7 +99,11 @@ class DailyQuoteIngestIntegrationTest {
         assertThat(quote.getClose()).isEqualByComparingTo("71500");
         assertThat(stockRepository.findById("005930"))
                 .as("일봉의 FK 대상이라 종목 마스터가 먼저 들어가야 한다")
-                .isPresent();
+                .isPresent()
+                .get()
+                .extracting(Stock::getListedShares)
+                .as("상장주식수도 같은 줄에서 종목 마스터로 간다")
+                .isEqualTo(5_969_782_550L);
     }
 
     @Test
@@ -140,6 +144,53 @@ class DailyQuoteIngestIntegrationTest {
         assertThat(dailyQuoteRepository.count()).isOne();
     }
 
+    @Test
+    @DisplayName("13시 회차가 끝나면 새 종가로 PER·PBR 파생값을 다시 쓴다")
+    void 회차_끝에_밸류에이션을_갱신한다() {
+        given(client.fetchDay(any())).willReturn(List.of());
+        given(client.fetchDay(BASE_DATE))
+                .willReturn(List.of(row("005930", "삼성전자", Stock.Market.KOSPI, "71500")));
+        entityManager.createNativeQuery(
+                        """
+                        INSERT INTO corp_financials
+                            (stock_code, fiscal_year, quarter, fs_div, currency, net_income, total_equity, updated_at)
+                        VALUES ('005930', 2024, 4, 'CFS', 'KRW', 34451351000000, 400000000000000, CURRENT_TIMESTAMP)
+                        """)
+                .executeUpdate();
+
+        service.ingestPending(MONDAY);
+        entityManager.clear();
+
+        Stock samsung = stockRepository.findById("005930").orElseThrow();
+        assertThat(samsung.getPer()).isEqualByComparingTo("12.39");
+        assertThat(samsung.getPbr()).isEqualByComparingTo("1.07");
+    }
+
+    @Test
+    @DisplayName("상장주식수 칸이 비어 있는 첫 부팅은 마지막 수집일 하루치를 다시 받아 채운다 — 한 번만")
+    void 첫_부팅에_상장주식수를_채운다() {
+        // 칸이 생기기 전 배포가 남긴 상태 — 종목·시세는 있는데 상장주식수가 없다.
+        entityManager.createNativeQuery(
+                        "INSERT INTO stocks (code, name, market, listed) VALUES ('005930', '삼성전자', 'KOSPI', TRUE)")
+                .executeUpdate();
+        entityManager.createNativeQuery(
+                        """
+                        INSERT INTO daily_quotes (stock_code, trade_date, close, collected_at)
+                        VALUES ('005930', DATE '2026-08-28', 71500, CURRENT_TIMESTAMP)
+                        """)
+                .executeUpdate();
+        given(client.fetchDay(BASE_DATE))
+                .willReturn(List.of(row("005930", "삼성전자", Stock.Market.KOSPI, "71500")));
+
+        service.backfillListedSharesIfMissing();
+        service.backfillListedSharesIfMissing();
+        entityManager.clear();
+
+        assertThat(stockRepository.findById("005930").orElseThrow().getListedShares())
+                .isEqualTo(5_969_782_550L);
+        verify(client, times(1)).fetchDay(BASE_DATE);
+    }
+
     /** 월요일 13시 회차. 주말은 부르지 않고, 이미 받은 날은 건너뛰고, 금요일치를 소급해 집는다. */
     @Test
     @DisplayName("창 안에서 못 받은 영업일만 오래된 순서로 집는다")
@@ -167,6 +218,8 @@ class DailyQuoteIngestIntegrationTest {
                         client,
                         marketUpsertRepository,
                         ingestRunRepository,
+                        stockRepository,
+                        dailyQuoteRepository,
                         new PublicDataProperties("", null, 100, 10, null, 0));
 
         assertThat(unconfigured.ingestPending(MONDAY)).isEmpty();
@@ -262,6 +315,7 @@ class DailyQuoteIngestIntegrationTest {
                 new BigDecimal("70900"),
                 new BigDecimal("71500"),
                 12_345_678L,
+                5_969_782_550L,
                 null);
     }
 
@@ -290,6 +344,7 @@ class DailyQuoteIngestIntegrationTest {
                 new BigDecimal("70900"),
                 new BigDecimal(close),
                 12_345_678L,
+                5_969_782_550L,
                 null);
     }
 }

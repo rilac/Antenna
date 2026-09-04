@@ -171,7 +171,7 @@ class MarketUpsertRepositoryTest {
         jdbcTemplate.update("UPDATE stocks SET sector = ? WHERE code = ?", "반도체", SAMSUNG);
 
         // 시장 값이 비어 온 회차. 이름만 바뀌었다.
-        marketUpsertRepository.upsertStocks(List.of(new StockUpsert(SAMSUNG, "삼성전자우", null)));
+        marketUpsertRepository.upsertStocks(List.of(new StockUpsert(SAMSUNG, "삼성전자우", null, null)));
         entityManager.clear();
 
         Stock saved = stockRepository.findById(SAMSUNG).orElseThrow();
@@ -181,8 +181,85 @@ class MarketUpsertRepositoryTest {
         assertThat(saved.isListed()).isTrue();
     }
 
+    @Test
+    @DisplayName("상장주식수는 값이 온 회차만 덮는다 — 비어 온 회차가 이미 아는 값을 지우면 안 된다")
+    void 상장주식수를_적재하고_빈_회차가_지우지_않는다() {
+        marketUpsertRepository.upsertStocks(
+                List.of(new StockUpsert(SAMSUNG, "삼성전자", Stock.Market.KOSPI, 5_969_782_550L)));
+        marketUpsertRepository.upsertStocks(
+                List.of(new StockUpsert(SAMSUNG, "삼성전자", Stock.Market.KOSPI, null)));
+        entityManager.clear();
+
+        assertThat(stockRepository.findById(SAMSUNG).orElseThrow().getListedShares())
+                .isEqualTo(5_969_782_550L);
+    }
+
+    // ── PER·PBR 파생 (ANT-DATA-03) ──────────────────────────
+
+    @Test
+    @DisplayName("PER·PBR 은 종목별 마지막 종가 × 상장주식수를 최신 연간 순이익·자본총계로 나눈 값이다")
+    void 밸류에이션을_다시_계산한다() {
+        marketUpsertRepository.upsertStocks(List.of(
+                new StockUpsert(SAMSUNG, "삼성전자", Stock.Market.KOSPI, 5_969_782_550L),
+                new StockUpsert("000001", "적자기업", Stock.Market.KOSPI, 1_000L),
+                new StockUpsert("000002", "재무없음", Stock.Market.KOSPI, 1_000L),
+                new StockUpsert("000003", "달러재무", Stock.Market.KOSPI, 1_000L),
+                new StockUpsert("000004", "주식수없음", Stock.Market.KOSPI, null)));
+        marketUpsertRepository.upsertDailyQuotes(List.of(
+                quote(SAMSUNG, "70000"),
+                quote("000001", "1000"),
+                quote("000002", "1000"),
+                quote("000003", "1000"),
+                quote("000004", "1000")), FIRST_RUN);
+        // 다음 날 종가 — 종목별 마지막 종가가 기준이다.
+        marketUpsertRepository.upsertDailyQuotes(List.of(new DailyQuoteUpsert(
+                SAMSUNG, TRADE_DATE.plusDays(1), null, null, null, new BigDecimal("71500"), null)), SECOND_RUN);
+        // 삼성: 최신 연도(2024)만 쓴다. 2023 은 무시.
+        givenFinancial(SAMSUNG, 2023, "KRW", "15000000000000", "360000000000000");
+        givenFinancial(SAMSUNG, 2024, "KRW", "34451351000000", "400000000000000");
+        givenFinancial("000001", 2024, "KRW", "-5", "2000");
+        givenFinancial("000003", 2024, "USD", "100", "2000");
+        givenFinancial("000004", 2024, "KRW", "100", "2000");
+        // 지난 회차의 값이 남아 있다 — 재료가 사라지면 지워져야 한다.
+        jdbcTemplate.update("UPDATE stocks SET per = 9.99, pbr = 9.99 WHERE code = '000002'");
+
+        marketUpsertRepository.refreshValuations();
+        entityManager.clear();
+
+        Stock samsung = stockRepository.findById(SAMSUNG).orElseThrow();
+        // 71500 × 5,969,782,550 = 426,839,452,325,000 → ÷ 34,451,351,000,000 = 12.389…
+        assertThat(samsung.getPer()).isEqualByComparingTo("12.39");
+        assertThat(samsung.getPbr()).isEqualByComparingTo("1.07");
+
+        Stock loss = stockRepository.findById("000001").orElseThrow();
+        assertThat(loss.getPer()).as("적자면 PER 은 의미가 없다").isNull();
+        assertThat(loss.getPbr()).isEqualByComparingTo("500.00");
+
+        Stock noFinancial = stockRepository.findById("000002").orElseThrow();
+        assertThat(noFinancial.getPer()).as("재무가 없으면 옛 값을 지운다").isNull();
+        assertThat(noFinancial.getPbr()).isNull();
+
+        Stock usd = stockRepository.findById("000003").orElseThrow();
+        assertThat(usd.getPer()).as("원화 종가를 달러 재무로 나누면 안 된다").isNull();
+        assertThat(usd.getPbr()).isNull();
+
+        Stock noShares = stockRepository.findById("000004").orElseThrow();
+        assertThat(noShares.getPer()).isNull();
+        assertThat(noShares.getPbr()).isNull();
+    }
+
+    private void givenFinancial(String code, int year, String currency, String netIncome, String equity) {
+        jdbcTemplate.update(
+                """
+                INSERT INTO corp_financials
+                    (stock_code, fiscal_year, quarter, fs_div, currency, net_income, total_equity, updated_at)
+                VALUES (?, ?, 4, 'CFS', ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                code, year, currency, new BigDecimal(netIncome), new BigDecimal(equity));
+    }
+
     private void givenStock(String code, String name, Stock.Market market) {
-        marketUpsertRepository.upsertStocks(List.of(new StockUpsert(code, name, market)));
+        marketUpsertRepository.upsertStocks(List.of(new StockUpsert(code, name, market, null)));
     }
 
     private DailyQuoteUpsert quote(String code, String close) {

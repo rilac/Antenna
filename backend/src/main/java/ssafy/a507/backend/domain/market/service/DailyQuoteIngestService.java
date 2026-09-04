@@ -17,8 +17,10 @@ import ssafy.a507.backend.domain.market.client.StockPriceRow;
 import ssafy.a507.backend.domain.market.dto.DailyQuoteUpsert;
 import ssafy.a507.backend.domain.market.dto.StockUpsert;
 import ssafy.a507.backend.domain.market.entity.IngestRun;
+import ssafy.a507.backend.domain.market.repository.DailyQuoteRepository;
 import ssafy.a507.backend.domain.market.repository.IngestRunRepository;
 import ssafy.a507.backend.domain.market.repository.MarketUpsertRepository;
+import ssafy.a507.backend.domain.market.repository.StockRepository;
 
 /**
  * 일봉 수집 배치의 본체. 날짜 하나를 받아 오는 일과, 아직 못 받은 날짜들을 고르는 일을 한다.
@@ -39,6 +41,8 @@ public class DailyQuoteIngestService {
     private final PublicDataStockClient client;
     private final MarketUpsertRepository marketUpsertRepository;
     private final IngestRunRepository ingestRunRepository;
+    private final StockRepository stockRepository;
+    private final DailyQuoteRepository dailyQuoteRepository;
     private final PublicDataProperties properties;
 
     /** 한 회차가 집을 날짜 수에 상한을 두지 않는다는 표시. */
@@ -53,11 +57,32 @@ public class DailyQuoteIngestService {
     public List<IngestRun> ingestPending(LocalDate today) {
         // 배치가 도는 13시에는 오늘 종가가 아직 없다(장 마감 15:30). 어제가 마지막 대상이다.
         LocalDate lastTarget = today.minusDays(1);
-        return ingestMissing(
+        List<IngestRun> runs = ingestMissing(
                 lastTarget.minusDays(properties.lookbackDays()),
                 lastTarget,
                 NO_LIMIT,
                 IngestRun::isCollected);
+        // 종가가 바뀌었으니 PER·PBR 도 바뀐다. 빈 회차여도 다시 쓴다 — 300 행이라 값싸고, 조건을
+        // 달면 "오늘은 왜 안 바뀌었나" 를 따지는 경우가 하나 늘 뿐이다. 백필은 여기를 지나지 않는다.
+        marketUpsertRepository.refreshValuations();
+        return runs;
+    }
+
+    /**
+     * 상장주식수 칸이 생기기 전에 쌓인 DB 의 첫 부팅. 정기 회차는 이미 SUCCESS 인 날을 다시 받지
+     * 않으므로, 마지막 수집일 하루치를 한 번 다시 받아 {@code stocks.listed_shares} 를 채우고 PER·PBR
+     * 을 쓴다. 한 종목이라도 값이 있으면 다시는 돌지 않는다 — 부팅마다 포털을 두드리지 않는다.
+     * 다음 13:00 회차를 기다리면 금요일 배포가 월요일까지 PER 없이 간다.
+     */
+    public void backfillListedSharesIfMissing() {
+        if (!properties.isConfigured() || stockRepository.existsByListedSharesIsNotNull()) {
+            return;
+        }
+        dailyQuoteRepository.findLatestTradeDate().ifPresent(date -> {
+            log.info("stocks.listed_shares 가 비어 있어 {} 하루치를 다시 받는다", date);
+            ingestDate(date);
+            marketUpsertRepository.refreshValuations();
+        });
     }
 
     /**
@@ -169,7 +194,8 @@ public class DailyQuoteIngestService {
 
     private List<StockUpsert> toStocks(List<StockPriceRow> rows) {
         return rows.stream()
-                .map(row -> new StockUpsert(row.stockCode(), row.stockName(), row.market()))
+                .map(row -> new StockUpsert(
+                        row.stockCode(), row.stockName(), row.market(), row.listedShares()))
                 .toList();
     }
 

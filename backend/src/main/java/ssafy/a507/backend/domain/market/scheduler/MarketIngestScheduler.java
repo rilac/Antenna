@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import ssafy.a507.backend.domain.market.service.DailyQuoteIngestService;
@@ -27,6 +29,12 @@ public class MarketIngestScheduler {
 
     private final DailyQuoteIngestService ingestService;
     private final IndexQuoteIngestService indexIngestService;
+
+    /** 부팅 직후 한 번. 서버가 이미 요청을 받는 상태라 헬스체크를 막지 않는다. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void backfillListedShares() {
+        ingestService.backfillListedSharesIfMissing();
+    }
 
     @Scheduled(cron = "${app.market-data.cron:0 0 13 * * MON-FRI}", zone = "Asia/Seoul")
     public void ingestDailyQuotes() {
