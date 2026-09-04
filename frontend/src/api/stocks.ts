@@ -6,10 +6,10 @@
    POST   /watchlist              { stockCode }
    DELETE /watchlist/{stockCode}
 
-   전부 실제 호출이다(명세서 v0.15). 서버가 아직 재료가 없어 무시하는 것 —
-   sentiment · perMin/perMax · hasOpenPrediction · sort 는 보내도 결과가 안 바뀌고,
-   per · pbr · upRatio 는 null, predictionCount 는 0 으로 온다. corp_financials ·
-   predictions 가 생기면 서버만 바뀌고 이 파일은 그대로다. */
+   전부 실제 호출이다(명세서 v0.19). perMin/perMax · sort=PER · CHANGE_RATE 와 per · pbr 은
+   동작한다. 서버가 아직 재료가 없어 무시하는 것 — sentiment · hasOpenPrediction 과 예측
+   정렬 3종은 보내도 결과가 안 바뀌고(코드순), upRatio 는 null, predictionCount 는 0 으로
+   온다. predictions 가 생기면 서버만 바뀌고 이 파일은 그대로다. */
 import { api } from './client'
 import type { CursorList } from './types'
 
