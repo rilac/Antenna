@@ -21,7 +21,7 @@
 /* 1행 오른쪽 칸. 배너는 제 높이(min-height)만 쓰고 아래끝이 히어로와
    어긋나게 두는 것이 의도다. 그렇게 남는 자리는 바로가기가 받아 채운다. */
 .hm-stack{display:flex; flex-direction:column; gap:16px; min-width:0}
-.hm-stack > .hm-ad{flex:0 0 auto}
+.hm-stack > .hm-showcase{flex:0 0 auto}
 
 /* 지름길 세 칸. 칸 사이를 선으로만 나누고 배경은 카드 흰색을 그대로 쓴다.
    .card 의 padding 20px 을 지워야 칸이 카드 끝까지 닿으므로 겹쳐 적는다. */
@@ -273,7 +273,7 @@
 .hm-top-sub{grid-column:2 / -1; color:var(--faint); font-size:11.5px}
 
 /* ── 스폰서드 — 어두운 면으로 흰 카드 흐름과 끊는다 ───────── */
-.hm-ad{
+.hm-showcase{
   position:relative; overflow:hidden; isolation:isolate;
   display:flex; flex-direction:column; align-items:flex-start;
   /* 배너에 조금 더 무게를 준다(이전 217px 대비 10%) */
@@ -285,22 +285,22 @@
   color:#fff;
 }
 /* 배지·상태글·점은 창(절대배치) 위에 떠야 한다 */
-.hm-ad-head{position:relative; z-index:2; display:flex; width:100%}
-.hm-ad .hm-state{position:relative; z-index:2}
-.hm-ad .hm-badge{
+.hm-showcase-head{position:relative; z-index:2; display:flex; width:100%}
+.hm-showcase .hm-state{position:relative; z-index:2}
+.hm-showcase .hm-badge{
   margin:0; border-color:rgba(255,255,255,.22);
   background:rgba(255,255,255,.12); color:#fff;
 }
-.hm-ad .hm-state{color:rgba(255,255,255,.72)}
+.hm-showcase .hm-state{color:rgba(255,255,255,.72)}
 
 /* 창 하나를 두고 띠를 옆으로 민다. 창이 넘치는 부분을 잘라 한 장만 보인다.
    창을 카드에 꽉 채워 깔면(inset:0) 슬라이드 배경이 카드 네 변까지 닿는다 —
    좌우만 넓히면 배지·점이 앉은 위아래에 색이 안 깔려 잘려 보인다.
    창이 흐름에서 빠지므로 배지·점은 제자리에 남고, 슬라이드가 그 두 자리를
    피하도록 위아래 여백을 스스로 갖는다. */
-.hm-ad-viewport{position:absolute; inset:0; z-index:0; overflow:hidden}
-.hm-ad-track{display:flex; height:100%; transition:transform .45s ease}
-.hm-ad-slide{
+.hm-showcase-viewport{position:absolute; inset:0; z-index:0; overflow:hidden}
+.hm-showcase-track{display:flex; height:100%; transition:transform .45s ease}
+.hm-showcase-slide{
   position:relative; isolation:isolate;
   flex:0 0 100%; min-width:0; height:100%;
   display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
@@ -309,29 +309,29 @@
   /* 광고마다 다른 광채를 깐다. 배경이 슬라이드에 붙어 있어 넘김과 함께 움직인다. */
   background:radial-gradient(92% 128% at 84% 48%,var(--ad-accent) 0%,transparent 64%);
 }
-.hm-ad-slide.t-a{--ad-accent:rgba(124,109,255,.52)}
-.hm-ad-slide.t-b{--ad-accent:rgba(42,176,168,.44)}
-.hm-ad-slide.t-c{--ad-accent:rgba(236,116,168,.42)}
+.hm-showcase-slide.t-a{--ad-accent:rgba(124,109,255,.52)}
+.hm-showcase-slide.t-b{--ad-accent:rgba(42,176,168,.44)}
+.hm-showcase-slide.t-c{--ad-accent:rgba(236,116,168,.42)}
 /* 글자와 버튼이 마스코트 위로 오게 한 겹 올린다 */
-.hm-ad-slide > *{position:relative; z-index:1}
+.hm-showcase-slide > *{position:relative; z-index:1}
 @media (prefers-reduced-motion:reduce){
-  .hm-ad-track{transition:none}
+  .hm-showcase-track{transition:none}
 }
 
-.hm-ad-title{margin:0; font-size:16.5px; font-weight:800; letter-spacing:-.02em}
-.hm-ad-sub{margin:7px 0 0; color:rgba(255,255,255,.76); font-size:13px; line-height:1.55}
-.hm-ad-btn{
+.hm-showcase-title{margin:0; font-size:16.5px; font-weight:800; letter-spacing:-.02em}
+.hm-showcase-sub{margin:7px 0 0; color:rgba(255,255,255,.76); font-size:13px; line-height:1.55}
+.hm-showcase-btn{
   display:inline-flex; align-items:center; gap:7px; margin-top:18px;
   padding:10px 17px; border:1px solid rgba(255,255,255,.3); border-radius:10px;
   color:#fff; font-size:13px; font-weight:700;
 }
-.hm-ad-btn:hover{background:rgba(255,255,255,.12)}
+.hm-showcase-btn:hover{background:rgba(255,255,255,.12)}
 /* 캐릭터는 배경 장식이라 글자 뒤로 깔고 클릭을 가로채지 않는다 */
-/* 슬라이드 안에 깔리는 장식. 위의 .hm-ad-slide>* 규칙보다 뒤에 와야
+/* 슬라이드 안에 깔리는 장식. 위의 .hm-showcase-slide>* 규칙보다 뒤에 와야
    z-index 0 이 살아 글자 뒤로 간다. */
 /* 슬라이드 높이(140px) 안에 통째로 들어오도록 상한을 둔다. 창이
    overflow:hidden 이라 조금이라도 넘치면 발끝이 잘린다. */
-.hm-ad-art{
+.hm-showcase-art{
   position:absolute; right:6px; bottom:0; z-index:0;
   /* 카드(239px)에서 배지가 앉은 위쪽을 뺀 만큼까지 키운다. 더 올리면
      배지와 머리가 부딪힌다. */
@@ -340,13 +340,13 @@
 }
 /* 점은 장수를 알릴 뿐 아니라 눌러서 고르는 버튼이기도 하다.
    자동으로 넘어가는 콘텐츠에는 손으로 멈출 길이 있어야 한다. */
-.hm-ad-dots{position:relative; z-index:2; display:flex; gap:6px; margin-top:auto}
-.hm-ad-dots button{
+.hm-showcase-dots{position:relative; z-index:2; display:flex; gap:6px; margin-top:auto}
+.hm-showcase-dots button{
   width:7px; height:7px; padding:0; border:0; border-radius:50%;
   background:rgba(255,255,255,.32); cursor:pointer;
 }
-.hm-ad-dots button:hover{background:rgba(255,255,255,.6)}
-.hm-ad-dots button.on{background:#fff}
+.hm-showcase-dots button:hover{background:rgba(255,255,255,.6)}
+.hm-showcase-dots button.on{background:#fff}
 
 /* ── 반응형 ─────────────────────────────────────────────── */
 @media (max-width:1180px){

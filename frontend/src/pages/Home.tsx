@@ -421,25 +421,25 @@ function Sponsored() {
   const ad = items[index]
 
   return (
-    <section className="hm-ad" aria-labelledby="hm-ad-h"
+    <section className="hm-showcase" aria-labelledby="hm-showcase-h"
              onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <header className="hm-ad-head">
-        <h2 id="hm-ad-h" className="hm-badge">스폰서드</h2>
+      <header className="hm-showcase-head">
+        <h2 id="hm-showcase-h" className="hm-badge">스폰서드</h2>
       </header>
       <State loading={loading} error={error} empty={data?.items.length === 0} />
       {ad && (
         <>
           {/* 창 하나를 두고 띠를 옆으로 민다. 보이지 않는 장은 읽기·탭 대상에서 뺀다. */}
-          <div className="hm-ad-viewport">
-            <div className="hm-ad-track"
+          <div className="hm-showcase-viewport">
+            <div className="hm-showcase-track"
                  style={{ transform: `translateX(-${index * 100}%)` }}>
               {items.map((it, i) => {
                 const t = AD_THEMES[i % AD_THEMES.length]
                 return (
-                  <div className={`hm-ad-slide t-${t.tone}`} key={it.id} aria-hidden={i !== index}>
-                    <p className="hm-ad-title">{t.title}</p>
-                    <p className="hm-ad-sub">{t.sub}</p>
-                    <Link className="hm-ad-btn" to={it.linkUrl}
+                  <div className={`hm-showcase-slide t-${t.tone}`} key={it.id} aria-hidden={i !== index}>
+                    <p className="hm-showcase-title">{t.title}</p>
+                    <p className="hm-showcase-sub">{t.sub}</p>
+                    <Link className="hm-showcase-btn" to={it.linkUrl}
                           tabIndex={i === index ? undefined : -1}>
                       {t.cta}
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -447,14 +447,14 @@ function Sponsored() {
                               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </Link>
-                    <img className="hm-ad-art" src={it.imageUrl} alt="" aria-hidden="true" />
+                    <img className="hm-showcase-art" src={it.imageUrl} alt="" aria-hidden="true" />
                   </div>
                 )
               })}
             </div>
           </div>
           {items.length > 1 && (
-            <span className="hm-ad-dots">
+            <span className="hm-showcase-dots">
               {items.map((d, i) => (
                 <button key={d.id} type="button" className={i === index ? 'on' : undefined}
                         onClick={() => setIndex(i)}

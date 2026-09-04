@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import ssafy.a507.backend.domain.research.client.DartException;
+import ssafy.a507.backend.domain.research.repository.CorpFinancialRepository;
+import ssafy.a507.backend.domain.research.repository.CorpProfileRepository;
 import ssafy.a507.backend.domain.research.service.DartIngestService;
 
 /**
@@ -28,16 +30,40 @@ public class DartIngestScheduler {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final DartIngestService ingestService;
+    private final CorpProfileRepository corpProfileRepository;
+    private final CorpFinancialRepository corpFinancialRepository;
 
     /**
      * 공시 목록 — 매일. 장 마감·정정공시까지 담기도록 저녁에 돈다.
      *
      * <p>되돌아보는 구간이 있어 하루를 걸러도 다음 회차가 메운다.
+     *
+     * <p>매일 도는 유일한 회차라 빈 표를 채우는 일도 여기서 한다({@link #fillIfEmpty()}).
      */
     @Scheduled(cron = "${app.dart.disclosure-cron:0 30 19 * * *}", zone = "Asia/Seoul")
     public void ingestDisclosures() {
+        fillIfEmpty();
         LocalDate today = LocalDate.now(KST);
         ingestService.ingestDisclosures(ingestService.disclosureFrom(today), today);
+    }
+
+    /**
+     * 첫 배포·키 등록 직후의 부트스트랩. 개황은 매월 1일, 재무는 분기 1일에만 도는데 그 회차가
+     * 키 없이 지나가면 다음 회차까지 한 달·석 달을 빈손으로 보낸다 — 2026-09-01 회차가 실제로
+     * 그렇게 지나갔다. 지수 수집이 DB 가 비어 있으면 첫 회차에 전부 받는 것과 같은 판단이다.
+     *
+     * <p>비었는지만 본다. 한도에 걸려 일부만 채운 날은 다음 날 다시 돌지 않고 정기 회차 몫으로
+     * 남긴다 — 개황·재무·공시를 합쳐도 종목당 서너 콜이라 300 종목이면 한도에 한참 못 미친다.
+     */
+    private void fillIfEmpty() {
+        if (corpProfileRepository.count() == 0) {
+            log.info("[DART] corp_profiles 가 비어 있어 고유번호 시드·기업개황을 먼저 채운다");
+            ingestProfiles();
+        }
+        if (corpFinancialRepository.count() == 0) {
+            log.info("[DART] corp_financials 가 비어 있어 연간 재무를 먼저 채운다");
+            ingestFinancials();
+        }
     }
 
     /**
