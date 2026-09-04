@@ -14,7 +14,8 @@ import org.web3j.crypto.Hash;
  * 그 경로는 트리를 만드는 쪽만 알 수 있다. DB가 유실되면 영영 못 만드는 값이라
  * 앵커 직후 번들({@link ProofBundle})로 사용자에게 미리 내려보낸다.
  *
- * <p><b>규격 — 서버·검증 페이지(verify.html)·픽스처 생성기 세 곳이 반드시 같아야 한다.</b>
+ * <p><b>규격 — 서버·컨트랙트(CommitAnchor v2가 온체인에서 같은 계산으로 검산한다)·픽스처 생성기
+ * 세 곳이 반드시 같아야 한다.</b> 어긋나면 첫 앵커 tx가 {@code RootMismatch}로 revert한다.
  *
  * <ul>
  *   <li><b>해시</b>: keccak256. {@code MessageDigest.getInstance("SHA3-256")}은 표준화 과정에서
@@ -114,7 +115,7 @@ public final class MerkleTree {
     }
 
     /**
-     * 번들 검증 — verify.html이 브라우저에서 하는 것과 같은 계산의 서버판.
+     * 번들 검증 — 컨트랙트 {@code isIncluded}가 온체인에서 하는 것과 같은 계산의 서버판.
      * CHAIN-06 검증 API가 쓰고, 테스트에서 자체 무결성 확인에 쓴다.
      *
      * @param commitHash 커밋 해시(리프 아님 — 안에서 도메인 분리 해시를 얹는다)

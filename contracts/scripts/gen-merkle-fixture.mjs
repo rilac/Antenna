@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
  *
  * ethers(널리 검증된 keccak 구현)가 기준값을 만들고, 다른 두 구현이 이 값을 재현해야 한다:
  *   - Java  backend/src/test/.../MerkleTreeTest       (web3j Hash.sha3)
- *   - JS    contracts/test/verify-page.test.js         (verify.html의 인라인 keccak)
+ *   - Solidity contracts/test/CommitAnchor.test.js     (CommitAnchor v2 의 온체인 _computeRoot, ANT-CHAIN-08)
  *
  * 세 구현이 한 파일을 공유하므로 해시·결합·승격 규칙이 하나라도 어긋나면
  * 어느 한쪽 테스트가 반드시 깨진다. 이 파일이 규격의 실행 가능한 명세다.
