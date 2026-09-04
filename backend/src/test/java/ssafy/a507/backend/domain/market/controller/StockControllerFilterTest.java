@@ -22,12 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
  * 종목 탐색 화면(B-02)이 GET /api/v1/stocks 에 기대하는 것 — 행별 등락률·관심 여부·집계 자리,
  * 섹터·시장·관심 필터, 그리고 GET /api/v1/stocks/sectors 요약 칩.
  *
- * <p>재료가 아직 없는 값(per · pbr · 예측 집계)은 키를 빼지 않고 null · 0 으로 내린다 — 화면이
+ * <p>재료가 아직 없는 값(예측 집계)은 키를 빼지 않고 null · 0 으로 내린다 — 화면이
  * {@code s.per === null} 로 분기하므로 키가 없으면 undefined.toFixed 로 죽는다. 같은 이유로
- * 재료 없는 필터·정렬은 400 이 아니라 무시다(명세 v0.15).
+ * 재료 없는 필터·정렬(sentiment · hasOpenPrediction · 예측 정렬 3종)은 400 이 아니라 무시다.
+ * PER 범위 필터와 PER · CHANGE_RATE 정렬은 동작하고, 정렬 안에서 커서가 이어진다.
  *
- * <p>기준 데이터 — 삼성전자·SK하이닉스(반도체·KOSPI) · 카카오(인터넷·KOSDAQ) · 거래정지(섹터 없음·
- * KOSDAQ) · 폐지종목(listed=false). 종가는 8/27 → 8/28.
+ * <p>기준 데이터 — 삼성전자(PER 12.39)·SK하이닉스(반도체·KOSPI) · 카카오(PER 25 · 인터넷·KOSDAQ) ·
+ * 거래정지(섹터 없음·KOSDAQ) · 폐지종목(listed=false). 종가는 8/27 → 8/28.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -68,6 +69,7 @@ class StockControllerFilterTest {
         // 13:00 회차가 써 둔 파생값. 목록은 계산하지 않고 읽기만 한다.
         em.createNativeQuery("UPDATE stocks SET per = 12.39, pbr = 1.07 WHERE code = '005930'")
                 .executeUpdate();
+        em.createNativeQuery("UPDATE stocks SET per = 25.00 WHERE code = '035720'").executeUpdate();
 
         em.createNativeQuery(
                         """
@@ -159,14 +161,120 @@ class StockControllerFilterTest {
     }
 
     @Test
-    @DisplayName("재료가 없는 필터·정렬(sentiment · PER · hasOpenPrediction · sort)은 400 이 아니라 무시다")
+    @DisplayName("재료가 없는 필터·정렬(sentiment · hasOpenPrediction · 예측 정렬)은 400 이 아니라 무시다 — 코드순")
     void 재료_없는_필터는_무시한다() throws Exception {
         mockMvc.perform(get(URL)
-                        .param("sentiment", "UP").param("perMin", "1").param("perMax", "20")
-                        .param("hasOpenPrediction", "true").param("sort", "PER")
+                        .param("sentiment", "UP").param("hasOpenPrediction", "true")
+                        .param("sort", "PREDICTION_COUNT")
                         .with(user(me)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items.length()").value(4));
+                .andExpect(jsonPath("$.items.length()").value(4))
+                .andExpect(jsonPath("$.items[0].code").value("000660"))
+                .andExpect(jsonPath("$.items[3].code").value("900000"));
+    }
+
+    @Test
+    @DisplayName("perMin/perMax 는 PER 범위(양끝 포함) — PER 없는 종목은 어느 범위에도 들지 않는다")
+    void PER_범위로_거른다() throws Exception {
+        mockMvc.perform(get(URL).param("perMin", "10").param("perMax", "20").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].code").value("005930"));
+
+        mockMvc.perform(get(URL).param("perMin", "20").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].code").value("035720"));
+
+        mockMvc.perform(get(URL).param("perMax", "12.39").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].code").value("005930"));
+    }
+
+    @Test
+    @DisplayName("perMin 이 perMax 보다 크면 400 INVALID_REQUEST · field perMin")
+    void 뒤집힌_PER_범위는_400() throws Exception {
+        mockMvc.perform(get(URL).param("perMin", "20").param("perMax", "10").with(user(me)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.field").value("perMin"));
+    }
+
+    @Test
+    @DisplayName("sort=PER 은 PER 낮은 순 — PER 없는 종목은 뒤에 코드순")
+    void PER_낮은_순으로_정렬한다() throws Exception {
+        mockMvc.perform(get(URL).param("sort", "PER").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].code").value("005930"))
+                .andExpect(jsonPath("$.items[1].code").value("035720"))
+                .andExpect(jsonPath("$.items[2].code").value("000660"))
+                .andExpect(jsonPath("$.items[3].code").value("900000"));
+    }
+
+    @Test
+    @DisplayName("sort=CHANGE_RATE 는 등락률 높은 순 — 등락률 없는 종목은 뒤에 코드순")
+    void 등락률_순으로_정렬한다() throws Exception {
+        mockMvc.perform(get(URL).param("sort", "CHANGE_RATE").with(user(me)))
+                .andExpect(status().isOk())
+                // 카카오 3.13% > 삼성전자 2.14%. 나머지 둘은 어느 한쪽 종가가 없다
+                .andExpect(jsonPath("$.items[0].code").value("035720"))
+                .andExpect(jsonPath("$.items[1].code").value("005930"))
+                .andExpect(jsonPath("$.items[2].code").value("000660"))
+                .andExpect(jsonPath("$.items[3].code").value("900000"));
+    }
+
+    @Test
+    @DisplayName("정렬 안에서 커서가 이어진다 — 값이 없는 구간은 코드순으로 잇는다")
+    void 정렬_안에서_커서가_이어진다() throws Exception {
+        mockMvc.perform(get(URL).param("sort", "PER").param("size", "1").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].code").value("005930"))
+                .andExpect(jsonPath("$.nextCursor").value("005930"));
+        mockMvc.perform(get(URL).param("sort", "PER").param("size", "1")
+                        .param("cursor", "005930").with(user(me)))
+                .andExpect(jsonPath("$.items[0].code").value("035720"))
+                .andExpect(jsonPath("$.nextCursor").value("035720"));
+        mockMvc.perform(get(URL).param("sort", "PER").param("size", "1")
+                        .param("cursor", "035720").with(user(me)))
+                .andExpect(jsonPath("$.items[0].code").value("000660"))
+                .andExpect(jsonPath("$.hasNext").value(true));
+        mockMvc.perform(get(URL).param("sort", "PER").param("size", "1")
+                        .param("cursor", "000660").with(user(me)))
+                .andExpect(jsonPath("$.items[0].code").value("900000"))
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    @DisplayName("커서 종목이 필터 밖에 있어도(관심 해제 등) 다음 페이지는 그 종목의 정렬값 자리에서 이어진다")
+    void 필터_밖_커서도_자리를_찾는다() throws Exception {
+        // 삼성전자(반도체 · 2.14%)를 커서로 인터넷 섹터만 — 카카오(3.13%)는 커서보다 앞이라 빠진다
+        mockMvc.perform(get(URL).param("sort", "CHANGE_RATE").param("sector", "인터넷")
+                        .param("cursor", "005930").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.hasNext").value(false));
+
+        // 카카오(인터넷 · 3.13%)를 커서로 반도체만 — 삼성전자(2.14%) · SK하이닉스(등락률 없음) 순
+        mockMvc.perform(get(URL).param("sort", "CHANGE_RATE").param("sector", "반도체")
+                        .param("cursor", "035720").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].code").value("005930"))
+                .andExpect(jsonPath("$.items[1].code").value("000660"));
+    }
+
+    @Test
+    @DisplayName("없는 종목코드 커서 · 어휘 밖 sort 는 400")
+    void 잘못된_커서와_정렬은_400() throws Exception {
+        mockMvc.perform(get(URL).param("cursor", "999999").with(user(me)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.field").value("cursor"));
+        mockMvc.perform(get(URL).param("sort", "NAME").with(user(me)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+                .andExpect(jsonPath("$.field").value("sort"));
     }
 
     @Test

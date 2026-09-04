@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.market.controller;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -31,18 +32,30 @@ public class StockController {
     private final CurrentUserProvider currentUserProvider;
 
     /**
-     * 탐색 목록. 명세의 나머지 쿼리(sentiment · perMin/perMax · hasOpenPrediction · sort)는
-     * 재료가 없어 받지 않는다 — 모르는 파라미터는 스프링이 무시하므로 화면은 그대로 보내도 된다.
+     * 탐색 목록. 명세의 sentiment · hasOpenPrediction 은 predictions 가 없어 받지 않는다 — 모르는
+     * 파라미터는 스프링이 무시하므로 화면은 그대로 보내도 된다. sort · perMin/perMax 는 어휘 밖
+     * 값이면 400 이다(타입 변환 실패는 GlobalExceptionHandler 가 field 와 함께 400 으로 낸다).
      */
     @GetMapping
     public StockListResponse list(
             @RequestParam(required = false) String sector,
             @RequestParam(required = false) Stock.Market market,
+            @RequestParam(required = false) BigDecimal perMin,
+            @RequestParam(required = false) BigDecimal perMax,
             @RequestParam(required = false, defaultValue = "false") boolean watchedOnly,
+            @RequestParam(required = false) StockService.Sort sort,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) Integer size) {
         return stockService.list(
-                currentUserProvider.currentUserId(), sector, market, watchedOnly, cursor, size);
+                currentUserProvider.currentUserId(),
+                sector,
+                market,
+                perMin,
+                perMax,
+                watchedOnly,
+                sort,
+                cursor,
+                size);
     }
 
     /** 섹터 요약 칩 — 전체 + 섹터별 종목 수·평균 등락률. */
