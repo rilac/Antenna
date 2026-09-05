@@ -10,7 +10,8 @@ import ErrorState from '../components/state/ErrorState'
 import { useCursorList } from '../api/useCursorList'
 
 type Anchor = {
-  id: string
+  /** 온체인 batchId 와 같은 값이라 숫자다 — GET /anchors 응답(ANT-CHAIN-06) */
+  id: number
   merkleRoot: string
   commitCount: number
   status: 'PENDING' | 'CONFIRMED' | 'FAILED'
