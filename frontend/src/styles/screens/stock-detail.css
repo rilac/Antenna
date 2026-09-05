@@ -1,0 +1,733 @@
+/* B-03 종목 상세 — 요약 헤더 + 안쪽 페이지 둘(종목 정보 · 예측하기)
+
+   전 선택자를 .stock-detail-page 아래로 스코프했다. 화면 CSS 는 전역으로 올라가는데
+   .up · .down · .sd-form 같은 이름이 밖으로 새면 다른 화면을 건드린다.
+   (routes.ts 가 이 화면에 bodyClass: 'stock-detail-page' 를 붙인다)
+
+   색 규칙 — 글자는 --up/--down(본문 대비 4.5:1), 막대·차트는 --up-vivid/--down-vivid
+   (그래픽 기준 3:1). 국내 관례대로 상승이 빨강이다. 방향을 색으로만 전하지 않도록
+   어디서나 숫자나 낱말이 함께 온다. */
+
+/* ── 요약 헤더 ─────────────────────────────────────────────
+   스크롤을 내려도 종목명·종가가 남아야 아래쪽 재무·경쟁사를 읽을 때 기준을 잃지 않는다. */
+.stock-detail-page .sd-head{
+  position:sticky;top:0;z-index:6;
+  margin:0 0 12px;padding:0;
+  background:linear-gradient(var(--ground) 82%,transparent);
+}
+
+/* 줄 간격을 글꼴이 정하게 두면 26px 제목이 39px 짜리 줄을 차지한다.
+   헤더는 네 줄이 붙어 있는 자리라 그 여유가 그대로 빈 공간으로 쌓인다.
+   그래서 줄 높이를 글자 크기에 맞춰 직접 못 박는다. */
+.stock-detail-page .sd-head-top{margin-bottom:1px;line-height:1.2}
+.stock-detail-page .sd-back{
+  display:inline-flex;align-items:center;gap:5px;
+  color:var(--muted);font-size:12.5px;font-weight:600;border-radius:8px;
+}
+.stock-detail-page .sd-back:hover{color:var(--ink)}
+.stock-detail-page .sd-back:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+
+.stock-detail-page .sd-ident{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+/* 종목명과 종가는 크기·두께·자간을 같게 둔다. 두 줄이 위아래로 붙어 있어
+   한쪽만 굵거나 크면 글꼴이 어긋난 것처럼 보인다. */
+.stock-detail-page .sd-ident h1{
+  margin:0;font-size:26px;line-height:1.2;
+  font-weight:750;letter-spacing:-.03em;color:var(--ink);
+}
+.stock-detail-page .sd-code{color:var(--faint);font-size:14px;font-weight:600}
+
+.stock-detail-page .sd-chip{
+  padding:3px 9px;border-radius:999px;background:var(--brand-softer);
+  color:var(--brand-ink);font-size:11.5px;font-weight:700;
+}
+.stock-detail-page .sd-chip.is-soft{background:var(--surface-2);color:var(--muted)}
+
+/* 관심 담기 — 헤더 오른쪽 끝으로 민다 */
+.stock-detail-page .sd-watch{
+  margin-left:auto;display:inline-flex;align-items:center;gap:6px;
+  height:31px;padding:0 13px;border:1px solid var(--rule);border-radius:9px;
+  background:var(--surface);color:var(--muted);
+  font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+  transition:color .14s,border-color .14s,background .14s;
+}
+.stock-detail-page .sd-watch:hover{color:var(--ink);border-color:#c8ccdd}
+.stock-detail-page .sd-watch.is-on{color:var(--gold);border-color:var(--gold);background:#fffaf0}
+.stock-detail-page .sd-watch:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* 전일 종가. "현재가" 를 만들지 않는다 — 기준일을 항상 붙인다 */
+.stock-detail-page .sd-price{display:flex;align-items:baseline;gap:9px;margin:2px 0 0}
+/* 위 h1 과 같은 값이다 — 한쪽만 고치지 않는다 */
+.stock-detail-page .sd-price > b{
+  font-size:26px;line-height:1.2;font-weight:750;letter-spacing:-.03em;color:var(--ink);
+}
+.stock-detail-page .sd-price > b span{margin-left:2px;font-size:16px;font-weight:650}
+.stock-detail-page .sd-change{font-size:15px;font-weight:750}
+.stock-detail-page .sd-asof{color:var(--faint);font-size:12px}
+.stock-detail-page .sd-halted{margin:0;color:var(--muted);font-size:13.5px;line-height:1.4}
+
+.stock-detail-page .up{color:var(--up)}
+.stock-detail-page .down{color:var(--down)}
+
+/* ── 안쪽 페이지 전환 ──────────────────────────────────────
+   토스 증권처럼 페이지를 갈아 끼우지 않고 헤더 아래에서만 바뀐다. */
+.stock-detail-page .sd-tabs{
+  display:flex;gap:2px;margin:9px 0 0;border-bottom:1px solid var(--rule);
+}
+.stock-detail-page .sd-tabs button{
+  position:relative;display:inline-flex;align-items:center;gap:6px;
+  padding:9px 16px 10px;border:0;background:none;line-height:1.3;
+  color:var(--muted);font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer;
+  transition:color .14s;
+}
+.stock-detail-page .sd-tabs button:hover{color:var(--ink)}
+.stock-detail-page .sd-tabs button.is-on{color:var(--brand)}
+/* 밑줄은 테두리 위에 겹쳐 그린다 — 레이아웃이 1px 씩 밀리지 않게 */
+.stock-detail-page .sd-tabs button.is-on::after{
+  content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--brand);
+}
+.stock-detail-page .sd-tabs button:focus-visible{outline:2px solid var(--brand);outline-offset:-4px;border-radius:8px}
+.stock-detail-page .sd-tab-count{
+  padding:1px 6px;border-radius:999px;background:var(--surface-2);
+  color:var(--faint);font-size:11px;font-weight:700;
+}
+.stock-detail-page .sd-tabs button.is-on .sd-tab-count{background:var(--brand-softer);color:var(--brand-ink)}
+
+.stock-detail-page [role="tabpanel"]:focus{outline:none}
+
+/* ── 블록 ─────────────────────────────────────────────────
+   12칸 격자. 카드가 제 폭을 골라 나란히 앉는다 — 전폭으로 쌓으면 스크롤을
+   내려야 내용이 나오고, 화면이 한눈에 들어오지 않는다.
+   원천이 다른 카드들이 같은 껍데기를 쓰므로 겉모습은 여기서 한 번만 정한다. */
+/* 한 줄에 놓인 카드는 바닥을 맞춘다(stretch). 짧은 카드 아래에 빈 자리가
+   남지만, 바닥이 어긋나 톱니처럼 보이는 것보다 격자가 정연해 보인다. */
+.stock-detail-page .sd-grid{
+  display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:14px;align-items:stretch;
+}
+.stock-detail-page .sd-block{
+  min-width:0;grid-column:span 12;
+  display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--rule);border-radius:16px;
+  padding:16px 18px 18px;box-shadow:var(--shadow);
+}
+
+/* 폭은 넓은 화면에서만 갈라진다. 좁으면 전부 전폭으로 돌아간다 */
+@media (min-width:1180px){
+  .stock-detail-page .sd-block[data-span="4"]{grid-column:span 4}
+  .stock-detail-page .sd-block[data-span="5"]{grid-column:span 5}
+  .stock-detail-page .sd-block[data-span="6"]{grid-column:span 6}
+  .stock-detail-page .sd-block[data-span="7"]{grid-column:span 7}
+  .stock-detail-page .sd-block[data-span="8"]{grid-column:span 8}
+}
+
+/* 카드 높이를 고정하지 않는다. 묶어 두고 카드 안에서 스크롤하게 하면 막대가
+   카드마다 생기고, 무엇보다 펼쳤는데도 내용이 잘려 보인다. 줄 높이는 위의
+   stretch 가 맞춰 주므로 짧은 카드는 아래가 비고, 내용은 다 보인다.
+   페이지가 길어지는 것은 접기가 막아 준다 — 기본으로 셋이 접혀 있다. */
+.stock-detail-page .sd-block-body{min-width:0}
+
+.stock-detail-page .sd-block-head{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;flex:none;
+}
+/* 접힌 카드는 제목 한 줄만 남는다. 아래 여백까지 그대로 두면
+   빈 카드가 두툼하게 남아 접은 보람이 없다.
+   바닥 맞춤(stretch)에서도 빼 준다 — 옆 카드가 길다고 접힌 카드가 따라
+   늘어나면 접어 둔 것이 되레 화면을 더 먹는다. */
+.stock-detail-page .sd-block[data-collapsed]{padding-bottom:15px;align-self:start}
+.stock-detail-page .sd-block[data-collapsed] .sd-block-head{margin-bottom:0}
+
+/* 제목 줄 전체가 접기 과녁이다. 삼각형만 누르게 하면 과녁이 너무 작다 */
+.stock-detail-page .sd-head-btn{
+  flex:1;min-width:0;display:flex;align-items:center;gap:8px;
+  margin:-4px -6px;padding:4px 6px;border:0;border-radius:9px;
+  background:none;font-family:inherit;text-align:left;cursor:pointer;
+}
+.stock-detail-page .sd-head-btn:hover{background:var(--surface-2)}
+.stock-detail-page .sd-head-btn:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.stock-detail-page .sd-chev{
+  flex:none;color:var(--faint);transition:transform .16s;
+}
+.stock-detail-page .sd-head-btn[aria-expanded="true"] .sd-chev{transform:rotate(90deg)}
+@media (prefers-reduced-motion:reduce){
+  .stock-detail-page .sd-chev{transition:none}
+}
+
+/* 한 카드에 원천이 여럿일 때의 구분선과 소제목 */
+.stock-detail-page .sd-rule{
+  margin:14px 0;border:0;border-top:1px solid var(--rule);
+}
+.stock-detail-page .sd-sub{
+  margin:0 0 9px;color:var(--muted);font-size:12px;font-weight:750;
+}
+.stock-detail-page .sd-sub span{color:var(--faint);font-weight:600}
+.stock-detail-page .sd-block-head h2{
+  margin:0;font-size:15px;font-weight:750;letter-spacing:-.015em;color:var(--ink);
+}
+.stock-detail-page .sd-block-note{color:var(--faint);font-size:12px}
+.stock-detail-page .sd-block-actions{margin-left:auto}
+.stock-detail-page .sd-block-empty{
+  margin:0;padding:20px 0;text-align:center;color:var(--muted);font-size:13px;
+}
+
+/* 로딩 자리. 실제 내용 높이를 넘겨받아 화면이 덜 튄다 */
+.stock-detail-page .sd-skel{
+  border-radius:10px;
+  background:linear-gradient(100deg,var(--surface-2) 30%,#f2f3f8 46%,var(--surface-2) 62%);
+  background-size:220% 100%;animation:sd-shine 1.25s linear infinite;
+}
+@keyframes sd-shine{to{background-position:-120% 0}}
+.stock-detail-page .sd-skel-title{display:block;width:210px;height:28px}
+.stock-detail-page .sd-skel-price{display:block;width:250px;height:32px}
+@media (prefers-reduced-motion:reduce){
+  .stock-detail-page .sd-skel{animation:none}
+}
+
+/* ── 차트 ─────────────────────────────────────────────── */
+.stock-detail-page .sd-range{display:flex;gap:4px}
+.stock-detail-page .sd-range button{
+  height:28px;padding:0 11px;border:1px solid transparent;border-radius:8px;
+  background:none;color:var(--muted);
+  font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  transition:background .14s,color .14s;
+}
+.stock-detail-page .sd-range button:hover{background:var(--surface-2);color:var(--ink)}
+.stock-detail-page .sd-range button.is-on{background:var(--brand-softer);color:var(--brand-ink)}
+.stock-detail-page .sd-range button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+
+.stock-detail-page .cc{min-width:0}
+.stock-detail-page .cc-svg{display:block;width:100%;border-radius:8px}
+.stock-detail-page .cc-svg:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.stock-detail-page .cc-line{stroke-width:2;vector-effect:non-scaling-stroke}
+.stock-detail-page .cc-base{stroke:var(--rule);stroke-width:1;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
+.stock-detail-page .cc-cursor line{stroke:var(--faint);stroke-width:1;stroke-dasharray:2 3;vector-effect:non-scaling-stroke}
+.stock-detail-page .cc-axis text{fill:var(--faint);font-size:10.5px;font-variant-numeric:tabular-nums}
+.stock-detail-page .cc-empty{
+  padding:40px 0;text-align:center;color:var(--muted);font-size:13px;
+}
+.stock-detail-page .cc-readout{
+  display:flex;align-items:center;gap:10px;justify-content:flex-end;
+  margin:8px 2px 0;min-height:19px;font-size:12.5px;
+}
+.stock-detail-page .cc-ro-date{color:var(--faint)}
+.stock-detail-page .cc-readout b{color:var(--ink);font-weight:750}
+.stock-detail-page .cc-ro-idle{color:var(--faint)}
+
+/* ── 예측 심리 ─────────────────────────────────────────── */
+/* 표본이 적은 비율. 색만 죽이면 "회색 = 중립" 으로 읽히므로 아래 문구를 함께 둔다 */
+.stock-detail-page .sd-sent.is-thin .sd-sent-bar,
+.stock-detail-page .sd-sent.is-thin .sd-horizons,
+.stock-detail-page .sd-sent.is-thin .sd-sent-legend{opacity:.45}
+.stock-detail-page .sd-thin-note{
+  margin:14px 0 0;padding-top:12px;border-top:1px solid var(--rule);
+  color:var(--muted);font-size:12px;line-height:1.6;
+}
+
+.stock-detail-page .sd-sent-bar{
+  display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--surface-2);
+}
+.stock-detail-page .sd-sent-bar .up{background:var(--up-vivid)}
+.stock-detail-page .sd-sent-bar .down{background:var(--down-vivid)}
+.stock-detail-page .sd-sent-legend{
+  display:flex;justify-content:space-between;margin:8px 0 13px;font-size:12.5px;font-weight:700;
+}
+
+/* 기간별 쏠림 네 칸을 한 줄에 늘어놓는다. 세로로 쌓으면 이 카드만 네 줄을
+   더 먹어 아래 카드가 화면 밖으로 밀린다. */
+.stock-detail-page .sd-horizons{
+  list-style:none;margin:0;padding:0;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;
+}
+.stock-detail-page .sd-horizons li{display:grid;gap:5px;min-width:0}
+.stock-detail-page .sd-hz-label{color:var(--faint);font-size:11px;font-weight:600}
+.stock-detail-page .sd-hz-bar{
+  height:6px;border-radius:999px;background:var(--down-vivid);overflow:hidden;
+}
+.stock-detail-page .sd-hz-bar i{display:block;height:100%;background:var(--up-vivid)}
+.stock-detail-page .sd-hz-val{color:var(--body);font-size:12px;font-weight:700}
+.stock-detail-page .sd-hz-none{color:var(--faint);font-size:11.5px}
+
+/* ── AI 브리핑 ─────────────────────────────────────────── */
+.stock-detail-page .sd-briefs{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.stock-detail-page .sd-briefs li{padding-bottom:12px;border-bottom:1px solid var(--rule)}
+.stock-detail-page .sd-briefs li:last-child{padding-bottom:0;border-bottom:0}
+/* 논조 배지·제목·산출일을 한 줄에 둔다. 제목을 따로 한 줄 쓰면 카드가 길어진다 */
+.stock-detail-page .sd-brief-head{
+  display:flex;align-items:center;gap:8px;margin:0 0 5px;min-width:0;
+}
+.stock-detail-page .sd-brief-head b{
+  flex:1;min-width:0;font-size:13px;font-weight:750;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.stock-detail-page .sd-brief-at{flex:none;color:var(--faint);font-size:11px}
+.stock-detail-page .sd-brief-body{
+  margin:0;color:var(--body);font-size:12.5px;line-height:1.65;word-break:keep-all;
+}
+.stock-detail-page .sd-tone{
+  display:inline-block;padding:2px 8px;border-radius:999px;
+  font-size:11px;font-weight:700;
+}
+.stock-detail-page .sd-tone.is-up{background:#ffeceb;color:var(--up)}
+.stock-detail-page .sd-tone.is-down{background:#e9f0ff;color:var(--down)}
+.stock-detail-page .sd-tone.is-neutral{background:var(--surface-2);color:var(--muted)}
+
+/* ── 투자 포인트 ───────────────────────────────────────── */
+/* 서버가 긍정·위험·확인 세 열로 내려준다. 좁아지면 한 열로 접는다 */
+.stock-detail-page .sd-points{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.stock-detail-page .sd-point-col h3{
+  margin:0 0 9px;font-size:12.5px;font-weight:750;
+}
+/* 긍정·위험에만 방향 색을 준다. "확인할 점" 은 방향이 아니라 유보라 중립으로 둔다 */
+.stock-detail-page .sd-point-col.is-positive h3{color:var(--up)}
+.stock-detail-page .sd-point-col.is-risk h3{color:var(--down)}
+.stock-detail-page .sd-point-col.is-check h3{color:var(--muted)}
+.stock-detail-page .sd-point-col ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.stock-detail-page .sd-point-none{margin:0;color:var(--faint);font-size:12px}
+/* 근거 문서의 출처. 없는 포인트는 시세·재무에서 나온 종합이라 배지도 없다 */
+.stock-detail-page .sd-point-src{
+  display:inline-block;margin:5px 0 0 32px;padding:1px 6px;border-radius:5px;
+  background:var(--surface-2);color:var(--faint);font-size:10.5px;font-weight:700;
+}
+/* 값이 빈 이유를 서버가 문장으로 준다 */
+.stock-detail-page .sd-note-why{
+  margin:10px 0 0;color:var(--faint);font-size:11.5px;line-height:1.55;word-break:keep-all;
+}
+/* 주소는 길어서 한 줄을 다 쓴다 */
+.stock-detail-page .sd-facts .is-wide{grid-column:1 / -1}
+.stock-detail-page .sd-facts a{color:var(--brand);font-weight:700;border-radius:6px}
+.stock-detail-page .sd-facts a:hover{text-decoration:underline}
+.stock-detail-page .sd-facts a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+.stock-detail-page .sd-point{
+  display:flex;gap:10px;padding:11px 13px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+  cursor:pointer;transition:border-color .14s,background .14s;
+}
+.stock-detail-page .sd-point:hover{border-color:#c8ccdd}
+.stock-detail-page .sd-point.is-on{border-color:var(--brand);background:var(--brand-softer)}
+.stock-detail-page .sd-point input{margin:2px 0 0;flex:none;accent-color:var(--brand)}
+.stock-detail-page .sd-point:focus-within{outline:2px solid var(--brand);outline-offset:2px}
+/* 포인트는 제목 없이 본문 한 덩어리다(서버 계약) */
+.stock-detail-page .sd-point-body{
+  min-width:0;color:var(--body);font-size:12.5px;line-height:1.6;word-break:keep-all;
+}
+
+.stock-detail-page .sd-point-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:16px 0 0;padding-top:14px;border-top:1px solid var(--rule);
+  color:var(--muted);font-size:12.5px;
+}
+
+.stock-detail-page .sd-cta{
+  display:inline-flex;align-items:center;height:38px;padding:0 18px;border:0;border-radius:10px;
+  background:var(--brand);color:#fff;
+  font-family:inherit;font-size:13px;font-weight:750;cursor:pointer;
+  transition:background .14s;
+}
+.stock-detail-page .sd-cta:hover{background:#4a43e8}
+.stock-detail-page .sd-cta:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+
+.stock-detail-page .sd-link{
+  border:0;background:none;padding:0;color:var(--brand);
+  font-family:inherit;font-size:inherit;font-weight:700;cursor:pointer;text-decoration:underline;
+}
+
+/* ── 공시·뉴스 ─────────────────────────────────────────── */
+/* 전폭 카드라 두 벌로 흘린다. 한 줄에 하나씩 놓으면 오른쪽이 비고 카드가 길어진다 */
+.stock-detail-page .sd-docs{
+  list-style:none;margin:0;padding:0;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 26px;
+}
+.stock-detail-page .sd-docs li{
+  display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--rule);
+}
+/* 두 열이므로 마지막 두 칸의 밑줄을 지운다 */
+.stock-detail-page .sd-docs li:nth-last-child(-n+2){border-bottom:0;padding-bottom:0}
+.stock-detail-page .sd-docs li:nth-child(-n+2){padding-top:0}
+@media (max-width:1179px){
+  .stock-detail-page .sd-docs{grid-template-columns:minmax(0,1fr)}
+  .stock-detail-page .sd-docs li:nth-last-child(2){border-bottom:1px solid var(--rule);padding-bottom:12px}
+  .stock-detail-page .sd-docs li:nth-child(2){padding-top:12px}
+}
+.stock-detail-page .sd-doc-kind{
+  flex:none;height:21px;padding:0 8px;display:inline-flex;align-items:center;
+  border-radius:6px;font-size:11px;font-weight:700;
+}
+.stock-detail-page .sd-doc-kind.is-disclosure{background:var(--brand-softer);color:var(--brand-ink)}
+.stock-detail-page .sd-doc-kind.is-news{background:var(--surface-2);color:var(--muted)}
+.stock-detail-page .sd-doc-body{min-width:0;display:grid;gap:4px}
+.stock-detail-page .sd-doc-body a{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:13.5px;font-weight:700;color:var(--ink);border-radius:6px;
+}
+.stock-detail-page .sd-doc-body a:hover{color:var(--brand);text-decoration:underline}
+.stock-detail-page .sd-doc-body a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.stock-detail-page .sd-doc-body a svg{flex:none;color:var(--faint)}
+.stock-detail-page .sd-doc-body p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.6;word-break:keep-all}
+.stock-detail-page .sd-doc-meta{color:var(--faint);font-size:11.5px}
+
+/* ── 개요 · 지표 ───────────────────────────────────────── */
+.stock-detail-page .sd-desc{
+  margin:0 0 12px;color:var(--body);font-size:13px;line-height:1.68;word-break:keep-all;
+}
+.stock-detail-page .sd-facts,
+.stock-detail-page .sd-metrics{
+  margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;
+}
+.stock-detail-page .sd-facts div,
+.stock-detail-page .sd-metrics div{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  padding-bottom:8px;border-bottom:1px solid var(--rule);
+}
+/* 마지막 줄의 밑줄은 지운다. 바로 아래에 .sd-rule 이 오면 선이 두 줄로 겹쳐
+   보이고, 카드 끝이면 안쪽에 선 하나가 떠 있는 것처럼 남는다.
+   2열 격자라 "마지막 줄" 은 칸 두 개다. */
+.stock-detail-page .sd-facts > :nth-last-child(-n+2),
+.stock-detail-page .sd-metrics > :nth-last-child(-n+2){
+  padding-bottom:0;border-bottom:0;
+}
+.stock-detail-page .sd-facts dt,
+.stock-detail-page .sd-metrics dt{color:var(--muted);font-size:12.5px}
+.stock-detail-page .sd-facts dd,
+.stock-detail-page .sd-metrics dd{margin:0;color:var(--ink);font-size:13.5px;font-weight:700}
+
+/* ── 표(재무 · 경쟁사) ─────────────────────────────────── */
+.stock-detail-page .sd-table-wrap{overflow-x:auto}
+.stock-detail-page .sd-table{width:100%;border-collapse:collapse;font-size:13px}
+.stock-detail-page .sd-table th,
+.stock-detail-page .sd-table td{padding:9px 10px;text-align:right;white-space:nowrap}
+.stock-detail-page .sd-table thead th{
+  color:var(--faint);font-size:11.5px;font-weight:700;border-bottom:1px solid var(--rule);
+}
+.stock-detail-page .sd-table th:first-child,
+.stock-detail-page .sd-table td:first-child{text-align:left;padding-left:2px}
+.stock-detail-page .sd-table tbody th{color:var(--ink);font-weight:700}
+.stock-detail-page .sd-table tbody td{color:var(--body)}
+.stock-detail-page .sd-table tbody tr{border-bottom:1px solid var(--rule)}
+.stock-detail-page .sd-table tbody tr:last-child{border-bottom:0}
+.stock-detail-page .sd-table tbody th a{color:var(--ink);border-radius:6px}
+.stock-detail-page .sd-table tbody th a:hover{color:var(--brand);text-decoration:underline}
+.stock-detail-page .sd-table tbody th a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* ── 예측 등록(C-01) ──────────────────────────────────── */
+.stock-detail-page .sd-slots{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.stock-detail-page .sd-slots > p{margin:0;display:flex;align-items:baseline;gap:4px}
+.stock-detail-page .sd-slots b{font-size:24px;font-weight:800;color:var(--ink)}
+.stock-detail-page .sd-slots span{color:var(--muted);font-size:13px}
+.stock-detail-page .sd-slot-warn{
+  margin:0;padding:9px 13px;border-radius:10px;background:#fff8e8;
+  color:#7a5300;font-size:12.5px;line-height:1.6;
+}
+
+/* ── 예측 등록 폼(C-01) — 번호가 붙은 단계 ────────────────
+   무엇을 몇 개나 정해야 하는지 한눈에 보이도록 단계에 번호를 붙였다.
+   되돌릴 수 없는 등록이라, 어디까지 왔는지 모르는 채로 서명 버튼에 닿으면 안 된다. */
+.stock-detail-page .pf-steps{list-style:none;margin:0;padding:0;display:grid;gap:22px}
+.stock-detail-page .pf-step > h3{
+  display:flex;align-items:center;gap:8px;margin:0 0 10px;
+  font-size:13.5px;font-weight:750;color:var(--ink);
+}
+.stock-detail-page .pf-no{
+  display:grid;place-items:center;width:20px;height:20px;flex:none;
+  border-radius:50%;background:var(--brand);color:#fff;
+  font-size:11.5px;font-weight:800;font-style:normal;
+}
+.stock-detail-page .pf-opt{color:var(--faint);font-size:11.5px;font-weight:600}
+.stock-detail-page .pf-none{
+  margin:0;padding:14px 0;color:var(--muted);font-size:12.5px;
+}
+
+/* 방향 — 아이콘과 설명을 붙여 무엇을 고르는지 글로도 읽히게 한다.
+   색만으로 상승·하락을 전하지 않는다 */
+.stock-detail-page .pf-dirs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stock-detail-page .pf-dir{
+  display:flex;align-items:center;gap:11px;min-width:0;
+  padding:13px 14px;border:1px solid var(--rule);border-radius:14px;
+  background:var(--surface);font-family:inherit;text-align:left;cursor:pointer;
+  transition:border-color .14s,background .14s;
+}
+.stock-detail-page .pf-dir:hover{border-color:#c8ccdd}
+.stock-detail-page .pf-dir:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.stock-detail-page .pf-dir-ic{
+  display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:12px;
+  background:var(--surface-2);color:var(--muted);
+  transition:background .14s,color .14s;
+}
+
+/* 아이콘은 고르기 전부터 색을 입힌다. 화살표 기울기만으로는 위·아래를 순간적으로
+   가르기 어려운데, 상승·하락은 이 화면에서 가장 먼저 읽혀야 하는 값이다.
+   아이콘은 글자가 아니라 그래픽이므로 밝은 쪽 토큰을 쓴다(그래픽 기준 3:1). */
+.stock-detail-page .pf-dir.is-up .pf-dir-ic{background:#ffeae8;color:var(--up-vivid)}
+.stock-detail-page .pf-dir.is-down .pf-dir-ic{background:#e5edff;color:var(--down-vivid)}
+.stock-detail-page .pf-dir-txt{display:grid;gap:2px;min-width:0}
+.stock-detail-page .pf-dir-txt b{font-size:14px;font-weight:750;color:var(--ink)}
+.stock-detail-page .pf-dir-txt span{color:var(--faint);font-size:11.5px;line-height:1.45;word-break:keep-all}
+
+/* 고른 쪽은 테두리·바탕·글자가 함께 바뀐다. 아이콘 색은 원래부터 들어가 있으므로
+   선택 여부를 아이콘 색만으로 전하지 않는다 — 색각 이상에서도 구분되어야 한다. */
+.stock-detail-page .pf-dir.is-up.is-on{border-color:var(--up);background:#fff5f4}
+.stock-detail-page .pf-dir.is-up.is-on .pf-dir-ic{background:#ffd8d4}
+.stock-detail-page .pf-dir.is-up.is-on .pf-dir-txt b{color:var(--up)}
+.stock-detail-page .pf-dir.is-down.is-on{border-color:var(--down);background:#f2f6ff}
+.stock-detail-page .pf-dir.is-down.is-on .pf-dir-ic{background:#d4e1ff}
+.stock-detail-page .pf-dir.is-down.is-on .pf-dir-txt b{color:var(--down)}
+
+@media (prefers-reduced-motion:reduce){
+  .stock-detail-page .pf-dir-ic{transition:none}
+}
+
+/* 기간 — 4지 고정이라 버튼 넉 장이 한 줄에 들어간다.
+   만기일을 함께 적어 "10거래일" 이 언제까지인지 세지 않아도 되게 한다 */
+.stock-detail-page .pf-horizons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.stock-detail-page .pf-hz{
+  display:grid;gap:3px;padding:11px 6px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+  font-family:inherit;cursor:pointer;transition:border-color .14s,background .14s;
+}
+.stock-detail-page .pf-hz:hover{border-color:#c8ccdd}
+.stock-detail-page .pf-hz:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.stock-detail-page .pf-hz b{font-size:12.5px;font-weight:750;color:var(--ink)}
+.stock-detail-page .pf-hz span{color:var(--faint);font-size:11px}
+.stock-detail-page .pf-hz.is-on{border-color:var(--brand);background:var(--brand-softer)}
+.stock-detail-page .pf-hz.is-on b{color:var(--brand-ink)}
+
+.stock-detail-page .pf-sign{margin-top:22px;padding-top:18px;border-top:1px solid var(--rule)}
+
+/* ── 이 종목의 예측(§5 게이팅) ─────────────────────────────
+   판정 대기 · 판정 완료 거르개. 탭 모양이지만 안쪽 페이지 전환(.sd-tabs)과
+   구분되게 알약 모양으로 둔다 — 같은 화면에 밑줄 탭이 이미 있어서다. */
+.stock-detail-page .pl-phase{
+  display:flex;gap:4px;margin:0 0 4px;padding:3px;
+  border-radius:11px;background:var(--surface-2);
+}
+.stock-detail-page .pl-phase button{
+  flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:32px;border:0;border-radius:8px;background:none;color:var(--muted);
+  font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+  transition:background .14s,color .14s;
+}
+.stock-detail-page .pl-phase button:hover{color:var(--ink)}
+.stock-detail-page .pl-phase button.is-on{
+  background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(20,20,27,.06);
+}
+.stock-detail-page .pl-phase button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.stock-detail-page .pl-phase-n{
+  padding:0 6px;border-radius:999px;background:var(--surface-2);
+  color:var(--faint);font-size:11px;font-weight:700;
+}
+.stock-detail-page .pl-phase button.is-on .pl-phase-n{
+  background:var(--brand-softer);color:var(--brand-ink);
+}
+
+.stock-detail-page .pl-list{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.stock-detail-page .pl-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;
+  padding:11px 0;border-bottom:1px solid var(--rule);
+}
+.stock-detail-page .pl-row:last-child{border-bottom:0}
+/* 잠긴 줄은 흐리게. 다만 작성자와 적중률은 또렷해야 구독 유인이 산다 */
+.stock-detail-page .pl-row.is-locked .pl-main{opacity:.9}
+
+.stock-detail-page .pl-who{display:flex;align-items:baseline;gap:8px;min-width:0}
+.stock-detail-page .pl-name{
+  font-size:13px;font-weight:750;color:var(--ink);border-radius:6px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.stock-detail-page .pl-name:hover{color:var(--brand);text-decoration:underline}
+.stock-detail-page .pl-name:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.stock-detail-page .pl-acc{flex:none;color:var(--faint);font-size:11.5px}
+
+.stock-detail-page .pl-main{grid-column:1;min-width:0}
+.stock-detail-page .pl-call{display:flex;align-items:baseline;gap:8px;margin:0;font-size:12.5px}
+.stock-detail-page .pl-call b{font-weight:750}
+.stock-detail-page .pl-target{color:var(--body);font-weight:700}
+.stock-detail-page .pl-err{color:var(--faint);font-size:11.5px}
+/* 목표가에 가깝게 맞춘 예측은 눈에 띄게 — 이 서비스가 파는 값어치다 */
+.stock-detail-page .pl-err.is-near{color:var(--brand-ink);font-weight:700}
+
+.stock-detail-page .pl-locked{
+  display:inline-flex;align-items:center;gap:5px;
+  color:var(--muted);font-size:12px;
+}
+.stock-detail-page .pl-locked svg{flex:none;color:var(--faint)}
+.stock-detail-page .pl-sub{
+  color:var(--brand);font-weight:700;border-radius:6px;text-decoration:underline;
+}
+.stock-detail-page .pl-sub:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+.stock-detail-page .pl-meta{
+  grid-row:1 / span 2;grid-column:2;
+  display:flex;flex-direction:column;align-items:flex-end;gap:4px;
+}
+.stock-detail-page .pl-status{
+  padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;
+  background:var(--surface-2);color:var(--muted);
+}
+/* 적중은 초록, 빗나감은 빨강. 성공·실패의 관례가 방향 색보다 먼저 읽힌다.
+
+   옅은 바탕에 어두운 글자를 얹으면 배지 전체가 흐려 보인다. 그래서 채도를 살린
+   바탕을 통째로 칠하고 글자를 흰색으로 뒤집었다 — 같은 색이라도 면으로 칠할 때
+   훨씬 또렷하게 읽힌다.
+
+   흰 글자가 11px 굵은 글씨라 본문 기준 4.5:1 을 넘겨야 한다. 그래서 형광에
+   가까운 초록·빨강 대신 그 선을 넘기는 가장 진한 값을 골랐다(초록 5.1 · 빨강 4.7).
+   빗나감에 --up(#ee0000, 상승)을 쓰지 않는 이유는 그대로다 — 같은 줄의 "상승"
+   글씨와 같은 색이 되면 결과가 방향으로 읽힌다. */
+.stock-detail-page .pl-status.is-hit{background:#0a7f3d;color:#fff}
+.stock-detail-page .pl-status.is-miss{background:#e11d2e;color:#fff}
+.stock-detail-page .pl-when{color:var(--faint);font-size:11px;white-space:nowrap}
+
+.stock-detail-page .pl-more{
+  width:100%;height:38px;margin-top:12px;
+  border:1px solid var(--rule);border-radius:10px;background:var(--surface);
+  color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+}
+.stock-detail-page .pl-more:hover:not(:disabled){color:var(--ink);border-color:#c8ccdd}
+.stock-detail-page .pl-more:disabled{cursor:progress}
+.stock-detail-page .pl-more:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+.stock-detail-page .sd-form{display:grid;gap:20px}
+/* 넓은 화면에서는 방향·목표가를 나란히 두고 기간이 아래 줄을 다 쓴다.
+   한 열로 쌓으면 카드가 가로로 넓은데 오른쪽 절반이 통째로 빈다. */
+/* 카드가 8칸으로 갈라지는 폭과 같은 지점에서 2열이 된다. 두 값이 어긋나면
+   카드는 좁아졌는데 안쪽은 아직 2열인 구간이 생긴다. */
+@media (min-width:1180px){
+  .stock-detail-page .sd-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 28px}
+  .stock-detail-page .sd-form > .sd-field:nth-child(3){grid-column:1 / -1}
+}
+/* fieldset 은 기본 min-width:min-content 라 그리드 안에서 넘친다 */
+.stock-detail-page .sd-field{min-width:0;margin:0;padding:0;border:0}
+.stock-detail-page .sd-field legend{
+  padding:0;margin:0 0 9px;color:var(--muted);font-size:12.5px;font-weight:700;
+}
+
+.stock-detail-page .sd-choices{display:flex;gap:8px;flex-wrap:wrap}
+.stock-detail-page .sd-choices.is-two{display:grid;grid-template-columns:1fr 1fr;max-width:420px}
+.stock-detail-page .sd-choice{
+  height:44px;padding:0 20px;border:1px solid var(--rule);border-radius:12px;
+  background:var(--surface);color:var(--muted);
+  font-family:inherit;font-size:14px;font-weight:750;cursor:pointer;
+  transition:border-color .14s,background .14s,color .14s;
+}
+.stock-detail-page .sd-choice:hover{border-color:#c8ccdd;color:var(--ink)}
+.stock-detail-page .sd-choice.is-on{border-color:var(--brand);background:var(--brand-softer);color:var(--brand-ink)}
+.stock-detail-page .sd-choice.is-up.is-on{border-color:var(--up);background:#ffeceb;color:var(--up)}
+.stock-detail-page .sd-choice.is-down.is-on{border-color:var(--down);background:#e9f0ff;color:var(--down)}
+.stock-detail-page .sd-choice:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+.stock-detail-page .sd-target{display:flex;align-items:center;gap:8px;max-width:280px}
+.stock-detail-page .sd-target input{
+  width:100%;min-width:0;height:46px;padding:0 14px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+  color:var(--ink);font-family:inherit;font-size:17px;font-weight:750;text-align:right;
+}
+/* 안내용 예시값이라 입력한 값과 무게가 같으면 안 된다 —
+   전일 종가를 이미 적어 넣은 것처럼 보인다 */
+.stock-detail-page .sd-target input::placeholder{color:var(--faint);font-weight:600}
+.stock-detail-page .sd-target input:focus{
+  outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(88,80,244,.14);
+}
+.stock-detail-page .sd-unit{flex:none;color:var(--muted);font-size:14px;font-weight:700}
+
+.stock-detail-page .sd-help{margin:8px 0 0;color:var(--muted);font-size:12.5px}
+.stock-detail-page .sd-help b{font-weight:750;color:var(--ink)}
+.stock-detail-page .sd-help b.up{color:var(--up)}
+.stock-detail-page .sd-help b.down{color:var(--down)}
+.stock-detail-page .sd-warn{
+  margin:8px 0 0;padding:9px 12px;border-radius:10px;background:#fff8e8;
+  color:#7a5300;font-size:12.5px;line-height:1.6;
+}
+
+.stock-detail-page .sd-picked{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.stock-detail-page .sd-picked li{
+  display:flex;align-items:center;gap:9px;padding:10px 12px;
+  border:1px solid var(--rule);border-radius:11px;background:var(--surface-2);
+}
+.stock-detail-page .sd-picked b{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:var(--ink)}
+.stock-detail-page .sd-pt-side{
+  flex:none;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:700;
+}
+.stock-detail-page .sd-pt-side.is-positive{background:#ffeceb;color:var(--up)}
+.stock-detail-page .sd-pt-side.is-risk{background:#e9f0ff;color:var(--down)}
+.stock-detail-page .sd-pt-side.is-check{background:var(--surface-2);color:var(--muted)}
+.stock-detail-page .sd-pick-off{
+  flex:none;width:22px;height:22px;border:0;border-radius:6px;background:none;
+  color:var(--faint);font-size:16px;line-height:1;cursor:pointer;
+}
+.stock-detail-page .sd-pick-off:hover{background:var(--surface);color:var(--ink)}
+.stock-detail-page .sd-pick-off:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+
+.stock-detail-page .sd-note{
+  width:100%;min-width:0;padding:13px 14px;
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface);
+  color:var(--ink);font-family:inherit;font-size:13.5px;line-height:1.68;resize:vertical;
+}
+.stock-detail-page .sd-note:focus{
+  outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(88,80,244,.14);
+}
+.stock-detail-page .sd-note-count{text-align:right;color:var(--faint)}
+
+/* 서명 대상 payload 를 접지 않고 펼쳐 보여준다(SignConfirm, §7) */
+.stock-detail-page .sd-payload{
+  margin:10px 0 12px;padding:14px 16px;overflow-x:auto;
+  border:1px solid var(--rule);border-radius:12px;background:var(--surface-2);
+  color:var(--body);font-family:var(--mono);font-size:12px;line-height:1.75;
+}
+.stock-detail-page .sd-commit{margin:0}
+.stock-detail-page .sd-commit div{display:grid;gap:4px}
+.stock-detail-page .sd-commit dt{color:var(--muted);font-size:12px}
+.stock-detail-page .sd-commit dd{
+  margin:0;color:var(--body);font-family:var(--mono);font-size:11.5px;
+  line-height:1.6;word-break:break-all;
+}
+
+.stock-detail-page .sd-irreversible{
+  margin:16px 0 0;padding:12px 14px;border-radius:11px;
+  border:1px solid #f3d0cd;background:#fdeceb;
+  color:#8c2318;font-size:12.5px;line-height:1.65;
+}
+.stock-detail-page .sd-irreversible b{font-weight:800}
+
+.stock-detail-page .sd-submit{
+  width:100%;height:52px;margin:16px 0 0;border:0;border-radius:13px;
+  background:var(--brand);color:#fff;
+  font-family:inherit;font-size:15px;font-weight:800;cursor:pointer;
+  transition:background .14s;
+}
+.stock-detail-page .sd-submit:hover:not(:disabled){background:#4a43e8}
+.stock-detail-page .sd-submit:disabled{background:var(--surface-2);color:var(--faint);cursor:progress}
+.stock-detail-page .sd-submit:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+
+/* ── 등록 완료 ────────────────────────────────────────── */
+.stock-detail-page .sd-done{text-align:center;padding:44px 32px}
+.stock-detail-page .sd-done-mark{
+  display:grid;place-items:center;width:56px;height:56px;margin:0 auto 18px;
+  border-radius:18px;background:var(--brand-softer);color:var(--brand);
+}
+.stock-detail-page .sd-done h2{margin:0 0 8px;font-size:21px;font-weight:800;color:var(--ink)}
+.stock-detail-page .sd-done-sub{
+  margin:0 auto 20px;max-width:460px;color:var(--muted);font-size:13.5px;line-height:1.7;
+}
+.stock-detail-page .sd-done-sub b{color:var(--ink);font-weight:750}
+.stock-detail-page .sd-done .sd-commit{
+  max-width:560px;margin:0 auto;padding:14px 16px;
+  border-radius:12px;background:var(--surface-2);text-align:left;
+}
+.stock-detail-page .sd-done-cta{margin:20px 0 0}
+
+/* ── 좁은 화면 ──────────────────────────────────────────
+   1180px 아래에서는 data-span 규칙이 아예 걸리지 않아 전부 전폭(span 12)이 되고,
+   높이 고정도 풀려 내용만큼 늘어난다. 좁은 화면에서 카드 안 스크롤을 남기면
+   페이지 스크롤과 겹쳐 둘 다 다루기 어려워진다. */
+@media (max-width:720px){
+  .stock-detail-page .sd-points{grid-template-columns:minmax(0,1fr)}
+  .stock-detail-page .sd-facts,
+  .stock-detail-page .sd-metrics{grid-template-columns:minmax(0,1fr)}
+  /* 한 열이 되면 마지막 줄이 한 칸이다. 끝에서 두 번째는 밑줄을 되돌린다 */
+  .stock-detail-page .sd-facts > :nth-last-child(2),
+  .stock-detail-page .sd-metrics > :nth-last-child(2){
+    padding-bottom:8px;border-bottom:1px solid var(--rule);
+  }
+  .stock-detail-page .sd-ident h1{font-size:22px}
+  .stock-detail-page .sd-price > b{font-size:25px}
+  .stock-detail-page .sd-watch{margin-left:0;order:9}
+}
