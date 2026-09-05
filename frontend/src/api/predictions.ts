@@ -73,7 +73,7 @@ export type PredictionDraft = {
   horizon: Horizon
   note: string
   /** B-03 투자 포인트에서 인계받은 id. 리포트·재무지표는 근거가 될 수 없다 */
-  evidencePointIds: string[]
+  evidencePointIds: number[]
 }
 
 /** 201 응답. basePrice 는 배치 B2 가 다음 영업일 종가로 채운다 — 비어 있다. */
@@ -192,7 +192,9 @@ export function commitPayload(draft: PredictionDraft) {
     `direction=${draft.direction}`,
     `targetPrice=${draft.targetPrice}`,
     `horizon=${draft.horizon}`,
-    `evidencePointIds=${[...draft.evidencePointIds].sort().join(',')}`,
+    /* 숫자 id 라 사전순이 아니라 값 순으로 세운다 — 기본 sort() 는 문자열 비교라
+       10 이 2 보다 앞서고, 그러면 같은 근거를 고르고도 payload 가 달라진다 */
+    `evidencePointIds=${[...draft.evidencePointIds].sort((a, b) => a - b).join(',')}`,
   ].join('\n')
 }
 

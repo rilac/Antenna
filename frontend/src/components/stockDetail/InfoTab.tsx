@@ -28,6 +28,7 @@ import CloseChart from '../CloseChart'
 import Block, { BlockState, Panel } from './Block'
 import { useBlock } from './useBlock'
 import {
+  POINT_KINDS, POINT_LABEL, SOURCE_LABEL,
   getBriefings, getDocuments, getFinancials, getPeers, getPoints,
   getPrices, getProfile, getSentiment, getValuation,
 } from '../../api/stockDetail'
@@ -82,11 +83,14 @@ const num = (n: number | null, unit = '', digits = 0) =>
     ? '—'
     : `${n.toLocaleString('ko-KR', { minimumFractionDigits: digits, maximumFractionDigits: digits })}${unit}`
 
-/** 억원 단위를 조·억으로 읽기 좋게 줄인다 */
+/* 서버는 금액을 **원 단위**로 준다(억원이 아니다). 원 그대로 찍으면 자릿수가
+   열 자리를 넘어 표가 읽히지 않으므로 조·억으로 줄인다. */
 const money = (n: number | null) => {
   if (n === null) return '—'
-  if (Math.abs(n) >= 10000) return `${(n / 10000).toFixed(1)}조`
-  return `${n.toLocaleString('ko-KR')}억`
+  const abs = Math.abs(n)
+  if (abs >= 1e12) return `${(n / 1e12).toFixed(1)}조`
+  if (abs >= 1e8) return `${Math.round(n / 1e8).toLocaleString('ko-KR')}억`
+  return n.toLocaleString('ko-KR')
 }
 
 const day = (iso: string) => iso.slice(0, 10).replace(/-/g, '.').slice(2)
@@ -95,8 +99,8 @@ type Props = {
   code: string
   summary: StockSummary | null
   /** 예측 근거로 고른 포인트 id */
-  picked: string[]
-  onPick: (id: string) => void
+  picked: number[]
+  onPick: (id: number) => void
   /** 예측 등록 탭으로 넘어간다 */
   onGoPredict: () => void
 }
@@ -133,8 +137,9 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
   const valuation = useBlock(() => getValuation(code), [code], open.profile)
   const peers = useBlock(() => getPeers(code), [code], open.peers)
 
-  const bulls = points.data?.items.filter((p) => p.side === 'BULL') ?? []
-  const bears = points.data?.items.filter((p) => p.side === 'BEAR') ?? []
+  /* 서버가 열마다 배열을 따로 내려주므로 화면이 kind 로 다시 나누지 않는다.
+     한 열이 비어도 나머지 두 열은 그대로 그린다. */
+  const pointCount = POINT_KINDS.reduce((n, k) => n + (points.data?.[k].length ?? 0), 0)
   const sd = sentiment.data
 
   return (
@@ -274,16 +279,25 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
           onRetry={profile.retry}
           skeleton={120}
         >
+          {/* 서버에 소개 문단과 임직원 수가 없다. listedAt 은 DART 기업개황에 상장일이
+              없어 항상 null 이라 자리를 만들지 않는다 — 영영 "—" 일 칸은 두지 않는다 */}
           {profile.data && (
-            <>
-              <p className="sd-desc">{profile.data.description}</p>
-              <dl className="sd-facts">
-                <div><dt>대표</dt><dd>{profile.data.ceo ?? '—'}</dd></div>
-                <div><dt>설립</dt><dd className="num">{profile.data.foundedOn?.replace(/-/g, '.') ?? '—'}</dd></div>
-                <div><dt>상장</dt><dd className="num">{profile.data.listedOn?.replace(/-/g, '.') ?? '—'}</dd></div>
-                <div><dt>임직원</dt><dd className="num">{num(profile.data.employees, '명')}</dd></div>
-              </dl>
-            </>
+            <dl className="sd-facts">
+              <div><dt>대표</dt><dd>{profile.data.ceo ?? '—'}</dd></div>
+              <div><dt>설립</dt><dd className="num">{profile.data.establishedAt?.replace(/-/g, '.') ?? '—'}</dd></div>
+              <div><dt>업종</dt><dd>{profile.data.industry ?? '—'}</dd></div>
+              <div>
+                <dt>홈페이지</dt>
+                <dd>
+                  {profile.data.homepage
+                    ? <a href={profile.data.homepage} target="_blank" rel="noreferrer noopener">바로가기</a>
+                    : '—'}
+                </dd>
+              </div>
+              {profile.data.address && (
+                <div className="is-wide"><dt>주소</dt><dd>{profile.data.address}</dd></div>
+              )}
+            </dl>
           )}
         </BlockState>
 
@@ -291,22 +305,32 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
 
         {/* 업종 평균 PER/PBR · EPS · 배당수익률은 두지 않는다(§9.2) —
             /valuation 에 없고 /peers 는 나열이지 평균이 아니다 */}
-        <h3 className="sd-sub">밸류에이션</h3>
+        <h3 className="sd-sub">
+          {'밸류에이션 '}
+          {valuation.data?.basedOn.fiscal && (
+            <span>{`${valuation.data.basedOn.fiscal} 연간${
+              valuation.data.basedOn.fsDiv === 'OFS' ? ' 별도' : ' 연결'} 기준`}</span>
+          )}
+        </h3>
         <BlockState
           loading={valuation.loading}
           error={valuation.error}
           onRetry={valuation.retry}
           skeleton={54}
-          isEmpty={valuation.data?.per === null && valuation.data?.pbr === null}
-          empty="재무가 아직 수집되지 않아 배수를 산출할 수 없습니다."
         >
           {valuation.data && (
-            <dl className="sd-metrics">
-              <div><dt>PER</dt><dd className="num">{num(valuation.data.per, '배', 1)}</dd></div>
-              <div><dt>PBR</dt><dd className="num">{num(valuation.data.pbr, '배', 2)}</dd></div>
-              <div><dt>PSR</dt><dd className="num">{num(valuation.data.psr, '배', 2)}</dd></div>
-              <div><dt>ROE</dt><dd className="num">{num(valuation.data.roe, '%', 1)}</dd></div>
-            </dl>
+            <>
+              <dl className="sd-metrics">
+                <div><dt>PER</dt><dd className="num">{num(valuation.data.per, '배', 1)}</dd></div>
+                <div><dt>PBR</dt><dd className="num">{num(valuation.data.pbr, '배', 2)}</dd></div>
+                <div><dt>ROE</dt><dd className="num">{num(valuation.data.roe, '%', 1)}</dd></div>
+                <div><dt>부채비율</dt><dd className="num">{num(valuation.data.debtRatio, '%', 1)}</dd></div>
+              </dl>
+              {/* 값이 빈 이유를 서버가 문장으로 준다. 빈 칸만 남기면 고장으로 읽힌다 */}
+              {valuation.data.basedOn.note && (
+                <p className="sd-note-why">{valuation.data.basedOn.note}</p>
+              )}
+            </>
           )}
         </BlockState>
 
@@ -323,35 +347,43 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
         loading={points.loading}
         error={points.error}
         onRetry={points.retry}
-        isEmpty={points.data?.items.length === 0}
+        isEmpty={points.data !== null && pointCount === 0}
+        empty="아직 정리된 투자 포인트가 없습니다. 공시·뉴스가 쌓이면 채워집니다."
       >
         <div className="sd-points">
-          {[
-            { side: 'BULL', label: '상승 근거', list: bulls },
-            { side: 'BEAR', label: '하락 근거', list: bears },
-          ].map((g) => (
-            <div key={g.side} className={`sd-point-col is-${g.side.toLowerCase()}`}>
-              <h3>{g.label}</h3>
-              <ul>
-                {g.list.map((p) => {
-                  const on = picked.includes(p.id)
-                  return (
-                    <li key={p.id}>
-                      {/* 체크박스로 두는 이유 — 여러 개를 고르는 조작이고,
-                          키보드·보조기술이 선택 상태를 그대로 읽는다 */}
-                      <label className={on ? 'sd-point is-on' : 'sd-point'}>
-                        <input type="checkbox" checked={on} onChange={() => onPick(p.id)} />
-                        <span className="sd-point-body">
-                          <b>{p.title}</b>
-                          <span>{p.body}</span>
-                        </span>
-                      </label>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
+          {POINT_KINDS.map((kind) => {
+            const list = points.data?.[kind] ?? []
+            return (
+              <div key={kind} className={`sd-point-col is-${kind}`}>
+                <h3>{POINT_LABEL[kind]}</h3>
+                {list.length === 0 ? (
+                  <p className="sd-point-none">없음</p>
+                ) : (
+                  <ul>
+                    {list.map((p) => {
+                      const on = picked.includes(p.id)
+                      return (
+                        <li key={p.id}>
+                          {/* 체크박스로 두는 이유 — 여러 개를 고르는 조작이고,
+                              키보드·보조기술이 선택 상태를 그대로 읽는다 */}
+                          <label className={on ? 'sd-point is-on' : 'sd-point'}>
+                            <input type="checkbox" checked={on} onChange={() => onPick(p.id)} />
+                            {/* 제목이 따로 없다. 본문 한 덩어리가 포인트 전체다 */}
+                            <span className="sd-point-body">{p.body}</span>
+                          </label>
+                          {/* 근거 문서가 있으면 원문으로 갈 길을 준다.
+                              없는 포인트는 시세·재무 수치에서 나온 종합이라 링크가 없다 */}
+                          {p.source && (
+                            <span className="sd-point-src">{SOURCE_LABEL[p.source]}</span>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            )
+          })}
         </div>
 
         <p className="sd-point-foot">
@@ -367,7 +399,7 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
           업종에서 카드 아래가 통째로 빈다. */}
       <Block
         title="재무"
-        note="단위 억원"
+        note={financials.data?.items[0]?.fsDiv === 'OFS' ? '별도 기준' : '연결 기준'}
         span={6}
         open={open.financials}
         onToggle={() => toggle('financials')}
@@ -390,8 +422,11 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
             </thead>
             <tbody>
               {financials.data?.items.map((f) => (
-                <tr key={f.period}>
-                  <th scope="row">{f.period}</th>
+                <tr key={`${f.year}-${f.quarter}`}>
+                  {/* 4분기는 연간 보고서다. 그 밖은 분기를 밝혀야 반기·분기가 구분된다 */}
+                  <th scope="row" className="num">
+                    {f.quarter === 4 ? `${f.year}` : `${f.year} ${f.quarter}Q`}
+                  </th>
                   <td className="num">{money(f.revenue)}</td>
                   <td className="num">{money(f.operatingProfit)}</td>
                   <td className="num">{money(f.netIncome)}</td>
@@ -418,9 +453,10 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
         <div className="sd-table-wrap">
           <table className="sd-table">
             <thead>
+              {/* 시가총액은 응답에 있지만 그리지 않는다 — §9.2 의 "두지 않는 것" 이다 */}
               <tr>
                 <th scope="col">종목</th>
-                <th scope="col">등락률</th>
+                <th scope="col">전일 종가</th>
                 <th scope="col">PER</th>
                 <th scope="col">PBR</th>
               </tr>
@@ -431,9 +467,7 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
                   <th scope="row">
                     <Link to={`/stocks/${p.code}`}>{p.name}</Link>
                   </th>
-                  <td className={`num ${p.changeRate === null ? '' : p.changeRate >= 0 ? 'up' : 'down'}`}>
-                    {p.changeRate === null ? '—' : `${p.changeRate > 0 ? '+' : ''}${p.changeRate.toFixed(2)}%`}
-                  </td>
+                  <td className="num">{p.prevClose === null ? '—' : `${p.prevClose.toLocaleString('ko-KR')}원`}</td>
                   <td className="num">{num(p.per, '', 1)}</td>
                   <td className="num">{num(p.pbr, '', 2)}</td>
                 </tr>
@@ -461,19 +495,21 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
         <ul className="sd-docs">
           {documents.data?.items.map((d) => (
             <li key={d.id}>
-              <span className={`sd-doc-kind is-${d.kind.toLowerCase()}`}>
-                {d.kind === 'DISCLOSURE' ? '공시' : '뉴스'}
+              <span className={`sd-doc-kind is-${d.source.toLowerCase()}`}>
+                {SOURCE_LABEL[d.source]}
               </span>
               <div className="sd-doc-body">
-                <a href={d.url} target="_blank" rel="noreferrer noopener">
+                <a href={d.originUrl} target="_blank" rel="noreferrer noopener">
                   {d.title}
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                        strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M13 5h6v6M19 5l-8 8M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4" />
                   </svg>
                 </a>
-                <p>{d.summary}</p>
-                <span className="sd-doc-meta num">{`${d.source} · ${day(d.publishedAt)}`}</span>
+                {/* 요약 배치가 아직 안 돈 건은 제목만 보여준다. 요약을 기다리느라
+                    감추면 방금 난 기사가 가장 늦게 뜬다 */}
+                {d.summary && <p>{d.summary}</p>}
+                <span className="sd-doc-meta num">{day(d.publishedAt)}</span>
               </div>
             </li>
           ))}

@@ -48,8 +48,8 @@ export default function StockDetail() {
   const s = summary.data
 
   /* 근거 포인트 선택 — 두 탭이 공유한다 */
-  const [picked, setPicked] = useState<string[]>([])
-  const onPick = useCallback((id: string) => {
+  const [picked, setPicked] = useState<number[]>([])
+  const onPick = useCallback((id: number) => {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }, [])
 

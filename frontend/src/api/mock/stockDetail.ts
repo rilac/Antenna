@@ -11,8 +11,8 @@
    눈으로 확인하려는 것이다(§4 B-03 "블록 단위로 로딩·실패를 독립 처리"). */
 import type { StockListItem } from '../stocks'
 import type {
-  Briefing, ClosePoint, CompanyProfile, FinancialRow, InvestPoint,
-  Peer, StockDocument, StockSentiment, StockSummary, Valuation,
+  Briefing, ClosePoint, CompanyProfile, FinancialRow, Peer, PointGroups,
+  StockDocument, StockSentiment, StockSummary, Valuation,
 } from '../stockDetail'
 
 /* ── 종목 우주 ─────────────────────────────────────────────
@@ -88,15 +88,6 @@ function seeded(seed: string) {
     h ^= h << 13; h ^= h >>> 17; h ^= h << 5
     return ((h >>> 0) % 100000) / 100000
   }
-}
-
-/* 받침 유무로 조사를 고른다. 종목명이 그때그때 달라 "삼성전자은(는)" 같은
-   괄호 표기가 문장마다 남는데, 실제 브리핑 문구가 될 자리라 읽히는 대로 쓴다.
-   한글 음절은 0xAC00 부터 28개씩 묶여 있고, 그 나머지가 0 이면 받침이 없다. */
-function josa(word: string, withBatchim: string, withoutBatchim: string) {
-  const last = word.charCodeAt(word.length - 1)
-  if (last < 0xac00 || last > 0xd7a3) return withoutBatchim
-  return (last - 0xac00) % 28 === 0 ? withoutBatchim : withBatchim
 }
 
 /** 주말을 건너뛰며 영업일을 거꾸로 센다 */
@@ -218,57 +209,72 @@ export function briefings(code: string): Promise<{ items: Briefing[] }> {
 }
 
 /* ── 공시·뉴스 ─────────────────────────────────────────── */
-export function documents(code: string): Promise<{ items: StockDocument[] }> {
+export function documents(code: string): Promise<{
+  items: StockDocument[]; nextCursor: number | null; hasNext: boolean
+}> {
   const r = findRow(code)
   if (!r) return notFound(code)
   const dart = `https://dart.fss.or.kr/dsab007/main.do?textCrpNm=${encodeURIComponent(r.name)}`
+  const n = Number(code)
   return delay({
     items: [
       {
-        id: `${code}-d1`, kind: 'DISCLOSURE' as const,
+        id: n + 1, source: 'DART' as const,
         title: '반기보고서 (2026.06)',
         summary: '반기 매출과 영업이익, 부문별 실적과 주요 계약 현황이 담겼습니다. 전년 동기 대비 변동 사유는 본문 3장에 있습니다.',
-        source: 'DART', url: dart,
+        originUrl: dart,
         publishedAt: '2026-08-14T16:05:00+09:00',
       },
       {
-        id: `${code}-d2`, kind: 'DISCLOSURE' as const,
+        id: n + 2, source: 'DART' as const,
         title: '단일판매·공급계약 체결',
         summary: '신규 공급계약 체결 사실과 계약 금액·기간이 공시됐습니다. 최근 매출액 대비 비중은 공시 본문에 기재돼 있습니다.',
-        source: 'DART', url: dart,
+        originUrl: dart,
         publishedAt: '2026-08-06T09:31:00+09:00',
       },
       {
-        id: `${code}-d3`, kind: 'NEWS' as const,
+        id: n + 3, source: 'NEWS' as const,
         title: `${r.sector ?? '업종'} 업황 회복 신호, 하반기 전망은`,
         summary: '업종 전반의 수요 지표가 반등했다는 분석과, 이를 개별 종목 실적으로 연결하기에는 이르다는 반론이 함께 실렸습니다.',
-        source: '연합인포맥스', url: 'https://news.einfomax.co.kr/',
+        originUrl: 'https://news.einfomax.co.kr/',
         publishedAt: '2026-08-29T11:42:00+09:00',
       },
       {
-        id: `${code}-d4`, kind: 'NEWS' as const,
+        /* 요약 배치가 아직 안 돈 건. 화면이 제목만으로 줄을 그리는지 본다 */
+        id: n + 4, source: 'NEWS' as const,
         title: `${r.name}, 설비 투자 계획 발표`,
-        summary: '중장기 설비 투자 규모와 집행 시기가 공개됐습니다. 감가상각 부담이 언제부터 손익에 반영되는지가 쟁점으로 언급됐습니다.',
-        source: '한국경제', url: 'https://www.hankyung.com/',
+        summary: null,
+        originUrl: 'https://www.hankyung.com/',
         publishedAt: '2026-08-25T07:15:00+09:00',
       },
     ],
+    nextCursor: null,
+    hasNext: false,
   }, 460)
 }
 
 /* ── 투자 포인트 ───────────────────────────────────────── */
-export function points(code: string): Promise<{ items: InvestPoint[] }> {
+export function points(code: string): Promise<PointGroups> {
   const r = findRow(code)
   if (!r) return notFound(code)
   const s = r.sector ?? '업종'
+  const n = Number(code) * 10
+
+  /* 서버는 열마다 배열을 따로 내린다. 제목 없이 body 한 덩어리이고,
+     documentId 가 있으면 그 문서가 근거다 — 없으면 시세·재무에서 나온 종합 포인트다. */
   return delay({
-    items: [
-      { id: `${code}-p1`, side: 'BULL' as const, title: `${s} 수요 회복`, body: '전방 수요 지표가 2개 분기 연속 개선됐습니다. 가동률이 함께 오르면 고정비 부담이 줄어 영업이익률에 먼저 나타납니다.' },
-      { id: `${code}-p2`, side: 'BULL' as const, title: '판가 인상 여력', body: '공급이 제한된 품목의 비중이 높아, 원가가 오를 때 판가로 옮길 여지가 경쟁사 대비 큽니다.' },
-      { id: `${code}-p3`, side: 'BULL' as const, title: '재무 구조 개선', body: '차입금 상환이 이어지며 이자비용이 줄었습니다. 순이익 변동성이 낮아지는 요인입니다.' },
-      { id: `${code}-p4`, side: 'BEAR' as const, title: '환율 민감도', body: '매출의 상당 부분이 외화 결제라 환율이 내려가면 원화 환산 매출이 줄어듭니다.' },
-      { id: `${code}-p5`, side: 'BEAR' as const, title: '설비 투자 부담', body: '집행이 시작되면 감가상각비가 늘어 초기 몇 개 분기 동안 영업이익률을 누릅니다.' },
-      { id: `${code}-p6`, side: 'BEAR' as const, title: '경쟁 심화', body: `${s} 내 신규 진입이 이어지고 있습니다. 점유율 방어에 마케팅비가 더 들어갈 수 있습니다.` },
+    positive: [
+      { id: n + 1, body: `${s} 전방 수요 지표가 2개 분기 연속 개선됐습니다. 가동률이 함께 오르면 고정비 부담이 줄어 영업이익률에 먼저 나타납니다.`, documentId: Number(code) + 3, source: 'NEWS' as const },
+      { id: n + 2, body: '공급이 제한된 품목의 비중이 높아, 원가가 오를 때 판가로 옮길 여지가 경쟁사 대비 큽니다.', documentId: null, source: null },
+      { id: n + 3, body: '차입금 상환이 이어지며 이자비용이 줄었습니다. 순이익 변동성이 낮아지는 요인입니다.', documentId: Number(code) + 1, source: 'DART' as const },
+    ],
+    risk: [
+      { id: n + 4, body: '매출의 상당 부분이 외화 결제라 환율이 내려가면 원화 환산 매출이 줄어듭니다.', documentId: null, source: null },
+      { id: n + 5, body: '설비 투자 집행이 시작되면 감가상각비가 늘어 초기 몇 개 분기 동안 영업이익률을 누릅니다.', documentId: Number(code) + 4, source: 'NEWS' as const },
+    ],
+    check: [
+      { id: n + 6, body: `${s} 내 신규 진입이 이어지고 있습니다. 점유율 방어에 마케팅비가 더 들어가는지 다음 분기 판관비로 확인해야 합니다.`, documentId: null, source: null },
+      { id: n + 7, body: '공급계약의 최근 매출액 대비 비중이 공시 본문에만 있습니다. 실제 기여도는 원문에서 확인이 필요합니다.', documentId: Number(code) + 2, source: 'DART' as const },
     ],
   }, 380)
 }
@@ -279,13 +285,15 @@ export function profile(code: string): Promise<CompanyProfile> {
   if (!r) return notFound(code)
   const rnd = seeded(`${code}p`)
   return delay({
-    description: `${r.name}${josa(r.name, '은', '는')} ${r.sector ?? '해당 업종'} 부문을 주력으로 하는 ${
-      r.market ?? '국내'} 상장사입니다. 주요 제품과 서비스는 국내외 고객사에 공급되며, 매출의 상당 부분이 수출에서 발생합니다.`,
+    corpName: r.name,
     ceo: '대표이사',
-    foundedOn: `19${70 + Math.floor(rnd() * 25)}-03-12`,
-    listedOn: `19${88 + Math.floor(rnd() * 12)}-11-05`,
-    employees: 1200 + Math.floor(rnd() * 40000),
+    establishedAt: `19${70 + Math.floor(rnd() * 25)}-03-12`,
+    /* 원천이 없어 서버가 항상 null 로 내린다. 화면도 자리를 만들지 않는다 */
+    listedAt: null,
     homepage: 'https://example.co.kr',
+    address: '경기도 성남시 분당구 판교로 000',
+    /* DART 업종코드가 아니라 stocks.sector(KRX 분류)다 */
+    industry: r.sector,
   }, 500)
 }
 
@@ -297,17 +305,31 @@ export function financials(code: string): Promise<{ items: FinancialRow[] }> {
   if (r.per === null) return delay({ items: [] }, 540)
 
   const rnd = seeded(`${code}f`)
-  let revenue = 20000 + Math.floor(rnd() * 400000)
-  const items = ['2023', '2024', '2025', '2026 상반기'].map((period, i) => {
+  /* 금액 단위는 원이다(억원이 아니다). 조 단위를 원으로 만든다 */
+  let revenue = Math.round((2 + rnd() * 40) * 1e12)
+
+  /* 오래된 연도가 먼저다 — 차트가 왼쪽에서 오른쪽으로 그린다 */
+  const items = [
+    { year: 2023, quarter: 4 },
+    { year: 2024, quarter: 4 },
+    { year: 2025, quarter: 4 },
+    { year: 2026, quarter: 2 },
+  ].map(({ year, quarter }, i) => {
     if (i) revenue = Math.round(revenue * (0.94 + rnd() * 0.24))
-    const margin = 0.04 + rnd() * 0.16
-    const op = Math.round(revenue * margin)
-    const half = i === 3
+    const half = quarter === 2
+    const rev = half ? Math.round(revenue * 0.5) : revenue
+    const op = Math.round(rev * (0.04 + rnd() * 0.16))
+    const equity = Math.round(rev * (0.8 + rnd() * 1.4))
     return {
-      period,
-      revenue: half ? Math.round(revenue * 0.5) : revenue,
-      operatingProfit: half ? Math.round(op * 0.5) : op,
-      netIncome: Math.round((half ? op * 0.5 : op) * (0.62 + rnd() * 0.3)),
+      year,
+      quarter,
+      fsDiv: 'CFS',
+      revenue: rev,
+      operatingProfit: op,
+      netIncome: Math.round(op * (0.62 + rnd() * 0.3)),
+      assets: Math.round(equity * (1.4 + rnd() * 0.6)),
+      liabilities: Math.round(equity * (0.4 + rnd() * 0.6)),
+      equity,
     }
   })
   return delay({ items }, 540)
@@ -318,24 +340,41 @@ export function valuation(code: string): Promise<Valuation> {
   const r = findRow(code)
   if (!r) return notFound(code)
   const rnd = seeded(`${code}v`)
+  const hasFinancials = r.per !== null
+
   return delay({
     per: r.per,
     pbr: r.pbr,
-    /* PER 이 없으면 나머지도 산출 못 한다. 0 으로 채우지 않는다 */
-    psr: r.per === null ? null : Math.round((0.4 + rnd() * 3.2) * 100) / 100,
-    roe: r.per === null ? null : Math.round((2 + rnd() * 22) * 10) / 10,
+    roe: hasFinancials ? Math.round((2 + rnd() * 22) * 10) / 10 : null,
+    debtRatio: hasFinancials ? Math.round((30 + rnd() * 140) * 10) / 10 : null,
+    basedOn: {
+      priceDate: r.prevClose === null ? null : BASE_DATE,
+      prevClose: r.prevClose,
+      fiscal: hasFinancials ? 2025 : null,
+      fsDiv: hasFinancials ? 'CFS' : null,
+      /* 값이 빈 이유를 서버가 문장으로 준다. 화면은 이걸 그대로 보여준다 */
+      note: hasFinancials ? null : '최신 연간 재무가 수집되지 않아 비율을 계산하지 않았습니다.',
+    },
   }, 470)
 }
 
 /* ── 경쟁사 ───────────────────────────────────────────── */
-export function peers(code: string): Promise<{ items: Peer[] }> {
+export function peers(code: string): Promise<{ priceDate: string | null; items: Peer[] }> {
   const r = findRow(code)
   if (!r) return notFound(code)
   /* 섹터가 없으면 비교 대상을 만들 수 없다. 억지로 채우지 않는다 */
   const list = r.sector ? rowsInSector(r.sector, code) : []
   return delay({
+    priceDate: BASE_DATE,
     items: list.slice(0, 5).map((p) => ({
-      code: p.code, name: p.name, per: p.per, pbr: p.pbr, changeRate: p.changeRate,
+      code: p.code,
+      name: p.name,
+      prevClose: p.prevClose,
+      /* 시가총액은 §9.2 의 "두지 않는 것" 이라 화면이 그리지 않는다.
+         서버도 상장주식수 미수집으로 항상 null 이다 */
+      marketCap: null,
+      per: p.per,
+      pbr: p.pbr,
     })),
   }, 430)
 }

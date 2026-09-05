@@ -271,13 +271,31 @@
 .stock-detail-page .sd-tone.is-neutral{background:var(--surface-2);color:var(--muted)}
 
 /* ── 투자 포인트 ───────────────────────────────────────── */
-.stock-detail-page .sd-points{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+/* 서버가 긍정·위험·확인 세 열로 내려준다. 좁아지면 한 열로 접는다 */
+.stock-detail-page .sd-points{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .stock-detail-page .sd-point-col h3{
   margin:0 0 9px;font-size:12.5px;font-weight:750;
 }
-.stock-detail-page .sd-point-col.is-bull h3{color:var(--up)}
-.stock-detail-page .sd-point-col.is-bear h3{color:var(--down)}
+/* 긍정·위험에만 방향 색을 준다. "확인할 점" 은 방향이 아니라 유보라 중립으로 둔다 */
+.stock-detail-page .sd-point-col.is-positive h3{color:var(--up)}
+.stock-detail-page .sd-point-col.is-risk h3{color:var(--down)}
+.stock-detail-page .sd-point-col.is-check h3{color:var(--muted)}
 .stock-detail-page .sd-point-col ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.stock-detail-page .sd-point-none{margin:0;color:var(--faint);font-size:12px}
+/* 근거 문서의 출처. 없는 포인트는 시세·재무에서 나온 종합이라 배지도 없다 */
+.stock-detail-page .sd-point-src{
+  display:inline-block;margin:5px 0 0 32px;padding:1px 6px;border-radius:5px;
+  background:var(--surface-2);color:var(--faint);font-size:10.5px;font-weight:700;
+}
+/* 값이 빈 이유를 서버가 문장으로 준다 */
+.stock-detail-page .sd-note-why{
+  margin:10px 0 0;color:var(--faint);font-size:11.5px;line-height:1.55;word-break:keep-all;
+}
+/* 주소는 길어서 한 줄을 다 쓴다 */
+.stock-detail-page .sd-facts .is-wide{grid-column:1 / -1}
+.stock-detail-page .sd-facts a{color:var(--brand);font-weight:700;border-radius:6px}
+.stock-detail-page .sd-facts a:hover{text-decoration:underline}
+.stock-detail-page .sd-facts a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 
 .stock-detail-page .sd-point{
   display:flex;gap:10px;padding:11px 13px;
@@ -288,9 +306,10 @@
 .stock-detail-page .sd-point.is-on{border-color:var(--brand);background:var(--brand-softer)}
 .stock-detail-page .sd-point input{margin:2px 0 0;flex:none;accent-color:var(--brand)}
 .stock-detail-page .sd-point:focus-within{outline:2px solid var(--brand);outline-offset:2px}
-.stock-detail-page .sd-point-body{display:grid;gap:3px;min-width:0}
-.stock-detail-page .sd-point-body b{font-size:13px;font-weight:750;color:var(--ink)}
-.stock-detail-page .sd-point-body span{color:var(--muted);font-size:12.5px;line-height:1.6;word-break:keep-all}
+/* 포인트는 제목 없이 본문 한 덩어리다(서버 계약) */
+.stock-detail-page .sd-point-body{
+  min-width:0;color:var(--body);font-size:12.5px;line-height:1.6;word-break:keep-all;
+}
 
 .stock-detail-page .sd-point-foot{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -627,8 +646,9 @@
 .stock-detail-page .sd-pt-side{
   flex:none;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:700;
 }
-.stock-detail-page .sd-pt-side.is-bull{background:#ffeceb;color:var(--up)}
-.stock-detail-page .sd-pt-side.is-bear{background:#e9f0ff;color:var(--down)}
+.stock-detail-page .sd-pt-side.is-positive{background:#ffeceb;color:var(--up)}
+.stock-detail-page .sd-pt-side.is-risk{background:#e9f0ff;color:var(--down)}
+.stock-detail-page .sd-pt-side.is-check{background:var(--surface-2);color:var(--muted)}
 .stock-detail-page .sd-pick-off{
   flex:none;width:22px;height:22px;border:0;border-radius:6px;background:none;
   color:var(--faint);font-size:16px;line-height:1;cursor:pointer;

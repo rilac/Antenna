@@ -23,8 +23,8 @@ import { useBlock } from './useBlock'
 import WalletLinkModal from '../wallet/WalletLinkModal'
 import ErrorState from '../state/ErrorState'
 import { ApiError } from '../../api/errors'
-import { getPoints } from '../../api/stockDetail'
-import type { StockSummary } from '../../api/stockDetail'
+import { POINT_KINDS, POINT_LABEL, getPoints } from '../../api/stockDetail'
+import type { InvestPoint, PointKind, StockSummary } from '../../api/stockDetail'
 import {
   DIRECTIONS, HORIZONS, HORIZON_LABEL, NOTE_MAX,
   commitPayload, createPrediction, getSlots, noteHash,
@@ -54,8 +54,8 @@ type Props = {
   code: string
   summary: StockSummary | null
   /** InfoTab 에서 고른 근거 포인트. 이 인계에는 API 가 없다 */
-  picked: string[]
-  onPick: (id: string) => void
+  picked: number[]
+  onPick: (id: number) => void
   onGoInfo: () => void
 }
 
@@ -115,10 +115,15 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
   }, [draft])
   const hash = hashOf?.note === note ? hashOf.value : null
 
-  const pointById = useMemo(
-    () => new Map((points.data?.items ?? []).map((p) => [p.id, p])),
-    [points.data],
-  )
+  /* 서버가 열 셋으로 나눠 주므로 한 자루에 담아 id 로 찾는다.
+     어느 열에서 왔는지는 배지로 보여야 해서 kind 를 함께 기억한다. */
+  const pointById = useMemo(() => {
+    const map = new Map<number, InvestPoint & { kind: PointKind }>()
+    for (const kind of POINT_KINDS) {
+      for (const p of points.data?.[kind] ?? []) map.set(p.id, { ...p, kind })
+    }
+    return map
+  }, [points.data])
 
   const remaining = slots.data?.remaining ?? 0
   const overSlot = slots.data ? remaining <= 0 : false
@@ -320,14 +325,17 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
               <ul className="sd-picked">
                 {picked.map((id) => {
                   const p = pointById.get(id)
+                  /* 포인트 목록이 아직 안 왔거나 종목이 바뀌어 사라진 id 면 이름을 모른다.
+                     그때도 줄은 남겨야 사용자가 빼기라도 할 수 있다. */
+                  const label = p?.body ?? `포인트 ${id}`
                   return (
                     <li key={id}>
-                      <span className={`sd-pt-side is-${(p?.side ?? 'bull').toLowerCase()}`}>
-                        {p?.side === 'BEAR' ? '하락' : '상승'}
-                      </span>
-                      <b>{p?.title ?? id}</b>
+                      {p && (
+                        <span className={`sd-pt-side is-${p.kind}`}>{POINT_LABEL[p.kind]}</span>
+                      )}
+                      <b>{label}</b>
                       <button type="button" className="sd-pick-off" onClick={() => onPick(id)}
-                              aria-label={`${p?.title ?? id} 근거에서 빼기`}>
+                              aria-label={`${label} 근거에서 빼기`}>
                         ×
                       </button>
                     </li>
