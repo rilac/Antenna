@@ -135,6 +135,15 @@ app:
       retry:
         count: 3
         delay-seconds: 10
+    # 앵커 인덱서(ANT-CHAIN-04). CommitAnchor 의 Anchored 이벤트를 eth_getLogs 로 폴링해 chain_events 에 적재하고
+    # anchor_batches 를 체인 기준으로 맞춘다. ws 구독이 아닌 이유: 재시작·재연결이 커서(max block_number)만으로 끝난다.
+    # RPC URL 과 컨트랙트 주소가 있어야 돈다 — 릴레이어 키는 필요 없다(읽기 전용).
+    indexer:
+      cron: ${INDEXER_CRON:*/5 * * * * *}
+      # DB 에 이벤트가 없을 때의 시작 블록. SSAFY 는 컨트랙트 배포 블록(contracts/deployments/ssafy.json)을 넣으면
+      # 첫 동기화가 한 회차로 끝난다. 0 이면 제네시스부터 max-block-range 단위로 훑는다.
+      from-block: ${INDEXER_FROM_BLOCK:0}
+      max-block-range: 10000
 
   # DART 전자공시 수집(ANT-RESEARCH-01). 주소는 문서로 확정된 값이라 환경변수로 받지 않는다.
   # 키가 비어 있으면 수집을 건너뛴다 — 키 없는 팀원의 로컬도 그대로 부팅된다.

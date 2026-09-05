@@ -92,6 +92,10 @@ docker compose down -v  →  id 시퀀스가 1 로 리셋  →  다음 앵커가
 **`BATCH_ID_COLLISION` 으로 FAILED** 처리한다(잘못 확정하진 않는다 — ANT-CHAIN-02). 그래도 그 배치는 사람이 풀어야 한다. 대응은 둘 중 하나 — ① 컨트랙트를 새로 배포하고 `CONTRACT_COMMIT_ANCHOR` 교체(운영 권장, 가스 0)
 ② `ALTER TABLE anchor_batches ALTER COLUMN id RESTART WITH <표의 최대 + 1>` (로컬 개발용). 로컬 실기에서 새 번호를 태웠으면 표에 추가한다.
 
+인덱서(ANT-CHAIN-04)는 이 표의 번호를 전부 `Anchored` 이벤트로 받는다. 내 DB 에 없는 번호는 "DB 에 없는 배치" 경고 한 줄로 남고
+`chain_events` 에는 적재된다 — 정상이다. 내 DB 의 배치와 번호는 같은데 루트가 다르면 그 배치를 `BATCH_ID_COLLISION` FAILED 로 바꾼다.
+재배포하면 `INDEXER_FROM_BLOCK` 을 새 배포 블록(`deployments/ssafy.json` 의 `blockNumber`)으로 올려라 — 옛 주소의 이벤트는 주소 필터로 어차피 안 오지만, 첫 동기화가 배포 이전 구간을 헛되이 훑는다.
+
 ## 함정 3 — SSAFY 배포는 Hardhat 을 거치지 않는다
 
 SSAFY 가 공개한 RPC 는 `wss://ws.ssafy-blockchain.com` 웹소켓 하나뿐인데, Hardhat 2 의

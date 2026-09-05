@@ -38,7 +38,8 @@ class Web3jAnchorRelayerE2ELiveTest {
                         System.getenv("CHAIN_RPC_URL"),
                         new ChainProperties.Relayer(System.getenv("RELAYER_PRIVATE_KEY")),
                         new ChainProperties.Anchor(
-                                "-", 60, new ChainProperties.Anchor.Retry(3, 10)));
+                                "-", 60, new ChainProperties.Anchor.Retry(3, 10)),
+                        new ChainProperties.Indexer("-", 0, 10_000));
         CommitAnchorProperties contract = new CommitAnchorProperties(System.getenv("CONTRACT_COMMIT_ANCHOR"));
         return new Web3jAnchorRelayer(props, contract, new ChainConnection(props));
     }

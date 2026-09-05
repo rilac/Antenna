@@ -148,6 +148,27 @@ public class AnchorBatch {
         this.lastError = null;
     }
 
+    /**
+     * 인덱서(ANT-CHAIN-04) 전용 — 체인에서 이 배치의 {@code Anchored} 이벤트를 <b>우리 루트로</b> 읽었다.
+     *
+     * <p>{@link #markConfirmed} 를 쓰지 않는 이유: 그건 릴레이어 경로라 부를 때마다 {@code confirmed_at} 을 지금으로
+     * 덮는다. 인덱서는 폴링 지연이 섞인 시각이라 이미 CONFIRMED 인 배치의 확정 시각을 밀어서는 안 된다.
+     * 여기서는 tx·블록은 <b>체인 값으로 항상</b> 맞추고(체인이 진실이다 — rootOf 로만 확인한 배치는 NULL 이었고,
+     * receipt 를 못 받은 배치는 옛 tx 해시일 수 있다), 상태는 CONFIRMED 가 아닐 때만 올린다.
+     */
+    public void confirmFromChain(String txHash, long blockNumber, Instant now) {
+        this.txHash = txHash;
+        this.blockNumber = blockNumber;
+        if (this.status != Status.CONFIRMED) {
+            this.status = Status.CONFIRMED;
+            this.confirmedAt = now;
+            this.lastError = null;
+            if (this.sentAt == null) {
+                this.sentAt = now;
+            }
+        }
+    }
+
     public void markFailed(String reason) {
         this.status = Status.FAILED;
         this.lastError = reason == null ? null : reason.substring(0, Math.min(reason.length(), 300));

@@ -81,6 +81,11 @@ app:
       retry:
         count: 3
         delay-seconds: 0
+    # 인덱서 테스트는 FakeChainLogSource(@Primary)를 쓰고 스케줄은 "-" 로 끈다.
+    indexer:
+      cron: "-"
+      from-block: 0
+      max-block-range: 10000
 
   # 테스트는 DART 와 통신하지 않는다. 키가 없을 때 수집이 스스로 멈추는 것도 검증 대상이다.
   dart:
