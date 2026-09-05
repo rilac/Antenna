@@ -99,7 +99,12 @@ public enum ErrorCode {
 
     // 온체인 검증 (ANT-CHAIN-06)
     /** 없는 batchId 다. 체인에는 있는데 DB 에 없는 번호(데모 소모분)도 여기로 온다 — 원장은 DB 기준이다. */
-    ANCHOR_NOT_FOUND(HttpStatus.NOT_FOUND, "앵커 배치를 찾을 수 없습니다.");
+    ANCHOR_NOT_FOUND(HttpStatus.NOT_FOUND, "앵커 배치를 찾을 수 없습니다."),
+    /**
+     * 미판정(BASE/OPEN) 예측을 작성자도 구독자도 아닌 사람이 열었다. 404 로 숨기지 않는다 — 명세 §예측 공개 규칙은
+     * "존재와 커밋 무결성은 공개" 이고, 프론트가 이 code 로 구독 CTA(SubscriptionGate)를 띄운다.
+     */
+    PREDICTION_FORBIDDEN(HttpStatus.FORBIDDEN, "판정 전 예측은 작성자와 구독자만 볼 수 있습니다.");
 
     private final HttpStatus status;
     private final String message;
