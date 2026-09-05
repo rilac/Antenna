@@ -95,7 +95,16 @@ public enum ErrorCode {
      * RPC 노드에 닿지 못했거나 릴레이어가 설정되지 않았다. 온체인 동반 요청만 이 코드로 실패하고
      * 조회 API 는 정상이다(명세 §1). 503 인 이유: 서버 잘못이 아니라 의존 서비스가 없는 상태라서다.
      */
-    CHAIN_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "블록체인 네트워크에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");
+    CHAIN_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "블록체인 네트워크에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."),
+
+    // 온체인 검증 (ANT-CHAIN-06)
+    /** 없는 batchId 다. 체인에는 있는데 DB 에 없는 번호(데모 소모분)도 여기로 온다 — 원장은 DB 기준이다. */
+    ANCHOR_NOT_FOUND(HttpStatus.NOT_FOUND, "앵커 배치를 찾을 수 없습니다."),
+    /**
+     * 미판정(BASE/OPEN) 예측을 작성자도 구독자도 아닌 사람이 열었다. 404 로 숨기지 않는다 — 명세 §예측 공개 규칙은
+     * "존재와 커밋 무결성은 공개" 이고, 프론트가 이 code 로 구독 CTA(SubscriptionGate)를 띄운다.
+     */
+    PREDICTION_FORBIDDEN(HttpStatus.FORBIDDEN, "판정 전 예측은 작성자와 구독자만 볼 수 있습니다.");
 
     private final HttpStatus status;
     private final String message;
