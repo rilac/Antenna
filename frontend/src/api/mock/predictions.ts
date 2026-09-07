@@ -7,8 +7,8 @@
    초기값으로 돌아간다 — 진짜 저장은 백엔드가 할 일이다. */
 import { phaseOf } from '../predictions'
 import type {
-  CreateResult, Horizon, MyPrediction, MyPredictionList, PredictionDraft,
-  PredictionStatus, SlotStatus, StockPrediction, StockPredictionList,
+  CreateResult, Horizon, MyPrediction, MyPredictionList, PredictionDetail,
+  PredictionDraft, PredictionStatus, SlotStatus, StockPrediction, StockPredictionList,
 } from '../predictions'
 
 const delay = <T,>(value: T, ms: number) =>
@@ -220,4 +220,139 @@ export function myPredictions(query: Query): Promise<MyPredictionList> {
     judgedCount: judged.length,
     hitRate: judged.length ? Math.round((hit / judged.length) * 100) : null,
   }, 320)
+}
+
+/* ── 예측 상세 (C-03) ─────────────────────────────────────
+   잠금 두 갈래를 실제로 재현한다. 화면이 §5 를 지키는지 눈으로 확인하려는 것이다.
+
+     내 예측(p1~)        전부 열려 있다. 근거 본문까지 보인다
+     남의 예측(o-open)   미판정 + 비구독 → locked. 근거도 잠긴다
+     남의 예측(o-hit)    판정 완료 → 전체 공개. 다만 **근거 본문은 여전히 잠긴다**
+                         (만기 리빌 후에도 구독자 전용이다)
+
+   어느 경우에도 commitHash · 서명 주소 · 앵커는 내린다 — 잠금 대상이 아니다. */
+const ANCHOR_CONFIRMED = {
+  id: 412, businessDate: '2026-08-25', merkleRoot: '0x9f2c1a77b4e0d3568a1e4c9b70d2f83ac6154e9b28d7f0a3c5b6e1928d4f70ab',
+  commitCount: 138, status: 'CONFIRMED' as const,
+  txHash: '0x3b8e1d05f7a2c9461b0d8e5372af49c1806e2d5b7f30a94c1e6b285d7013fa9c',
+  blockNumber: 7418552, confirmedAt: '2026-08-26T04:12:31Z',
+  contractAddress: '0x5F0a4c31B7e29D6c8134aE59027bD1cF3806e4A2', chainId: 11155111,
+}
+const ANCHOR_PENDING = {
+  ...ANCHOR_CONFIRMED, id: 419, businessDate: '2026-09-04',
+  status: 'PENDING' as const, txHash: null, blockNumber: null, confirmedAt: null,
+}
+
+const EVIDENCE = [
+  { id: 59301, body: '반도체 전방 수요 지표가 2개 분기 연속 개선됐습니다. 가동률이 함께 오르면 고정비 부담이 줄어 영업이익률에 먼저 나타납니다.' },
+  { id: 59302, body: '공급이 제한된 품목의 비중이 높아, 원가가 오를 때 판가로 옮길 여지가 경쟁사 대비 큽니다.' },
+]
+
+const DETAILS: Record<string, PredictionDetail> = {
+  /* 내 예측 · 판정 대기 — 진행률이 그려지는 경로 */
+  p2: {
+    id: 'p2', stockCode: '000660', stockName: 'SK하이닉스',
+    author: { userId: 'me', nickname: '레드와이어사지마라했다' },
+    status: 'OPEN', horizon: 10, createdAt: '2026-08-28T09:31:00+09:00',
+    settleDate: '2026-09-14', dday: 7,
+    locked: false, direction: 'UP', targetPrice: 215000,
+    basePrice: 188700, settlePrice: null, errorRate: null,
+    lastClose: { close: 198500, asOf: '2026-08-31' },
+    noteLocked: false,
+    note: '메모리 사이클이 바닥을 지났다고 본다. HBM 물량이 확정돼 있어 가동률이 먼저 오르고, 그 다음 분기에 판가가 따라올 것으로 판단했다.\n\n다만 환율이 1,300원 아래로 내려가면 원화 환산 매출이 눌려 목표가 도달이 늦어질 수 있다.',
+    evidencePoints: EVIDENCE,
+    commitHash: '0x7d41e9a3c2b58f0716d4a9c3e58b0271f4a6d9c3b5e70128a4f6c9b3d5e70142',
+    signerAddress: '0x8A31f4C2b90E5d7163aC48b920D5f0e7B4c92D1a',
+    anchor: ANCHOR_PENDING, channelId: null,
+  },
+
+  /* 내 예측 · 적중 — 결과와 오차가 다 있는 경로 */
+  p5: {
+    id: 'p5', stockCode: '005380', stockName: '현대차',
+    author: { userId: 'me', nickname: '레드와이어사지마라했다' },
+    status: 'HIT', horizon: 20, createdAt: '2026-07-24T10:02:00+09:00',
+    settleDate: '2026-08-24', dday: null,
+    locked: false, direction: 'UP', targetPrice: 260000,
+    basePrice: 238500, settlePrice: 263100, errorRate: 1.2,
+    lastClose: { close: 263100, asOf: '2026-08-24' },
+    noteLocked: false,
+    note: '판매 대수보다 믹스 개선이 실적을 끌어올린다고 봤다. 고수익 차종 비중이 올라가는 흐름이 두 분기 이어졌다.',
+    evidencePoints: [EVIDENCE[1]],
+    commitHash: '0x2c58f0716d4a9c3e58b0271f4a6d9c3b5e70128a4f6c9b3d5e701427d41e9a3',
+    signerAddress: '0x8A31f4C2b90E5d7163aC48b920D5f0e7B4c92D1a',
+    anchor: ANCHOR_CONFIRMED, channelId: null,
+  },
+
+  /* 남의 예측 · 미판정 + 비구독 → 전체 잠금.
+     그래도 작성자·기간·커밋·앵커는 보인다(§5 "존재 자체는 공개") */
+  'o-open': {
+    id: 'o-open', stockCode: '005930', stockName: '삼성전자',
+    author: { userId: 'u2', nickname: '반도체존버' },
+    status: 'OPEN', horizon: 20, createdAt: '2026-08-20T11:40:00+09:00',
+    settleDate: '2026-09-18', dday: 11,
+    locked: true, direction: null, targetPrice: null,
+    basePrice: null, settlePrice: null, errorRate: null,
+    lastClose: null,
+    noteLocked: true, note: null, evidencePoints: [],
+    commitHash: '0x58b0271f4a6d9c3b5e70128a4f6c9b3d5e701427d41e9a3c2c58f0716d4a9c3e',
+    signerAddress: '0x4Bc7e19aD05f2C863b0e4719aD05f2C861e0B37d',
+    anchor: ANCHOR_CONFIRMED, channelId: 'u2',
+  },
+
+  /* 남의 예측 · 판정 완료 → 내용은 전체 공개. 근거 본문만 여전히 잠긴다 */
+  'o-hit': {
+    id: 'o-hit', stockCode: '035420', stockName: 'NAVER',
+    author: { userId: 'u1', nickname: '데이터로보는사람' },
+    status: 'HIT', horizon: 10, createdAt: '2026-07-30T09:12:00+09:00',
+    settleDate: '2026-08-13', dday: null,
+    locked: false, direction: 'DOWN', targetPrice: 165000,
+    basePrice: 178200, settlePrice: 163900, errorRate: -0.7,
+    lastClose: { close: 163900, asOf: '2026-08-13' },
+    /* 만기가 지났어도 근거 본문은 구독자 전용이다 — payload 에 noteHash 만 들어간다 */
+    noteLocked: true, note: null,
+    evidencePoints: EVIDENCE,
+    commitHash: '0x9c3b5e70128a4f6c9b3d5e701427d41e9a3c2c58f0716d4a9c3e58b0271f4a6d',
+    signerAddress: '0x91Ee0b7C42a58d0361fB9e47205cD8a3F0b6142e',
+    anchor: ANCHOR_CONFIRMED, channelId: 'u1',
+  },
+}
+
+const notFoundPrediction = (id: string) =>
+  Promise.reject(Object.assign(new Error('PREDICTION_NOT_FOUND'), {
+    status: 404, code: 'PREDICTION_NOT_FOUND',
+    message: `예측 ${id} 을(를) 찾을 수 없습니다`,
+  }))
+
+export function predictionDetail(id: string): Promise<PredictionDetail> {
+  const hit = DETAILS[id]
+  if (hit) return delay(hit, 300)
+
+  /* 내 예측 목록의 다른 id 로 들어오면 그 줄을 바탕으로 만들어 준다 —
+     목록에서 아무 줄이나 눌러도 상세가 뜨게 해서 흐름을 확인할 수 있다. */
+  const row = MY_ROWS.find((r) => r.id === id)
+  if (!row) return notFoundPrediction(id)
+
+  const judged = phaseOf(row.status) === 'JUDGED'
+  const base = row.status === 'BASE' ? null : Math.round(row.targetPrice * 0.92)
+  return delay<PredictionDetail>({
+    id: row.id, stockCode: row.stockCode, stockName: row.stockName,
+    author: { userId: 'me', nickname: '레드와이어사지마라했다' },
+    status: row.status, horizon: row.horizon, createdAt: '2026-08-10T09:30:00+09:00',
+    settleDate: row.settleDate, dday: row.dday,
+    locked: false, direction: row.direction, targetPrice: row.targetPrice,
+    basePrice: base,
+    settlePrice: judged && base !== null
+      ? Math.round(row.targetPrice * (1 + (row.errorRate ?? 0) / 100))
+      : null,
+    errorRate: row.errorRate,
+    lastClose: base === null ? null : { close: Math.round((base + row.targetPrice) / 2), asOf: '2026-08-31' },
+    noteLocked: false,
+    note: '등록할 때 남긴 판단입니다. 목록에서 들어온 건이라 목업이 본문을 만들어 넣었습니다.',
+    evidencePoints: [EVIDENCE[0]],
+    /* id 로 16진수를 만든다. id 를 그대로 넣으면 'p' 가 섞여 해시가 아니게 된다 */
+    commitHash: '0x' + [...row.id].map((c) => c.charCodeAt(0).toString(16)).join('').padEnd(64, 'a3f7').slice(0, 64),
+    signerAddress: '0x8A31f4C2b90E5d7163aC48b920D5f0e7B4c92D1a',
+    anchor: row.status === 'BASE' ? null : ANCHOR_CONFIRMED,
+    channelId: null,
+  }, 300)
 }
