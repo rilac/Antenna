@@ -42,6 +42,8 @@ type Status = 'SCHEDULED' | 'RUNNING' | 'CLOSED'
 type Season = {
   id: number
   mode: Mode
+  /** 시즌의 성격. 시즌을 구분하는 유일한 값이다 — 기간·예수금은 시즌마다 같을 수 있다 */
+  title?: string
   lengthDays: number
   initialCash: number
   /** 대회만 값이 있다. 연습·시연은 참가비가 없다 */
@@ -438,7 +440,11 @@ export default function SeasonMode() {
                       <b>{m.cta}</b>
                     </Link>
                     <p className="ss-cta-meta">
-                      {first ? seasonMeta(first) : '연습 화면에서 이어하기와 지난 기록을 봅니다'}
+                      {HUB[m.key]
+                        ? open.length > 0
+                          ? `고를 수 있는 연습 주제 ${open.length}개`
+                          : '연습 화면에서 이어하기와 지난 기록을 봅니다'
+                        : first && seasonMeta(first)}
                     </p>
                   </>
                 ) : (
@@ -454,12 +460,19 @@ export default function SeasonMode() {
                   </>
                 )}
 
-                {rest.length > 0 && (
+                {/* 허브가 있는 모드(연습)에서는 시즌을 나열하지 않는다.
+                    CTA 가 허브로 가고 그 화면이 "연습 주제" 카드로 시즌을 다 보여준다 —
+                    여기서 또 세우면 같은 목록이 두 번이고, 게다가 이 목록에는 제목이
+                    없어서 "진행 중 · 60게임일 · 예수금 3,000만원" 세 줄이 똑같아 보였다.
+
+                    허브가 없는 모드(대회·시연)는 CTA 가 시즌 하나로 가므로 나머지를
+                    여기서 보여줘야 한다. 그때는 제목으로 구분한다. */}
+                {!HUB[m.key] && rest.length > 0 && (
                   <ul className="ss-others">
                     {rest.map((s) => (
                       <li key={s.id}>
                         <Link to={`/sim/seasons/${s.id}`}>
-                          <b>{s.status === 'RUNNING' ? '진행 중' : '시작 전'}</b>
+                          <b>{s.title ?? (s.status === 'RUNNING' ? '진행 중' : '시작 전')}</b>
                           <span>{seasonMeta(s)}</span>
                         </Link>
                       </li>
