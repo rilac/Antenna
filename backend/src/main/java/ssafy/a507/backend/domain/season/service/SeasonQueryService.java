@@ -226,8 +226,8 @@ public class SeasonQueryService {
     }
 
     /**
-     * 참가자에게 보이는 섹터 힌트. 시즌은 한 섹터에서 종목을 뽑으므로 {@code theme} 이 곧
-     * 그 섹터다 — 섹터를 섞는 시즌이 생기면 그때 {@code season_tickers.sector} 를 모아 만든다.
+     * 카드에 보이는 대표 업종. 시즌은 전 업종의 대형주를 담으므로(v0.8) 종목별 업종은
+     * {@code season_tickers.sector} 에 있고, 여기 {@code theme} 은 주제가 말하는 업종 하나다.
      */
     private String sectorOf(Season season) {
         return season.getTheme();

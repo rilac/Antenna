@@ -482,6 +482,8 @@ function QuickLinks() {
 }
 
 export default function Home() {
+  /* M-09 온보딩 튜토리얼은 셸(Layout)이 띄운다. 홈에만 걸면 딥링크로 막혔다가
+     가입한 회원이 못 본다 — 그 사람은 홈이 아니라 그 경로로 착지한다. */
   return (
     <main className="main">
       <div className="main-inner">

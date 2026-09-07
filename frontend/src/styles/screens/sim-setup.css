@@ -115,14 +115,13 @@
    경쟁해서 글자가 버튼 기준이 아니라 "화살표 왼쪽 공간" 기준으로 가운데였다 —
    그래서 왼쪽으로 밀려 보였다. */
 .ss-cta{
-  display:flex;align-items:center;justify-content:center;gap:8px;
+  display:flex;align-items:center;justify-content:center;
   width:100%;max-width:var(--inner);
   height:50px;padding:0 18px;margin-inline:auto;
   border-radius:13px;font-size:16px;font-weight:800;letter-spacing:-.02em;
   transition:background .15s,border-color .15s;
 }
 .ss-cta b{font-weight:800}
-.ss-cta > span{font-size:18px;line-height:1}
 
 /* 열린 시즌이 없을 때. 링크가 아니라 span 이라 커서·포커스가 생기지 않는다 */
 .ss-cta.is-off{
@@ -132,30 +131,9 @@
 .ss-cta.is-off b{color:inherit}
 
 .ss-cta-meta{
-  max-width:var(--inner);margin:6px auto 0;min-height:14px;
+  max-width:var(--inner);margin:6px auto 0;min-height:14px;text-align:center;
   color:var(--muted);font-size:12.5px;font-weight:650;
   font-variant-numeric:tabular-nums;
-}
-
-/* 같은 모드에 시즌이 둘 이상일 때만 나온다 */
-.ss-others{
-  width:100%;max-width:var(--inner);margin:14px auto 0;padding:14px 0 0;list-style:none;
-  border-top:1px dashed var(--rule);
-  display:flex;flex-direction:column;gap:7px;
-}
-.ss-others a{
-  display:flex;align-items:baseline;gap:8px;padding:8px 11px;
-  border:1px solid var(--rule);border-radius:10px;text-align:left;
-  transition:border-color .12s;
-}
-.ss-others a:hover{border-color:var(--tone)}
-.ss-others b{
-  min-width:0;color:var(--tone-ink);font-size:12.5px;font-weight:750;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.ss-others span{
-  flex:none;margin-left:auto;
-  color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;
 }
 
 /* ── 모드별 색 (프로토타입 값 유지) ───────────────────── */
@@ -195,6 +173,6 @@
   .ss-mode{padding:22px 18px 18px}
 }
 @media(prefers-reduced-motion:reduce){
-  .ss-mode,.ss-cta,.ss-others a{transition:none}
+  .ss-mode,.ss-cta{transition:none}
   .ss-mode:hover{transform:none}
 }

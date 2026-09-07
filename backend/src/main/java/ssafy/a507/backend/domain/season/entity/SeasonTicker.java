@@ -16,11 +16,8 @@ import lombok.NoArgsConstructor;
 import ssafy.a507.backend.domain.market.entity.Stock;
 
 /**
- * 시즌 종목.
- *
- * <p><b>연습은 실명, 대회는 가명이다</b>(2026-09-07 결정). {@code displayName} 에 연습은
- * "삼성전자" 가, 대회는 "A사" 가 들어간다. 목적이 달라서다 — 연습은 배우는 자리라 실명이
- * 곧 학습이고, 대회는 순위가 걸려 있어 구간을 기억하는 사람이 유리하면 순위가 뜻을 잃는다.
+ * 시즌 종목. 실명이다(ERD v0.8) — "A사" 가명은 걷어냈다. 종목이 누구인지 모르면 업종 사이의
+ * 연관이나 실적 같은 공부가 성립하지 않는다. 숨기는 것은 실제 날짜뿐이다.
  */
 @Entity
 @Table(
@@ -41,39 +38,23 @@ public class SeasonTicker {
     @JoinColumn(name = "season_id", nullable = false)
     private Season season;
 
-    /**
-     * 참가자에게 보이는 이름. 연습은 실제 종목명("삼성전자"), 대회는 가명("A사")이다.
-     *
-     * <p>길이가 20 이라 긴 종목명은 들어가지 않는다 — 수집 범위(KOSPI 300) 안에서는
-     * 문제가 없지만 전 종목으로 넓히면 확인이 필요하다.
-     */
     @Column(name = "display_name", nullable = false, length = 20)
     private String displayName;
 
-    /**
-     * 원본 종목. <b>대회에서는</b> 정답이라 CLOSED 전까지 어떤 응답에도 실으면 안 된다.
-     *
-     * <p>연습에서는 {@code displayName} 이 이미 실명이라 가릴 것이 없다. 그래도 응답에
-     * 담지 않는다 — 응답 계약이 모드마다 갈리면 화면이 두 모양을 다뤄야 한다.
-     */
+    /** 원본 종목. 종목코드·종목명은 응답에 실어도 된다(검색 재료). 실제 날짜는 여기서 나오지 않는다. */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "real_stock_code", nullable = false)
     private Stock realStock;
 
-    /**
-     * 섹터 힌트. 값을 복제해 둔다 — 종목 조인 없이 내릴 수 있어야 한다.
-     *
-     * <p>대회에서는 좁게 담으면 실제 주가와 맞물려 종목이 추정되므로 상위 분류로만 담는다.
-     * 연습은 실명이라 그 제약이 없다.
-     */
+    /** 종목의 KRX 업종명. 진행 화면의 업종 필터 재료다. 시즌 생성 시점 값을 복제해 둔다. */
     @Column(length = 30)
     private String sector;
 
     /**
-     * 시즌 종목 하나.
+     * 시즌 종목 하나. {@code displayName} 은 종목의 실제 이름이다(v0.8).
      *
-     * @param displayName 연습은 실제 종목명, 대회는 "A사" 같은 가명
-     * @param realStock 원본 종목 · 대회에서는 CLOSED 전까지 응답 금지
+     * <p>{@code sector} 는 참가자에게 보여 주는 유일한 힌트다. 좁게 담으면 실제 주가와
+     * 맞물려 종목이 추정되므로 상위 분류로만 담는다(ERD v0.6).
      */
     public static SeasonTicker of(Season season, String displayName, Stock realStock, String sector) {
         SeasonTicker ticker = new SeasonTicker();

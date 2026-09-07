@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,11 +21,13 @@ import ssafy.a507.backend.domain.season.service.SeasonCreateService.SeasonSpec;
  * 시즌 생성 — 실제 과거 시세 구간을 game_day 로 옮기는 부분의 검증.
  *
  * <p>확인하는 것은 다섯이다. 가격이 원천과 같은가 · 실제 날짜가 game_day 로 바뀌었는가 ·
- * 구간에 구멍이 있는 종목이 걸러지는가 · 같은 seed 가 같은 종목을 뽑는가 ·
- * 이름이 모드 규칙(연습 실명 · 대회 가명)대로 담기는가.
+ * 워밍업이 game_day 0 이하로 앞에 붙는가 · 종목이 시총 순으로 뽑히고 종목명이 실명인가 ·
+ * 구간에 구멍이 있거나 우선주이거나 상장주식수가 없는 종목이 걸러지는가.
  *
- * <p>기준 데이터 — 섹터 "테스트업종" 에 보통주 넷(A0010~A0040)과 우선주 하나(A0015).
- * 영업일은 2024-01-02 부터 닷새이고 주말(1/6·1/7)은 없다. A0040 만 사흘째 시세가 빠져 있다.
+ * <p>기준 데이터 — 보통주 넷(A0010~A0040)과 우선주 하나(A0015), 다른 업종 하나(B0010),
+ * 상장주식수가 없는 하나(C0010). 영업일은 2024-01-02 부터 닷새이고 주말(1/6·1/7)은 없다.
+ * A0040 만 사흘째 시세가 빠져 있다. 첫날 시총(종가 × 주식수)은 A0040 > A0030 > B0010 >
+ * A0020 > A0010 순이다.
  */
 @SpringBootTest
 @Transactional
@@ -46,13 +47,15 @@ class SeasonCreateServiceTest {
 
     @BeforeEach
     void setUp() {
-        insertStock("A0010", SECTOR);
-        insertStock("A0020", SECTOR);
-        insertStock("A0030", SECTOR);
-        insertStock("A0040", SECTOR);
+        insertStock("A0010", SECTOR, 100L);
+        insertStock("A0020", SECTOR, 200L);
+        insertStock("A0030", SECTOR, 300L);
+        insertStock("A0040", SECTOR, 400L);
         // A0015 는 A0010 의 우선주다(끝자리가 0 이 아니다). 후보에 들면 안 된다.
-        insertStock("A0015", SECTOR);
-        insertStock("B0010", OTHER_SECTOR);
+        insertStock("A0015", SECTOR, 100L);
+        insertStock("B0010", OTHER_SECTOR, 50L);
+        // 상장주식수가 없으면 시총을 매길 수 없다. 후보에 들면 안 된다.
+        insertStock("C0010", SECTOR, null);
 
         for (int i = 0; i < DAYS.size(); i++) {
             LocalDate day = DAYS.get(i);
@@ -61,6 +64,7 @@ class SeasonCreateServiceTest {
             insertQuote("A0030", day, 3000 + i);
             insertQuote("A0015", day, 1500 + i);
             insertQuote("B0010", day, 9000 + i);
+            insertQuote("C0010", day, 8000 + i);
             // A0040 은 사흘째가 빠진다 — 구간에 구멍이 있는 종목이다.
             if (i != 2) {
                 insertQuote("A0040", day, 4000 + i);
@@ -73,119 +77,84 @@ class SeasonCreateServiceTest {
     @Test
     @DisplayName("게임일 가격이 원천 일봉과 같고, 순서가 영업일 순서다")
     void 가격을_그대로_옮긴다() {
-        Season season = createService.create(spec(LocalDate.of(2024, 1, 2), 3, 5, 42L));
+        Season season = createService.create(spec(LocalDate.of(2024, 1, 2), 4, 5, 42L));
 
-        // 어느 가명이 어느 종목인지는 seed 가 정한다 — 가명을 고정해 두고 값을 비교하면
-        // 셔플 결과에 따라 붙었다 떨어졌다 하는 테스트가 된다.
-        Map<String, String> aliases = aliasToCode(season.getId());
-        assertThat(aliases).hasSize(3);
+        List<String> codes = realCodes(season.getId());
+        assertThat(codes).containsExactlyInAnyOrder("A0030", "B0010", "A0020", "A0010");
 
-        aliases.forEach((alias, code) -> {
-            assertThat(gameDays(season.getId(), alias)).containsExactly(1, 2, 3, 4, 5);
+        for (String code : codes) {
+            assertThat(gameDays(season.getId(), code)).containsExactly(1, 2, 3, 4, 5);
             // 값 자체가 원천이다 — 합성하지 않는다.
-            assertThat(closes(season.getId(), alias)).containsExactly(sourceCloses(code));
-        });
+            assertThat(closes(season.getId(), code)).containsExactly(sourceCloses(code));
+        }
+    }
+
+    @Test
+    @DisplayName("종목명은 실명이다 — 가명을 붙이지 않는다")
+    void 종목명은_실명이다() {
+        Season season = createService.create(spec(DAYS.get(0), 2, 5, 42L));
+
+        assertThat(displayNames(season.getId())).containsExactlyInAnyOrder("A0030종목", "B0010종목");
+    }
+
+    @Test
+    @DisplayName("첫 게임일 시가총액 큰 순서로 상한까지 뽑는다 — 업종은 거르지 않는다")
+    void 시총_순으로_뽑는다() {
+        // A0040 이 가장 크지만 구멍이 있어 빠지고, 다음이 A0030(900,000) · B0010(450,000) 이다.
+        Season season = createService.create(spec(DAYS.get(0), 2, 5, 42L));
+
+        assertThat(realCodes(season.getId())).containsExactly("A0030", "B0010");
+    }
+
+    @Test
+    @DisplayName("워밍업 — 첫 게임일 앞의 영업일이 game_day 0 이하로 붙는다")
+    void 워밍업이_앞에_붙는다() {
+        // 1/4 부터 사흘. 앞의 1/2·1/3 이 워밍업이라 game_day 는 -1·0 이다.
+        Season season = createService.create(spec(LocalDate.of(2024, 1, 4), 1, 3, 42L));
+
+        assertThat(season.getBaseDate()).isEqualTo(LocalDate.of(2024, 1, 4));
+        assertThat(season.getLengthDays()).isEqualTo(3);
+        assertThat(gameDays(season.getId(), "A0030")).containsExactly(-1, 0, 1, 2, 3);
+        assertThat(closes(season.getId(), "A0030")).containsExactly(sourceCloses("A0030"));
     }
 
     @Test
     @DisplayName("요청한 기준일이 영업일이 아니면 그다음 영업일부터 시작한다")
     void 휴일은_다음_영업일로_밀린다() {
         // 2024-01-06·07 은 주말이라 일봉이 없다. 1/6 을 넣으면 1/8 이 첫 게임일이다.
-        Season season = createService.create(spec(LocalDate.of(2024, 1, 6), 1, 1, 42L));
+        Season season = createService.create(spec(LocalDate.of(2024, 1, 6), 2, 1, 42L));
 
         assertThat(season.getBaseDate()).isEqualTo(LocalDate.of(2024, 1, 8));
-
-        String alias = aliasToCode(season.getId()).keySet().iterator().next();
-        assertThat(gameDays(season.getId(), alias)).containsExactly(1);
+        // 워밍업 나흘(1/2~1/5)이 앞에 붙는다. 1/8 하루짜리 구간이라 구멍 있는 A0040 도 후보가
+        // 되어 1등으로 뽑히는데, 그쪽은 워밍업 1/4 봉이 비어 있다 — 구멍 검사는 플레이 구간만
+        // 본다. 열이 온전한 2등 A0030 으로 확인한다.
+        assertThat(realCodes(season.getId())).containsExactly("A0040", "A0030");
+        assertThat(gameDays(season.getId(), "A0030")).containsExactly(-3, -2, -1, 0, 1);
+        assertThat(gameDays(season.getId(), "A0040")).containsExactly(-3, -2, 0, 1);
     }
 
     @Test
     @DisplayName("구간에 시세가 빠진 종목은 뽑지 않는다")
     void 구멍_있는_종목은_후보가_아니다() {
-        // 후보는 A0010~A0030 셋뿐이다(A0040 은 구멍, A0015 는 우선주). 넷을 달라고 하면 만들지 않는다.
-        assertThatThrownBy(() -> createService.create(spec(DAYS.get(0), 4, 5, 42L)))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("구간 전체 시세가 있는 종목이 3 개");
-    }
-
-    @Test
-    @DisplayName("같은 seed 는 같은 종목을 뽑는다 — 대회 공정성의 근거다")
-    void seed_가_같으면_같은_종목이다() {
-        // 모드만 다르게 준다 — 같은 조건은 UQ 가 막는다. 종목 선정은 모드를 보지 않는다.
-        Season first = createService.create(
-                spec(Season.Mode.PRACTICE, DAYS.get(0), 2, 5, 0, false, 7L));
-        Season second = createService.create(
-                spec(Season.Mode.DEMO, DAYS.get(0), 2, 5, 0, false, 7L));
-
-        assertThat(realCodes(first.getId())).isEqualTo(realCodes(second.getId()));
-    }
-
-    @Test
-    @DisplayName("섹터 밖 종목은 섞이지 않는다")
-    void 섹터로만_뽑는다() {
-        Season season = createService.create(spec(DAYS.get(0), 3, 5, 42L));
-
-        assertThat(realCodes(season.getId())).containsExactlyInAnyOrder("A0010", "A0020", "A0030");
-    }
-
-    @Test
-    @DisplayName("연습은 실제 종목명, 블라인드는 A사·B사로 담는다")
-    void 이름_규칙이_모드마다_다르다() {
-        Season real = createService.create(
-                spec(Season.Mode.PRACTICE, DAYS.get(0), 2, 5, 0, false, 7L));
-        Season blind = createService.create(
-                spec(Season.Mode.COMPETITION, DAYS.get(0), 2, 5, 0, true, 7L));
-
-        // 같은 seed 면 같은 종목이 뽑힌다. 이름만 다르다.
-        assertThat(realCodes(real.getId()))
-                .containsExactlyInAnyOrderElementsOf(realCodes(blind.getId()));
-
-        assertThat(aliasToCode(blind.getId()).keySet()).containsExactly("A사", "B사");
-        // 기준 데이터의 종목명은 코드 + "종목" 이다
-        aliasToCode(real.getId())
-                .forEach((shown, code) -> assertThat(shown).isEqualTo(code + "종목"));
-    }
-
-    @Test
-    @DisplayName("우선주는 뽑지 않는다 — 보통주와 같이 움직여 분산이 무의미해진다")
-    void 우선주는_후보가_아니다() {
-        Season season = createService.create(spec(DAYS.get(0), 3, 5, 42L));
-
-        assertThat(realCodes(season.getId())).doesNotContain("A0015");
-    }
-
-    @Test
-    @DisplayName("워밍업은 game_day 0 이하로 들어간다 — 플레이 첫날이 1 이다")
-    void 워밍업은_0_이하다() throws Exception {
-        // 2024-01-05 부터 하루짜리 시즌 + 워밍업 3일. 앞의 1/2·1/3·1/4 가 -1·0 ... 로 들어간다.
-        Season season = createService.create(spec(LocalDate.of(2024, 1, 5), 1, 1, 3, 42L));
-
-        assertThat(season.getBaseDate()).isEqualTo(LocalDate.of(2024, 1, 5));
-        assertThat(season.getLengthDays()).isEqualTo(1);
-
-        String alias = aliasToCode(season.getId()).keySet().iterator().next();
-        // 1/2 → -2 · 1/3 → -1 · 1/4 → 0 · 1/5 → 1
-        assertThat(gameDays(season.getId(), alias)).containsExactly(-2, -1, 0, 1);
-    }
-
-    @Test
-    @DisplayName("워밍업이 요청보다 짧아도 시즌은 만든다 — 지표만 덜 보인다")
-    void 워밍업이_짧아도_만든다() {
-        // 첫 영업일(1/2)부터 시작하면 앞에 아무것도 없다.
-        Season season = createService.create(spec(DAYS.get(0), 1, 2, 50, 42L));
-
-        String alias = aliasToCode(season.getId()).keySet().iterator().next();
-        assertThat(gameDays(season.getId(), alias)).containsExactly(1, 2);
-    }
-
-    @Test
-    @DisplayName("워밍업 구간에 구멍이 있는 종목은 뽑지 않는다")
-    void 워밍업_구멍도_후보에서_뺀다() {
-        // A0040 은 1/4(세 번째 영업일)이 빠져 있다. 그 날이 워밍업에 들어가는 시즌이면
-        // 플레이 구간만 보면 멀쩡해도 후보가 아니다.
-        Season season = createService.create(spec(LocalDate.of(2024, 1, 5), 3, 1, 3, 42L));
+        Season season = createService.create(spec(DAYS.get(0), 10, 5, 42L));
 
         assertThat(realCodes(season.getId())).doesNotContain("A0040");
+    }
+
+    @Test
+    @DisplayName("우선주와 상장주식수 없는 종목은 뽑지 않는다")
+    void 우선주와_주식수_없는_종목은_후보가_아니다() {
+        Season season = createService.create(spec(DAYS.get(0), 10, 5, 42L));
+
+        assertThat(realCodes(season.getId())).doesNotContain("A0015", "C0010");
+    }
+
+    @Test
+    @DisplayName("종목 수는 상한이다 — 후보가 적으면 있는 만큼 만든다")
+    void 종목_수는_상한이다() {
+        Season season = createService.create(spec(DAYS.get(0), 10, 5, 42L));
+
+        assertThat(realCodes(season.getId())).hasSize(4);
     }
 
     @Test
@@ -196,47 +165,50 @@ class SeasonCreateServiceTest {
                 .hasMessageContaining("5 일만 수집돼 있다");
     }
 
-    /** 워밍업 없는 실명 시즌. 대부분의 검증이 game_day 1..N 만 보면 되므로 이걸 쓴다. */
+    @Test
+    @DisplayName("시가총액을 매길 종목이 하나도 없으면 만들지 않는다")
+    void 주식수가_전부_없으면_만들지_않는다() {
+        em.createNativeQuery("UPDATE stocks SET listed_shares = NULL").executeUpdate();
+
+        assertThatThrownBy(() -> createService.create(spec(DAYS.get(0), 2, 5, 42L)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("listed_shares 가 비어 있다");
+    }
+
+    @Test
+    @DisplayName("지우면 시즌·종목·가격이 함께 사라진다")
+    void 지우면_전부_사라진다() {
+        Season season = createService.create(spec(DAYS.get(0), 2, 5, 42L));
+        assertThat(count("season_prices")).isEqualTo(10);
+
+        createService.delete(season.getId());
+
+        assertThat(count("season_prices")).isZero();
+        assertThat(count("season_tickers")).isZero();
+        assertThat(count("seasons")).isZero();
+    }
+
     private static SeasonSpec spec(LocalDate baseDate, int tickerCount, int lengthDays, long seed) {
-        return spec(baseDate, tickerCount, lengthDays, 0, false, seed);
-    }
-
-    private static SeasonSpec spec(
-            LocalDate baseDate, int tickerCount, int lengthDays, int warmupDays, long seed) {
-        return spec(baseDate, tickerCount, lengthDays, warmupDays, false, seed);
-    }
-
-    private static SeasonSpec spec(
-            LocalDate baseDate, int tickerCount, int lengthDays, int warmupDays,
-            boolean blind, long seed) {
-        return spec(Season.Mode.PRACTICE, baseDate, tickerCount, lengthDays, warmupDays, blind, seed);
-    }
-
-    /**
-     * 모드까지 지정한다. UQ(mode, theme, seed, base_date) 때문에 <b>같은 조건의 시즌을 두 번
-     * 만들 수 없다</b> — 같은 seed 로 두 시즌을 세워 비교하는 검증은 모드만 달리 준다.
-     * 종목 선정은 모드를 보지 않으므로 비교가 성립한다.
-     */
-    private static SeasonSpec spec(
-            Season.Mode mode, LocalDate baseDate, int tickerCount, int lengthDays,
-            int warmupDays, boolean blind, long seed) {
         return new SeasonSpec(
-                mode,
+                Season.Mode.PRACTICE,
                 "테스트 시즌",
                 "설명",
                 SECTOR,
                 baseDate,
                 tickerCount,
                 lengthDays,
-                warmupDays,
-                blind,
                 new BigDecimal("30000000"),
                 seed);
     }
 
-    /** 그 종목의 원천 종가 다섯 개. 종목마다 1000·2000·3000 대에서 하루 1 씩 오른다. */
+    /** 종목별 첫날 종가. setUp 의 insertQuote 와 같은 표다. */
+    private static final Map<String, Integer> BASE_CLOSE = Map.of(
+            "A0010", 1000, "A0020", 2000, "A0030", 3000, "A0040", 4000,
+            "A0015", 1500, "B0010", 9000, "C0010", 8000);
+
+    /** 그 종목의 원천 종가 다섯 개. 첫날 값에서 하루 1 씩 오른다. */
     private static BigDecimal[] sourceCloses(String code) {
-        int base = Integer.parseInt(code.substring(1, 4)) * 1000;
+        int base = BASE_CLOSE.get(code);
         BigDecimal[] closes = new BigDecimal[DAYS.size()];
         for (int i = 0; i < closes.length; i++) {
             closes[i] = new BigDecimal(base + i).setScale(2);
@@ -245,68 +217,62 @@ class SeasonCreateServiceTest {
     }
 
     @SuppressWarnings("unchecked")
-    private List<Object[]> prices(Long seasonId, String displayName) {
+    private List<Object[]> prices(Long seasonId, String code) {
         return em.createNativeQuery(
                         """
                         SELECT p.game_day, p.close FROM season_prices p
                         JOIN season_tickers t ON t.id = p.ticker_id
-                        WHERE t.season_id = ? AND t.display_name = ?
+                        WHERE t.season_id = ? AND t.real_stock_code = ?
                         ORDER BY p.game_day
                         """)
                 .setParameter(1, seasonId)
-                .setParameter(2, displayName)
+                .setParameter(2, code)
                 .getResultList();
     }
 
-    private List<BigDecimal> closes(Long seasonId, String displayName) {
-        return prices(seasonId, displayName).stream()
+    private List<BigDecimal> closes(Long seasonId, String code) {
+        return prices(seasonId, code).stream()
                 .map(row -> ((BigDecimal) row[1]).setScale(2))
                 .toList();
     }
 
-    private List<Integer> gameDays(Long seasonId, String displayName) {
-        return prices(seasonId, displayName).stream()
+    private List<Integer> gameDays(Long seasonId, String code) {
+        return prices(seasonId, code).stream()
                 .map(row -> ((Number) row[0]).intValue())
                 .toList();
     }
 
-    /** 가명 → 실제 종목코드. 정답 표라 응답에는 안 나가지만 검증에는 필요하다. */
-    @SuppressWarnings("unchecked")
-    private Map<String, String> aliasToCode(Long seasonId) {
-        List<Object[]> rows = em.createNativeQuery(
-                        """
-                        SELECT display_name, real_stock_code FROM season_tickers
-                        WHERE season_id = ? ORDER BY display_name
-                        """)
-                .setParameter(1, seasonId)
-                .getResultList();
-        Map<String, String> aliases = new LinkedHashMap<>();
-        for (Object[] row : rows) {
-            aliases.put((String) row[0], (String) row[1]);
-        }
-        return aliases;
-    }
-
+    /** 시즌 종목의 실제 코드. id 순 = 뽑힌 순(시총 순)이다. */
     @SuppressWarnings("unchecked")
     private List<String> realCodes(Long seasonId) {
         return em.createNativeQuery(
-                        """
-                        SELECT real_stock_code FROM season_tickers
-                        WHERE season_id = ? ORDER BY display_name
-                        """)
+                        "SELECT real_stock_code FROM season_tickers WHERE season_id = ? ORDER BY id")
                 .setParameter(1, seasonId)
                 .getResultList();
     }
 
-    private void insertStock(String code, String sector) {
+    @SuppressWarnings("unchecked")
+    private List<String> displayNames(Long seasonId) {
+        return em.createNativeQuery(
+                        "SELECT display_name FROM season_tickers WHERE season_id = ? ORDER BY id")
+                .setParameter(1, seasonId)
+                .getResultList();
+    }
+
+    private long count(String table) {
+        return ((Number) em.createNativeQuery("SELECT COUNT(*) FROM " + table).getSingleResult()).longValue();
+    }
+
+    private void insertStock(String code, String sector, Long listedShares) {
         em.createNativeQuery(
                         """
-                        INSERT INTO stocks (code, name, market, sector, listed)
-                        VALUES (?, ?, 'KOSPI', ?, true)
+                        INSERT INTO stocks (code, name, market, sector, listed, listed_shares)
+                        VALUES (?, ?, 'KOSPI', ?, true, ?)
                         """)
                 .setParameter(1, code)
                 .setParameter(2, code + "종목")
                 .setParameter(3, sector)
+                .setParameter(4, listedShares)
                 .executeUpdate();
     }
 
