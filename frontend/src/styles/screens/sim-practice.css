@@ -24,7 +24,8 @@
 .t-b{background:#e8f1fe;color:#2f7bf6}
 
 /* ── 헤더 ───────────────────────────────────────────── */
-.pr-head{display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap}
+/* 시작 버튼이 헤더 오른쪽 끝에 붙는다 — 아래 요약 스트립의 셋째 칸 위 자리다 */
+.pr-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .pr-head h1{margin:0 0 8px;color:#0e1330;font-size:34px;font-weight:850;letter-spacing:-.04em}
 .pr-head p{margin:0;color:#79809c;font-size:15px;font-weight:650}
 
@@ -76,6 +77,16 @@
 .pr-start em{font-style:normal;font-size:17px}
 
 /* ── ② 연습 주제 ────────────────────────────────────── */
+/* 접이식 주제 상자. summary 가 패널 머리 역할을 그대로 하고, 접혔을 때는 머리만 남는다 */
+.pr-topics summary{cursor:pointer;margin:0;list-style:none;user-select:none}
+.pr-topics summary::-webkit-details-marker{display:none}
+.pr-topics summary:focus-visible{outline:2px solid var(--brand);outline-offset:4px;border-radius:8px}
+.pr-topics[open] summary{margin-bottom:18px}
+.pr-count{margin-left:auto;color:#8a93ad;font-size:13.5px;font-weight:700;white-space:nowrap}
+.pr-chev{display:grid;place-items:center;color:#8a93ad;transition:transform .15s}
+.pr-topics[open] .pr-chev{transform:rotate(180deg)}
+.pr-topics summary:hover .pr-count,.pr-topics summary:hover .pr-chev{color:var(--brand)}
+
 .pr-scenarios{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
 .pr-scenario{display:flex;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--rule);border-radius:16px;transition:border-color .14s,background .14s}
 .pr-scenario:hover{border-color:#cdc9f7;background:#fbfbff}
@@ -128,5 +139,6 @@
 }
 @media(max-width:640px){
   .pr-head h1{font-size:26px}
+  .pr-cta{width:100%}
   .pr-cta a{width:100%;min-width:0}
 }
