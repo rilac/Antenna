@@ -24,4 +24,7 @@ public interface SeasonRepository extends JpaRepository<Season, Long> {
      * 보내고 화면에서 감추면 개발자도구로 다 보인다.
      */
     List<Season> findByModeInOrderByIdAsc(Collection<Season.Mode> modes);
+
+    /** 한 모드의 시즌 전부 — 시더가 스펙에서 빠진 옛 연습 시즌을 찾을 때. */
+    List<Season> findByMode(Season.Mode mode);
 }

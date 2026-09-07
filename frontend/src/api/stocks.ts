@@ -3,6 +3,7 @@
    GET /stocks?sector=&market=&sentiment=&perMin=&perMax=
               &hasOpenPrediction=&watchedOnly=&sort=&cursor=&size=
    GET /stocks/sectors            섹터별 종목 수·평균 등락률 (요약 칩)
+   GET    /watchlist              관심 종목 목록 (B-04)
    POST   /watchlist              { stockCode }
    DELETE /watchlist/{stockCode}
 
@@ -113,6 +114,30 @@ export function fetchStocks(filter: StockFilter) {
 
 export function getSectorSummary() {
   return api.get<{ items: SectorSummary[] }>('/stocks/sectors')
+}
+
+/* ── 관심 종목 (B-04) ─────────────────────────────────────
+   서버 WatchlistItemResponse 와 짝을 이룬다. 명세 §홈·시세의 다섯 필드다.
+
+   **커서 페이징이 없다.** 담는 수가 화면 한 장 안이라 서버가 전량을 한 번에
+   내린다 — 그래서 useCursorList 가 아니라 useAsync 를 쓴다.
+
+   행별 예측 심리 배지를 두지 않는다(§9.2). 이 응답에 집계가 없고, 심리는
+   B-02 · B-03 에서만 보여준다 — 없는 값을 만들어 채우지 않는다. */
+export type WatchlistItem = {
+  stockCode: string
+  name: string
+  /** 마지막 영업일 종가. 수집 범위(KOSPI 300) 밖으로 밀리면 null */
+  prevClose: number | null
+  /** 전일 대비 등락률 %. 점이 둘 미만이면 서버가 0 으로 준다 */
+  changeRate: number | null
+  /** 미니차트용 최근 30 영업일 종가. 오래된 것이 먼저, 마지막이 prevClose 와 같다 */
+  series: number[]
+}
+
+/** 최근 담은 순으로 온다. 화면이 다시 정렬하지 않는다 */
+export function getWatchlist() {
+  return api.get<{ items: WatchlistItem[] }>('/watchlist')
 }
 
 /** 관심 담기·빼기. 화면은 낙관적으로 먼저 바꾸고 실패하면 되돌린다(§4 B-02). */

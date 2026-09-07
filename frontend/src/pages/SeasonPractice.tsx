@@ -268,6 +268,13 @@ export default function SeasonPractice() {
             <h1>연습하기</h1>
             <p>부담 없이 전략을 연습하고 투자 흐름을 익혀보세요.</p>
           </div>
+          {/* 시작 버튼은 헤더 오른쪽 — 바로 아래 요약 스트립의 "시작할 수 있는 연습" 칸 위다.
+              오른쪽 열 맨 아래에 두면 주제·AI 가이드를 다 지나야 보였다. */}
+          <div className="pr-cta">
+            <Link to={startAt}>
+              {first ? '연습 시작하기' : '모드 선택으로 이동'} <em aria-hidden="true">›</em>
+            </Link>
+          </div>
         </header>
 
         <Summary going={going} done={done} open={open} />
@@ -281,11 +288,19 @@ export default function SeasonPractice() {
           </div>
 
           <div className="pr-col">
-            <section className="pr-card pr-panel">
-              <div className="pr-panel-head">
+            {/* 접이식이다. 기본은 접힌 상태 — 주제 목록이 열려 있으면 AI 가이드가
+                화면 아래로 밀린다. 펼침·접힘은 브라우저 details 가 맡으므로 상태를 두지 않는다. */}
+            <details className="pr-card pr-panel pr-topics">
+              <summary className="pr-panel-head">
                 <span className="pr-num num">2</span>
                 <h2>연습 주제</h2>
-              </div>
+                <span className="pr-count num">
+                  {openList.loading ? '불러오는 중' : `${open.length}개`}
+                </span>
+                <i className="pr-chev" aria-hidden="true">
+                  <Ico size={18}><path d="m6 9 6 6 6-6" /></Ico>
+                </i>
+              </summary>
 
               {open.length > 0 ? (
                 <ul className="pr-scenarios">
@@ -314,8 +329,8 @@ export default function SeasonPractice() {
               )}
 
               {/* 시기를 숨기는 것이 이 게임의 규칙이라는 걸 여기서 한 번 알린다 */}
-              <p className="pr-note">주제는 어떤 장이었는지만 알려줍니다. 실제 시기와 종목명은 가려집니다.</p>
-            </section>
+              <p className="pr-note">주제는 어떤 장이었는지만 알려줍니다. 종목은 실명이고 실제 시기만 가려집니다.</p>
+            </details>
 
             <section className="pr-ai">
               <div className="pr-panel-head">
@@ -338,12 +353,6 @@ export default function SeasonPractice() {
                 <img src="/assets/character/black_ant/antena-character-black.png" alt="" aria-hidden="true" />
               </figure>
             </section>
-
-            <div className="pr-cta">
-              <Link to={startAt}>
-                {first ? '연습 시작하기' : '모드 선택으로 이동'} <em aria-hidden="true">›</em>
-              </Link>
-            </div>
           </div>
         </div>
       </div>

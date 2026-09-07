@@ -19,8 +19,8 @@ import lombok.NoArgsConstructor;
  * 모의투자 시즌.
  *
  * <p>가격은 합성하지 않는다 — 시작 시 {@code daily_quotes} 에서 실제 과거 구간을
- * {@code season_prices} 로 복사한 뒤 읽기 전용이다(ERD v0.6). {@code seed} 는 가격이
- * 아니라 <b>종목·구간 선정</b>의 재현 근거다.
+ * {@code season_prices} 로 복사한 뒤 읽기 전용이다(ERD v0.6). 종목은 그 구간 첫날 시가총액
+ * 상위 전부이고 실명이다(ERD v0.8). {@code seed} 는 시즌 식별값이다.
  *
  * <p>시기는 참가자에게 공개하지 않는다. {@code base_date} 는 서버 전용이며 어떤 응답에도
  * 싣지 않는다 — 연습은 성격({@code title})과 섹터만 고르고 시기는 서버가 고른다.
@@ -76,7 +76,7 @@ public class Season {
     @Column(length = 120)
     private String note;
 
-    /** 섹터·테마 키. seed 로 종목을 뽑을 때의 후보 조건이다. */
+    /** 주제의 대표 업종(KRX 업종명). 카드 아이콘·섹터 힌트에 쓴다. 종목을 거르는 조건이 아니다(v0.8). */
     @Column(length = 20)
     private String theme;
 
@@ -99,10 +99,9 @@ public class Season {
     private LocalDate baseDate;
 
     /**
-     * <b>종목·구간 선정</b>의 재현 근거다. 가격 생성 시드가 아니다 —
-     * 가격은 daily_quotes 의 실제 과거 주가를 복사한다(ERD v0.6).
-     *
-     * <p>같은 seed·theme 면 같은 종목과 같은 구간이 뽑혀 대회 공정성이 보장된다.
+     * 시즌 식별값. 시더가 (mode, theme, seed) 로 이미 만든 시즌인지 판별한다 — 가격 생성
+     * 시드도, 종목 선정 시드도 아니다. 가격은 daily_quotes 의 실제 과거 주가를 복사하고
+     * (ERD v0.6) 종목은 시가총액 순이라 seed 와 무관하게 재현된다(v0.8).
      */
     @Column(nullable = false)
     private Long seed;
