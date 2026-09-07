@@ -120,3 +120,13 @@
 @media (max-width: 560px){
   .ac-fields{ grid-template-columns:1fr; }
 }
+
+/* 각 커밋에서 D-03 검산으로. ANT-CHAIN-09 가 리프에 predictionId 를 동봉하면서 열렸다 */
+.ac-verify{
+  flex:0 0 auto; margin-left:auto;
+  display:inline-flex; align-items:center; gap:2px;
+  font-size:11.5px; font-weight:600; color:var(--brand-ink);
+  text-decoration:none;
+}
+.ac-verify:hover{ text-decoration:underline; }
+.ac-verify em{ font-style:normal; }

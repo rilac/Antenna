@@ -34,14 +34,21 @@ export type Anchor = {
 }
 
 /**
+ * 배치에 담긴 커밋 한 건. 서버 AnchorDetailResponse.Leaf 와 짝이다.
+ *
+ * predictionId 가 함께 오므로 목록에서 커밋 하나를 골라 D-03 검산으로 갈 수 있다
+ * (ANT-CHAIN-09 에서 결정 F2 를 뒤집어 동봉하기로 바뀌었다).
+ */
+export type AnchorLeaf = {
+  predictionId: number
+  commitHash: string
+}
+
+/**
  * 앵커 배치 상세. 서버 AnchorDetailResponse 와 짝이다 — 목록에 없는 넷이 더 온다.
  *
- * commitHashes 는 리프 순서(prediction id 오름차순) 그대로다. 이 순서로 트리를 다시
+ * commits 는 리프 순서(prediction id 오름차순) 그대로다. 이 순서로 트리를 다시
  * 접으면 merkleRoot 가 나와야 한다 — 순서가 곧 검증 재료라 화면이 정렬을 바꾸면 안 된다.
- *
- * 알아 둘 것 — 이 배열은 해시 문자열만이고 predictionId 가 없다. 그래서 목록에서 커밋
- * 하나를 골라 D-03(/ledger/verify/:predictionId) 로 이어갈 수 없다. 설계서 §3 D 의
- * 제약이지만 지금 계약으로는 불가능하다(자세한 것은 Anchor.tsx 주석).
  */
 export type AnchorDetail = Anchor & {
   /** 릴레이어가 트랜잭션을 보낸 시각. 확정 전에도 채워진다 */
@@ -50,7 +57,7 @@ export type AnchorDetail = Anchor & {
   attempts: number
   /** FAILED 일 때 실패 사유. 그 외에는 null */
   lastError: string | null
-  commitHashes: string[]
+  commits: AnchorLeaf[]
 }
 
 export const STATUS_LABEL: Record<AnchorStatus, string> = {

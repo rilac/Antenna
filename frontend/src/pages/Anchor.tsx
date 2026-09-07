@@ -9,19 +9,16 @@
    - 커밋 순서를 바꾸지 않는다. 리프 순서(prediction id 오름차순) 그대로여야
      이 순서로 트리를 다시 접어 merkleRoot 를 재현할 수 있다. 정렬 기능을 두지 않는 이유다.
 
-   못 지킨 제약 둘 — 둘 다 이 화면에서 풀 수 없다
+   - "여기서 특정 커밋을 골라 D-03 검산으로 이어갈 수 있게 한다"
+     → 각 행이 /ledger/verify/{predictionId} 로 간다. ANT-CHAIN-09 가 리프에
+       predictionId 를 동봉하기로 바꿔(결정 F2 뒤집음) 가능해졌다.
 
-   1) "트랜잭션 해시에서 외부 블록 익스플로러로 나가는 링크를 둔다"
-      SSAFY 체인(chainId 31221)의 익스플로러 주소가 명세·백엔드·contracts 어디에도 없다.
-      공개된 접점은 wss://ws.ssafy-blockchain.com 웹소켓 RPC 하나뿐이다(contracts/README).
-      주소를 지어낼 수 없어 링크 대신 해시 복사만 둔다. 주소가 확인되면 CopyHash 옆에
-      링크를 붙이면 된다.
-
-   2) "여기서 특정 커밋을 골라 D-03 검산으로 이어갈 수 있게 한다"
-      D-03 경로는 /ledger/verify/:predictionId 인데 GET /anchors/{id} 의 commitHashes 는
-      List<String> 이라 predictionId 가 없다. 순서가 prediction id 오름차순이라는 것만
-      알 뿐 실제 id 를 모르므로 추측하면 엉뚱한 예측의 검산 화면으로 보내게 된다.
-      백엔드가 { predictionId, commitHash } 로 내려주면 그때 각 행을 링크로 바꾼다. */
+   익스플로러 링크를 두지 않는 이유
+   설계서 §3 D 는 "트랜잭션 해시에서 외부 블록 익스플로러로 나가는 링크를 둔다" 고 하지만
+   SSAFY 는 사설 Besu 망이라 익스플로러의 존재 자체가 확인되지 않는다. 공개된 접점은
+   wss://ws.ssafy-blockchain.com RPC 하나뿐이다. 익스플로러는 RPC 를 대신 읽어 주는
+   웹사이트일 뿐이라, 브라우저가 직접 읽으면 같은 값을 얻는다 — D-03 이 그 방식으로
+   온체인 대조를 한다(ANT-CHAIN-09 결정). 여기서는 해시 복사만 둔다. */
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useApiQuery } from '../api/useApiQuery'
@@ -41,14 +38,15 @@ export default function Anchor() {
   const anchor = useApiQuery<AnchorDetail>(`/anchors/${id}`)
   const [shown, setShown] = useState(PAGE)
 
-  const hashes = anchor.data?.commitHashes ?? []
-  const visible = hashes.slice(0, shown)
+  const commits = anchor.data?.commits ?? []
+  const visible = commits.slice(0, shown)
 
-  /** 목록이 잘려 있어도 원본 전량을 가져갈 수 있어야 한다(설계 제약) */
+  /** 목록이 잘려 있어도 원본 전량을 가져갈 수 있어야 한다(설계 제약).
+      복사는 해시만 준다 — 트리를 다시 접을 때 쓰는 재료가 해시라서다. */
   const [copiedAll, setCopiedAll] = useState(false)
   async function copyAll() {
     try {
-      await navigator.clipboard?.writeText(hashes.join('\n'))
+      await navigator.clipboard?.writeText(commits.map((c) => c.commitHash).join('\n'))
       setCopiedAll(true)
       setTimeout(() => setCopiedAll(false), 1600)
     } catch { /* 권한이 막힌 경우. 개별 행 복사는 그대로 동작한다 */ }
@@ -144,8 +142,8 @@ export default function Anchor() {
 
             <section className="ac-commits">
               <div className="ac-commits-head">
-                <h2>{`포함 커밋 ${hashes.length.toLocaleString('ko-KR')}건`}</h2>
-                {hashes.length > 0 && (
+                <h2>{`포함 커밋 ${commits.length.toLocaleString('ko-KR')}건`}</h2>
+                {commits.length > 0 && (
                   <button type="button" className={`ac-copyall ${copiedAll ? 'copied' : ''}`} onClick={copyAll}>
                     {copiedAll ? '전체 복사됨' : '전체 복사'}
                   </button>
@@ -157,25 +155,29 @@ export default function Anchor() {
                 리프 순서 그대로입니다. 이 순서로 트리를 접으면 위 머클루트가 나옵니다.
               </p>
 
-              {hashes.length === 0 ? (
+              {commits.length === 0 ? (
                 <p className="ac-empty">이 배치에 담긴 커밋이 없습니다</p>
               ) : (
                 <>
                   <ol className="ac-commit-list" start={1}>
-                    {visible.map((h, i) => (
-                      <li key={h}>
+                    {visible.map((c, i) => (
+                      <li key={c.predictionId}>
                         <span className="ac-commit-no num">{i + 1}</span>
-                        <CopyHash value={h} head={14} tail={10} />
+                        <CopyHash value={c.commitHash} head={14} tail={10} />
+                        {/* 이 커밋이 정말 루트에 들어 있는지 브라우저에서 직접 확인하는 화면으로 */}
+                        <Link className="ac-verify" to={`/ledger/verify/${c.predictionId}`}>
+                          검산<em aria-hidden="true">›</em>
+                        </Link>
                       </li>
                     ))}
                   </ol>
 
-                  {shown < hashes.length && (
+                  {shown < commits.length && (
                     <button
                       type="button" className="ac-more"
                       onClick={() => setShown((n) => n + PAGE)}
                     >
-                      {`더 보기 (${(hashes.length - shown).toLocaleString('ko-KR')}건 남음)`}
+                      {`더 보기 (${(commits.length - shown).toLocaleString('ko-KR')}건 남음)`}
                     </button>
                   )}
                 </>
