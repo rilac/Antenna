@@ -18,6 +18,9 @@
 .ss-crumb a:hover{color:var(--brand)}
 .ss-crumb i{font-style:normal;color:#c2c8da}
 
+/* 카드와 같은 축에 세운다. 카드가 가운데인데 헤더만 왼쪽이면 둘이 어긋나 보인다.
+   경로(.ss-crumb)는 왼쪽에 둔다 — 빵부스러기는 왼쪽이 관례다. */
+.ss-head{text-align:center}
 .ss-head h1{
   margin:4px 0 6px;color:#0e1330;font-size:31px;font-weight:850;letter-spacing:-.035em;
   text-wrap:balance;
@@ -44,9 +47,11 @@
 
    글·버튼은 --inner 로 한 번 더 묶는다. 경계선이 있는 .ss-facts 만 카드 폭을 꽉 채워
    띠처럼 보이게 둔다. */
-/* 가운데가 아니라 왼쪽에 붙인다. 헤더가 왼쪽 정렬이라 카드만 가운데로 띄우면
-   둘이 어긋나 보인다. 오른쪽에 남는 자리는 개미가 채운다. */
-.ss-modes{display:grid;gap:16px;align-items:start;justify-content:start}
+/* 카드를 가운데 놓고 헤더도 함께 가운데로 맞춘다(.ss-head).
+   폭 상한을 두면 카드가 본문(최대 1600px)을 다 채우지 않으므로, 왼쪽에 붙이든
+   가운데에 두든 한쪽이 비게 된다 — 그때 헤더까지 같은 축에 세워야 덩어리가
+   한쪽으로 쏠려 보이지 않는다. */
+.ss-modes{display:grid;gap:16px;align-items:start;justify-content:center}
 .ss-modes.n-2{grid-template-columns:repeat(2,minmax(0,480px))}
 .ss-modes.n-3{grid-template-columns:repeat(3,minmax(0,480px))}
 
