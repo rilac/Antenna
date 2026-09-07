@@ -1,9 +1,16 @@
 /* 모든 화면이 공유하는 응답 계약. 설계서 §7 공통 컴포넌트 참고. */
 
-/** 목록은 전부 커서 페이징이다. 페이지 번호는 쓰지 않는다. */
+/**
+ * 목록은 전부 커서 페이징이다. 페이지 번호는 쓰지 않는다.
+ *
+ * nextCursor 는 숫자로도 온다 — 서버가 목록마다 다른 타입을 쓴다.
+ * 문자열: ReportFeedResponse. 숫자: AnchorListResponse · PostListResponse ·
+ * ChannelReportListResponse (정렬 키가 id 라 그 값을 그대로 커서로 쓴다).
+ * 어느 쪽이든 쿼리 파라미터로 되돌려 보내기만 하므로 프론트는 값을 해석하지 않는다.
+ */
 export type CursorList<T> = {
   items: T[]
-  nextCursor: string | null
+  nextCursor: string | number | null
   hasNext: boolean
 }
 

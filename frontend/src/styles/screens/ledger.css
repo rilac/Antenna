@@ -1,0 +1,85 @@
+/* D-01 커밋 원장 — [ANT-FE-LEDGER-LIST]
+   색·간격은 app.css 의 토큰만 쓴다. */
+
+/* 배치 주기 안내. 방금 등록한 예측이 없다고 고장으로 읽히지 않게 하는 줄이다 */
+.lg-note{
+  display:flex; align-items:center; gap:6px;
+  margin:0 0 14px; padding:9px 12px;
+  border:1px solid var(--brand-soft); border-radius:9px;
+  background:var(--brand-softer);
+  font-size:12px; color:var(--brand-ink);
+}
+.lg-note svg{ flex:0 0 auto; }
+
+.lg-list{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:10px; }
+
+.lg-item{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:12px;
+  padding:14px 16px;
+}
+.lg-item:hover{ border-color:var(--brand-soft); }
+
+.lg-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; margin-bottom:10px;
+}
+.lg-title{ display:flex; align-items:baseline; gap:8px; min-width:0; }
+.lg-batch{ font-size:15px; font-weight:800; color:var(--ink); letter-spacing:-.01em; }
+.lg-date{ font-size:12.5px; color:var(--muted); }
+
+/* ── 필드 ────────────────────────────────────── */
+.lg-fields{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));
+  gap:8px 18px; margin:0;
+}
+.lg-field{ display:flex; align-items:baseline; gap:8px; min-width:0; }
+.lg-field dt{
+  flex:0 0 auto; width:52px;
+  font-size:11.5px; font-weight:600; color:var(--faint);
+}
+.lg-field dd{
+  margin:0; min-width:0;
+  font-size:12.5px; color:var(--body);
+  overflow:hidden; text-overflow:ellipsis;
+}
+
+/* ── 하단 ────────────────────────────────────── */
+.lg-foot{
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:8px;
+  margin-top:12px; padding-top:11px;
+  border-top:1px solid var(--rule);
+}
+.lg-contract{
+  display:flex; align-items:center; flex-wrap:wrap; gap:6px;
+  font-size:11.5px; color:var(--faint);
+}
+.lg-chain{ color:var(--faint); }
+
+.lg-go{
+  flex:0 0 auto;
+  display:inline-flex; align-items:center; gap:3px;
+  font-size:12.5px; font-weight:600; color:var(--brand-ink);
+  text-decoration:none;
+}
+.lg-go:hover{ text-decoration:underline; }
+.lg-go em{ font-style:normal; }
+
+/* ── 더 보기 · 로딩 ──────────────────────────── */
+.lg-more{
+  display:block; width:100%;
+  margin-top:12px; padding:11px;
+  border:1px solid var(--rule); border-radius:10px;
+  background:var(--surface); color:var(--body);
+  font-family:inherit; font-size:13px; font-weight:600;
+  cursor:pointer;
+}
+.lg-more:hover{ background:var(--surface-2); }
+
+.lg-loading{ margin:12px 0 0; text-align:center; font-size:12.5px; color:var(--muted); }
+
+@media (max-width: 560px){
+  .lg-fields{ grid-template-columns:1fr; }
+}
