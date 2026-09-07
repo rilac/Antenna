@@ -45,12 +45,28 @@ export function getMyRuns() {
 export type OpenRun = {
   id: number
   mode: SeasonMode
+  status: SeasonStatus
+  /**
+   * 시즌의 <b>성격</b>. "급락 구간"·"실적 발표 구간" 처럼 무슨 장이었는지만 온다.
+   * 연습 주제 카드가 이 값으로 그려진다 — 화면에 하드코딩하지 않는다(설계서 §4 G-02a).
+   */
+  title: string
+  /** 한 줄 설명 */
+  note?: string
+  /** 섹터·테마 키. 카드 아이콘을 고르는 데 쓴다 */
+  theme?: string
+  /** 참가자에게 보이는 섹터 힌트. 상위 분류로만 온다 */
+  sector?: string
   lengthDays: number
   initialCash: number
+  /** 블라인드 종목 수 */
+  tickerCount?: number
   /** 대회만 값이 있다. 연습·시연은 참가비가 없다 */
   entryFee?: number
-  status: SeasonStatus
 }
+
+/* 시기는 어떤 응답에도 오지 않는다 — baseDate·연도 필드를 타입에 두지 않는 것이
+   그 규칙을 지키는 방법이다. 타입에 없으면 실수로 그릴 수 없다(API 명세 v0.24). */
 
 /** 커서 페이징이 없는 목록이라(§1 규칙 6 의 예외) useCursorList 를 쓰지 않는다. */
 export function getOpenRuns() {
