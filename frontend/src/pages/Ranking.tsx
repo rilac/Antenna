@@ -127,34 +127,28 @@ export default function Ranking() {
           ))}
         </div>
 
-        {/* 기간·섹터는 REAL 에만 있다(명세 §랭킹) */}
+        {/* 섹터는 REAL 에만 있다(명세 §랭킹).
+            기간 스위치는 표 바로 위 툴바로 옮겼다 — 목록에 바로 걸리는 조건이라
+            표에 붙어 있는 편이 무엇을 거른 결과인지 읽기 쉽다. */}
         {track === 'REAL' && (
           <div className="rk-filters">
-            <div className="rk-periods" role="group" aria-label="기간">
-              {PERIODS.map((p) => (
+            <div className="rk-filter-row">
+              <span className="rk-filter-label" id="rk-sector-label">섹터</span>
+              <div className="rk-sectors" role="group" aria-labelledby="rk-sector-label">
                 <button
-                  key={p} type="button"
-                  aria-pressed={period === p}
-                  className={period === p ? 'on' : ''}
-                  onClick={() => changePeriod(p)}
-                >{PERIOD_LABEL[p]}</button>
-              ))}
-            </div>
-
-            <div className="rk-sectors" role="group" aria-label="섹터">
-              <button
-                type="button" aria-pressed={sector === null}
-                className={sector === null ? 'on' : ''}
-                onClick={() => changeSector(null)}
-              >전체</button>
-              {SECTORS.map((s) => (
-                <button
-                  key={s} type="button"
-                  aria-pressed={sector === s}
-                  className={sector === s ? 'on' : ''}
-                  onClick={() => changeSector(s)}
-                >{s}</button>
-              ))}
+                  type="button" aria-pressed={sector === null}
+                  className={sector === null ? 'on' : ''}
+                  onClick={() => changeSector(null)}
+                >전체</button>
+                {SECTORS.map((s) => (
+                  <button
+                    key={s} type="button"
+                    aria-pressed={sector === s}
+                    className={sector === s ? 'on' : ''}
+                    onClick={() => changeSector(s)}
+                  >{s}</button>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -182,7 +176,26 @@ export default function Ranking() {
           </section>
         )}
 
-        {computedAt && <SnapshotStamp at={formatComputedAt(computedAt)} />}
+        {/* 표 툴바 — 왼쪽은 이 목록이 언제 만들어졌는지, 오른쪽은 무엇으로 걸렀는지 */}
+        <div className="rk-tablebar">
+          {computedAt ? <SnapshotStamp at={formatComputedAt(computedAt)} /> : <span />}
+
+          {/* 두 값 중 하나를 고르는 배타 선택이라 세그먼트 컨트롤로 둔다.
+              고른 값과 고르지 않은 값이 나란히 보여, 지금 무엇으로 집계 중인지와
+              무엇으로 바꿀 수 있는지를 한 번에 읽는다. 기간은 REAL 에만 있다. */}
+          {track === 'REAL' && (
+            <div className="rk-period-seg" role="group" aria-label="집계 기간">
+              {PERIODS.map((p) => (
+                <button
+                  key={p} type="button"
+                  aria-pressed={period === p}
+                  className={period === p ? 'on' : ''}
+                  onClick={() => changePeriod(p)}
+                >{PERIOD_LABEL[p]}</button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {!loading && rows.length === 0 && (
           <EmptyState
