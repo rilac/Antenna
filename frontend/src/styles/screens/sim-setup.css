@@ -37,15 +37,21 @@
 .ss-mascot img{display:block;width:100%;height:auto;filter:drop-shadow(0 22px 32px rgba(70,66,229,.22))}
 
 /* ── 모드 카드 ──────────────────────────────────────── */
-/* 두 장이면 카드가 넓어진다(약 600px). 카드는 넓게 두어 가이드 바와 폭을 맞추고,
-   글·버튼은 --inner 로 묶어 좁게 유지한다 — 넓은 카드에 문장이 늘어지면 읽기 나쁘다.
-   경계선이 있는 .ss-facts 만 카드 폭을 꽉 채워 띠처럼 보이게 둔다. */
-.ss-modes{display:grid;gap:16px;align-items:start}
-.ss-modes.n-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.ss-modes.n-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* 카드 폭에 상한을 둔다(480px). 1fr 로 두면 넓은 화면에서 카드가 760px 까지 늘어나는데,
+   높이를 394px 로 줄인 뒤에는 그게 1.93:1 로 납작해 보인다 — 압축 전(760×621)이
+   1.22:1 이었고 480×394 가 그 비율을 되돌린다.
+   좁아지면 트랙이 480 밑으로 줄어드니 반응형은 그대로 돈다.
+
+   글·버튼은 --inner 로 한 번 더 묶는다. 경계선이 있는 .ss-facts 만 카드 폭을 꽉 채워
+   띠처럼 보이게 둔다. */
+/* 가운데가 아니라 왼쪽에 붙인다. 헤더가 왼쪽 정렬이라 카드만 가운데로 띄우면
+   둘이 어긋나 보인다. 오른쪽에 남는 자리는 개미가 채운다. */
+.ss-modes{display:grid;gap:16px;align-items:start;justify-content:start}
+.ss-modes.n-2{grid-template-columns:repeat(2,minmax(0,480px))}
+.ss-modes.n-3{grid-template-columns:repeat(3,minmax(0,480px))}
 
 .ss-mode{
-  --inner:420px;
+  --inner:400px;
   position:relative;display:flex;flex-direction:column;align-items:center;
   padding:22px 22px 16px;text-align:center;
   background:var(--surface);border:1px solid var(--rule);border-radius:20px;
@@ -173,10 +179,10 @@
 }
 /* 관리자(3장)는 한 칸 일찍 2열로 접는다 — 3열로 버티면 카드가 너무 좁아진다 */
 @media(max-width:1280px){
-  .ss-modes.n-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ss-modes.n-3{grid-template-columns:repeat(2,minmax(0,480px))}
 }
 @media(max-width:1020px){
-  .ss-modes.n-2,.ss-modes.n-3{grid-template-columns:minmax(0,1fr)}
+  .ss-modes.n-2,.ss-modes.n-3{grid-template-columns:minmax(0,520px)}
   .ss-head h1{font-size:27px}
 }
 @media(max-width:680px){
