@@ -73,6 +73,14 @@
   word-break:keep-all;
 }
 
+/* 어디로 가면 되는지. 본문보다 한 단 낮춰 "읽고 넘어가는 줄" 로 둔다 */
+.ob-where{
+  margin:10px 0 0; padding:9px 11px;
+  border-radius:9px; background:var(--surface-2);
+  color:var(--muted); font-size:12px; line-height:1.6;
+  word-break:keep-all;
+}
+
 /* ── 마친 것 · 남은 것 ─────────────────────────
    마지막 걸음에서만 나온다. 닉네임은 A-02 에서 이미 끝냈으므로 할 일이
    아니라 확인이고, 그래서 지갑과 같은 목록에 두되 표식을 다르게 둔다. */
