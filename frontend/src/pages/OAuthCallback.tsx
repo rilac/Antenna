@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { completeLogin, isProvider, providerLabel } from '../auth/oauth'
 import { useAuth } from '../auth/context'
+import { markOnboardingPending } from '../auth/onboarding'
 import { takeReturnTo } from '../auth/returnTo'
 import '../styles/auth.css'
 
@@ -53,8 +54,13 @@ export default function OAuthCallback() {
     completeLogin(known, code, params.get('state'))
       .then(({ user, isNew }) => {
         signIn(user)
-        // 닉네임이 없는 회원은 온보딩부터. returnTo 는 온보딩이 끝난 뒤에 꺼낸다.
         if (isNew) {
+          /* M-09 튜토리얼은 **홈 위 오버레이** 라 여기서 띄울 수 없다(§4 M-09:
+             라우트를 주면 히스토리에 남는다). 그런데 이 사이에 A-02 닉네임
+             화면이 끼어 라우터 state 로도 못 넘긴다 — 그래서 한 칸 건너
+             전달할 플래그를 세우고, 홈이 꺼내 띄운다. */
+          markOnboardingPending()
+          // 닉네임이 없는 회원은 온보딩부터. returnTo 는 온보딩이 끝난 뒤에 꺼낸다.
           navigate('/onboarding/nickname', { replace: true })
           return
         }
