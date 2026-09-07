@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -67,6 +68,19 @@ public class GlobalExceptionHandler {
         log.debug("파라미터 타입 변환 실패", e);
         return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
                 .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, e.getName()));
+    }
+
+    /**
+     * 필수 쿼리 파라미터 누락 — {@code GET /rankings} 에 {@code track} 이 없는 경우.
+     *
+     * <p>없으면 마지막 그물로 떨어져 500 이 나간다. 빠뜨린 쪽은 클라이언트이므로 400 이어야 한다.
+     * 타입 변환 실패(위)와 같은 부류인데 한쪽만 덮여 있었다 — 필수 파라미터를 쓰는 엔드포인트 전부에 해당한다.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException e) {
+        log.debug("필수 파라미터 누락", e);
+        return ResponseEntity.status(ErrorCode.INVALID_REQUEST.getStatus())
+                .body(ErrorResponse.of(ErrorCode.INVALID_REQUEST, e.getParameterName()));
     }
 
     /**

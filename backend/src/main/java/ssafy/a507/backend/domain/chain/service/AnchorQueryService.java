@@ -12,7 +12,6 @@ import ssafy.a507.backend.domain.chain.dto.AnchorItemResponse;
 import ssafy.a507.backend.domain.chain.dto.AnchorListResponse;
 import ssafy.a507.backend.domain.chain.entity.AnchorBatch;
 import ssafy.a507.backend.domain.chain.repository.AnchorBatchRepository;
-import ssafy.a507.backend.domain.prediction.entity.PredictionCommit;
 import ssafy.a507.backend.domain.prediction.repository.PredictionCommitRepository;
 
 /**
@@ -50,17 +49,21 @@ public class AnchorQueryService {
     }
 
     /**
-     * 배치 하나 + 리프 전량. 커밋 해시 순서는 {@code prediction id 오름차순} — 배치(CHAIN-02)가 트리를 만든 순서이고
+     * 배치 하나 + 리프 전량. 순서는 {@code prediction id 오름차순} — 배치(CHAIN-02)가 트리를 만든 순서이고
      * 컨트랙트 이벤트에 남은 순서다. 이 순서를 바꾸면 같은 해시 집합이라도 루트가 달라진다.
+     *
+     * <p>리프마다 predictionId 를 함께 내린다(ANT-CHAIN-09, 결정 F2 를 뒤집음 — 사유는 {@link AnchorDetailResponse}).
+     * 프론트가 이 번호로 3단계 검산 화면에 들어간다. 게이팅은 여기서 하지 않는다 — 번호와 해시로는 내용을 알 수 없고,
+     * 내용 공개 여부는 {@code GET /predictions/{id}/proof} 가 판단한다.
      */
     @Transactional(readOnly = true)
     public AnchorDetailResponse detail(long id) {
         AnchorBatch batch = batches.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANCHOR_NOT_FOUND, "id"));
-        List<String> hashes = commits.findByAnchorBatchOrderByPredictionIdAsc(batch).stream()
-                .map(PredictionCommit::getCommitHash)
+        List<AnchorDetailResponse.Leaf> leaves = commits.findByAnchorBatchOrderByPredictionIdAsc(batch).stream()
+                .map(c -> new AnchorDetailResponse.Leaf(c.getPredictionId(), c.getCommitHash()))
                 .toList();
-        return AnchorDetailResponse.of(batch, hashes);
+        return AnchorDetailResponse.of(batch, leaves);
     }
 
     private int pageSize(Integer size) {

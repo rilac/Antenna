@@ -49,7 +49,7 @@ type SeasonDetail = {
   /** 총 게임일 */
   lengthDays: number
   initialCash: number
-  /** 시즌 종목 수. 실명이며 시총 상위 최대 200 이다(API 명세 v0.26) */
+  /** 시즌 종목 수. 실명이며 시총 상위 최대 200 이다(API 명세 v0.30) */
   tickerCount: number
   /** 대회만 값이 있다. 소각하는 ANT 토큰이다 */
   entryFee?: number
