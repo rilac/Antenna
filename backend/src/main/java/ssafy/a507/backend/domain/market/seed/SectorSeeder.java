@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
@@ -38,8 +39,15 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Component
+@Order(SectorSeeder.ORDER)
 @RequiredArgsConstructor
 public class SectorSeeder implements ApplicationRunner {
+
+    /**
+     * 시더 중 가장 먼저 돈다. {@code stocks.sector} 를 읽는 시더(모의투자 시즌)가 있고,
+     * 순서를 정해 두지 않으면 업종이 비어 있는 채로 그 시더가 도는 기동이 생긴다.
+     */
+    public static final int ORDER = 10;
 
     static final String SEED_PATH = "seed/krx-sectors.csv";
 
