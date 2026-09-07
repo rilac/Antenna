@@ -1,6 +1,7 @@
 package ssafy.a507.backend.domain.ranking.repository;
 
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -38,4 +39,10 @@ public interface RankingRepository extends JpaRepository<Ranking, Long> {
             @Param("filterKey") String filterKey,
             @Param("fromRank") int fromRank,
             Limit limit);
+
+    /** 내 순위 한 줄(ANT-RANK-03). 없으면 빈 값 — 배치 전이거나 표본이 모자라 랭킹에 안 든 것이다. */
+    Optional<Ranking> findByTrackAndFilterKeyAndUserId(Track track, String filterKey, Long userId);
+
+    /** 백분위의 분모. 같은 트랙·필터 안의 인원수다. */
+    long countByTrackAndFilterKey(Track track, String filterKey);
 }
