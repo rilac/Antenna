@@ -6,8 +6,10 @@
 /* 본문 폭과 가운데 정렬은 셸의 .main-inner 가 맡는다(app.css). 화면마다 따로
    잡으면 화면끼리 폭이 어긋나므로 여기서는 손대지 않는다.
    word-break:keep-all 은 한글이 단어 중간에서 잘리지 않게 한다. */
+/* gap 을 좁게 둔다. 이 화면은 카드 셋을 한눈에 비교하는 자리라
+   배율 100% 에서 스크롤 없이 들어와야 한다. */
 .sim-setup{
-  position:relative;display:flex;flex-direction:column;gap:22px;
+  position:relative;display:flex;flex-direction:column;gap:10px;
   word-break:keep-all;
 }
 
@@ -17,61 +19,35 @@
 .ss-crumb i{font-style:normal;color:#c2c8da}
 
 .ss-head h1{
-  margin:14px 0 12px;color:#0e1330;font-size:42px;font-weight:850;letter-spacing:-.04em;
+  margin:4px 0 6px;color:#0e1330;font-size:31px;font-weight:850;letter-spacing:-.035em;
   text-wrap:balance;
 }
 .ss-head p{margin:0;color:#6b7291;font-size:16px;font-weight:650;text-wrap:pretty}
 
-/* 검정 개미 — 헤더 오른쪽에서 가이드 바까지 걸쳐 놓는다.
+/* 검정 개미 — 헤더 오른쪽에 걸쳐 놓는다.
 
    top 은 음수로 두지 않는다. .sim-setup 의 상단이 곧 고정 상단바(.topbar, z-index 30)의
    아래 경계라, 위로 올리면 그만큼이 상단바에 덮여 개미 더듬이가 잘린다.
    프로토타입은 -26px 였지만 그 화면에는 상단바가 없었다.
 
-   높이는 폭이 정한다(이미지 1214×1295, 비율 1:1.07). 280px → 299px 이므로
-   상단바 아래(52px)에서 시작해도 가이드 바 바닥(약 404px)을 넘지 않는다. */
-.ss-mascot{position:absolute;right:6px;top:4px;width:280px;margin:0;pointer-events:none;z-index:2}
+   높이는 폭이 정한다(이미지 1214×1295, 비율 1:1.07). 화면을 한 장에 담느라 헤더가
+   짧아져 개미가 카드 위로 내려온다 — pointer-events:none 이라 카드를 가리기만 하고
+   클릭을 막지는 않는다. 폭을 줄여 침범을 줄였다. */
+.ss-mascot{position:absolute;right:6px;top:4px;width:210px;margin:0;pointer-events:none;z-index:2}
 .ss-mascot img{display:block;width:100%;height:auto;filter:drop-shadow(0 22px 32px rgba(70,66,229,.22))}
-
-/* ── 모드 선택 가이드 ───────────────────────────────── */
-.ss-guide{
-  display:grid;grid-template-columns:minmax(0,300px) 1px minmax(0,1fr);
-  align-items:center;gap:28px;padding:24px 300px 24px 28px;
-  background:var(--surface);border:1px solid var(--rule);border-radius:20px;box-shadow:var(--shadow);
-}
-.ss-guide-copy h2{
-  display:flex;align-items:center;gap:11px;margin:0 0 12px;
-  color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em;
-}
-.ss-guide-copy h2 svg{color:var(--brand)}
-.ss-guide-copy p{margin:0;color:#8a90ab;font-size:14px;line-height:1.7;font-weight:650}
-.ss-guide-rule{align-self:stretch;background:var(--rule)}
-
-/* 순서가 있는 절차가 아니라 "상황 → 모드" 대응이라 화살표를 쓰지 않는다.
-   칸 수는 모드 수와 같다 — 관리자는 시연이 붙어 3, 그 외에는 2 다. */
-.ss-steps{display:grid;gap:14px;margin:0;padding:0;list-style:none}
-.ss-steps.n-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-.ss-steps.n-3{grid-template-columns:repeat(3,minmax(0,1fr))}
-.ss-step{
-  display:flex;flex-direction:column;gap:5px;
-  padding:13px 16px;border-radius:13px;background:var(--surface-2);
-  border-left:3px solid var(--tone);
-}
-.ss-step small{color:#8a90ab;font-size:13px;font-weight:650}
-.ss-step b{color:var(--tone);font-size:16.5px;font-weight:850;letter-spacing:-.02em}
 
 /* ── 모드 카드 ──────────────────────────────────────── */
 /* 두 장이면 카드가 넓어진다(약 600px). 카드는 넓게 두어 가이드 바와 폭을 맞추고,
    글·버튼은 --inner 로 묶어 좁게 유지한다 — 넓은 카드에 문장이 늘어지면 읽기 나쁘다.
    경계선이 있는 .ss-facts 만 카드 폭을 꽉 채워 띠처럼 보이게 둔다. */
-.ss-modes{display:grid;gap:22px;align-items:start}
+.ss-modes{display:grid;gap:16px;align-items:start}
 .ss-modes.n-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .ss-modes.n-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 
 .ss-mode{
   --inner:420px;
   position:relative;display:flex;flex-direction:column;align-items:center;
-  padding:38px 28px 28px;text-align:center;
+  padding:22px 22px 16px;text-align:center;
   background:var(--surface);border:1px solid var(--rule);border-radius:20px;
   box-shadow:var(--shadow);transition:box-shadow .15s,transform .15s;
 }
@@ -99,32 +75,23 @@
 }
 
 .ss-mode-icon{
-  display:grid;place-items:center;width:96px;height:96px;margin-bottom:22px;
+  display:grid;place-items:center;width:48px;height:48px;margin-bottom:10px;
   border-radius:50%;background:var(--tone-soft);color:var(--tone);
 }
-.ss-mode h3{margin:0 0 14px;color:var(--tone);font-size:27px;font-weight:850;letter-spacing:-.03em}
+.ss-mode-icon svg{width:26px;height:26px}
+.ss-mode h3{margin:0 0 7px;color:var(--tone);font-size:23px;font-weight:850;letter-spacing:-.03em}
 .ss-mode > p{
-  max-width:380px;margin:0 auto 20px;
-  color:#6b7291;font-size:15px;line-height:1.7;font-weight:650;
-}
-
-.ss-chips{
-  display:flex;flex-wrap:wrap;justify-content:center;gap:9px;
-  max-width:var(--inner);margin:0 auto 24px;
-}
-.ss-chips span{
-  padding:8px 15px;border-radius:10px;
-  background:var(--tone-soft);color:var(--tone-ink);
-  font-size:13.5px;font-weight:750;
+  max-width:380px;margin:0 auto 14px;
+  color:#6b7291;font-size:14.5px;line-height:1.55;font-weight:650;
 }
 
 .ss-facts{
   display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;
-  padding:22px 0;margin-bottom:22px;
+  padding:12px 0;margin-bottom:12px;
   border-top:1px solid #eef0f6;border-bottom:1px solid #eef0f6;
 }
 .ss-fact{
-  display:flex;flex-direction:column;align-items:center;gap:11px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
   padding:0 6px;border-left:1px solid #eef0f6;
 }
 .ss-fact:first-child{border-left:0}
@@ -132,14 +99,19 @@
 .ss-fact span{color:#5b6280;font-size:13.5px;line-height:1.45;font-weight:700;word-break:keep-all}
 
 /* ── 진입 버튼 ──────────────────────────────────────── */
+/* 글자와 화살표를 한 덩어리로 두고 그 덩어리를 가운데 놓는다.
+   전에는 b 에 margin:0 auto, 화살표에 margin-left:auto 를 줬는데 auto 마진이 둘이
+   경쟁해서 글자가 버튼 기준이 아니라 "화살표 왼쪽 공간" 기준으로 가운데였다 —
+   그래서 왼쪽으로 밀려 보였다. */
 .ss-cta{
-  display:flex;align-items:center;gap:10px;width:100%;max-width:var(--inner);
-  height:58px;padding:0 18px;margin-inline:auto;
-  border-radius:13px;font-size:16.5px;font-weight:800;letter-spacing:-.02em;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;max-width:var(--inner);
+  height:50px;padding:0 18px;margin-inline:auto;
+  border-radius:13px;font-size:16px;font-weight:800;letter-spacing:-.02em;
   transition:background .15s,border-color .15s;
 }
-.ss-cta b{margin:0 auto;font-weight:800}
-.ss-cta > span{margin-left:auto;font-size:19px}
+.ss-cta b{font-weight:800}
+.ss-cta > span{font-size:18px;line-height:1}
 
 /* 열린 시즌이 없을 때. 링크가 아니라 span 이라 커서·포커스가 생기지 않는다 */
 .ss-cta.is-off{
@@ -149,7 +121,7 @@
 .ss-cta.is-off b{color:inherit}
 
 .ss-cta-meta{
-  max-width:var(--inner);margin:10px auto 0;min-height:18px;
+  max-width:var(--inner);margin:6px auto 0;min-height:14px;
   color:var(--muted);font-size:12.5px;font-weight:650;
   font-variant-numeric:tabular-nums;
 }
@@ -189,32 +161,21 @@
   background:var(--surface-2);border:1px solid var(--rule);color:var(--faint);
 }
 
-/* ── 안내 ───────────────────────────────────────────── */
-.ss-note{
-  display:flex;align-items:center;justify-content:center;gap:9px;margin:8px 0 0;
-  color:#8a93ad;font-size:14px;font-weight:650;
-}
-.ss-note svg{flex:none;color:#a8afc2}
-
 /* ── 좁은 화면 ──────────────────────────────────────── */
 @media(max-width:1180px){
   .ss-mascot{display:none}
-  .ss-guide{padding:24px 28px}
 }
 /* 관리자(3장)는 한 칸 일찍 2열로 접는다 — 3열로 버티면 카드가 너무 좁아진다 */
 @media(max-width:1280px){
   .ss-modes.n-3{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:1020px){
-  .ss-guide{grid-template-columns:minmax(0,1fr);gap:20px}
-  .ss-guide-rule{display:none}
   .ss-modes.n-2,.ss-modes.n-3{grid-template-columns:minmax(0,1fr)}
-  .ss-head h1{font-size:32px}
+  .ss-head h1{font-size:27px}
 }
 @media(max-width:680px){
-  .ss-head h1{font-size:26px}
-  .ss-mode{padding:32px 20px 24px}
-  .ss-steps.n-2,.ss-steps.n-3{grid-template-columns:minmax(0,1fr)}
+  .ss-head h1{font-size:24px}
+  .ss-mode{padding:22px 18px 18px}
 }
 @media(prefers-reduced-motion:reduce){
   .ss-mode,.ss-cta,.ss-others a{transition:none}

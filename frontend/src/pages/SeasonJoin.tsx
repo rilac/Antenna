@@ -12,11 +12,13 @@
    정의돼 있다). 그래서 아래 SeasonDetail 은 이 화면이 그리려면 반드시 필요한
    최소 필드를 적은 것이고, 백엔드와 맞출 때 이 타입이 기준이 된다.
 
-   ── 시기를 보여주지 않는다 ──────────────────────────────────────
-   연습은 "성격(급락 구간 · 횡보 구간 같은 것)과 섹터는 고르고, 시기는 서버가
-   골라 숨긴다" 로 정했다. 연도를 알려주면 답을 알고 하는 복기가 되어 예측
-   연습이 안 된다. 그래서 SeasonDetail 에 baseDate·연도 필드를 두지 않는다 —
-   타입에 아예 없어야 실수로 그려지지 않는다.
+   ── 날짜를 보여주지 않는다 ──────────────────────────────────────
+   SeasonDetail 에 baseDate·연도 필드를 두지 않는다 — 타입에 아예 없어야 실수로
+   그려지지 않는다.
+
+   2026-09-07 — 연습은 종목이 실명이다. 그래서 연습에서 이건 은닉이 아니다:
+   실명과 실제 주가가 함께 나가면 검색 한 번에 날짜가 나온다. 날짜를 안 그리는
+   이유는 화면 축이 DAY n 이기 때문이고, 진짜로 가리는 쪽은 대회다.
 
    ── 참가는 여기서 한다 ──────────────────────────────────────────
    POST /seasons/{id}/join · PRACTICE·DEMO 는 즉시 201, COMPETITION 은 참가비
@@ -246,9 +248,7 @@ export default function SeasonJoin() {
               </>
             ) : s.joined ? (
               <>
-                <Link className="sj-cta" to={`/sim/${s.id}/play`}>
-                  이어서 하기<em aria-hidden="true">›</em>
-                </Link>
+                <Link className="sj-cta" to={`/sim/${s.id}/play`}>이어서 하기</Link>
                 <p className="sj-cta-note">
                   {s.currentDay ? `${s.currentDay}게임일까지 진행했습니다` : '진행 중인 시즌입니다'}
                 </p>
@@ -257,7 +257,7 @@ export default function SeasonJoin() {
               /* 참가비 소각 서명이 필요해 지갑 연동에 걸려 있다.
                  눌러도 서명할 곳이 없어 막아 두고 이유를 적는다. */
               <>
-                <span className="sj-cta is-off" aria-disabled="true">대회 참가하기</span>
+                <span className="sj-cta is-off" aria-disabled="true">대회 참여하기</span>
                 <p className="sj-cta-note">
                   {s.entryFee
                     ? `참가비 ${ant(s.entryFee)} 소각 · 지갑 서명이 필요합니다`
@@ -267,7 +267,7 @@ export default function SeasonJoin() {
             ) : (
               <>
                 <button className="sj-cta" type="button" onClick={join} disabled={joining}>
-                  {joining ? '참가하는 중…' : '시작하기'}
+                  {joining ? '참여하는 중…' : '연습 참여하기'}
                   {!joining && <em aria-hidden="true">›</em>}
                 </button>
                 <p className="sj-cta-note">참가비 없이 바로 시작합니다</p>
