@@ -93,3 +93,14 @@
   .mp-actions{grid-column:1/-1;grid-template-columns:1fr 1fr}
   .mp-links{grid-template-columns:minmax(0,1fr)}
 }
+
+/* 백엔드가 아직 없는 구역 안내 — 오류가 아니라 준비 중이다.
+   GET /users/me/badges 가 열리면 이 규칙과 함께 쓰는 분기를 지운다. */
+.mp-pending{
+  display:flex; align-items:center; gap:7px;
+  margin:0; padding:11px 13px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface-2);
+  font-size:12.5px; color:var(--muted);
+}
+.mp-pending svg{ flex:0 0 auto; }

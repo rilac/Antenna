@@ -110,11 +110,28 @@ export default function MyPage() {
           </section>
         )}
 
-        {/* ── 배지 ─────────────────────────────────────── */}
+        {/* ── 배지 ───────────────────────────────────────
+            GET /users/me/badges 가 아직 없다. UserBadge 엔티티·리포지토리는 있으나
+            컨트롤러가 안 열렸다.
+
+            없는 경로라 서버가 500 을 주는데, 그대로 ErrorState 로 그리면
+            "서버에 문제가 생겼습니다 · 잠시 후 다시 시도해 주세요" 가 뜬다.
+            서버 문제가 아니고 다시 시도해도 영영 안 되므로 틀린 안내다.
+            H-03 환경 설정에서 알림 설정을 다룬 것과 같이 "준비 중" 으로 알린다.
+
+            API 가 열리면 이 분기를 지우고 ErrorState 를 되살린다 — 그때는
+            진짜 서버 오류만 남으므로 재시도 안내가 맞는 말이 된다. */}
         <section className="mp-block">
           <h3>배지</h3>
           {badges.error
-            ? <ErrorState error={badges.error} onRetry={badges.reload} inline />
+            ? (
+              <p className="mp-pending">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" /><path d="M12 7.5V12l3 1.8" />
+                </svg>
+                배지는 준비 중입니다. 시즌 성과가 쌓이면 여기에 모입니다.
+              </p>
+            )
             : <BadgeList badges={badges.data?.items ?? []} />}
         </section>
 
