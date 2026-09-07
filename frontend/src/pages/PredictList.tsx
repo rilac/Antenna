@@ -2,15 +2,19 @@
    담당 스토리 [ANT-FE-PREDICT-LIST]
    설계서 docs/화면설계서.md §3 C · §4 C-02 · §7
 
+   GET /predictions/me (ANT-PRED-06) 에 붙어 있다.
+
    설계 제약
    - 응답 필드는 명세가 못 박은 아홉 개(id · stockCode · direction · targetPrice ·
      horizon · status · dday · errorRate · settleDate)에 stockName 하나를 더한
      것뿐이다. **그 밖의 값을 화면에서 만들어내지 않는다.**
-     stockName 은 팀에서 추가하기로 정한 필드이고 서버에 아직 없다 — 그래서
-     비었을 때 종목코드로 대체한다(api/predictions.ts 머리말).
    - **수정·삭제 버튼을 두지 않는다.** 해당 API 가 없고, 예측은 등록 후 불변이다.
    - 상태 필터는 서버가 거른다. 커서 페이징이라 클라이언트에서 거르면 페이지마다
      줄 수가 들쭉날쭉해진다.
+   - 서버 status 어휘에 JUDGED 가 없어 거르개를 적중·빗나감 두 칸으로 갈랐다.
+     그래서 그 두 칸에는 건수를 붙이지 않는다 — 집계가 판정 완료를 한 덩어리
+     (judgedCount)로만 주기 때문에, 세려면 적중률로 되계산해야 하고 그건 화면이
+     값을 만들어내는 일이다. 두 칸의 합은 위 요약에 판정 완료로 적혀 있다.
    - 앵커 상태는 AnchorBadge 를 쓰라고 되어 있지만 이 응답에 앵커 값이 없다.
      컴포넌트도 아직 없어 D-01 에서 함께 만든다 — 값이 오지 않는 자리를 미리
      비워 두지 않는다.
@@ -21,7 +25,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCursorList } from '../api/useCursorList'
-import { MY_FILTERS, MY_FILTER_LABEL, fetchMyPredictions, phaseOf } from '../api/predictions'
+import { MY_FILTERS, MY_FILTER_LABEL, fetchMyPredictions, hitRatePercent, phaseOf } from '../api/predictions'
 import type { MyFilter, MyPrediction, MyPredictionMeta } from '../api/predictions'
 import PredictionStatus from '../components/prediction/PredictionStatus'
 import EmptyState from '../components/state/EmptyState'
@@ -30,6 +34,27 @@ import '../styles/screens/predict-list.css'
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 const day = (iso: string) => iso.replace(/-/g, '.').slice(2)
+
+/* 비어 있는 이유가 필터마다 다르다. "없습니다" 한 문구로 뭉치면 무엇을 하면
+   채워지는지 알려 줄 수 없다. */
+const EMPTY: Record<MyFilter, { title: string; hint: string }> = {
+  ALL: {
+    title: '아직 등록한 예측이 없습니다',
+    hint: '종목을 고르고 방향과 목표가를 정해 첫 예측을 남겨 보세요.',
+  },
+  PENDING: {
+    title: '판정을 기다리는 예측이 없습니다',
+    hint: '등록한 예측은 만기 영업일 종가로 자동 판정됩니다.',
+  },
+  HIT: {
+    title: '적중한 예측이 없습니다',
+    hint: '만기 종가가 목표가에 닿은 예측이 이곳에 쌓입니다.',
+  },
+  MISS: {
+    title: '빗나간 예측이 없습니다',
+    hint: '판정에서 목표가에 닿지 못한 예측이 이곳에 쌓입니다.',
+  },
+}
 
 export default function PredictList() {
   const [filter, setFilter] = useState<MyFilter>('ALL')
@@ -42,9 +67,14 @@ export default function PredictList() {
   const count = useMemo<Record<MyFilter, number | null>>(() => ({
     ALL: list.meta?.total ?? null,
     PENDING: list.meta?.pendingCount ?? null,
-    JUDGED: list.meta?.judgedCount ?? null,
+    /* 적중·빗나감을 따로 세어 주는 값이 응답에 없다. 적중률로 되계산할 수는
+       있지만 반올림 때문에 합이 판정 완료 건수와 어긋난다 — 틀린 숫자를 그리는
+       것보다 안 그리는 쪽이 낫다. */
+    HIT: null,
+    MISS: null,
   }), [list.meta])
 
+  const judged = list.meta?.judgedCount ?? null
   const hitRate = list.meta?.hitRate ?? null
   const isEmpty = !list.loading && !list.error && list.items.length === 0
 
@@ -60,8 +90,8 @@ export default function PredictList() {
               0% 로 그리면 다 틀린 것처럼 보인다 */}
           {hitRate !== null && (
             <p className="mp-hit">
-              <b className="num">{`${hitRate}%`}</b>
-              <span>{`판정 ${count.JUDGED}건 적중률`}</span>
+              <b className="num">{`${hitRatePercent(hitRate)}%`}</b>
+              <span>{`판정 ${judged}건 적중률`}</span>
             </p>
           )}
         </header>
@@ -90,10 +120,8 @@ export default function PredictList() {
           </div>
         ) : isEmpty ? (
           <EmptyState
-            title={filter === 'JUDGED' ? '판정이 끝난 예측이 없습니다' : '아직 등록한 예측이 없습니다'}
-            hint={filter === 'JUDGED'
-              ? '만기가 지나면 결과와 오차가 이곳에 쌓입니다.'
-              : '종목을 고르고 방향과 목표가를 정해 첫 예측을 남겨 보세요.'}
+            title={EMPTY[filter].title}
+            hint={EMPTY[filter].hint}
             action={{ label: '종목 탐색으로', to: '/stocks' }}
           />
         ) : (
@@ -102,11 +130,19 @@ export default function PredictList() {
               {list.items.map((p) => (
                 <li key={p.id} className="mp-row">
                   {/* 종목명을 앞세우고 코드를 아래에 둔다. 이름으로 알아보고
-                      코드로 정확히 짚는다. 이름이 아직 안 오면 코드만 남는다 */}
-                  <Link className="mp-stock" to={`/stocks/${p.stockCode}`}>
-                    <b>{p.stockName ?? p.stockCode}</b>
-                    {p.stockName && <span className="num">{p.stockCode}</span>}
-                  </Link>
+                      코드로 정확히 짚는다.
+
+                      종목이 지워지면 서버가 코드와 이름을 함께 null 로 내린다.
+                      갈 곳이 없으므로 링크가 아닌 자리로 그린다 — /stocks/null 로
+                      보내면 눌러서 404 를 만나게 된다. */}
+                  {p.stockCode === null ? (
+                    <p className="mp-stock is-gone"><b>삭제된 종목</b></p>
+                  ) : (
+                    <Link className="mp-stock" to={`/stocks/${p.stockCode}`}>
+                      <b>{p.stockName ?? p.stockCode}</b>
+                      {p.stockName && <span className="num">{p.stockCode}</span>}
+                    </Link>
+                  )}
 
                   <p className="mp-call num">
                     <b className={p.direction === 'UP' ? 'up' : 'down'}>
@@ -137,7 +173,10 @@ export default function PredictList() {
 
                   <p className="mp-when num">
                     <span>{`${p.horizon}거래일`}</span>
-                    <span className="mp-date">{`${day(p.settleDate)} 만기`}</span>
+                    {/* 기준가 배치가 만기일을 채우기 전에는 비어 있다 */}
+                    <span className="mp-date">
+                      {p.settleDate === null ? '만기 미정' : `${day(p.settleDate)} 만기`}
+                    </span>
                   </p>
 
                   <PredictionStatus status={p.status} />
@@ -146,7 +185,7 @@ export default function PredictList() {
                   <Link
                     className="mp-more"
                     to={`/predictions/${p.id}`}
-                    aria-label={`${p.stockName ?? p.stockCode} 예측 상세`}
+                    aria-label={`${p.stockName ?? p.stockCode ?? '삭제된 종목'} 예측 상세`}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                          strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

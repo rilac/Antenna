@@ -96,6 +96,11 @@
 .my-predictions-page .mp-stock:hover b{color:var(--brand);text-decoration:underline}
 .my-predictions-page .mp-stock:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 
+/* 종목이 지워진 예측. 링크가 아니라 <p> 라 여백을 지우고, 눌릴 것처럼
+   보이지 않게 강조를 낮춘다 */
+.my-predictions-page .mp-stock.is-gone{margin:0}
+.my-predictions-page .mp-stock.is-gone b{color:var(--faint);font-weight:600}
+
 .my-predictions-page .mp-call{display:flex;align-items:baseline;gap:8px;margin:0;min-width:0}
 .my-predictions-page .mp-call b{font-size:13px;font-weight:750}
 .my-predictions-page .mp-target{color:var(--body);font-size:13px;font-weight:700}
