@@ -38,7 +38,32 @@ public class SeasonPrice {
     @Column(name = "game_day", nullable = false)
     private int gameDay;
 
-    /** 시작 시 seed로 일괄 생성한 뒤 읽기 전용이다. */
+    /* 아래 넷은 캔들 표시 전용이다(G-04·G-05). 원천에 없으면 null 이라
+       거래량 막대나 심지가 빠질 수 있다 — 화면이 null 을 견뎌야 한다.
+       판정·체결은 close 만 쓰므로 close 만 NOT NULL 이다. */
+
+    /** 시가 */
+    @Column(name = "open", precision = 14, scale = 2)
+    private BigDecimal open;
+
+    /** 고가 */
+    @Column(name = "high", precision = 14, scale = 2)
+    private BigDecimal high;
+
+    /** 저가 */
+    @Column(name = "low", precision = 14, scale = 2)
+    private BigDecimal low;
+
+    /**
+     * 그 게임일 종가. 체결·판정·표시가 쓰는 유일한 가격이다.
+     *
+     * <p>seed 로 만들지 않는다 — daily_quotes 에서 실제 과거 종가를 복사한다(ERD v0.6).
+     * 시즌 시작 시 일괄 복사한 뒤 읽기 전용이다.
+     */
     @Column(name = "close", nullable = false, precision = 14, scale = 2)
     private BigDecimal close;
+
+    /** 거래량(주) · 캔들 하단 막대 */
+    @Column(name = "volume")
+    private Long volume;
 }

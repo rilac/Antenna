@@ -85,7 +85,7 @@
 </head>
 <body>
 <div class="wrap">
-<h1>엔테나 테이블 맵</h1><div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v0.5</b> · 2026-09-04 · 김성령(KSR) · <code>KSR_ANT-CHAIN-04</code> — <code>chain_events</code> 주석 정정(스키마 변경 없음). 인덱서는 ws 구독이 아니라 <b><code>eth_getLogs</code> 5초 폴링</b>이고 커서는 컨트랙트별 <code>max(block_number)</code>(별도 커서 테이블 없음). <code>payload</code> 는 Anchored 의 <code>{batchId, merkleRoot, commitHashes[], blockHash}</code> — 리프 전량이 들어 있어 이 행만으로 proof 재구축이 되고, blockHash 는 reorg 검사(해시 불일치 시 인덱서 정지) 기준이다. 이벤트 저장과 <code>anchor_batches</code> 반영은 한 트랜잭션이라 <code>processed_at IS NULL</code> 은 평소엔 안 생긴다. 토큰 이벤트(Subscribed·Burned·Minted)는 자체 ANT 컨트랙트(ANT-CHAIN-03) 배포 뒤 별도 이슈. 근거: 지라 S15P21A507-35, 결정검토서 C1~C4.</div><div><b>v0.4</b> · 2026-09-04 · 김성령(KSR) · <code>KSR_ANT-CHAIN-02-05</code> — <code>anchor_batches</code> 에 <b>business_date(인덱스) · contract_address · chain_id · sent_at · attempts · last_error</b> 추가(ANT-CHAIN-02). 앵커 배치가 영업일 13:30 B2 에서 떨어져 <b>매일 00:05 KST 주말 포함</b> 별도 배치가 됐고, 실행 기록은 이 테이블 자체다 — <code>batch_runs</code> 는 판정 배치(PRED-03) 것이고 <code>batch_runs.anchor_batch_id</code> 는 참조용·NULL 가능으로 본다(소유자 확인 필요). 재배포(ANT-CHAIN-08 v2) 뒤 옛 배치를 옛 주소로 검증하려면 주소·체인 ID 가 행에 있어야 한다. 실패 재시도는 새 배치에 합치지 않고 같은 id 로 재전송한다. 근거: docs-personal 온체인API_결정검토서 A2·A4·A5·A6.</div><div><b>v0.3</b> · 2026-09-04 · 임대연(DY) · <code>DY_ANT-DATA-03-VALUATION</code> — <code>stocks</code> 에 <b>listed_shares · per · pbr</b> 추가. 상장주식수는 「주식시세정보」<code>lstgStCnt</code> 를 회차마다 COALESCE 로 덮고, per·pbr 는 종가·연간 재무에서 배치가 다시 쓰는 <b>파생 컬럼</b>이다(API 명세 v0.18). 원천 표가 아니라 언제든 다시 계산할 수 있다. 아울러 이미 코드에 있던 <code>market</code> 칸을 표에 적었다.</div><div><b>v0.2</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — <code>prediction_commits.signature</code> 주석의 "EIP-712"를 <b>EIP-191 personal_sign</b>으로 정정. API 명세서 v0.4 §1.2와 일치시킨 것. 스키마 변경은 없다.</div><div><b>v0.1</b> · ~2026-08-28 · (이전 판) · <code>—</code> — 버전 표기가 없던 최초 판</div></div>
+<h1>엔테나 테이블 맵</h1><div class="changelog" style="margin:0 0 20px;padding:12px 16px;border-left:5px solid #e8a13c;background:#fff8e6;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.7;font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:#3a3730;"><b style="display:block;margin-bottom:6px;font-size:13px;">변경 로그 (최신이 위)</b><div><b>v0.6</b> · 2026-09-06 · 박효정(HJ) · <code>HJ_ANT-FE-SEASON-JOIN</code> — <b>모의투자 시즌을 실제 과거 주가 기반으로 확정</b>. 가격을 seed 로 합성하던 전제를 버리고 <code>daily_quotes</code> 에서 구간을 복사한다. <code>seasons</code> 에 <code>title</code>·<code>note</code>·<code>theme</code>·<code>base_date</code> 추가, <code>seed</code> 는 <b>가격 생성 → 종목·구간 선정</b> 근거로 의미 변경. <code>season_prices</code> 에 <code>open</code>·<code>high</code>·<code>low</code>·<code>volume</code> 추가(G-04 캔들). <b><code>base_date</code> 는 응답 금지</b> — 연습은 성격·섹터만 고르고 시기는 서버가 숨긴다(연도를 알면 예측이 아니라 복기가 된다). <code>season_news</code> 익명화 범위를 사건 고유명사·인물·지수 수치·정책명까지 확대, <code>season_indicators</code> 는 절대값 응답 금지(상대값 변환), <code>season_tickers.sector</code> 는 상위 분류만. <code>mode=DEMO</code> 는 관리자 전용.<br>남은 것 — <code>predictions.season_ticker_id</code> 와 REPLAY 트랙은 "모의투자는 매매지 예측이 아니다" 결정과 어긋나 삭제 후보이나, 앵커·proof 파이프라인이 <code>predictions</code> 에 의존하므로 체인 담당과 합의 후 정리한다.</div><div><b>v0.5</b> · 2026-09-04 · 김성령(KSR) · <code>KSR_ANT-CHAIN-04</code> — <code>chain_events</code> 주석 정정(스키마 변경 없음). 인덱서는 ws 구독이 아니라 <b><code>eth_getLogs</code> 5초 폴링</b>이고 커서는 컨트랙트별 <code>max(block_number)</code>(별도 커서 테이블 없음). <code>payload</code> 는 Anchored 의 <code>{batchId, merkleRoot, commitHashes[], blockHash}</code> — 리프 전량이 들어 있어 이 행만으로 proof 재구축이 되고, blockHash 는 reorg 검사(해시 불일치 시 인덱서 정지) 기준이다. 이벤트 저장과 <code>anchor_batches</code> 반영은 한 트랜잭션이라 <code>processed_at IS NULL</code> 은 평소엔 안 생긴다. 토큰 이벤트(Subscribed·Burned·Minted)는 자체 ANT 컨트랙트(ANT-CHAIN-03) 배포 뒤 별도 이슈. 근거: 지라 S15P21A507-35, 결정검토서 C1~C4.</div><div><b>v0.4</b> · 2026-09-04 · 김성령(KSR) · <code>KSR_ANT-CHAIN-02-05</code> — <code>anchor_batches</code> 에 <b>business_date(인덱스) · contract_address · chain_id · sent_at · attempts · last_error</b> 추가(ANT-CHAIN-02). 앵커 배치가 영업일 13:30 B2 에서 떨어져 <b>매일 00:05 KST 주말 포함</b> 별도 배치가 됐고, 실행 기록은 이 테이블 자체다 — <code>batch_runs</code> 는 판정 배치(PRED-03) 것이고 <code>batch_runs.anchor_batch_id</code> 는 참조용·NULL 가능으로 본다(소유자 확인 필요). 재배포(ANT-CHAIN-08 v2) 뒤 옛 배치를 옛 주소로 검증하려면 주소·체인 ID 가 행에 있어야 한다. 실패 재시도는 새 배치에 합치지 않고 같은 id 로 재전송한다. 근거: docs-personal 온체인API_결정검토서 A2·A4·A5·A6.</div><div><b>v0.3</b> · 2026-09-04 · 임대연(DY) · <code>DY_ANT-DATA-03-VALUATION</code> — <code>stocks</code> 에 <b>listed_shares · per · pbr</b> 추가. 상장주식수는 「주식시세정보」<code>lstgStCnt</code> 를 회차마다 COALESCE 로 덮고, per·pbr 는 종가·연간 재무에서 배치가 다시 쓰는 <b>파생 컬럼</b>이다(API 명세 v0.18). 원천 표가 아니라 언제든 다시 계산할 수 있다. 아울러 이미 코드에 있던 <code>market</code> 칸을 표에 적었다.</div><div><b>v0.2</b> · 2026-08-31 · 김성령(KSR) · <code>KSR_ANT-AUTH-04-06</code> — <code>prediction_commits.signature</code> 주석의 "EIP-712"를 <b>EIP-191 personal_sign</b>으로 정정. API 명세서 v0.4 §1.2와 일치시킨 것. 스키마 변경은 없다.</div><div><b>v0.1</b> · ~2026-08-28 · (이전 판) · <code>—</code> — 버전 표기가 없던 최초 판</div></div>
 
 <!-- ── 계정 ── -->
 <section style="--dc:#435268">
@@ -209,7 +209,7 @@
       <li><div class="row"><span class="k no">·</span><span class="c">open <span class="nv">V4</span></span><span class="t">numeric(14,2)</span></div><div class="note">시가 · 캔들 몸통의 한쪽 끝 · 판정에는 쓰지 않음</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">high <span class="nv">V4</span></span><span class="t">numeric(14,2)</span></div><div class="note">고가 · 캔들 위꼬리</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">low <span class="nv">V4</span></span><span class="t">numeric(14,2)</span></div><div class="note">저가 · 캔들 아래꼬리</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">close</span><span class="t">numeric(14,2)</span></div><div class="note">종가 · 판정·표시·부트스트랩이 쓰는 유일한 판정 가격</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">close</span><span class="t">numeric(14,2)</span></div><div class="note">종가 · 판정·표시가 쓰는 유일한 판정 가격 · <b><span class="nv">V6</span></b> 모의투자 시즌 가격의 원천이기도 하다(season_prices 로 구간을 복사한다)</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">volume <span class="nv">V4</span></span><span class="t">bigint</span></div><div class="note">거래량(주) · 거래대금은 저장하지 않음 · 주봉·월봉은 이 표를 GROUP BY로 집계(별도 테이블 없음)</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">collected_at</span><span class="t">timestamptz</span></div><div class="note">수집(upsert) 시각 · 장애 추적</div></li>
     </ul>
@@ -612,10 +612,14 @@
   <article><header><h3>seasons</h3></header>
     <ul>
       <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">mode</span><span class="t">varchar(10)</span></div><div class="note">PRACTICE / COMPETITION / DEMO · 부트스트랩·블라인드·보상 결정</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">mode</span><span class="t">varchar(10)</span></div><div class="note">PRACTICE / COMPETITION / DEMO · 블라인드·보상 결정 · DEMO는 관리자에게만 노출(<span class="nv">V6</span>)</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">title <span class="nv">V6</span></span><span class="t">varchar(40)</span></div><div class="note">시즌의 <b>성격</b> · "급락 구간"·"실적 발표 구간" 처럼 무슨 장이었는지만 알려준다 · 연도·사건명을 넣지 않는다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">note <span class="nv">V6</span></span><span class="t">varchar(120)</span></div><div class="note">카드 부제 한 줄 · G-02·G-03 이 그대로 표시</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">theme <span class="nv">V6</span></span><span class="t">varchar(20)</span></div><div class="note">섹터·테마 키 · seed 로 종목을 뽑을 때의 후보 조건 · krx-sectors.csv 의 업종구분과 매핑</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">length_days</span><span class="t">int</span></div><div class="note">총 게임일(120) · 종료 조건</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">initial_cash</span><span class="t">numeric(14,2)</span></div><div class="note">초기 예수금 · 전원 공통 출발선</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">seed</span><span class="t">bigint</span></div><div class="note">블록 부트스트랩 시드 · 시즌 가격 전체의 재현 근거</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">base_date <span class="nv">V6</span></span><span class="t">date</span></div><div class="note"><b>응답에 절대 싣지 않는다.</b> game_day 를 실제 영업일로 바꾸는 서버 전용 열쇠 — daily_quotes 에서 구간을 떠올 때만 쓴다. 참가자에게 연도가 새면 답을 알고 하는 복기가 되어 예측 연습이 성립하지 않는다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">seed</span><span class="t">bigint</span></div><div class="note"><b><span class="nv">V6</span> 의미 변경</b> — 가격 생성 시드가 아니라 <b>종목·구간 선정</b>의 재현 근거다(가격은 실제 과거 주가를 쓴다). 같은 seed·theme 면 같은 종목과 같은 구간이 뽑혀 대회 공정성이 보장된다</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">current_day</span><span class="t">int</span></div><div class="note">대회 공용 진행일 · 공개 가능한 가격·뉴스의 상한</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">status</span><span class="t">varchar(10)</span></div><div class="note">SCHEDULED→RUNNING→CLOSED · CLOSED 전 정답 비공개</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">opens_at <span class="nv">V3</span></span><span class="t">timestamptz</span></div><div class="note">대회 시작 시각(09:00) · 대회 외 모드는 NULL</div></li>
@@ -630,7 +634,7 @@
       <li><div class="row"><span class="k fk">FK</span><span class="c">season_id <em>→seasons</em></span><span class="t">int</span></div><div class="note">소속 시즌</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">display_name</span><span class="t">varchar(20)</span></div><div class="note">참가자에게 보이는 이름 · 블라인드면 "A사"</div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">real_stock_code <em>→stocks</em></span><span class="t">varchar(6)</span></div><div class="note">정답 원본 종목 · CLOSED 전까지 응답 금지</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">sector</span><span class="t">varchar(30)</span></div><div class="note">블라인드에도 공개하는 힌트 · 정답 누수 차단용 복제</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">sector</span><span class="t">varchar(30)</span></div><div class="note">블라인드에도 공개하는 힌트 · 정답 누수 차단용 복제<br><b><span class="nv">V6</span> 상위 분류로만 담는다.</b> "반도체" 처럼 좁게 주면 실제 주가와 맞물려 종목 후보가 몇 개로 좁혀진다 — "IT" 수준으로 올리거나 한 시즌에 다른 섹터 종목을 섞는다</div></li>
     </ul>
     <div class="uqrow">UQ (season_id, display_name)</div>
   </article>
@@ -639,10 +643,15 @@
     <ul>
       <li><div class="row"><span class="k pk">PK</span><span class="c">id</span><span class="t">int</span></div></li>
       <li><div class="row"><span class="k fk">FK</span><span class="c">ticker_id <em>→season_tickers</em></span><span class="t">int</span></div><div class="note">대상 종목</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">game_day</span><span class="t">int</span></div><div class="note">게임일 인덱스 · 실제 날짜 아님(커닝 차단)</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">close</span><span class="t">numeric(14,2)</span></div><div class="note">그 게임일 종가 · 시작 시 seed로 일괄 생성 후 읽기 전용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">game_day</span><span class="t">int</span></div><div class="note">게임일 인덱스 · 실제 날짜 아님(커닝 차단) · 실제 날짜는 seasons.base_date + 이 인덱스로 서버만 계산한다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">open <span class="nv">V6</span></span><span class="t">numeric(14,2)</span></div><div class="note">시가 · 캔들 표시 전용(G-04·G-05) · 원천에 없으면 NULL</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">high <span class="nv">V6</span></span><span class="t">numeric(14,2)</span></div><div class="note">고가 · 같음</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">low <span class="nv">V6</span></span><span class="t">numeric(14,2)</span></div><div class="note">저가 · 같음</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">close</span><span class="t">numeric(14,2)</span></div><div class="note"><b><span class="nv">V6</span> 생성 방식 변경</b> — seed 로 만들지 않고 <b>daily_quotes 에서 실제 과거 종가를 복사</b>한다. 체결·판정·표시가 쓰는 유일한 가격이라 NOT NULL. 시즌 시작 시 일괄 복사 후 읽기 전용</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">volume <span class="nv">V6</span></span><span class="t">bigint</span></div><div class="note">거래량(주) · 캔들 하단 막대 · 원천에 없으면 NULL</div></li>
     </ul>
     <div class="uqrow">UQ (ticker_id, game_day)</div>
+    <div class="note" style="padding:8px 12px">원천은 daily_quotes 다 — 공공데이터포털 일봉이 OHLCV 를 모두 주므로(ANT-DATA-02) 그대로 옮긴다. 실제 날짜만 game_day 로 바꿔 담는다.</div>
   </article>
 
   <article><header><h3>season_news</h3><span class="v3">V3</span></header>
@@ -653,7 +662,7 @@
       <li><div class="row"><span class="k no">·</span><span class="c">game_day</span><span class="t">int</span></div><div class="note">공개 게임일 · 진행일 초과분은 응답 금지</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">kind</span><span class="t">varchar(12)</span></div><div class="note">NEWS / DISCLOSURE / IR / EVENT(역사적 사건) / AI_HINT(AI 힌트) · AI_HINT만 생성물이고 나머지는 당시 실제 정보</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">title</span><span class="t">varchar(200)</span></div><div class="note">제목</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">종목명·연도 치환한 본문(블라인드 누수 차단) · 3000자 · AI_HINT는 그 게임일 사건 요약 + "생각해볼 것" 질문, 확률 수치는 넣지 않는다</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">body</span><span class="t">text</span></div><div class="note">3000자 · AI_HINT는 그 게임일 사건 요약 + "생각해볼 것" 질문, 확률 수치는 넣지 않는다<br><b><span class="nv">V6</span> 익명화 범위 확대</b> — 종목명·연도만이 아니라 <b>시대를 추정할 수 있는 단서를 전부 뺀다</b>: 사건 고유명사(코로나19·리먼브라더스·IT버블), 실명 인물, 지수·환율·금리의 절대 수치, 정책·제도명, 기술 트렌드어. 하나만 남아도 검색 한 번에 구간이 특정된다</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">prompt_version <span class="nv">V4</span></span><span class="t">varchar(16)</span></div><div class="note">AI_HINT 생성에 쓴 프롬프트·모델 버전 · 나머지 kind는 NULL · 시즌 만들 때 게임일별로 미리 생성해 둔다</div></li>
     </ul>
   </article>
@@ -664,9 +673,10 @@
       <li><div class="row"><span class="k fk">FK</span><span class="c">season_id <em>→seasons</em></span><span class="t">int</span></div><div class="note">소속 시즌</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">game_day</span><span class="t">int</span></div><div class="note">공개 게임일</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">code</span><span class="t">varchar(16)</span></div><div class="note">KOSPI / USDKRW / RATE(금리) / OIL / VIX</div></li>
-      <li><div class="row"><span class="k no">·</span><span class="c">value</span><span class="t">numeric(14,4)</span></div><div class="note">그 게임일 값 · 차트 재료</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">value</span><span class="t">numeric(14,4)</span></div><div class="note">그 게임일 값 · 차트 재료<br><b><span class="nv">V6</span> 절대값을 응답에 싣지 않는다.</b> 코스피 1457 하나로 구간이 특정된다 — 뉴스를 완벽히 익명화해도 지표 숫자가 날짜를 그대로 알려준다. 내보낼 때는 <b>시즌 시작 = 100 기준 상대값</b>으로 바꾼다(추세와 낙폭은 그대로 읽히고 날짜는 못 특정한다)</div></li>
     </ul>
     <div class="uqrow">UQ (season_id, game_day, code)</div>
+    <div class="note" style="padding:8px 12px"><b><span class="nv">V6</span></b> 연습 1차 범위에서는 지표를 아예 내보내지 않는다 — 게임의 핵심 흐름(뉴스 읽고 · 사고팔고 · 결과 확인)에 없어도 성립한다. 테이블은 남겨 두고 대회 단계에서 다시 판단한다.</div>
   </article>
 
   <article><header><h3>season_participants</h3></header>

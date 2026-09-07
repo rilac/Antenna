@@ -1,6 +1,7 @@
 /* G-02 모드 선택 · /sim/modes
    담당 스토리 [ANT-FE-SEASON-MODE]
-   설계서 docs/화면설계서.md §3 G-02 — "연습 · 대회 · 시연 3카드 + 모드별 차이"
+   설계서 docs/화면설계서.md §3 G-02 — "연습 · 대회 2카드 + 모드별 차이 · 시연은
+   관리자만 3번째 카드"
 
    구조·클래스 이름은 프로토타입 screens/sim-setup.html 을 그대로 따른다
    (routes.ts 의 bodyClass 'sim-setup-page' 가 그 화면을 가리킨다).
