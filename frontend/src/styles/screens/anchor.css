@@ -1,0 +1,122 @@
+/* D-02 앵커 배치 상세 — [ANT-FE-ANCHOR]
+   색·간격은 app.css 의 토큰만 쓴다. */
+
+.ac-back{
+  display:inline-flex; align-items:center; gap:5px;
+  margin-bottom:14px;
+  color:var(--muted); font-size:13px; font-weight:600;
+  text-decoration:none;
+}
+.ac-back:hover{ color:var(--brand-ink); }
+
+.ac-loading{ margin:0; color:var(--muted); font-size:13px; }
+
+/* ── 머리 ────────────────────────────────────── */
+.ac-head{ margin-bottom:14px; }
+.ac-title{ display:flex; align-items:center; gap:10px; }
+.ac-title h1{
+  margin:0;
+  font-size:22px; font-weight:800; letter-spacing:-.02em; color:var(--ink);
+}
+.ac-sub{ margin:6px 0 0; font-size:13px; color:var(--muted); }
+
+/* ── 배치 정보 ───────────────────────────────── */
+.ac-card{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:12px;
+  padding:16px 18px;
+  margin-bottom:14px;
+}
+
+.ac-fields{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));
+  gap:10px 20px; margin:0;
+}
+.ac-field{ display:flex; align-items:baseline; gap:8px; min-width:0; }
+.ac-field dt{
+  flex:0 0 auto; width:60px;
+  font-size:11.5px; font-weight:600; color:var(--faint);
+}
+.ac-field dd{
+  margin:0; min-width:0;
+  display:flex; align-items:baseline; flex-wrap:wrap; gap:6px;
+  font-size:12.5px; color:var(--body);
+}
+.ac-chain{ font-size:11.5px; color:var(--faint); }
+
+/* 실패 사유는 체인이 준 이름 그대로 — 옮기면 검색이 안 된다 */
+.ac-error{
+  display:flex; flex-direction:column; gap:5px;
+  margin-top:14px; padding:11px 13px;
+  border:1px solid #f6d5d5; border-radius:9px;
+  background:#fdeeee;
+}
+.ac-error b{ font-size:12px; font-weight:700; color:var(--danger); }
+.ac-error code{
+  font-family:var(--mono); font-size:12px; color:var(--body);
+  overflow-wrap:anywhere;
+}
+
+/* ── 커밋 목록 ───────────────────────────────── */
+.ac-commits{
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:12px;
+  padding:16px 18px;
+}
+.ac-commits-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px;
+}
+.ac-commits-head h2{ margin:0; font-size:14px; font-weight:700; color:var(--ink); }
+
+.ac-copyall{
+  flex:0 0 auto;
+  padding:5px 11px;
+  border:1px solid var(--rule); border-radius:7px;
+  background:var(--surface); color:var(--body);
+  font-family:inherit; font-size:11.5px; font-weight:600;
+  cursor:pointer;
+}
+.ac-copyall:hover{ background:var(--surface-2); }
+.ac-copyall.copied{ border-color:#bfe3cd; background:#e7f5ec; color:#15803d; }
+
+/* 순서가 검증 재료라는 것을 알리는 줄. 정렬 기능이 없는 이유이기도 하다 */
+.ac-order-note{
+  margin:8px 0 12px;
+  font-size:11.5px; color:var(--faint);
+}
+
+.ac-empty{ margin:0; font-size:12.5px; color:var(--muted); }
+
+.ac-commit-list{
+  margin:0; padding:0; list-style:none;
+  display:flex; flex-direction:column;
+}
+.ac-commit-list li{
+  display:flex; align-items:center; gap:10px;
+  padding:5px 0;
+  border-bottom:1px solid var(--rule);
+}
+.ac-commit-list li:last-child{ border-bottom:0; }
+
+.ac-commit-no{
+  flex:0 0 auto; width:34px;
+  text-align:right;
+  font-size:11.5px; color:var(--faint);
+}
+
+.ac-more{
+  display:block; width:100%;
+  margin-top:12px; padding:10px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface); color:var(--body);
+  font-family:inherit; font-size:12.5px; font-weight:600;
+  cursor:pointer;
+}
+.ac-more:hover{ background:var(--surface-2); }
+
+@media (max-width: 560px){
+  .ac-fields{ grid-template-columns:1fr; }
+}
