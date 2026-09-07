@@ -1,11 +1,14 @@
 package ssafy.a507.backend.domain.ranking.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import ssafy.a507.backend.common.security.CurrentUserProvider;
 import ssafy.a507.backend.domain.common.Track;
+import ssafy.a507.backend.domain.ranking.dto.MyRankResponse;
 import ssafy.a507.backend.domain.ranking.dto.RankingListResponse;
 import ssafy.a507.backend.domain.ranking.service.RankingQueryService;
 
@@ -23,6 +26,7 @@ import ssafy.a507.backend.domain.ranking.service.RankingQueryService;
 public class RankingController {
 
     private final RankingQueryService rankingQueryService;
+    private final CurrentUserProvider currentUserProvider;
 
     @GetMapping
     public RankingListResponse list(
@@ -34,5 +38,22 @@ public class RankingController {
             @RequestParam(required = false) Integer cursor,
             @RequestParam(required = false) Integer fromRank) {
         return rankingQueryService.list(track, period, sector, seasonId, limit, cursor, fromRank);
+    }
+
+    /**
+     * 내 순위 (ANT-RANK-03, 화면 E-01 상단 카드).
+     *
+     * <p>REAL 은 전체 기간 기준 하나만 낸다 — 명세의 파라미터가 {@code track} 과 {@code seasonId} 뿐이고,
+     * 화면도 기간·섹터 탭과 무관하게 카드 하나를 고정으로 띄운다.
+     *
+     * <p>랭킹에 없으면 <b>204</b>. 404 가 아닌 이유는 {@link MyRankResponse} 에 적었다.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<MyRankResponse> mine(
+            @RequestParam Track track, @RequestParam(required = false) Long seasonId) {
+        return rankingQueryService
+                .myRank(currentUserProvider.currentUserId(), track, seasonId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }
