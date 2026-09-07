@@ -49,7 +49,7 @@ type SeasonDetail = {
   /** 총 게임일 */
   lengthDays: number
   initialCash: number
-  /** 블라인드 종목 수. 이름은 진행 화면에서 "A사" 로만 보인다 */
+  /** 종목 수. 이름은 연습은 실명, 대회는 "A사" 로 온다 */
   tickerCount: number
   /** 대회만 값이 있다. 소각하는 ANT 토큰이다 */
   entryFee?: number
@@ -283,8 +283,17 @@ export default function SeasonJoin() {
           <h2 id="sj-rules-title">진행 방식</h2>
           <ul>
             <li>
-              <b>시기는 공개되지 않습니다.</b> 어떤 장이었는지만 알려주고 실제 날짜와
-              종목명은 시즌이 끝날 때까지 가립니다. 종목은 <code>A사</code> 처럼 보입니다.
+              {isCompetition ? (
+                <>
+                  <b>시기와 종목이 가려집니다.</b> 어떤 장이었는지만 알려주고 실제 날짜와
+                  종목명은 시즌이 끝날 때까지 가립니다. 종목은 <code>A사</code> 처럼 보입니다.
+                </>
+              ) : (
+                <>
+                  <b>종목은 실제 이름으로 나옵니다.</b> 실제 과거 주가를 그대로 씁니다.
+                  날짜는 표시하지 않고 <code>DAY 1</code> 부터 세어 갑니다.
+                </>
+              )}
             </li>
             <li>
               <b>주문은 그 게임일 종가로 한 번에 체결됩니다.</b> 수수료·슬리피지·예약

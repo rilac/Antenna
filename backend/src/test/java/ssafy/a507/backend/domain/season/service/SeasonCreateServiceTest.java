@@ -21,8 +21,9 @@ import ssafy.a507.backend.domain.season.service.SeasonCreateService.SeasonSpec;
 /**
  * 시즌 생성 — 실제 과거 시세 구간을 game_day 로 옮기는 부분의 검증.
  *
- * <p>확인하는 것은 넷이다. 가격이 원천과 같은가 · 실제 날짜가 game_day 로 바뀌었는가 ·
- * 구간에 구멍이 있는 종목이 걸러지는가 · 같은 seed 가 같은 종목을 뽑는가.
+ * <p>확인하는 것은 다섯이다. 가격이 원천과 같은가 · 실제 날짜가 game_day 로 바뀌었는가 ·
+ * 구간에 구멍이 있는 종목이 걸러지는가 · 같은 seed 가 같은 종목을 뽑는가 ·
+ * 이름이 모드 규칙(연습 실명 · 대회 가명)대로 담기는가.
  *
  * <p>기준 데이터 — 섹터 "테스트업종" 에 보통주 넷(A0010~A0040)과 우선주 하나(A0015).
  * 영업일은 2024-01-02 부터 닷새이고 주말(1/6·1/7)은 없다. A0040 만 사흘째 시세가 빠져 있다.
@@ -110,8 +111,11 @@ class SeasonCreateServiceTest {
     @Test
     @DisplayName("같은 seed 는 같은 종목을 뽑는다 — 대회 공정성의 근거다")
     void seed_가_같으면_같은_종목이다() {
-        Season first = createService.create(spec(DAYS.get(0), 2, 5, 7L));
-        Season second = createService.create(spec(DAYS.get(0), 2, 5, 7L));
+        // 모드만 다르게 준다 — 같은 조건은 UQ 가 막는다. 종목 선정은 모드를 보지 않는다.
+        Season first = createService.create(
+                spec(Season.Mode.PRACTICE, DAYS.get(0), 2, 5, 0, false, 7L));
+        Season second = createService.create(
+                spec(Season.Mode.DEMO, DAYS.get(0), 2, 5, 0, false, 7L));
 
         assertThat(realCodes(first.getId())).isEqualTo(realCodes(second.getId()));
     }
@@ -122,6 +126,24 @@ class SeasonCreateServiceTest {
         Season season = createService.create(spec(DAYS.get(0), 3, 5, 42L));
 
         assertThat(realCodes(season.getId())).containsExactlyInAnyOrder("A0010", "A0020", "A0030");
+    }
+
+    @Test
+    @DisplayName("연습은 실제 종목명, 블라인드는 A사·B사로 담는다")
+    void 이름_규칙이_모드마다_다르다() {
+        Season real = createService.create(
+                spec(Season.Mode.PRACTICE, DAYS.get(0), 2, 5, 0, false, 7L));
+        Season blind = createService.create(
+                spec(Season.Mode.COMPETITION, DAYS.get(0), 2, 5, 0, true, 7L));
+
+        // 같은 seed 면 같은 종목이 뽑힌다. 이름만 다르다.
+        assertThat(realCodes(real.getId()))
+                .containsExactlyInAnyOrderElementsOf(realCodes(blind.getId()));
+
+        assertThat(aliasToCode(blind.getId()).keySet()).containsExactly("A사", "B사");
+        // 기준 데이터의 종목명은 코드 + "종목" 이다
+        aliasToCode(real.getId())
+                .forEach((shown, code) -> assertThat(shown).isEqualTo(code + "종목"));
     }
 
     @Test
@@ -174,15 +196,32 @@ class SeasonCreateServiceTest {
                 .hasMessageContaining("5 일만 수집돼 있다");
     }
 
-    /** 워밍업 없는 시즌. 대부분의 검증이 game_day 1..N 만 보면 되므로 이걸 쓴다. */
+    /** 워밍업 없는 실명 시즌. 대부분의 검증이 game_day 1..N 만 보면 되므로 이걸 쓴다. */
     private static SeasonSpec spec(LocalDate baseDate, int tickerCount, int lengthDays, long seed) {
-        return spec(baseDate, tickerCount, lengthDays, 0, seed);
+        return spec(baseDate, tickerCount, lengthDays, 0, false, seed);
     }
 
     private static SeasonSpec spec(
             LocalDate baseDate, int tickerCount, int lengthDays, int warmupDays, long seed) {
+        return spec(baseDate, tickerCount, lengthDays, warmupDays, false, seed);
+    }
+
+    private static SeasonSpec spec(
+            LocalDate baseDate, int tickerCount, int lengthDays, int warmupDays,
+            boolean blind, long seed) {
+        return spec(Season.Mode.PRACTICE, baseDate, tickerCount, lengthDays, warmupDays, blind, seed);
+    }
+
+    /**
+     * 모드까지 지정한다. UQ(mode, theme, seed, base_date) 때문에 <b>같은 조건의 시즌을 두 번
+     * 만들 수 없다</b> — 같은 seed 로 두 시즌을 세워 비교하는 검증은 모드만 달리 준다.
+     * 종목 선정은 모드를 보지 않으므로 비교가 성립한다.
+     */
+    private static SeasonSpec spec(
+            Season.Mode mode, LocalDate baseDate, int tickerCount, int lengthDays,
+            int warmupDays, boolean blind, long seed) {
         return new SeasonSpec(
-                Season.Mode.PRACTICE,
+                mode,
                 "테스트 시즌",
                 "설명",
                 SECTOR,
@@ -190,6 +229,7 @@ class SeasonCreateServiceTest {
                 tickerCount,
                 lengthDays,
                 warmupDays,
+                blind,
                 new BigDecimal("30000000"),
                 seed);
     }

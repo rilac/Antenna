@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -24,9 +25,22 @@ import lombok.NoArgsConstructor;
  *
  * <p>시기는 참가자에게 공개하지 않는다. {@code base_date} 는 서버 전용이며 어떤 응답에도
  * 싣지 않는다 — 연습은 성격({@code title})과 섹터만 고르고 시기는 서버가 고른다.
+ *
+ * <p><b>UQ(mode, theme, seed, base_date)</b> — 이 넷이 시즌의 정체다. 같으면 같은 종목이
+ * 같은 구간으로 뽑히므로 같은 시즌이다. 시더가 두 겹으로 돌아도(개발 중 devtools 이중
+ * 재기동) 겹쳐 쌓이지 않게 DB 가 막는다 — 검사만으로는 못 막는다. 두 흐름이 같은 순간에
+ * "없다" 를 보고 둘 다 만들 수 있다.
+ *
+ * <p>{@code base_date} 를 키에 넣는 이유 — 같은 섹터·같은 seed 로 <b>다른 구간</b>을 두 시즌
+ * 만드는 것은 정상이다. 셋만으로 잠그면 그걸 막는다.
  */
 @Entity
-@Table(name = "seasons")
+@Table(
+        name = "seasons",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uq_seasons_mode_theme_seed_base",
+                        columnNames = {"mode", "theme", "seed", "base_date"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Season {

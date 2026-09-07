@@ -326,7 +326,7 @@ export default function SeasonPractice() {
               )}
 
               {/* 시기를 숨기는 것이 이 게임의 규칙이라는 걸 여기서 한 번 알린다 */}
-              <p className="pr-note">주제는 어떤 장이었는지만 알려줍니다. 실제 시기와 종목명은 가려집니다.</p>
+              <p className="pr-note">주제는 어떤 장이었는지만 알려줍니다. 종목은 실제 이름과 실제 주가로 나옵니다.</p>
             </section>
 
             <section className="pr-ai">

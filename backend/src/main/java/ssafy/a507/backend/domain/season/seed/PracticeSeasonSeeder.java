@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import ssafy.a507.backend.domain.market.seed.SectorSeeder;
 import ssafy.a507.backend.domain.season.entity.Season;
@@ -60,6 +61,16 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
     private static final int WARMUP_DAYS = 120;
 
     /**
+     * 연습은 종목을 가리지 않는다(2026-09-07 결정). "삼성전자" 가 그대로 보인다.
+     *
+     * <p>연습은 배우는 자리라 실명이 곧 학습이고, "A사" 는 아무 감정이 없다. 실명이면
+     * 실제 주가와 맞물려 시기가 사실상 드러나지만 연습에서는 그게 손해가 아니다.
+     * 대회를 만들 때는 {@code blind = true} 로 준다 — 순위가 걸려 있어 그 구간을
+     * 기억하는 사람이 유리하면 순위가 뜻을 잃는다.
+     */
+    private static final boolean BLIND = false;
+
+    /**
      * 만들어 둘 연습 시즌.
      *
      * <p>섹터는 수집 범위(KOSPI 300) 안에서 종목이 넉넉한 상위 분류를 골랐다. 기준일은 서로
@@ -80,6 +91,7 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
                     TICKER_COUNT,
                     LENGTH_DAYS,
                     WARMUP_DAYS,
+                    BLIND,
                     INITIAL_CASH,
                     1001L),
             new SeasonSpec(
@@ -91,6 +103,7 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
                     TICKER_COUNT,
                     LENGTH_DAYS,
                     WARMUP_DAYS,
+                    BLIND,
                     INITIAL_CASH,
                     1002L),
             new SeasonSpec(
@@ -102,6 +115,7 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
                     TICKER_COUNT,
                     LENGTH_DAYS,
                     WARMUP_DAYS,
+                    BLIND,
                     INITIAL_CASH,
                     1003L));
 
@@ -120,6 +134,12 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
             } catch (IllegalStateException e) {
                 // 재료 부족은 오류가 아니다. 백필이 끝난 뒤 다음 기동이 다시 시도한다.
                 log.info("연습 시즌 \"{}\" 을 건너뛴다 — {}", spec.title(), e.getMessage());
+            } catch (DataIntegrityViolationException e) {
+                /* UQ(mode, theme, seed) 에 걸렸다 = 같은 순간 다른 흐름이 먼저 만들었다.
+                   위의 exists 검사는 두 흐름이 같은 순간에 "없다" 를 보면 둘 다 통과한다 —
+                   개발 중 devtools 가 두 겹으로 재기동할 때 실제로 그랬다. 지는 쪽이
+                   조용히 물러난다. 여기서 예외를 올리면 기동이 실패한다. */
+                log.info("연습 시즌 \"{}\" 은 이미 만들어졌다 — 건너뛴다", spec.title());
             }
         }
     }

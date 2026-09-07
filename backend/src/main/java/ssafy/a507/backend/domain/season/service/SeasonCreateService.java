@@ -32,9 +32,13 @@ import ssafy.a507.backend.domain.season.repository.SeasonTickerRepository;
  * 옮기고 실제 날짜만 {@code game_day} 인덱스로 바꾼다(ERD v0.6). 뉴스가 실제 사건인데
  * 가격이 난수면 뉴스를 읽어도 소용이 없으므로 둘의 출처가 같아야 한다.
  *
- * <p><b>무엇을 숨기는가.</b> {@code seasons.base_date} 는 서버만 갖고, 참가자에게는
- * game_day 와 "A사" 같은 가명만 나간다. 연도를 알면 그다음에 무슨 일이 있었는지 아는
- * 상태로 시작해 예측이 아니라 복기가 된다.
+ * <p><b>무엇을 숨기는가.</b> {@code seasons.base_date} 는 서버만 갖고 어떤 응답에도 나가지
+ * 않는다. 종목을 가릴지는 시즌마다 다르다({@link SeasonSpec#blind}) — <b>연습은 실명,
+ * 대회는 가명</b>이다.
+ *
+ * <p>실명 시즌에서 시기 은닉은 형식이다. 실제 주가를 쓰므로 종목명과 종가가 함께 나가면
+ * 검색 한 번에 날짜가 나온다. 그래도 날짜를 응답에 담지 않는 이유는 둘이다 — 대회가 같은
+ * 코드 경로를 쓰고, 화면 축이 날짜가 아니라 game_day 라서다.
  *
  * <p><b>왜 seed 로 뽑는가.</b> 같은 seed·theme·baseDate 면 언제 만들어도 같은 종목이
  * 뽑힌다. 대회에서 참가자가 서로 다른 종목을 받으면 순위가 의미를 잃는다.
@@ -58,7 +62,10 @@ public class SeasonCreateService {
     private final SeasonTickerRepository seasonTickerRepository;
     private final SeasonPriceRepository seasonPriceRepository;
 
-    /** 가명은 A사부터 붙인다. 26개를 넘길 시즌은 없다 — 넘으면 만들지 않고 막는다. */
+    /**
+     * 가명은 A사부터 붙인다. 블라인드 시즌에만 쓴다 — 26개를 넘길 시즌은 없고, 넘으면
+     * 만들지 않고 막는다.
+     */
     private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     /**
@@ -90,8 +97,8 @@ public class SeasonCreateService {
         List<SeasonTicker> tickers = new ArrayList<>(picked.size());
         for (int i = 0; i < picked.size(); i++) {
             Stock stock = picked.get(i);
-            String alias = ALPHABET.charAt(i) + "사";
-            tickers.add(SeasonTicker.of(season, alias, stock, stock.getSector()));
+            String shown = spec.blind() ? ALPHABET.charAt(i) + "사" : stock.getName();
+            tickers.add(SeasonTicker.of(season, shown, stock, stock.getSector()));
         }
         seasonTickerRepository.saveAll(tickers);
 
@@ -157,9 +164,9 @@ public class SeasonCreateService {
      * 구멍이 있으면 이동평균이 잘못된 값을 낸다.
      */
     private List<Stock> pick(SeasonSpec spec, List<LocalDate> gameDays) {
-        if (spec.tickerCount() > ALPHABET.length()) {
+        if (spec.blind() && spec.tickerCount() > ALPHABET.length()) {
             throw new IllegalStateException(
-                    "가명이 A~Z 뿐이라 종목은 %d 개까지다".formatted(ALPHABET.length()));
+                    "가명이 A~Z 뿐이라 블라인드 시즌의 종목은 %d 개까지다".formatted(ALPHABET.length()));
         }
 
         List<Stock> inSector = stockRepository.findBySectorAndListedIsTrueOrderByCodeAsc(spec.theme()).stream()
@@ -255,6 +262,17 @@ public class SeasonCreateService {
             int lengthDays,
             /** 시즌 시작 전에 함께 담을 봉 수. game_day 0 이하로 들어간다. 0 이면 안 담는다 */
             int warmupDays,
+            /**
+             * 종목을 가릴 것인가. true 면 "A사"·"B사", false 면 실제 종목명이 들어간다.
+             *
+             * <p><b>연습은 false, 대회는 true 로 만든다.</b> 목적이 달라서다 — 연습은 배우는
+             * 자리라 "삼성전자가 이때 이랬구나" 가 곧 학습이고, 대회는 순위가 걸려 있어
+             * 그 구간을 기억하는 사람이 유리하면 순위가 뜻을 잃는다.
+             *
+             * <p>실명이면 시기가 사실상 드러난다. 실제 주가를 쓰기 때문이다 — 종목명과
+             * 종가가 함께 나가면 검색 한 번에 날짜가 나온다. 연습에서는 그걸 받아들인다.
+             */
+            boolean blind,
             BigDecimal initialCash,
             long seed) {}
 }

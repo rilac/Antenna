@@ -193,7 +193,7 @@ class SeasonControllerTest {
     }
 
     @Test
-    @DisplayName("종목 목록은 가명과 섹터만 준다 — 정답 원본 종목은 응답에 없다")
+    @DisplayName("종목 목록은 표시 이름과 섹터만 준다 — 원본 종목코드는 응답에 없다")
     void 종목은_블라인드로_나간다() throws Exception {
         mockMvc.perform(get(URL + "/" + practiceId + "/tickers").with(user(me)))
                 .andExpect(status().isOk())
@@ -277,7 +277,8 @@ class SeasonControllerTest {
     @Test
     @DisplayName("대회는 공용 진행일까지 온다 — 참가 여부와 무관하다")
     void 대회는_공용_진행일이다() throws Exception {
-        Long contestId = insertSeason("COMPETITION", "대회 시즌", null, "화학", 60);
+        // 기준 데이터의 대회 시즌과 섹터가 겹치면 UQ(mode, theme, seed, base_date) 에 걸린다
+        Long contestId = insertSeason("COMPETITION", "대회 시즌", null, "운송장비·부품", 60);
         Long ticker = insertTicker(contestId, "A사", "A0002");
         for (int day = 1; day <= 5; day++) {
             insertPrice(ticker, day, 2000 + day);
