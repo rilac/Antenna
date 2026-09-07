@@ -73,6 +73,13 @@ public enum ErrorCode {
     /** 종목코드가 종목 마스터에 없다. 구간에 시세가 없는 것(200 + 빈 목록)과 구분한다. */
     STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "종목을 찾을 수 없습니다."),
 
+    // 모의투자 시즌 (ANT-SEASON-01)
+    /**
+     * 시즌이 없다. 관리자 전용 모드(DEMO)를 일반 사용자가 부른 것도 이 code 다 —
+     * 403 으로 답하면 "그런 시즌이 있다" 는 사실이 새고, 시연 시즌은 존재 자체가 비공개다.
+     */
+    SEASON_NOT_FOUND(HttpStatus.NOT_FOUND, "시즌을 찾을 수 없습니다."),
+
     // AI 브리핑 (ANT-RESEARCH-03)
     BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),
 

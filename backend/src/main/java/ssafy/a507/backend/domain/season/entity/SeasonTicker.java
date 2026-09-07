@@ -46,4 +46,20 @@ public class SeasonTicker {
     /** 블라인드에도 공개하는 힌트. 정답 누수를 막으려 값을 복제해 둔다. */
     @Column(length = 30)
     private String sector;
+
+    /**
+     * 시즌 종목 하나. {@code displayName} 은 "A사" 처럼 정체를 지운 이름이고
+     * {@code realStock} 은 정답이라 CLOSED 전까지 어떤 응답에도 실으면 안 된다.
+     *
+     * <p>{@code sector} 는 참가자에게 보여 주는 유일한 힌트다. 좁게 담으면 실제 주가와
+     * 맞물려 종목이 추정되므로 상위 분류로만 담는다(ERD v0.6).
+     */
+    public static SeasonTicker of(Season season, String displayName, Stock realStock, String sector) {
+        SeasonTicker ticker = new SeasonTicker();
+        ticker.season = season;
+        ticker.displayName = displayName;
+        ticker.realStock = realStock;
+        ticker.sector = sector;
+        return ticker;
+    }
 }

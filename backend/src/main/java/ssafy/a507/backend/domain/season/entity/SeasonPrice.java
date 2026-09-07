@@ -66,4 +66,29 @@ public class SeasonPrice {
     /** 거래량(주) · 캔들 하단 막대 */
     @Column(name = "volume")
     private Long volume;
+
+    /**
+     * 게임일 하나의 가격. {@code daily_quotes} 한 행을 그대로 옮기되 실제 날짜는 버리고
+     * {@code gameDay} 인덱스만 남긴다 — 날짜가 곧 시대 단서다(ERD v0.6).
+     *
+     * <p>OHLCV 중 close 만 필수다. 나머지는 원천에 없으면 null 로 들어오고 화면이 견딘다.
+     */
+    public static SeasonPrice of(
+            SeasonTicker ticker,
+            int gameDay,
+            BigDecimal open,
+            BigDecimal high,
+            BigDecimal low,
+            BigDecimal close,
+            Long volume) {
+        SeasonPrice price = new SeasonPrice();
+        price.ticker = ticker;
+        price.gameDay = gameDay;
+        price.open = open;
+        price.high = high;
+        price.low = low;
+        price.close = close;
+        price.volume = volume;
+        return price;
+    }
 }
