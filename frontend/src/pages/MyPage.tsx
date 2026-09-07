@@ -26,8 +26,9 @@ const LINKS = [
      자리표시자라 온체인 검증 화면 전체가 주소를 직접 쳐야만 닿는 상태여서,
      허브인 여기에 임시 진입점을 둔다. C-04 가 링크를 달면 이 줄은 빼도 된다. */
   { to: '/ledger', label: '커밋 원장', desc: '예측이 체인에 기록된 앵커 배치', icon: 'chain' },
-  { to: '/me/channel', label: '내 채널 설정', desc: '구독료와 변경 이력', icon: 'gear' },
-  { to: '/settings', label: '환경 설정', desc: '알림과 트레이딩 기본 뷰', icon: 'gear' },
+  /* 채널 설정(E-04)을 환경 설정 안으로 합쳤다 — 둘 다 내 계정을 손보는 곳인데
+     진입점이 둘로 갈려 있었고 아이콘까지 같아 구분되지 않았다. */
+  { to: '/settings', label: '설정', desc: '프로필과 채널, 알림', icon: 'gear' },
 ] as const
 
 const ICON: Record<string, React.ReactNode> = {
