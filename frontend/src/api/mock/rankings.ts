@@ -1,8 +1,8 @@
-/* ⚠ 임시 목데이터 — GET /rankings 가 열리면 이 파일을 통째로 지운다.
+/* 목업 응답. GET /rankings 가 붙으면 이 파일을 지운다.
 
-   지우는 절차
-   1. rankings.ts 의 fetchRankings · fetchMyRank 에서 주석 처리된 api.get 을 살린다
-   2. 이 파일과 rankings.ts 의 import 한 줄을 지운다
+   지우는 절차 — api/insight.ts 와 같다
+   1. rankings.ts 의 MOCK 을 false 로 바꾼다 (여기까지만 해도 전부 실제 호출로 넘어간다)
+   2. 각 함수의 `if (MOCK)` 한 줄과 이 파일, rankings.ts 의 import 두 줄을 지운다
    화면 코드는 손대지 않아도 된다.
 
    값은 지어냈지만 형태는 지어내지 않았다 — 명세 §랭킹의 응답과 백엔드 Ranking
@@ -13,7 +13,7 @@
    - 지표가 null 인 행: 판정 표본이 아직 없는 예측가. 화면이 0 이 아니라 "—" 로 그리는지 본다.
    - REAL 과 REPLAY 의 점수대를 다르게: 두 트랙을 같은 표에 섞으면 안 된다는 제약을 눈으로 확인한다.
    - tier: REPLAY 에만 채운다. REAL 에서 티어가 보이면 설계 제약 위반이다. */
-import type { MyRank, RankingPage, RankingQuery, RankingRow, Track } from './rankings'
+import type { MyRank, RankingPage, RankingQuery, RankingRow, Track } from '../rankings'
 
 /** 목이라도 네트워크처럼 비동기여야 로딩 상태가 실제로 지나간다 */
 const LATENCY_MS = 200
@@ -71,7 +71,7 @@ function rows(query: RankingQuery): RankingRow[] {
   })
 }
 
-export function fetchRankingsMock(query: RankingQuery): Promise<RankingPage> {
+export function rankings(query: RankingQuery): Promise<RankingPage> {
   const all = rows(query)
   const from = query.fromRank ?? 1
   const limit = query.limit ?? 20
@@ -82,7 +82,7 @@ export function fetchRankingsMock(query: RankingQuery): Promise<RankingPage> {
   })
 }
 
-export function fetchMyRankMock(track: Track, seasonId?: number): Promise<MyRank> {
+export function myRank(track: Track, seasonId?: number): Promise<MyRank> {
   const rand = seeded(trackSeed(track, undefined, undefined, seasonId))
   const rank = track === 'REAL' ? 37 : 12
   return delay({

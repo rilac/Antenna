@@ -5,10 +5,16 @@
    GET /rankings/me?track=&seasonId=
      → { rank, percentile, delta, tier }
 
-   ⚠ 백엔드 미구현 — 지금은 rankings.mock.ts 가 응답을 대신한다.
-     Ranking 엔티티와 RankingRepository 는 이미 있으나 컨트롤러가 없다.
-     아래 두 함수의 본문만 api.get 으로 바꾸고 mock 파일을 지우면 끝나도록 짜 두었다. */
-import { fetchRankingsMock, fetchMyRankMock } from './rankings.mock'
+   ── 백엔드가 붙으면 지울 것 ────────────────────────────────
+   아래 MOCK 을 false 로 바꾸면 전부 실제 호출로 넘어간다. 그다음
+   api/mock/rankings.ts 와 각 함수의 `if (MOCK)` 한 줄씩만 지우면 흔적이 없다.
+   실제 호출부는 이미 명세서 경로·쿼리대로 적어 두었다 — api/insight.ts 가 쓰는 방식과 같다.
+
+   Ranking 엔티티와 RankingRepository 는 있으나 컨트롤러가 없다(티켓 없음). */
+import { api } from './client'
+import * as mock from './mock/rankings'
+
+const MOCK = true
 
 /** 실전과 리플레이는 랭킹이 분리된다. 리플레이 실적은 실전 신뢰도에 반영하지 않는다. */
 export const TRACKS = ['REAL', 'REPLAY'] as const
@@ -95,18 +101,16 @@ export type RankingQuery = {
   fromRank?: number
 }
 
-/* ── 조회 ────────────────────────────────────────────────
-   백엔드가 열리면 아래 두 함수 본문을 api.get 으로 바꾸고
-   rankings.mock.ts 를 지운다. 호출부는 손대지 않아도 된다. */
+/* ── 조회 ─────────────────────────────────────────────── */
 
 export function fetchRankings(query: RankingQuery): Promise<RankingPage> {
-  // return api.get<RankingPage>('/rankings', { query })
-  return fetchRankingsMock(query)
+  if (MOCK) return mock.rankings(query)
+  return api.get<RankingPage>('/rankings', { query })
 }
 
 export function fetchMyRank(track: Track, seasonId?: number): Promise<MyRank> {
-  // return api.get<MyRank>('/rankings/me', { query: { track, seasonId } })
-  return fetchMyRankMock(track, seasonId)
+  if (MOCK) return mock.myRank(track, seasonId)
+  return api.get<MyRank>('/rankings/me', { query: { track, seasonId } })
 }
 
 /** 배치 산출 시각. 실시간이 아니라는 것을 드러내야 하므로 분까지 적는다. */

@@ -13,9 +13,10 @@
 
    두지 않는 것: 실전 화면의 리플레이 티어 표시.
 
-   ⚠ GET /rankings 가 아직 없어 api/rankings.mock.ts 가 응답을 대신한다.
-     화면 코드는 실제 응답 형태를 그대로 다루므로, API 가 열리면 rankings.ts 의
-     두 함수 본문만 바꾸면 된다. 이 파일은 손대지 않는다. */
+   ⚠ GET /rankings 가 아직 없어 api/mock/rankings.ts 가 응답을 대신한다
+     (api/insight.ts 와 같은 MOCK 플래그 방식). 화면 코드는 실제 응답 형태를
+     그대로 다루므로, API 가 열리면 rankings.ts 의 MOCK 만 false 로 바꾸면 된다.
+     이 파일은 손대지 않는다. */
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
