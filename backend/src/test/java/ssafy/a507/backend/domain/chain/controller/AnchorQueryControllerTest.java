@@ -25,7 +25,7 @@ import ssafy.a507.backend.domain.chain.entity.AnchorBatch;
 import ssafy.a507.backend.domain.chain.merkle.MerkleTree;
 
 /**
- * ANT-CHAIN-06 — 커밋 원장 목록·상세. H2.
+ * ANT-CHAIN-06 — 커밋 원장 목록·상세. 리프의 predictionId 는 ANT-CHAIN-09. H2.
  *
  * <p>커밋은 PRED-02 가 팩터리를 만들기 전이라 네이티브 INSERT 로 심는다(AnchorRunnerTest 와 같은 방식).
  * SecurityConfig 가 아직 없어 기본 체인이 살아 있다 — 요청마다 {@code user("<id>")} 를 붙인다.
@@ -120,13 +120,13 @@ class AnchorQueryControllerTest {
     // ── 상세 ──────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("상세의 커밋 해시는 리프 순서(prediction id 오름차순)이고, 그 순서로 접은 루트가 merkleRoot 와 같다")
+    @DisplayName("상세의 리프는 prediction id 오름차순이고, 그 순서로 접은 루트가 merkleRoot 와 같다")
     void 상세_리프_순서와_루트() throws Exception {
         List<String> seeds = List.of("z-first", "m-second", "a-third", "k-fourth", "q-fifth");
         AnchorBatch batch = confirmedBatch(seeds);
         List<String> expected = seeds.stream().map(AnchorQueryControllerTest::hashOf).toList();
 
-        var result = mockMvc.perform(get("/api/v1/anchors/{id}", batch.getId()).with(user(viewer)))
+        mockMvc.perform(get("/api/v1/anchors/{id}", batch.getId()).with(user(viewer)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(batch.getId()))
                 .andExpect(jsonPath("$.merkleRoot").value(batch.getMerkleRoot()))
@@ -134,15 +134,31 @@ class AnchorQueryControllerTest {
                 .andExpect(jsonPath("$.txHash").value(batch.getTxHash()))
                 .andExpect(jsonPath("$.blockNumber").value(batch.getBlockNumber()))
                 .andExpect(jsonPath("$.attempts").value(1))
-                .andExpect(jsonPath("$.commitHashes.length()").value(5))
-                .andExpect(jsonPath("$.commitHashes[0]").value(expected.get(0)))
-                .andExpect(jsonPath("$.commitHashes[4]").value(expected.get(4)))
-                .andReturn();
+                .andExpect(jsonPath("$.commits.length()").value(5))
+                .andExpect(jsonPath("$.commits[0].commitHash").value(expected.get(0)))
+                .andExpect(jsonPath("$.commits[4].commitHash").value(expected.get(4)));
 
         // 응답 목록을 그대로 접으면 저장된 루트가 나와야 한다 — 순서가 하나라도 어긋나면 다른 루트다.
         List<byte[]> leaves = expected.stream().map(Numeric::hexStringToByteArray).toList();
         assertThat(Numeric.toHexString(MerkleTree.build(leaves).root())).isEqualTo(batch.getMerkleRoot());
-        assertThat(result.getResponse().getContentAsString()).doesNotContain("predictionId");
+    }
+
+    @Test
+    @DisplayName("리프마다 predictionId 가 붙는다 — D-03 진입 번호 (ANT-CHAIN-09, 결정 F2 뒤집음)")
+    void 상세_리프에_predictionId() throws Exception {
+        AnchorBatch batch = confirmedBatch(List.of("z-first", "m-second", "a-third"));
+        List<Long> pids = predictionIdsOf(batch);
+
+        mockMvc.perform(get("/api/v1/anchors/{id}", batch.getId()).with(user(viewer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.commits.length()").value(3))
+                .andExpect(jsonPath("$.commits[0].predictionId").value(pids.get(0)))
+                .andExpect(jsonPath("$.commits[1].predictionId").value(pids.get(1)))
+                .andExpect(jsonPath("$.commits[2].predictionId").value(pids.get(2)))
+                // 옛 필드명이 남아 있으면 프론트가 조용히 빈 목록을 그린다.
+                .andExpect(jsonPath("$.commitHashes").doesNotExist());
+
+        assertThat(pids).isSorted();
     }
 
     @Test
@@ -154,6 +170,16 @@ class AnchorQueryControllerTest {
     }
 
     // ── 픽스처 ──────────────────────────────────────────────────────
+
+    /** 배치에 속한 커밋의 prediction id 를 리프 순서로 읽는다. 픽스처가 id 를 돌려주지 않아 DB 에서 되읽는다. */
+    @SuppressWarnings("unchecked")
+    private List<Long> predictionIdsOf(AnchorBatch batch) {
+        List<Number> rows = em.createNativeQuery(
+                        "SELECT prediction_id FROM prediction_commits WHERE anchor_batch_id = ? ORDER BY prediction_id")
+                .setParameter(1, batch.getId())
+                .getResultList();
+        return rows.stream().map(Number::longValue).toList();
+    }
 
     private static String hashOf(String seed) {
         return Numeric.toHexString(Hash.sha3(seed.getBytes()));

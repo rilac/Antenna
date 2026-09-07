@@ -1,4 +1,7 @@
-/* 블록 하나의 로딩·실패를 따로 들고 있는 훅.
+/* 로딩·실패를 따로 들고 있는 조회 훅. 목록이 아닌 단발 조회에 쓴다.
+
+   useApiQuery 는 경로 문자열만 받아 목업 게이트(api/*.ts 의 MOCK)를 지나칠 수
+   없다. 그래서 호출 함수를 그대로 받는 이 훅을 둔다 — B-03 블록들과 C-03 이 쓴다.
 
    B-03 은 블록마다 원천이 다르고 "블록 단위로 로딩·실패를 독립 처리한다" 가
    설계 제약이다(§4 B-03). 한 번의 Promise.all 로 묶으면 /financials 하나가
@@ -7,7 +10,7 @@
    useCursorList 와 역할이 다르다. 저쪽은 커서 페이징 목록이고, 이쪽은
    페이징이 없는 단발 조회다. 그래서 합치지 않았다. */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ApiError, toApiError } from '../../api/errors'
+import { ApiError, toApiError } from './errors'
 
 type State<T> = {
   data: T | null

@@ -129,3 +129,16 @@ export const CLIENT_ERROR_CODE = {
 export function isUnauthenticated(e: ApiError) {
   return e.status === 401 && e.code === ERROR_CODE.UNAUTHENTICATED
 }
+
+/**
+ * 구독으로 풀리는 잠금인지 판별한다(설계서 §5).
+ *
+ * isUnauthenticated 와 나란히 여기 둔다 — 어떤 오류가 무슨 뜻인지는
+ * 오류 계약의 일이고, 화면은 그 판단을 받아 그리기만 한다.
+ *
+ * 403 은 "없다" 가 아니라 "아직 못 본다" 다. 404 로 그리면 존재가 감춰져
+ * 구독 유인이 사라지므로, 호출부는 이 판별이 참일 때 잠금 카드를 그린다.
+ */
+export function isSubscriptionGated(e: ApiError | null | undefined): boolean {
+  return e?.status === 403
+}
