@@ -93,7 +93,7 @@ export const ROUTES: PageMeta[] = [
 
   // ── C. 예측 ──────────────────────────────────────────
   { screen: 'C-01', element: PredictNew, path: '/predict', title: '예측 등록', access: 'user', mode: 'insight', nav: 'market', bodyClass: 'prediction-create-page', story: 'ANT-FE-PREDICT-NEW' },
-  { screen: 'C-02', element: PredictList, path: '/me/predictions', title: '내 예측', access: 'user', mode: 'insight', nav: 'portfolio', story: 'ANT-FE-PREDICT-LIST' },
+  { screen: 'C-02', element: PredictList, path: '/me/predictions', title: '내 예측', access: 'user', mode: 'insight', nav: 'portfolio', bodyClass: 'my-predictions-page', story: 'ANT-FE-PREDICT-LIST' },
   { screen: 'C-03', element: PredictDetail, path: '/predictions/:id', title: '예측 상세', access: 'user', mode: 'insight', nav: 'portfolio', story: 'ANT-FE-PREDICT-DETAIL' },
   { screen: 'C-04', element: Portfolio, path: '/me/portfolio', title: '예측 포트폴리오', access: 'user', mode: 'insight', nav: 'portfolio', bodyClass: 'forecast-page', story: 'ANT-FE-PORTFOLIO' },
 

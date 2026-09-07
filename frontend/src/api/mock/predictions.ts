@@ -7,8 +7,8 @@
    초기값으로 돌아간다 — 진짜 저장은 백엔드가 할 일이다. */
 import { phaseOf } from '../predictions'
 import type {
-  CreateResult, Horizon, PredictionDraft, PredictionStatus,
-  SlotStatus, StockPrediction, StockPredictionList,
+  CreateResult, Horizon, MyPrediction, MyPredictionList, PredictionDraft,
+  PredictionStatus, SlotStatus, StockPrediction, StockPredictionList,
 } from '../predictions'
 
 const delay = <T,>(value: T, ms: number) =>
@@ -167,4 +167,57 @@ export function stockPredictions(code: string, query: Query): Promise<StockPredi
     judgedCount: judged.length,
     hitRate: judged.length ? Math.round((hit / judged.length) * 100) : null,
   }, 340)
+}
+
+/* ── 내 예측 (C-02) ───────────────────────────────────────
+   명세의 아홉 필드에 stockName 을 더해 만든다(팀에서 추가하기로 정한 필드).
+   서버에 아직 없으므로 화면은 비었을 때 종목코드로 대체하게 되어 있다 —
+   그 갈래도 확인하려고 한 줄만 이름을 비워 둔다.
+
+   상태 분포를 골고루 둔다. 등록 직후(BASE)는 dday·errorRate 가 둘 다 비어 있고,
+   판정 대기(OPEN)는 dday 만, 판정 완료(HIT/MISS)는 errorRate 만 있다. */
+const MY_ROWS: MyPrediction[] = [
+  { id: 'p1', stockCode: '005930', stockName: '삼성전자', direction: 'UP', targetPrice: 78000, horizon: 20, status: 'BASE', dday: null, errorRate: null, settleDate: '2026-09-28' },
+  { id: 'p2', stockCode: '000660', stockName: 'SK하이닉스', direction: 'UP', targetPrice: 215000, horizon: 10, status: 'OPEN', dday: 7, errorRate: null, settleDate: '2026-09-14' },
+  { id: 'p3', stockCode: '035420', stockName: 'NAVER', direction: 'DOWN', targetPrice: 165000, horizon: 5, status: 'OPEN', dday: 2, errorRate: null, settleDate: '2026-09-07' },
+  { id: 'p4', stockCode: '373220', stockName: 'LG에너지솔루션', direction: 'UP', targetPrice: 380000, horizon: 60, status: 'OPEN', dday: 58, errorRate: null, settleDate: '2026-11-23' },
+  { id: 'p5', stockCode: '005380', stockName: '현대차', direction: 'UP', targetPrice: 260000, horizon: 20, status: 'HIT', dday: null, errorRate: 1.2, settleDate: '2026-08-24' },
+  { id: 'p6', stockCode: '068270', stockName: '셀트리온', direction: 'DOWN', targetPrice: 180000, horizon: 10, status: 'HIT', dday: null, errorRate: -2.4, settleDate: '2026-08-17' },
+  { id: 'p7', stockCode: '051910', stockName: 'LG화학', direction: 'UP', targetPrice: 420000, horizon: 20, status: 'MISS', dday: null, errorRate: -11.6, settleDate: '2026-08-10' },
+  { id: 'p8', stockCode: '105560', stockName: 'KB금융', direction: 'DOWN', targetPrice: 80000, horizon: 5, status: 'MISS', dday: null, errorRate: 9.3, settleDate: '2026-08-03' },
+  { id: 'p9', stockCode: '000270', stockName: '기아', direction: 'UP', targetPrice: 108000, horizon: 10, status: 'HIT', dday: null, errorRate: 0.4, settleDate: '2026-07-27' },
+  { id: 'p10', stockCode: '006400', stockName: '삼성SDI', direction: 'DOWN', targetPrice: 300000, horizon: 20, status: 'MISS', dday: null, errorRate: 6.8, settleDate: '2026-07-20' },
+  { id: 'p11', stockCode: '247540', stockName: '에코프로비엠', direction: 'DOWN', targetPrice: 150000, horizon: 60, status: 'HIT', dday: null, errorRate: -1.9, settleDate: '2026-07-13' },
+  { id: 'p12', stockCode: '055550', stockName: '신한지주', direction: 'UP', targetPrice: 52000, horizon: 5, status: 'HIT', dday: null, errorRate: 2.1, settleDate: '2026-07-06' },
+  { id: 'p13', stockCode: '207940', stockName: '삼성바이오로직스', direction: 'UP', targetPrice: 1020000, horizon: 20, status: 'MISS', dday: null, errorRate: -8.2, settleDate: '2026-06-29' },
+  /* 이름이 아직 안 오는 갈래 — 화면이 종목코드로 대체하는지 본다 */
+  { id: 'p14', stockCode: '005490', stockName: null, direction: 'DOWN', targetPrice: 390000, horizon: 10, status: 'HIT', dday: null, errorRate: -0.7, settleDate: '2026-06-22' },
+]
+
+/* 서버가 할 일을 그대로 흉내낸다 — status 로 먼저 거르고 그다음 커서로 자른다.
+   집계는 거르기 전 전체에서 센다. 필터를 바꿔도 탭 옆 숫자가 흔들리면 안 된다. */
+export function myPredictions(query: Query): Promise<MyPredictionList> {
+  const pending = MY_ROWS.filter((r) => phaseOf(r.status) === 'PENDING')
+  const judged = MY_ROWS.filter((r) => phaseOf(r.status) === 'JUDGED')
+  const hit = judged.filter((r) => r.status === 'HIT').length
+
+  const status = query.status as string | undefined
+  const rows = status === 'PENDING' ? pending : status === 'JUDGED' ? judged : MY_ROWS
+
+  const size = Number(query.size ?? 12)
+  const cursor = query.cursor as string | undefined
+  const start = cursor ? rows.findIndex((r) => r.id === cursor) + 1 : 0
+  const page = rows.slice(start, start + size)
+  const last = page[page.length - 1]
+  const hasNext = last ? rows.indexOf(last) < rows.length - 1 : false
+
+  return delay({
+    items: page,
+    nextCursor: hasNext && last ? last.id : null,
+    hasNext,
+    total: MY_ROWS.length,
+    pendingCount: pending.length,
+    judgedCount: judged.length,
+    hitRate: judged.length ? Math.round((hit / judged.length) * 100) : null,
+  }, 320)
 }

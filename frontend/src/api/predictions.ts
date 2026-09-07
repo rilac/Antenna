@@ -2,6 +2,7 @@
 
      GET  /predictions/slots         이번 주 슬롯 잔여
      POST /predictions               등록 — 201 슬롯 내 / 202 슬롯 초과(소각)
+     GET  /predictions/me            내 예측 (C-02)
      GET  /stocks/{code}/predictions  이 종목에 걸린 남의 예측 (B-03 예측 탭)
 
    ── 백엔드가 붙으면 지울 것 ────────────────────────────────
@@ -14,6 +15,16 @@
                                201 { predictionId, status:'BASE', commitHash }
                                202 { operationId }              슬롯 초과 → M-02
                                401 서명 주소 불일치 · 409 잔액 부족
+
+     GET /predictions/me?status=&cursor=&size=
+       ⚠ **stockName 필드 추가가 필요하다.** 명세(§4 C-02)는 아홉 필드로 못 박혀
+       있고 종목명이 없는데, 내 예측을 훑는 화면에서 `005930` 만 보이면 어느
+       종목인지 읽히지 않는다. 팀에서 추가하기로 정했다. 화면은 이미 그 필드를
+       읽되 비면 종목코드로 대체하므로, 붙이기만 하면 바로 반영된다.
+
+       `status=PENDING`(BASE·OPEN) / `JUDGED`(HIT·MISS) 로 거르고, 응답에
+       total·pendingCount·judgedCount·hitRate 를 함께 내려야 한다(필터를 바꿔도
+       탭 옆 숫자가 흔들리지 않으려면 목록 전체 값이어야 한다).
 
      GET /stocks/{code}/predictions?phase=&cursor=&size=
        종목별 예측 목록이 명세에 아직 없다. 있는 것은 /predictions/me 와
@@ -143,6 +154,70 @@ export type StockPrediction = {
   errorRate: number | null
   /** 잠금을 푸는 채널. 구독 CTA 가 여기로 간다 */
   channelId: string | null
+}
+
+/* ── 내 예측 (C-02) ───────────────────────────────────────
+   명세(§4 C-02, Jira -167)가 못 박은 아홉 필드에 stockName 하나를 더한다.
+   코드만으로는 어느 종목인지 읽히지 않아 팀에서 추가하기로 했다 —
+   화면이 값을 만들어내는 것이 아니라 서버 응답에 필드를 늘리는 것이다.
+
+   잠금이 없다. 내 예측이라 전부 보인다 — 남의 예측(StockPrediction)과 필드부터
+   다르므로 타입을 합치지 않았다. */
+export type MyPrediction = {
+  id: string
+  stockCode: string
+  /* 서버에 아직 없는 필드다(요청해 둔 상태). 그래서 null 을 허용하고 화면은
+     비었을 때 종목코드로 대체한다 — 필드가 붙기 전에도 목록이 깨지지 않는다.
+     키가 아예 빠져 와도 undefined 가 같은 갈래로 떨어진다. */
+  stockName: string | null
+  direction: Direction
+  targetPrice: number
+  horizon: Horizon
+  status: PredictionStatus
+  /** 만기까지 남은 일수. 판정이 끝난 건은 null — 0 으로 그리지 않는다 */
+  dday: number | null
+  /** 목표가 대비 오차 %. 판정 완료만 채워진다 */
+  errorRate: number | null
+  /** 만기 영업일 YYYY-MM-DD */
+  settleDate: string
+}
+
+/* 상태 필터. 서버가 status 로 거른다 — 커서 페이징이라 클라이언트에서 거르면
+   페이지마다 줄 수가 들쭉날쭉해진다(B-02 · B-03 과 같은 이유). */
+export const MY_FILTERS = ['ALL', 'PENDING', 'JUDGED'] as const
+export type MyFilter = (typeof MY_FILTERS)[number]
+
+export const MY_FILTER_LABEL: Record<MyFilter, string> = {
+  ALL: '전체',
+  PENDING: '판정 대기',
+  JUDGED: '판정 완료',
+}
+
+/** 목록 전체에 걸리는 값. 필터를 바꿔도 세 숫자는 그대로여야 한다 */
+export type MyPredictionMeta = {
+  total: number
+  pendingCount: number
+  judgedCount: number
+  /** 판정 완료 중 적중 비율 %. 판정 건이 없으면 null */
+  hitRate: number | null
+}
+
+export type MyPredictionList = CursorList<MyPrediction> & MyPredictionMeta
+
+export const MY_PREDICTION_PAGE_SIZE = 12
+
+/** useCursorList 가 커서를 관리하므로 함수를 넘긴다 */
+export function fetchMyPredictions(filter: MyFilter) {
+  return (query: Record<string, string | number | boolean | undefined>) => {
+    /* ALL 은 파라미터를 아예 붙이지 않는다 — 서버가 "전체" 를 기본으로 본다 */
+    const q = {
+      ...(filter === 'ALL' ? {} : { status: filter }),
+      size: MY_PREDICTION_PAGE_SIZE,
+      ...query,
+    }
+    if (MOCK) return mock.myPredictions(q)
+    return api.get<MyPredictionList>('/predictions/me', { query: q })
+  }
 }
 
 /* 목록 전체에 한 번만 해당하는 값. useCursorList 의 meta 로 온다.

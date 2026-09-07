@@ -558,22 +558,6 @@
   grid-row:1 / span 2;grid-column:2;
   display:flex;flex-direction:column;align-items:flex-end;gap:4px;
 }
-.stock-detail-page .pl-status{
-  padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;
-  background:var(--surface-2);color:var(--muted);
-}
-/* 적중은 초록, 빗나감은 빨강. 성공·실패의 관례가 방향 색보다 먼저 읽힌다.
-
-   옅은 바탕에 어두운 글자를 얹으면 배지 전체가 흐려 보인다. 그래서 채도를 살린
-   바탕을 통째로 칠하고 글자를 흰색으로 뒤집었다 — 같은 색이라도 면으로 칠할 때
-   훨씬 또렷하게 읽힌다.
-
-   흰 글자가 11px 굵은 글씨라 본문 기준 4.5:1 을 넘겨야 한다. 그래서 형광에
-   가까운 초록·빨강 대신 그 선을 넘기는 가장 진한 값을 골랐다(초록 5.1 · 빨강 4.7).
-   빗나감에 --up(#ee0000, 상승)을 쓰지 않는 이유는 그대로다 — 같은 줄의 "상승"
-   글씨와 같은 색이 되면 결과가 방향으로 읽힌다. */
-.stock-detail-page .pl-status.is-hit{background:#0a7f3d;color:#fff}
-.stock-detail-page .pl-status.is-miss{background:#e11d2e;color:#fff}
 .stock-detail-page .pl-when{color:var(--faint);font-size:11px;white-space:nowrap}
 
 .stock-detail-page .pl-more{

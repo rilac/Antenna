@@ -7,6 +7,7 @@ import { AuthProvider } from './auth/AuthContext'
 import './styles/app.css'
 // 전 화면이 공유하는 오류·빈 상태·잠금 표현
 import './styles/state.css'
+import './styles/prediction.css'
 
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter>
