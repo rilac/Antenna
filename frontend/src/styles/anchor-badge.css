@@ -1,0 +1,14 @@
+/* 앵커 상태 배지 — 설계서 §7 공용 (C-01 · C-02 · D-01 · M-02).
+   색만으로 구분하지 않는다. 아이콘·글자가 함께 있어야 흑백에서도 읽힌다. */
+.anchor-badge{
+  flex:0 0 auto;
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 9px;
+  border-radius:999px;
+  font-size:11.5px; font-weight:700;
+  white-space:nowrap;
+}
+/* 대기는 정상 상태다 — 경고색을 쓰지 않는다 */
+.anchor-badge.is-pending{ background:var(--surface-2); color:var(--muted); }
+.anchor-badge.is-confirmed{ background:#e7f5ec; color:#15803d; }
+.anchor-badge.is-failed{ background:#fdeeee; color:var(--danger); }

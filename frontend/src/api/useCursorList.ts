@@ -35,7 +35,8 @@ export function useCursorList<T, M = Record<string, never>>(
   const [state, setState] = useState<State<T, M>>({
     items: [], hasNext: false, loading: true, error: null, meta: null,
   })
-  const cursor = useRef<string | null>(null)
+  // 서버가 목록마다 문자열·숫자 커서를 섞어 쓴다(types.ts CursorList 주석)
+  const cursor = useRef<string | number | null>(null)
   // 쿼리 객체는 매 렌더 새로 만들어지므로 문자열로 굳혀 의존성에 넣는다
   const queryKey = JSON.stringify(query ?? {})
 

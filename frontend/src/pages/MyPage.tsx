@@ -22,8 +22,13 @@ const LINKS = [
   { to: '/me/portfolio', label: '예측 포트폴리오', desc: '누적 성과와 온체인 기록', icon: 'case' },
   { to: '/me/subscriptions', label: '내 구독', desc: '구독 중인 채널과 갱신 상태', icon: 'people' },
   { to: '/me/wallet', label: '지갑 · 토큰', desc: 'ANT 잔액과 획득·사용 내역', icon: 'wallet' },
-  { to: '/me/channel', label: '내 채널 설정', desc: '구독료와 변경 이력', icon: 'gear' },
-  { to: '/settings', label: '환경 설정', desc: '알림과 트레이딩 기본 뷰', icon: 'gear' },
+  /* 설계상 커밋 원장(D-01)은 C-04 예측 포트폴리오에서 들어간다. 그 화면이 아직
+     자리표시자라 온체인 검증 화면 전체가 주소를 직접 쳐야만 닿는 상태여서,
+     허브인 여기에 임시 진입점을 둔다. C-04 가 링크를 달면 이 줄은 빼도 된다. */
+  { to: '/ledger', label: '커밋 원장', desc: '예측이 체인에 기록된 앵커 배치', icon: 'chain' },
+  /* 채널 설정(E-04)을 환경 설정 안으로 합쳤다 — 둘 다 내 계정을 손보는 곳인데
+     진입점이 둘로 갈려 있었고 아이콘까지 같아 구분되지 않았다. */
+  { to: '/settings', label: '설정', desc: '프로필과 채널, 알림', icon: 'gear' },
 ] as const
 
 const ICON: Record<string, React.ReactNode> = {
@@ -31,6 +36,8 @@ const ICON: Record<string, React.ReactNode> = {
   case: <><path d="M3 7h18v13H3z" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /></>,
   people: <><path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9.5" cy="7" r="3.5" /><path d="M22 20v-2a4 4 0 0 0-3-3.87" /></>,
   wallet: <><path d="M3 7h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M3 7V6a2 2 0 0 1 2-2h11" /><circle cx="16" cy="13" r="1.4" /></>,
+  // 사슬 — 온체인 기록
+  chain: <><path d="M10 13a5 5 0 0 0 7.5.6l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.6l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></>,
   gear: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.2a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3.4a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.7 6.3l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V2a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7h.2a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1" /></>,
 }
 
@@ -104,11 +111,28 @@ export default function MyPage() {
           </section>
         )}
 
-        {/* ── 배지 ─────────────────────────────────────── */}
+        {/* ── 배지 ───────────────────────────────────────
+            GET /users/me/badges 가 아직 없다. UserBadge 엔티티·리포지토리는 있으나
+            컨트롤러가 안 열렸다.
+
+            없는 경로라 서버가 500 을 주는데, 그대로 ErrorState 로 그리면
+            "서버에 문제가 생겼습니다 · 잠시 후 다시 시도해 주세요" 가 뜬다.
+            서버 문제가 아니고 다시 시도해도 영영 안 되므로 틀린 안내다.
+            H-03 환경 설정에서 알림 설정을 다룬 것과 같이 "준비 중" 으로 알린다.
+
+            API 가 열리면 이 분기를 지우고 ErrorState 를 되살린다 — 그때는
+            진짜 서버 오류만 남으므로 재시도 안내가 맞는 말이 된다. */}
         <section className="mp-block">
           <h3>배지</h3>
           {badges.error
-            ? <ErrorState error={badges.error} onRetry={badges.reload} inline />
+            ? (
+              <p className="mp-pending">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" /><path d="M12 7.5V12l3 1.8" />
+                </svg>
+                배지는 준비 중입니다. 시즌 성과가 쌓이면 여기에 모입니다.
+              </p>
+            )
             : <BadgeList badges={badges.data?.items ?? []} />}
         </section>
 

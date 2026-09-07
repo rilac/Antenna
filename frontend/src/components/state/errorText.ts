@@ -44,6 +44,33 @@ const BY_CODE: Record<string, Text> = {
   [ERROR_CODE.ACCOUNT_BANNED]: { title: '이용이 제한된 계정입니다', hint: '다시 로그인해도 풀리지 않습니다' },
   [ERROR_CODE.PROVIDER_NOT_SUPPORTED]: { title: '아직 지원하지 않는 로그인 방식입니다' },
 
+  // 온체인 (ANT-CHAIN)
+  [ERROR_CODE.ANCHOR_NOT_FOUND]: { title: '앵커 배치를 찾을 수 없습니다', hint: '아직 만들어지지 않았거나 지워진 배치입니다' },
+  [ERROR_CODE.PREDICTION_FORBIDDEN]: { title: '아직 공개되지 않은 예측입니다', hint: '판정 전에는 작성자와 구독자만 근거를 볼 수 있습니다' },
+  // 체인이 잠깐 끊긴 것이라 잠시 뒤 되살아난다
+  [ERROR_CODE.CHAIN_UNAVAILABLE]: { title: '체인에 연결하지 못했습니다', hint: '잠시 후 다시 시도해 주세요', retryable: true },
+
+  // 업로드
+  [ERROR_CODE.FILE_TOO_LARGE]: { title: '파일이 너무 큽니다', hint: '더 작은 이미지를 올려 주세요' },
+  [ERROR_CODE.IMAGE_TOO_LARGE]: { title: '이미지 크기가 너무 큽니다', hint: '가로·세로가 더 작은 이미지를 올려 주세요' },
+  [ERROR_CODE.UNSUPPORTED_IMAGE_TYPE]: { title: '지원하지 않는 이미지 형식입니다' },
+  [ERROR_CODE.INVALID_IMAGE_RATIO]: { title: '이미지 비율이 맞지 않습니다' },
+  [ERROR_CODE.UPLOAD_FILE_NOT_FOUND]: { title: '올린 파일을 찾을 수 없습니다', hint: '다시 올려 주세요' },
+
+  // 광고 · 비동기 작업
+  [ERROR_CODE.AD_SLOT_SOLD_OUT]: { title: '해당 기간의 광고 자리가 찼습니다', hint: '다른 기간을 선택해 주세요' },
+  [ERROR_CODE.OPERATION_NOT_FOUND]: { title: '처리 내역을 찾을 수 없습니다' },
+  [ERROR_CODE.OPERATION_FORBIDDEN]: { title: '이 처리 내역을 볼 수 없습니다' },
+
+  // 시세 · 리서치 · 관심 종목
+  [ERROR_CODE.STOCK_NOT_FOUND]: { title: '종목을 찾을 수 없습니다' },
+  [ERROR_CODE.BRIEFING_NOT_FOUND]: { title: '브리핑을 찾을 수 없습니다' },
+  [ERROR_CODE.DUPLICATE_WATCHLIST_ITEM]: { title: '이미 관심 종목에 있습니다' },
+
+  // 댓글 · 좋아요
+  [ERROR_CODE.COMMENT_NOT_FOUND]: { title: '댓글을 찾을 수 없습니다', hint: '삭제되었을 수 있습니다' },
+  [ERROR_CODE.DUPLICATE_LIKE]: { title: '이미 좋아요를 눌렀습니다' },
+
   // 첨부 대상
   [ERROR_CODE.POST_NOT_FOUND]: { title: '글을 찾을 수 없습니다', hint: '삭제되었거나 가려진 글입니다' },
   [ERROR_CODE.REPORT_NOT_FOUND]: { title: '리포트를 찾을 수 없습니다' },
