@@ -419,12 +419,11 @@ export default function SeasonMode() {
         {/* 시즌 목록만 실패한 것이므로 화면 전체를 오류로 덮지 않는다 —
             모드별 차이는 서버와 무관하게 읽을 수 있어야 한다.
 
-            401 은 배너로 띄우지 않는다. 세션이 정말 끊겼으면 API 클라이언트가
-            로그아웃시켜 로그인 화면으로 보내므로 여기까지 오지 않는다. 여기 남는
-            401 은 백엔드에 아직 그 API 가 없다는 뜻인데(없는 경로도 401 이 온다),
-            그 사정을 "로그인이 필요합니다" 로 보여주면 로그인한 사람이 헷갈린다.
-            카드마다 붙는 안내 문구로 충분하다. */}
-        {error && error.status !== 401 && <ErrorState error={error} onRetry={reload} inline />}
+            401 도 그대로 띄운다. 전에는 뭉갰다 — /seasons 가 없던 때라 401 이 "그 API 가
+            아직 없다"(없는 경로도 401 이 온다) 는 뜻이었기 때문이다. 이제 붙었으므로
+            401 은 로그인이 안 됐다는 뜻이고, 그걸 감추면 카드마다 "참가 가능한 시즌이
+            없습니다" 가 떠서 로그인 문제를 시즌 문제로 읽게 된다. */}
+        {error && <ErrorState error={error} onRetry={reload} inline />}
 
         <section className={`ss-modes n-${modes.length}`} aria-label="모드">
           {modes.map((m) => {
