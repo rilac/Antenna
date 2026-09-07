@@ -85,3 +85,15 @@
   .wallet-entry-tx{order:4;text-align:right}
   .wallet-filters{margin-left:0}
 }
+
+/* 백엔드가 아직 없는 구역 안내 — 오류가 아니라 준비 중이다.
+   GET /wallet/balance · /wallet/ledger 가 열리면(ANT-TOKEN-04) 이 규칙과
+   함께 쓰는 분기를 지우고 ErrorState 를 되살린다. */
+.wallet-pending{
+  display:flex; align-items:center; gap:7px;
+  margin:0; padding:11px 13px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface-2);
+  font-size:12.5px; color:var(--muted);
+}
+.wallet-pending svg{ flex:0 0 auto; }

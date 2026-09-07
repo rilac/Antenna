@@ -70,8 +70,18 @@ export default function Wallet() {
               <code>{status.data.walletAddress}</code>
             </div>
 
+            {/* GET /wallet/balance 는 아직 없다 — 온체인 대사가 필요해 ANT-TOKEN-04 로
+                빠졌다(WalletController 주석). 없는 경로라 서버가 500 을 주는데 그대로
+                ErrorState 로 그리면 "잠시 후 다시 시도해 주세요" 가 뜬다. 서버 장애가
+                아니고 눌러도 영영 안 되므로 틀린 안내다 — E-05 배지와 같게 "준비 중" 으로 알린다.
+                API 가 열리면 이 분기를 지우고 ErrorState 를 되살린다. */}
             {balance.error ? (
-              <ErrorState error={balance.error} onRetry={balance.reload} inline />
+              <p className="wallet-pending">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" /><path d="M12 7.5V12l3 1.8" />
+                </svg>
+                잔액 조회는 준비 중입니다. 온체인 대사가 붙으면 여기에 표시됩니다.
+              </p>
             ) : balance.data ? (
               <div className="wallet-balance">
                 <span className="wallet-label">보유 잔액</span>
@@ -109,7 +119,16 @@ export default function Wallet() {
           </div>
         </div>
 
-        {ledger.error && <ErrorState error={ledger.error} onRetry={ledger.reload} />}
+        {/* GET /wallet/ledger 도 같은 이유로 아직 없다(ANT-TOKEN-04).
+            사유 필터는 남겨 둔다 — 무엇이 기록될지는 지금도 알려 줄 수 있다. */}
+        {ledger.error && (
+          <p className="wallet-pending">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" /><path d="M12 7.5V12l3 1.8" />
+            </svg>
+            획득 · 사용 내역은 준비 중입니다. 가입 보너스와 성과 보상이 여기에 쌓입니다.
+          </p>
+        )}
 
         {!ledger.error && ledger.items.length === 0 && !ledger.loading && (
           <EmptyState
