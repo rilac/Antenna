@@ -133,6 +133,40 @@ class SeasonCreateServiceTest {
     }
 
     @Test
+    @DisplayName("워밍업은 game_day 0 이하로 들어간다 — 플레이 첫날이 1 이다")
+    void 워밍업은_0_이하다() throws Exception {
+        // 2024-01-05 부터 하루짜리 시즌 + 워밍업 3일. 앞의 1/2·1/3·1/4 가 -1·0 ... 로 들어간다.
+        Season season = createService.create(spec(LocalDate.of(2024, 1, 5), 1, 1, 3, 42L));
+
+        assertThat(season.getBaseDate()).isEqualTo(LocalDate.of(2024, 1, 5));
+        assertThat(season.getLengthDays()).isEqualTo(1);
+
+        String alias = aliasToCode(season.getId()).keySet().iterator().next();
+        // 1/2 → -2 · 1/3 → -1 · 1/4 → 0 · 1/5 → 1
+        assertThat(gameDays(season.getId(), alias)).containsExactly(-2, -1, 0, 1);
+    }
+
+    @Test
+    @DisplayName("워밍업이 요청보다 짧아도 시즌은 만든다 — 지표만 덜 보인다")
+    void 워밍업이_짧아도_만든다() {
+        // 첫 영업일(1/2)부터 시작하면 앞에 아무것도 없다.
+        Season season = createService.create(spec(DAYS.get(0), 1, 2, 50, 42L));
+
+        String alias = aliasToCode(season.getId()).keySet().iterator().next();
+        assertThat(gameDays(season.getId(), alias)).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("워밍업 구간에 구멍이 있는 종목은 뽑지 않는다")
+    void 워밍업_구멍도_후보에서_뺀다() {
+        // A0040 은 1/4(세 번째 영업일)이 빠져 있다. 그 날이 워밍업에 들어가는 시즌이면
+        // 플레이 구간만 보면 멀쩡해도 후보가 아니다.
+        Season season = createService.create(spec(LocalDate.of(2024, 1, 5), 3, 1, 3, 42L));
+
+        assertThat(realCodes(season.getId())).doesNotContain("A0040");
+    }
+
+    @Test
     @DisplayName("수집된 영업일보다 긴 시즌은 만들지 않는다 — 짧은 시즌을 조용히 만들지 않는다")
     void 영업일이_부족하면_만들지_않는다() {
         assertThatThrownBy(() -> createService.create(spec(DAYS.get(0), 2, 6, 42L)))
@@ -140,7 +174,13 @@ class SeasonCreateServiceTest {
                 .hasMessageContaining("5 일만 수집돼 있다");
     }
 
+    /** 워밍업 없는 시즌. 대부분의 검증이 game_day 1..N 만 보면 되므로 이걸 쓴다. */
     private static SeasonSpec spec(LocalDate baseDate, int tickerCount, int lengthDays, long seed) {
+        return spec(baseDate, tickerCount, lengthDays, 0, seed);
+    }
+
+    private static SeasonSpec spec(
+            LocalDate baseDate, int tickerCount, int lengthDays, int warmupDays, long seed) {
         return new SeasonSpec(
                 Season.Mode.PRACTICE,
                 "테스트 시즌",
@@ -149,6 +189,7 @@ class SeasonCreateServiceTest {
                 baseDate,
                 tickerCount,
                 lengthDays,
+                warmupDays,
                 new BigDecimal("30000000"),
                 seed);
     }

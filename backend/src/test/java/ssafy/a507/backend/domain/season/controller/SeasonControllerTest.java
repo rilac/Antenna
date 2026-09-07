@@ -26,7 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>두 번째는 시연 시즌이 일반 사용자에게 보이지 않는다는 것이다. 화면에서 걸러도 응답에
  * 실려 오면 개발자도구로 다 보이므로 서버가 걸러야 한다.
  *
- * <p>기준 데이터 — 연습 시즌 하나, 대회 시즌 하나, 시연 시즌 하나. 연습 시즌에만 종목 둘.
+ * <p>기준 데이터 — 연습 시즌 하나, 대회 시즌 하나, 시연 시즌 하나. 연습 시즌에만 종목 둘이고
+ * A사에 워밍업 두 봉(game_day -1·0)과 플레이 다섯 봉(1~5)이 있다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,6 +43,7 @@ class SeasonControllerTest {
     private String admin;
     private Long practiceId;
     private Long demoId;
+    private Long tickerA;
 
     @BeforeEach
     void setUp() {
@@ -54,10 +56,20 @@ class SeasonControllerTest {
 
         insertStock("A0001");
         insertStock("A0002");
-        insertTicker(practiceId, "A사", "A0001");
+        tickerA = insertTicker(practiceId, "A사", "A0001");
         insertTicker(practiceId, "B사", "A0002");
+        // 워밍업 두 봉(game_day -1·0)과 플레이 다섯 봉. 진행일이 3 이면 워밍업 2 + 플레이 3 이다.
+        insertPrice(tickerA, -1, 900);
+        insertPrice(tickerA, 0, 950);
+        for (int day = 1; day <= 5; day++) {
+            insertPrice(tickerA, day, 1000 * day);
+        }
         em.flush();
         em.clear();
+    }
+
+    private String pricesUrl() {
+        return URL + "/" + practiceId + "/tickers/" + tickerA + "/prices";
     }
 
     @Test
@@ -181,6 +193,108 @@ class SeasonControllerTest {
     }
 
     @Test
+    @DisplayName("종목 목록은 가명과 섹터만 준다 — 정답 원본 종목은 응답에 없다")
+    void 종목은_블라인드로_나간다() throws Exception {
+        mockMvc.perform(get(URL + "/" + practiceId + "/tickers").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].displayName").value("A사"))
+                .andExpect(jsonPath("$.items[0].sector").value("전기·전자"))
+                .andExpect(jsonPath("$.items[0].realStockCode").doesNotExist())
+                .andExpect(jsonPath("$.items[0].stockCode").doesNotExist())
+                .andExpect(jsonPath("$.items[0].name").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("참가하지 않았으면 워밍업까지만 온다 — 플레이 구간은 한 봉도 없다")
+    void 미참가는_워밍업까지다() throws Exception {
+        mockMvc.perform(get(pricesUrl()).with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].gameDay").value(-1))
+                .andExpect(jsonPath("$.items[1].gameDay").value(0))
+                .andExpect(jsonPath("$.items[?(@.gameDay > 0)]").isEmpty());
+    }
+
+    @Test
+    @DisplayName("내 진행일까지만 온다 — 그 뒤 종가는 응답에 실리지 않는다")
+    void 진행일까지만_준다() throws Exception {
+        insertParticipant(practiceId, Long.valueOf(me), 1, 3);
+        em.flush();
+        em.clear();
+
+        // 워밍업 2 + 플레이 3. 심어 둔 4·5일치는 오지 않는다.
+        mockMvc.perform(get(pricesUrl()).with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(5))
+                .andExpect(jsonPath("$.items[0].gameDay").value(-1))
+                .andExpect(jsonPath("$.items[4].gameDay").value(3))
+                .andExpect(jsonPath("$.items[2].close").value(1000.00))
+                .andExpect(jsonPath("$.items[2].volume").value(1000))
+                .andExpect(jsonPath("$.items[?(@.gameDay > 3)]").isEmpty());
+    }
+
+    @Test
+    @DisplayName("uptoDay 를 크게 넣어도 진행일에서 잘린다 — 요청으로 상한을 넘길 수 없다")
+    void uptoDay_로_커닝할_수_없다() throws Exception {
+        insertParticipant(practiceId, Long.valueOf(me), 1, 3);
+        em.flush();
+        em.clear();
+
+        mockMvc.perform(get(pricesUrl()).param("uptoDay", "60").with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(5))
+                .andExpect(jsonPath("$.items[?(@.gameDay > 3)]").isEmpty());
+
+        // 낮추는 쪽으로는 듣는다 — 차트에서 구간을 좁혀 볼 때 쓴다
+        mockMvc.perform(get(pricesUrl()).param("uptoDay", "1").with(user(me)))
+                .andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(jsonPath("$.items[2].gameDay").value(1));
+    }
+
+    @Test
+    @DisplayName("남의 시즌 종목 id 로는 가격을 못 본다")
+    void 다른_시즌_종목은_404() throws Exception {
+        insertParticipant(practiceId, Long.valueOf(me), 1, 3);
+        Long otherTicker = insertTicker(demoId, "A사", "A0001");
+        em.flush();
+        em.clear();
+
+        mockMvc.perform(get(URL + "/" + practiceId + "/tickers/" + otherTicker + "/prices")
+                        .with(user(me)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SEASON_TICKER_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("시연 시즌 종목·가격도 일반 사용자에게 404")
+    void 시연_종목도_숨긴다() throws Exception {
+        mockMvc.perform(get(URL + "/" + demoId + "/tickers").with(user(me)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SEASON_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("대회는 공용 진행일까지 온다 — 참가 여부와 무관하다")
+    void 대회는_공용_진행일이다() throws Exception {
+        Long contestId = insertSeason("COMPETITION", "대회 시즌", null, "화학", 60);
+        Long ticker = insertTicker(contestId, "A사", "A0002");
+        for (int day = 1; day <= 5; day++) {
+            insertPrice(ticker, day, 2000 + day);
+        }
+        em.createNativeQuery("UPDATE seasons SET current_day = 2 WHERE id = ?")
+                .setParameter(1, contestId)
+                .executeUpdate();
+        em.flush();
+        em.clear();
+
+        mockMvc.perform(get(URL + "/" + contestId + "/tickers/" + ticker + "/prices")
+                        .with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2));
+    }
+
+    @Test
     @DisplayName("로그인하지 않으면 401")
     void 비로그인은_401() throws Exception {
         mockMvc.perform(get(URL)).andExpect(status().isUnauthorized());
@@ -234,7 +348,7 @@ class SeasonControllerTest {
                 .executeUpdate();
     }
 
-    private void insertTicker(Long seasonId, String displayName, String code) {
+    private Long insertTicker(Long seasonId, String displayName, String code) {
         em.createNativeQuery(
                         """
                         INSERT INTO season_tickers (season_id, display_name, real_stock_code, sector)
@@ -243,6 +357,27 @@ class SeasonControllerTest {
                 .setParameter(1, seasonId)
                 .setParameter(2, displayName)
                 .setParameter(3, code)
+                .executeUpdate();
+        return ((Number) em.createNativeQuery(
+                                "SELECT id FROM season_tickers WHERE season_id = ? AND display_name = ?")
+                        .setParameter(1, seasonId)
+                        .setParameter(2, displayName)
+                        .getSingleResult())
+                .longValue();
+    }
+
+    private void insertPrice(Long tickerId, int gameDay, int close) {
+        em.createNativeQuery(
+                        """
+                        INSERT INTO season_prices (ticker_id, game_day, open, high, low, close, volume)
+                        VALUES (?, ?, ?, ?, ?, ?, 1000)
+                        """)
+                .setParameter(1, tickerId)
+                .setParameter(2, gameDay)
+                .setParameter(3, new BigDecimal(close))
+                .setParameter(4, new BigDecimal(close + 10))
+                .setParameter(5, new BigDecimal(close - 10))
+                .setParameter(6, new BigDecimal(close))
                 .executeUpdate();
     }
 

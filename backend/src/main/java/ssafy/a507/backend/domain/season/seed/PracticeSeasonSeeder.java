@@ -51,6 +51,15 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
     private static final int TICKER_COUNT = 5;
 
     /**
+     * 시즌 시작 전에 함께 담는 봉 수. game_day 0 이하로 들어간다.
+     *
+     * <p>120 인 이유 — MA60 을 첫날부터 그리려면 60봉이 필요하고, MACD 시그널까지 보려면
+     * 34봉이 더 든다. 120 이면 화면에 있는 지표 전부가 game_day 1 부터 값을 낸다.
+     * 이게 없으면 60게임일 시즌에서 MA60 은 마지막 하루에만 찍힌다.
+     */
+    private static final int WARMUP_DAYS = 120;
+
+    /**
      * 만들어 둘 연습 시즌.
      *
      * <p>섹터는 수집 범위(KOSPI 300) 안에서 종목이 넉넉한 상위 분류를 골랐다. 기준일은 서로
@@ -70,6 +79,7 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
                     LocalDate.of(2021, 3, 1),
                     TICKER_COUNT,
                     LENGTH_DAYS,
+                    WARMUP_DAYS,
                     INITIAL_CASH,
                     1001L),
             new SeasonSpec(
@@ -80,6 +90,7 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
                     LocalDate.of(2022, 6, 1),
                     TICKER_COUNT,
                     LENGTH_DAYS,
+                    WARMUP_DAYS,
                     INITIAL_CASH,
                     1002L),
             new SeasonSpec(
@@ -90,6 +101,7 @@ public class PracticeSeasonSeeder implements ApplicationRunner {
                     LocalDate.of(2023, 9, 1),
                     TICKER_COUNT,
                     LENGTH_DAYS,
+                    WARMUP_DAYS,
                     INITIAL_CASH,
                     1003L));
 

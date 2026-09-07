@@ -58,6 +58,17 @@ public interface DailyQuoteRepository extends JpaRepository<DailyQuote, Long> {
     List<LocalDate> findTradeDatesFrom(@Param("from") LocalDate from, Pageable pageable);
 
     /**
+     * 기준일 <b>직전</b> 영업일들. 최근 것이 먼저 온다 — 호출 쪽이 뒤집어 쓴다.
+     *
+     * <p>시즌 워밍업 구간이 이걸 쓴다. 시즌 첫날에 캔들이 한 개면 이동평균도 MACD 도
+     * 값이 없어 아무 근거 없이 매수하게 된다 — 시작 앞쪽 구간을 함께 담아야 첫날부터
+     * 차트와 지표가 보인다(ERD v0.8 {@code game_day <= 0}).
+     */
+    @Query("select distinct q.tradeDate from DailyQuote q where q.tradeDate < :before"
+            + " order by q.tradeDate desc")
+    List<LocalDate> findTradeDatesBefore(@Param("before") LocalDate before, Pageable pageable);
+
+    /**
      * 그 구간에 시세가 빠짐없이 있는 종목만. 중간에 상장폐지·거래정지가 있으면 게임일에
      * 구멍이 생겨 시즌으로 쓸 수 없다 — 구간 길이와 행 수가 같은 종목만 고른다.
      */

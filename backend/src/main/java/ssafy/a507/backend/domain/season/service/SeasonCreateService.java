@@ -38,6 +38,14 @@ import ssafy.a507.backend.domain.season.repository.SeasonTickerRepository;
  *
  * <p><b>왜 seed 로 뽑는가.</b> 같은 seed·theme·baseDate 면 언제 만들어도 같은 종목이
  * 뽑힌다. 대회에서 참가자가 서로 다른 종목을 받으면 순위가 의미를 잃는다.
+ *
+ * <p><b>워밍업 구간.</b> 플레이 구간(game_day 1..N) 앞에 시즌 시작 전 구간을
+ * {@code game_day 0, -1, -2 …} 로 함께 담는다. 이게 없으면 첫날 캔들이 한 개라 이동평균도
+ * MACD 도 값이 없다 — 60게임일 시즌이면 MA60 은 마지막 하루에만, MACD 시그널은 34번째
+ * 봉부터 나온다. 근거 없이 매수하는 화면이 되므로 게임이 성립하지 않는다.
+ *
+ * <p>워밍업을 보여주는 것은 커닝이 아니다. 시즌 <b>시작 전</b> 구간이고 날짜가 없다.
+ * 진행일 상한(game_day ≤ 진행일)은 그대로 걸리므로 앞으로 볼 수는 없다.
  */
 @Slf4j
 @Service
@@ -60,16 +68,22 @@ public class SeasonCreateService {
      */
     @Transactional
     public Season create(SeasonSpec spec) {
-        List<LocalDate> gameDays = tradeDays(spec);
-        List<Stock> picked = pick(spec, gameDays);
+        List<LocalDate> playDays = tradeDays(spec);
+        List<LocalDate> warmupDays = warmupDays(spec, playDays.get(0));
+
+        // 워밍업이 앞, 플레이가 뒤. 이 순서가 곧 game_day 순서다.
+        List<LocalDate> allDays = new ArrayList<>(warmupDays);
+        allDays.addAll(playDays);
+
+        List<Stock> picked = pick(spec, allDays);
 
         Season season = seasonRepository.save(Season.practice(
                 spec.mode(),
                 spec.title(),
                 spec.note(),
                 spec.theme(),
-                gameDays.get(0),
-                gameDays.size(),
+                playDays.get(0),
+                playDays.size(),
                 spec.initialCash(),
                 spec.seed()));
 
@@ -81,17 +95,42 @@ public class SeasonCreateService {
         }
         seasonTickerRepository.saveAll(tickers);
 
-        int rows = copyPrices(tickers, gameDays);
+        int rows = copyPrices(tickers, allDays, warmupDays.size());
 
         log.info(
-                "시즌 생성 — id={} \"{}\" theme={} 종목 {}개 · {}게임일 · 가격 {}행",
+                "시즌 생성 — id={} \"{}\" theme={} 종목 {}개 · 플레이 {}일 + 워밍업 {}일 · 가격 {}행",
                 season.getId(),
                 season.getTitle(),
                 season.getTheme(),
                 tickers.size(),
-                gameDays.size(),
+                playDays.size(),
+                warmupDays.size(),
                 rows);
         return season;
+    }
+
+    /**
+     * 플레이 구간 직전 영업일들. 오름차순으로 돌려준다.
+     *
+     * <p>부족해도 만든다 — 수집 시작점(2020-01-02)에 가까운 시즌은 앞이 짧다. 플레이
+     * 구간은 요청한 만큼 다 있어야 하지만 워밍업은 있는 만큼만 담으면 되고, 짧으면
+     * 초반에 지표가 덜 보일 뿐 게임은 돈다.
+     */
+    private List<LocalDate> warmupDays(SeasonSpec spec, LocalDate firstPlayDay) {
+        if (spec.warmupDays() <= 0) {
+            return List.of();
+        }
+        List<LocalDate> desc = dailyQuoteRepository.findTradeDatesBefore(
+                firstPlayDay, PageRequest.of(0, spec.warmupDays()));
+        List<LocalDate> asc = new ArrayList<>(desc);
+        Collections.reverse(asc);
+        if (asc.size() < spec.warmupDays()) {
+            log.info(
+                    "워밍업이 {}일 요청인데 {}일만 있다 — 수집 시작점에 가까운 구간이다",
+                    spec.warmupDays(),
+                    asc.size());
+        }
+        return asc;
     }
 
     /**
@@ -113,8 +152,9 @@ public class SeasonCreateService {
     }
 
     /**
-     * 후보 중에서 seed 로 종목을 뽑는다. 구간 전체에 시세가 있는 종목만 후보다 —
-     * 중간에 상장폐지·거래정지가 끼면 게임일에 구멍이 생긴다.
+     * 후보 중에서 seed 로 종목을 뽑는다. <b>워밍업까지 포함한</b> 구간 전체에 시세가 있는
+     * 종목만 후보다 — 중간에 상장폐지·거래정지가 끼면 게임일에 구멍이 생기고, 워밍업에
+     * 구멍이 있으면 이동평균이 잘못된 값을 낸다.
      */
     private List<Stock> pick(SeasonSpec spec, List<LocalDate> gameDays) {
         if (spec.tickerCount() > ALPHABET.length()) {
@@ -166,12 +206,15 @@ public class SeasonCreateService {
 
     /**
      * 구간 시세를 game_day 로 바꿔 옮긴다. 종목마다 한 번씩 읽고 날짜→인덱스 표로 바꾼다.
-     * 종목 5개 × 120게임일이면 600행이라 한 트랜잭션에서 끝난다.
+     * 종목 5개 × (워밍업 120 + 플레이 60)이면 900행이라 한 트랜잭션에서 끝난다.
      */
-    private int copyPrices(List<SeasonTicker> tickers, List<LocalDate> gameDays) {
+    private int copyPrices(
+            List<SeasonTicker> tickers, List<LocalDate> gameDays, int warmupCount) {
+        /* 워밍업 마지막 날이 game_day 0 이고 플레이 첫날이 1 이다. 그래서 인덱스에서
+           워밍업 개수를 빼고 1 을 더한다 — 워밍업이 없으면 그대로 1..N 이다. */
         Map<LocalDate, Integer> dayIndex = new HashMap<>();
         for (int i = 0; i < gameDays.size(); i++) {
-            dayIndex.put(gameDays.get(i), i + 1);
+            dayIndex.put(gameDays.get(i), i - warmupCount + 1);
         }
         LocalDate from = gameDays.get(0);
         LocalDate to = gameDays.get(gameDays.size() - 1);
@@ -210,6 +253,8 @@ public class SeasonCreateService {
             LocalDate baseDate,
             int tickerCount,
             int lengthDays,
+            /** 시즌 시작 전에 함께 담을 봉 수. game_day 0 이하로 들어간다. 0 이면 안 담는다 */
+            int warmupDays,
             BigDecimal initialCash,
             long seed) {}
 }

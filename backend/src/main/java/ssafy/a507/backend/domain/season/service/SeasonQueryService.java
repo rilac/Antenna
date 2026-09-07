@@ -19,9 +19,15 @@ import ssafy.a507.backend.domain.season.dto.MySeasonStatus;
 import ssafy.a507.backend.domain.season.dto.SeasonDetailResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonListItemResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonListResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonPriceListResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonPricePoint;
+import ssafy.a507.backend.domain.season.dto.SeasonTickerItemResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonTickerListResponse;
 import ssafy.a507.backend.domain.season.entity.Season;
 import ssafy.a507.backend.domain.season.entity.SeasonParticipant;
+import ssafy.a507.backend.domain.season.entity.SeasonTicker;
 import ssafy.a507.backend.domain.season.repository.SeasonParticipantRepository;
+import ssafy.a507.backend.domain.season.repository.SeasonPriceRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonTickerCount;
 import ssafy.a507.backend.domain.season.repository.SeasonTickerRepository;
@@ -40,6 +46,7 @@ public class SeasonQueryService {
 
     private final SeasonRepository seasonRepository;
     private final SeasonTickerRepository seasonTickerRepository;
+    private final SeasonPriceRepository seasonPriceRepository;
     private final SeasonParticipantRepository participantRepository;
     private final UserRepository userRepository;
 
@@ -76,10 +83,7 @@ public class SeasonQueryService {
     }
 
     public SeasonDetailResponse detail(Long userId, Long seasonId) {
-        Season season = seasonRepository
-                .findById(seasonId)
-                .filter(s -> visibleModes(userId).contains(s.getMode()))
-                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_FOUND));
+        Season season = visibleSeason(userId, seasonId);
 
         Optional<SeasonParticipant> mine =
                 participantRepository.findFirstBySeason_IdAndUser_IdOrderByAttemptNoDesc(
@@ -121,6 +125,82 @@ public class SeasonQueryService {
                                 p.getSeason().getLengthDays(),
                                 progressOf(p.getCurrentDay(), p.getSeason().getLengthDays())))
                         .toList());
+    }
+
+    /**
+     * 시즌 종목 목록. 가명과 섹터 힌트만 나간다 — 정답 원본 종목은 CLOSED 전까지 금지다.
+     *
+     * <p>진행일과 무관하다. 어떤 종목이 있는지는 첫날부터 다 보여야 판을 짤 수 있다.
+     */
+    public SeasonTickerListResponse tickers(Long userId, Long seasonId) {
+        Season season = visibleSeason(userId, seasonId);
+        return new SeasonTickerListResponse(
+                seasonTickerRepository.findBySeason_IdOrderByDisplayNameAsc(season.getId()).stream()
+                        .map(t -> new SeasonTickerItemResponse(
+                                t.getId(), t.getDisplayName(), t.getSector()))
+                        .toList());
+    }
+
+    /**
+     * 시즌 가격(OHLCV). <b>진행일을 넘는 봉은 내리지 않는다.</b>
+     *
+     * <p>화면에서 자르는 것으로는 부족하다 — 응답에 실려 나가면 개발자도구로 다음 날
+     * 종가가 다 보인다. 그래서 상한을 쿼리에 건다.
+     *
+     * @param uptoDay 이 게임일까지 · 생략하면 진행일까지. 진행일보다 크게 넣어도 진행일에서
+     *     잘린다(요청으로 상한을 넘길 수 없다)
+     */
+    public SeasonPriceListResponse prices(
+            Long userId, Long seasonId, Long tickerId, Integer uptoDay) {
+        Season season = visibleSeason(userId, seasonId);
+        SeasonTicker ticker = seasonTickerRepository
+                .findByIdAndSeason_Id(tickerId, season.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_TICKER_NOT_FOUND));
+
+        int limit = visibleDay(season, userId);
+        int upto = uptoDay == null ? limit : Math.min(uptoDay, limit);
+
+        return new SeasonPriceListResponse(
+                seasonPriceRepository
+                        .findByTicker_IdAndGameDayLessThanEqualOrderByGameDayAsc(
+                                ticker.getId(), upto)
+                        .stream()
+                        .map(p -> new SeasonPricePoint(
+                                p.getGameDay(),
+                                p.getOpen(),
+                                p.getHigh(),
+                                p.getLow(),
+                                p.getClose(),
+                                p.getVolume()))
+                        .toList());
+    }
+
+    /**
+     * 어디까지 볼 수 있는가.
+     *
+     * <p>대회는 <b>공용 진행일</b>이다 — 전원이 같은 날을 보고 있어야 순위가 뜻을 갖는다.
+     * 연습·시연은 <b>내 회차의 진행일</b>이다. 사람마다 진행일이 달라 같은 시즌에서도
+     * 보이는 봉 수가 다르다.
+     *
+     * <p>참가하지 않았으면 0 이다 — 참가 전에는 시즌 가격을 볼 수 없다. 성격·섹터·기간만
+     * 보고 고르는 것이 설계다(설계서 §4 G-03).
+     */
+    private int visibleDay(Season season, Long userId) {
+        if (season.getMode() == Season.Mode.COMPETITION) {
+            return season.getCurrentDay();
+        }
+        return participantRepository
+                .findFirstBySeason_IdAndUser_IdOrderByAttemptNoDesc(season.getId(), userId)
+                .map(SeasonParticipant::getCurrentDay)
+                .orElse(0);
+    }
+
+    /** 볼 수 있는 시즌이거나 404. 시연 시즌을 일반 사용자가 부른 것도 404 다. */
+    private Season visibleSeason(Long userId, Long seasonId) {
+        return seasonRepository
+                .findById(seasonId)
+                .filter(s -> visibleModes(userId).contains(s.getMode()))
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_FOUND));
     }
 
     /** 시연은 관리자에게만 보인다. 권한 규칙이 없어(SecurityConfig) users.role 을 직접 읽는다. */
