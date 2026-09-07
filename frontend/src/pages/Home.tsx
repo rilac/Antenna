@@ -18,9 +18,6 @@ import {
 } from '../api/insight'
 import { useAsync } from '../api/useAsync'
 import { useAuth } from '../auth/context'
-import { takeOnboardingPending } from '../auth/onboarding'
-import OnboardingTour from '../components/OnboardingTour'
-import WalletLinkModal from '../components/wallet/WalletLinkModal'
 import Sparkline from '../components/Sparkline'
 import '../styles/home.css'
 
@@ -485,16 +482,8 @@ function QuickLinks() {
 }
 
 export default function Home() {
-  /* M-09 온보딩 튜토리얼. 로그인 직후 isNew 였던 회원에게 한 번만 뜬다.
-     플래그는 꺼내면서 지워지므로(auth/onboarding.ts) 두 번 뜨지 않는다.
-     초기화 함수로 넘겨 렌더마다 sessionStorage 를 다시 읽지 않게 한다. */
-  const [tour, setTour] = useState(takeOnboardingPending)
-
-  /* M-01 지갑 연동. **튜토리얼 안에서 열지 않는다** — 모달 3겹이 되기 때문이고,
-     WalletLinkModal 머리말이 "호출부가 온보딩을 닫고 띄운다" 로 계약을 적어
-     두었다. 그래서 여기서 튜토리얼을 먼저 닫고 이걸 세운다. */
-  const [linking, setLinking] = useState(false)
-
+  /* M-09 온보딩 튜토리얼은 셸(Layout)이 띄운다. 홈에만 걸면 딥링크로 막혔다가
+     가입한 회원이 못 본다 — 그 사람은 홈이 아니라 그 경로로 착지한다. */
   return (
     <main className="main">
       <div className="main-inner">
@@ -514,15 +503,6 @@ export default function Home() {
           <TopPredictor />
         </div>
       </div>
-
-      {tour && (
-        <OnboardingTour
-          onClose={() => setTour(false)}
-          onLinkWallet={() => { setTour(false); setLinking(true) }}
-        />
-      )}
-
-      {linking && <WalletLinkModal onClose={() => setLinking(false)} />}
     </main>
   )
 }

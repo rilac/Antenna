@@ -3,9 +3,12 @@
 
    확장/축소는 CSS(.rail:hover, :focus-within)가 전담한다. 여기 상태는
    좁은 화면(<901px) 서랍을 여닫는 railOpen 하나뿐이다. */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from './auth/context'
+import { takeOnboardingPending } from './auth/onboarding'
+import OnboardingTour from './components/OnboardingTour'
+import WalletLinkModal from './components/wallet/WalletLinkModal'
 
 export type Mode = 'insight' | 'sim'
 
@@ -84,6 +87,30 @@ export default function Layout({ mode, nav, bodyClass, children }: { mode: Mode;
   const navigate = useNavigate()
   // 좁은 화면 서랍 전용. 넓은 화면은 접힌 레일이 늘 떠 있어 여닫을 상태가 없다.
   const [railOpen, setRailOpen] = useState(false)
+
+  /* M-09 온보딩 튜토리얼. **홈이 아니라 셸에 둔다** — 비로그인 딥링크로 막혔던
+     회원은 가입 뒤 홈이 아니라 그 경로로 착지한다(returnTo). 홈에만 걸면 그
+     사람은 튜토리얼을 아예 못 본다.
+
+     로그인(A-01)과 닉네임(A-02)에는 셸이 없어서(routes.ts 의 mode 가 없다)
+     저절로 제외된다. 그래도 authed · nickname 을 확인한다 — 셸은 가드가
+     리다이렉트하는 동안에도 한 번 그려지고, 그때 띄우면 빈 화면 위에 뜬다.
+
+     ref 로 잠그는 이유: 이 이펙트는 authed · nickname 에 반응하는데, 한 번
+     꺼낸 뒤 그 값이 바뀌어 다시 돌면 빈 플래그를 읽어 **열려 있는 튜토리얼을
+     닫아 버린다**(H-03 에서 닉네임을 고치면 실제로 그렇게 된다). */
+  const [tour, setTour] = useState(false)
+  const tourChecked = useRef(false)
+  useEffect(() => {
+    if (tourChecked.current || !authed || !user?.nickname) return
+    tourChecked.current = true
+    setTour(takeOnboardingPending())
+  }, [authed, user?.nickname])
+
+  /* M-01 지갑 연동. **튜토리얼 안에서 열지 않는다** — 모달 3겹이 되기 때문이고,
+     WalletLinkModal 머리말이 "호출부가 온보딩을 닫고 띄운다" 로 계약을 적어
+     두었다. 그래서 튜토리얼을 먼저 닫고 이걸 세운다. */
+  const [linking, setLinking] = useState(false)
 
   useEffect(() => {
     document.body.className = railOpen ? `${bodyClass} rail-open`.trim() : bodyClass
@@ -200,6 +227,17 @@ export default function Layout({ mode, nav, bodyClass, children }: { mode: Mode;
       <div className="rail-backdrop" id="rail-backdrop" onClick={() => setRailOpen(false)} />
 
       {children}
+
+      {/* 화면 내용 뒤에 둔다. 오버레이라 위치는 CSS(z-index)가 정하지만,
+          읽는 순서에서도 본문 다음에 오는 게 맞다 */}
+      {tour && (
+        <OnboardingTour
+          onClose={() => setTour(false)}
+          onLinkWallet={() => { setTour(false); setLinking(true) }}
+        />
+      )}
+
+      {linking && <WalletLinkModal onClose={() => setLinking(false)} />}
     </>
   )
 }
