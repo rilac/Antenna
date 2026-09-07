@@ -1,0 +1,145 @@
+/* G-03 시즌 상세 · 참가 · /sim/seasons/:id — [ANT-FE-SEASON-JOIN]
+   프로토타입 assets/sim-contest.css 의 ct-season 블록을 옮겼다.
+   모드별 색은 sim-setup.css 와 같은 값을 쓴다(연습 초록 · 대회 보라 · 시연 파랑). */
+
+.sim-join{
+  display:flex;flex-direction:column;gap:20px;
+  max-width:1000px;margin-inline:auto;
+  word-break:keep-all;
+}
+
+/* 모드별 색 — sim-setup.css 와 동일한 값 */
+.sim-join.learn{--tone:#16a06a;--tone-ink:#17805a;--tone-soft:#e7f6ef}
+.sim-join.contest{--tone:#5457e8;--tone-ink:#5a52d8;--tone-soft:#ebe9fc}
+.sim-join.demo{--tone:#2f7bf6;--tone-ink:#2a6ad8;--tone-soft:#e8f1fe}
+
+/* ── 머리 ─────────────────────────────────────────────── */
+.sj-crumb{display:flex;align-items:center;gap:9px;color:#8a93ad;font-size:13.5px;font-weight:700}
+.sj-crumb a:hover{color:var(--brand)}
+.sj-crumb i{font-style:normal;color:#c2c8da}
+
+.sj-head{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+
+.sj-mode{
+  padding:4px 12px;border-radius:999px;
+  background:var(--tone-soft);color:var(--tone-ink);
+  font-size:12.5px;font-weight:750;
+}
+
+.sj-head h1{
+  margin:0;color:#0e1330;font-size:34px;font-weight:850;letter-spacing:-.035em;
+  text-wrap:balance;
+}
+.sj-head p{margin:0;color:#6b7291;font-size:15.5px;font-weight:650;text-wrap:pretty}
+
+/* ── 시즌 카드 ────────────────────────────────────────── */
+.sj-card{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,300px);
+  align-items:center;gap:26px;padding:26px 30px;
+  border:1px solid var(--rule);border-radius:20px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+
+/* 추천 모드는 카드에 옅은 색을 깔아 준다 */
+.sim-join.learn .sj-card{
+  border-color:#cfe9dd;
+  background:linear-gradient(120deg,#f4fbf7 0%,#fbfefc 55%,#f1faf6 100%);
+}
+.sim-join.contest .sj-card{
+  border-color:#dedbf8;
+  background:linear-gradient(120deg,#f6f5fe 0%,#faf9ff 52%,#f1f0fd 100%);
+}
+
+.sj-card-main{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* ── 조건 통계 ────────────────────────────────────────── */
+.sj-stats{
+  display:flex;flex-wrap:wrap;gap:14px 0;margin:0;
+}
+.sj-stats > div{
+  display:flex;align-items:center;gap:13px;
+  padding:0 24px;border-left:1px solid var(--rule);
+}
+.sj-stats > div:first-child{padding-left:0;border-left:0}
+.sj-stats svg{flex:none;color:var(--tone)}
+
+.sj-stats dt{margin:0 0 3px;color:#8a90ab;font-size:12.5px;font-weight:650}
+.sj-stats dd{margin:0;color:var(--ink);font-size:15px;font-weight:700}
+.sj-stats dd b{font-size:19px;font-weight:850;letter-spacing:-.02em}
+.sj-stats dd .num{margin-right:2px}
+
+/* 대회만 나온다 */
+.sj-schedule{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:0;
+  padding-top:16px;border-top:1px dashed var(--rule);
+  color:#6b7291;font-size:13.5px;font-weight:650;
+}
+.sj-schedule svg{flex:none;color:#8a90ab}
+
+/* ── 참가 버튼 ────────────────────────────────────────── */
+.sj-cta-wrap{display:flex;flex-direction:column;gap:10px;min-width:0}
+
+.sj-cta{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;height:56px;padding:0 20px;border-radius:13px;
+  background:var(--tone);color:#fff;
+  font-size:16.5px;font-weight:800;letter-spacing:-.02em;
+  transition:background .15s;
+}
+.sj-cta:hover{background:var(--tone-ink)}
+.sj-cta em{font-style:normal;font-size:19px}
+.sj-cta:disabled{opacity:.6;cursor:default}
+
+.sj-cta.is-off{
+  background:var(--surface-2);border:1px solid var(--rule);color:var(--faint);
+  cursor:default;
+}
+.sj-cta.is-off:hover{background:var(--surface-2)}
+
+.sj-cta-note{
+  margin:0;text-align:center;
+  color:var(--muted);font-size:12.5px;font-weight:650;
+  font-variant-numeric:tabular-nums;
+}
+
+/* ── 진행 방식 ────────────────────────────────────────── */
+.sj-rules{
+  padding:24px 28px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+
+.sj-rules h2{
+  margin:0 0 14px;color:var(--ink);font-size:16px;font-weight:800;letter-spacing:-.02em;
+}
+
+.sj-rules ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:11px}
+
+.sj-rules li{
+  position:relative;padding-left:20px;
+  color:var(--body);font-size:14px;line-height:1.65;
+}
+.sj-rules li::before{
+  content:"";position:absolute;left:5px;top:9px;
+  width:5px;height:5px;border-radius:50%;background:var(--tone);
+}
+.sj-rules b{color:var(--ink);font-weight:750}
+.sj-rules code{
+  padding:1px 6px;border-radius:5px;
+  background:var(--surface-2);color:var(--ink);
+  font-family:var(--mono);font-size:12.5px;
+}
+
+/* ── 좁은 화면 ────────────────────────────────────────── */
+@media(max-width:900px){
+  .sj-card{grid-template-columns:minmax(0,1fr);gap:20px}
+  .sj-head h1{font-size:27px}
+}
+@media(max-width:600px){
+  .sj-head h1{font-size:23px}
+  .sj-card{padding:22px 20px}
+  .sj-stats > div{padding:0;border-left:0;flex:1 1 45%}
+  .sj-rules{padding:20px}
+}
+@media(prefers-reduced-motion:reduce){
+  .sj-cta{transition:none}
+}
