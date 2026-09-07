@@ -66,7 +66,7 @@ class MyPredictionControllerTest {
     }
 
     @Test
-    @DisplayName("status=PENDING 은 BASE·OPEN 을 묶고, 집계는 필터와 무관하게 전량 기준이다")
+    @DisplayName("status=PENDING 은 BASE·OPEN 을, JUDGED 는 HIT·MISS 를 묶고, 집계는 필터와 무관하게 전량 기준이다")
     void 상태_필터와_집계() throws Exception {
         insertPrediction(userId, "BASE", null, null);
         insertPrediction(userId, "OPEN", LocalDate.now().plusDays(5), null);
@@ -88,6 +88,15 @@ class MyPredictionControllerTest {
                 .andExpect(jsonPath("$.items[0].errorRate").value(1.25))
                 // 판정된 건은 D-day 를 내리지 않는다.
                 .andExpect(jsonPath("$.items[0].dday").doesNotExist());
+
+        // JUDGED 한 번이 HIT·MISS 두 번을 대신한다 — 커서가 하나여야 프론트가 페이지를 이어 받는다.
+        mockMvc.perform(get(URL).param("status", "JUDGED").with(user(String.valueOf(userId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                // id 내림차순이라 나중에 넣은 MISS 가 먼저다.
+                .andExpect(jsonPath("$.items[0].status").value("MISS"))
+                .andExpect(jsonPath("$.items[1].status").value("HIT"))
+                .andExpect(jsonPath("$.judgedCount").value(2));
     }
 
     @Test
