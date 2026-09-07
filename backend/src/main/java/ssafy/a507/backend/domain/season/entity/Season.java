@@ -58,22 +58,29 @@ public class Season {
     @Column(nullable = false, length = 10)
     private Mode mode;
 
-    /** 총 게임일. 종료 조건이다. */
     /**
      * 시즌의 성격. "급락 구간"·"실적 발표 구간" 처럼 무슨 장이었는지만 담는다.
      * 연도와 사건 고유명사를 넣지 않는다 — 그것만으로 구간이 특정된다.
+     *
+     * <p>아래 셋(title·note·theme)과 base_date 는 <b>일부러 nullable</b> 이다. 이 프로젝트에는
+     * 마이그레이션 도구가 없고 ddl-auto:update 는 기존 행을 백필하지 못한다 — seasons 에
+     * 행이 있는 DB 에 NOT NULL 컬럼을 더하면 기동이 실패한다. 값이 반드시 있어야 한다는
+     * 규칙은 관리자 생성 API 가 지킨다(POST /admin/seasons 요청 필수 · API 명세 v0.24).
+     *
+     * <p>정리 순서 — 기존 행 백필 → NOT NULL 승격. 도구가 들어온 뒤에 한다.
      */
-    @Column(nullable = false, length = 40)
+    @Column(length = 40)
     private String title;
 
-    /** 카드 부제 한 줄. G-02a·G-03 이 그대로 표시한다 */
+    /** 카드 부제 한 줄. G-02a·G-03 이 그대로 표시한다. */
     @Column(length = 120)
     private String note;
 
-    /** 섹터·테마 키. seed 로 종목을 뽑을 때의 후보 조건이다 */
+    /** 섹터·테마 키. seed 로 종목을 뽑을 때의 후보 조건이다. */
     @Column(length = 20)
     private String theme;
 
+    /** 총 게임일. 종료 조건이다. */
     @Column(name = "length_days", nullable = false)
     private int lengthDays;
 

@@ -68,10 +68,19 @@ export type OpenRun = {
 /* 시기는 어떤 응답에도 오지 않는다 — baseDate·연도 필드를 타입에 두지 않는 것이
    그 규칙을 지키는 방법이다. 타입에 없으면 실수로 그릴 수 없다(API 명세 v0.24). */
 
-/** 커서 페이징이 없는 목록이라(§1 규칙 6 의 예외) useCursorList 를 쓰지 않는다. */
-export function getOpenRuns() {
-  return api.get<{ items: OpenRun[] }>('/seasons')
+/**
+ * 커서 페이징이 없는 목록이라(§1 규칙 6 의 예외) useCursorList 를 쓰지 않는다.
+ *
+ * mode 를 넘기면 서버가 걸러 준다. 연습 화면이 클라이언트에서 filter 하던 것을
+ * 서버 필터로 바꾼 이유는 DEMO 가 관리자 전용이기 때문이다 — 화면에서 걸러도
+ * 응답에는 실려 오므로 개발자도구로 다 보인다. 정책은 서버에서 지켜야 한다.
+ */
+export function getOpenRuns(mode?: SeasonMode) {
+  return api.get<{ items: OpenRun[] }>('/seasons', { query: { mode } })
 }
+
+/** 연습 목록. 설계서 §3 G-02a 가 요구하는 GET /seasons?mode=PRACTICE 다. */
+export const getPracticeRuns = () => getOpenRuns('PRACTICE')
 
 /* ── 화면이 함께 쓰는 계산 ────────────────────────────────── */
 

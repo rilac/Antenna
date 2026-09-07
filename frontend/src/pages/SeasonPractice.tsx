@@ -21,16 +21,18 @@
       → 집계 엔드포인트가 없다. /seasons/history/me 는 목록만이다(§9.2 G-01 과 같은 사정).
       최근 완료한 연습 목록으로 대신한다.
 
-   추천 연습 시나리오의 이름에서는 연도·사건을 뺐다. 시대를 특정할 수 있는 말은
-   모의투자 전체에서 쓰지 않기로 했다 — "반도체 실적 시즌" → "반도체 실적 구간".
-   주제로 시즌을 고르는 기능은 아직 서버에 없다(응답에 주제 필드가 없다).
+   연습 주제 이름에서는 연도·사건을 뺀다. 시대를 특정할 수 있는 말은 모의투자
+   전체에서 쓰지 않는다 — "반도체 실적 시즌" → "반도체 실적 구간".
 
    ── 서버에서 받는 것 ────────────────────────────────────
-   api/seasons.ts 의 두 목록뿐이고, 이 화면은 그중 PRACTICE 만 걸러 쓴다. */
+   api/seasons.ts 의 두 목록이다. 연습 주제는 seasons.title·note 로 오고(API 명세
+   v0.24) 카드마다 그 시즌으로 들어간다 — 화면에 하드코딩하지 않는다(설계서 §4 G-02a).
+   목록은 ?mode=PRACTICE 로 서버가 걸러 준다. 클라이언트에서 걸러도 응답에는
+   실려 오므로, DEMO 가 관리자 전용인 정책은 서버에서 지켜야 한다. */
 import { Link } from 'react-router-dom'
 import type { ApiError } from '../api/errors'
 import {
-  getMyRuns, getOpenRuns, isJoinable, joinableFirst, progressOf, recentFirst, won,
+  getMyRuns, getPracticeRuns, isJoinable, joinableFirst, progressOf, recentFirst, won,
   type MyRun, type OpenRun,
 } from '../api/seasons'
 import { useAsync } from '../api/useAsync'
@@ -244,15 +246,14 @@ function Done({ runs, loading, failure, onRetry }: {
 
 export default function SeasonPractice() {
   const mine = useAsync(getMyRuns)
-  const openList = useAsync(getOpenRuns)
+  const openList = useAsync(getPracticeRuns)
 
   /* 이 화면은 연습만 다룬다. 대회·시연은 G-02 모드 선택에서 고른다. */
   const going = (mine.data?.ongoing ?? []).filter((r) => r.mode === 'PRACTICE')
   const done = (mine.data?.done ?? []).filter((r) => r.mode === 'PRACTICE')
-  const open = (openList.data?.items ?? [])
-    .filter(isJoinable)
-    .filter((s) => s.mode === 'PRACTICE')
-    .sort(joinableFirst)
+  /* 모드는 서버가 걸러 준다(?mode=PRACTICE) — DEMO 가 관리자 전용이라
+     응답 자체에 실려 오지 않아야 한다. 여기서는 참가 가능 여부만 본다. */
+  const open = (openList.data?.items ?? []).filter(isJoinable).sort(joinableFirst)
 
   /* 바로 들어갈 수 있는 연습이 있으면 그 상세로, 없으면 모드 선택으로 보낸다.
      주제로 시즌을 고르는 길은 아직 서버에 없어 주제 카드도 같은 곳을 가리킨다. */
