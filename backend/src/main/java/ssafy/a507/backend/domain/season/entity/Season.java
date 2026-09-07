@@ -126,4 +126,38 @@ public class Season {
     /** 1게임일이 흐르는 실시간 간격. 대회는 60분 = 1게임일. */
     @Column(name = "day_interval_minutes")
     private Integer dayIntervalMinutes;
+
+    /**
+     * 연습·시연 시즌. 대회 시간표 셋을 채우지 않는다 — 개인이 직접 게임일을 넘기므로
+     * 흐를 시각이 없다(ERD: 대회 외 모드는 NULL).
+     *
+     * <p>{@code currentDay} 는 0 으로 시작한다. 대회의 공용 진행일 자리인데 연습은
+     * 개인 진행일({@code season_participants.current_day})을 쓰므로 쓰이지 않는다.
+     *
+     * <p>만드는 순간 {@code RUNNING} 이다. SCHEDULED 는 "아직 안 열렸다" 는 뜻인데 연습에는
+     * 열릴 시각이 없어(opens_at NULL) 한 번 SCHEDULED 로 두면 영영 그 상태로 남는다.
+     * 연습에서 뜻이 있는 전이는 CLOSED 하나뿐이다 — 그때 정답 종목이 공개된다.
+     */
+    public static Season practice(
+            Mode mode,
+            String title,
+            String note,
+            String theme,
+            LocalDate baseDate,
+            int lengthDays,
+            BigDecimal initialCash,
+            long seed) {
+        Season season = new Season();
+        season.mode = mode;
+        season.title = title;
+        season.note = note;
+        season.theme = theme;
+        season.baseDate = baseDate;
+        season.lengthDays = lengthDays;
+        season.initialCash = initialCash;
+        season.seed = seed;
+        season.currentDay = 0;
+        season.status = Status.RUNNING;
+        return season;
+    }
 }

@@ -3,6 +3,7 @@
      GET  /predictions/slots         이번 주 슬롯 잔여
      POST /predictions               등록 — 201 슬롯 내 / 202 슬롯 초과(소각)
      GET  /predictions/me            내 예측 (C-02)
+     GET  /predictions/{id}          예측 상세 (C-03)
      GET  /stocks/{code}/predictions  이 종목에 걸린 남의 예측 (B-03 예측 탭)
 
    ── 백엔드가 붙으면 지울 것 ────────────────────────────────
@@ -47,7 +48,8 @@
    ─────────────────────────────────────────────────────── */
 import { api } from './client'
 import * as mock from './mock/predictions'
-import type { CursorList, OperationRef } from './types'
+import type { Anchor } from './anchors'
+import type { ClosePrice, CursorList, OperationRef } from './types'
 
 const MOCK = true
 
@@ -218,6 +220,91 @@ export function fetchMyPredictions(filter: MyFilter) {
     if (MOCK) return mock.myPredictions(q)
     return api.get<MyPredictionList>('/predictions/me', { query: q })
   }
+}
+
+/* ── 예측 상세 (C-03) ─────────────────────────────────────
+   잠금이 두 겹이다(§5 게이팅 표).
+
+     ① 예측 전체   미판정(BASE/OPEN) + 작성자·구독자 아님 → locked
+     ② 근거 본문   미구독 → noteLocked. **만기 리빌 후에도 풀리지 않는다**
+                    (payload 에 noteHash 만 들어가므로 애초에 공개 대상이 아니다)
+
+   무엇을 잠그지 않는가 — commitHash · 앵커 · 서명 주소는 **언제나 공개**다.
+   이 셋이 "조작하지 않았다" 를 스스로 증명하는 재료이고, 잠그면 이 화면의
+   존재 이유가 사라진다. 그래서 locked 여도 이 값들은 내려온다.
+
+   404 로 감추지 않는다. 존재 자체는 공개이며 잠금 카드와 구독 CTA 로 그린다. */
+export type PredictionDetail = {
+  id: string
+  stockCode: string
+  /** C-02 와 같은 사정으로 서버에 아직 없다. 비면 종목코드로 대체한다 */
+  stockName: string | null
+  author: { userId: string; nickname: string }
+  status: PredictionStatus
+  horizon: Horizon
+  createdAt: string
+  /** 만기 영업일 */
+  settleDate: string
+  /** 만기까지 남은 일수. 판정이 끝났거나 기준가 확정 전이면 null */
+  dday: number | null
+
+  /* ── 잠금 대상 ────────────────────────────────────────
+     locked 면 아래 넷이 비어 온다. 0 으로 그리지 않는다. */
+  locked: boolean
+  direction: Direction | null
+  targetPrice: number | null
+  /** 배치 B2 가 다음 영업일 종가로 확정한다. 등록 직후(BASE)는 비어 있다 */
+  basePrice: number | null
+  /** 만기 종가. 판정 완료만 채워진다 */
+  settlePrice: number | null
+  /** 목표가 대비 오차 %. 판정 완료만 */
+  errorRate: number | null
+
+  /* 진행률을 그리는 재료. 실전 시세는 전일 종가뿐이라 그 값으로 어디까지 왔는지
+     보여준다 — "현재가" 를 만들지 않으려고 기준일을 함께 받는다(§7 legal). */
+  lastClose: ClosePrice | null
+
+  /* ── 근거 ─────────────────────────────────────────────
+     본문은 구독자 전용이다. 잠기면 note 가 null 이고 미리보기도 주지 않는다 —
+     리포트(§5)와 달리 예측 근거는 3줄 미리보기 규칙이 없다. */
+  noteLocked: boolean
+  note: string | null
+  /** C-01 에서 인계받아 커밋에 묶인 근거. 등록 후 바뀌지 않는다 */
+  evidencePoints: { id: number; body: string }[]
+
+  /* ── 항상 공개 ────────────────────────────────────────
+     잠금 여부와 무관하게 내려온다(§4 C-03). */
+  commitHash: string
+  /** 서명한 지갑 주소 */
+  signerAddress: string
+  /** 이 커밋이 묶인 앵커 배치. 아직 안 묶였으면 null */
+  anchor: Anchor | null
+
+  /** 잠금을 푸는 채널. 구독 CTA 가 여기로 간다 */
+  channelId: string | null
+}
+
+export function getPredictionDetail(id: string) {
+  if (MOCK) return mock.predictionDetail(id)
+  return api.get<PredictionDetail>(`/predictions/${id}`)
+}
+
+/**
+ * 목표까지 얼마나 왔는가. 기준가에서 목표가까지를 100 으로 본다.
+ *
+ * 서버가 주는 값이 아니라 기준가·목표가·전일 종가로 여기서 계산한다 — 명세가
+ * 진행률을 화면 구성으로 못 박았고(§4 C-03), 셋이 다 응답에 있으므로 없는 값을
+ * 만들어내는 것이 아니다. 셋 중 하나라도 비면 그릴 수 없어 null 이다.
+ *
+ * 100 을 넘길 수 있다 — 목표를 지나쳤다는 뜻이라 자르지 않는다. 음수도 그렇다.
+ */
+export function targetProgress(d: PredictionDetail): number | null {
+  const { basePrice, targetPrice, lastClose } = d
+  if (basePrice === null || targetPrice === null || lastClose === null) return null
+  const span = targetPrice - basePrice
+  /* 기준가와 목표가가 같으면 나눌 수 없다. 등록 자체가 막히지만 계약상 가능하다 */
+  if (span === 0) return null
+  return Math.round(((lastClose.close - basePrice) / span) * 1000) / 10
 }
 
 /* 목록 전체에 한 번만 해당하는 값. useCursorList 의 meta 로 온다.

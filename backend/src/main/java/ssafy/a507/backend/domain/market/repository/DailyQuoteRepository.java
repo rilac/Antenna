@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -46,4 +47,26 @@ public interface DailyQuoteRepository extends JpaRepository<DailyQuote, Long> {
      */
     List<DailyQuote> findByStock_CodeInAndTradeDateGreaterThanEqualOrderByStock_CodeAscTradeDateAsc(
             Collection<String> stockCodes, LocalDate from);
+
+    /**
+     * 기준일부터의 영업일 목록. 수집된 날짜가 곧 영업일이라 달력이나 공휴일 표가 필요 없다.
+     *
+     * <p>모의투자 시즌이 game_day ↔ 실제 영업일 매핑을 이걸로 만든다. 반환 순서가
+     * game_day 1..N 순서다.
+     */
+    @Query("select distinct q.tradeDate from DailyQuote q where q.tradeDate >= :from order by q.tradeDate")
+    List<LocalDate> findTradeDatesFrom(@Param("from") LocalDate from, Pageable pageable);
+
+    /**
+     * 그 구간에 시세가 빠짐없이 있는 종목만. 중간에 상장폐지·거래정지가 있으면 게임일에
+     * 구멍이 생겨 시즌으로 쓸 수 없다 — 구간 길이와 행 수가 같은 종목만 고른다.
+     */
+    @Query("select q.stock.code from DailyQuote q"
+            + " where q.tradeDate between :from and :to and q.stock.code in :codes"
+            + " group by q.stock.code having count(q) = :days")
+    List<String> findCodesWithFullHistory(
+            @Param("codes") Collection<String> codes,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("days") long days);
 }

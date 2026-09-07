@@ -26,7 +26,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import CloseChart from '../CloseChart'
 import Block, { BlockState, Panel } from './Block'
-import { useBlock } from './useBlock'
+import { useBlock } from '../../api/useBlock'
 import {
   POINT_KINDS, POINT_LABEL, SOURCE_LABEL,
   getBriefings, getDocuments, getFinancials, getPeers, getPoints,

@@ -17,4 +17,10 @@ public interface StockRepository extends JpaRepository<Stock, String>, JpaSpecif
 
     /** 상장주식수를 한 종목이라도 받았는가 — 칸이 생긴 배포의 첫 부팅 판정. */
     boolean existsByListedSharesIsNotNull();
+
+    /**
+     * 시즌 종목 후보. 상장 중이고 그 섹터에 속한 것만 — 코드 순으로 돌려주어
+     * 같은 seed 가 언제 돌아도 같은 종목을 뽑게 한다(대회 공정성).
+     */
+    List<Stock> findBySectorAndListedIsTrueOrderByCodeAsc(String sector);
 }
