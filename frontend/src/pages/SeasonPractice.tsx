@@ -21,16 +21,18 @@
       → 집계 엔드포인트가 없다. /seasons/history/me 는 목록만이다(§9.2 G-01 과 같은 사정).
       최근 완료한 연습 목록으로 대신한다.
 
-   추천 연습 시나리오의 이름에서는 연도·사건을 뺐다. 시대를 특정할 수 있는 말은
-   모의투자 전체에서 쓰지 않기로 했다 — "반도체 실적 시즌" → "반도체 실적 구간".
-   주제로 시즌을 고르는 기능은 아직 서버에 없다(응답에 주제 필드가 없다).
+   연습 주제 이름에서는 연도·사건을 뺀다. 시대를 특정할 수 있는 말은 모의투자
+   전체에서 쓰지 않는다 — "반도체 실적 시즌" → "반도체 실적 구간".
 
    ── 서버에서 받는 것 ────────────────────────────────────
-   api/seasons.ts 의 두 목록뿐이고, 이 화면은 그중 PRACTICE 만 걸러 쓴다. */
+   api/seasons.ts 의 두 목록이다. 연습 주제는 seasons.title·note 로 오고(API 명세
+   v0.24) 카드마다 그 시즌으로 들어간다 — 화면에 하드코딩하지 않는다(설계서 §4 G-02a).
+   목록은 ?mode=PRACTICE 로 서버가 걸러 준다. 클라이언트에서 걸러도 응답에는
+   실려 오므로, DEMO 가 관리자 전용인 정책은 서버에서 지켜야 한다. */
 import { Link } from 'react-router-dom'
 import type { ApiError } from '../api/errors'
 import {
-  getMyRuns, getOpenRuns, isJoinable, joinableFirst, progressOf, recentFirst,
+  getMyRuns, getPracticeRuns, isJoinable, joinableFirst, progressOf, recentFirst, won,
   type MyRun, type OpenRun,
 } from '../api/seasons'
 import { useAsync } from '../api/useAsync'
@@ -52,27 +54,24 @@ const Ico = ({ size = 24, children }: { size?: number; children: React.ReactNode
   </svg>
 )
 
-/* ── 연습 주제 ─────────────────────────────────────────────
-   서버에 주제 필드가 없어 정적 안내다(모드별 차이를 상수로 두는 G-02 와 같은 취급).
-   이름에서 연도·사건·정책 국면을 뺐다 — 남긴 것은 섹터와 테마뿐이다.
-   원본: "반도체 실적 시즌" · "금리 인하 기대감" · "전기차 섹터 변동성". */
-const TOPICS: { title: string; note: string; tone: string; icon: React.ReactNode }[] = [
-  {
-    title: '반도체 실적 구간', tone: 'v',
-    note: '실적 발표를 앞둔 반도체 종목의 흐름을 예측해 보세요.',
-    icon: <><rect x="7" y="7" width="10" height="10" rx="1.5" /><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4" /></>,
-  },
-  {
-    title: '금리 방향 전환', tone: 'g',
-    note: '금리 방향이 바뀔 때 시장이 어떻게 움직이는지 살펴보세요.',
-    icon: <><circle cx="7.5" cy="7.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" /><path d="M19 5 5 19" /></>,
-  },
-  {
-    title: '전기차 섹터 변동성', tone: 'b',
-    note: '변동성이 큰 섹터에서 진입·청산 전략을 연습해 보세요.',
-    icon: <><path d="M4 15h16l-1.6-5.2A2 2 0 0 0 16.5 8h-9a2 2 0 0 0-1.9 1.8z" /><path d="M4 15v3h3M20 15v3h-3" /><circle cx="7.5" cy="18" r="1.6" /><circle cx="16.5" cy="18" r="1.6" /></>,
-  },
-]
+/* ── 연습 주제 아이콘 ───────────────────────────────────────
+   주제 이름과 설명은 서버가 준다(seasons.title·note · API 명세 v0.24) — 화면에
+   하드코딩하지 않는다(설계서 §4 G-02a). 여기 남은 것은 theme 별 도형뿐이다.
+
+   그림으로 시대를 알려주지 않으려고 프로토타입의 시나리오 일러스트 대신
+   도형만 쓴다. 모르는 theme 은 기본 도형으로 떨어진다. */
+const THEME_ICON: Record<string, React.ReactNode> = {
+  IT: <><rect x="7" y="7" width="10" height="10" rx="1.5" /><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4" /></>,
+  FINANCE: <><circle cx="7.5" cy="7.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" /><path d="M19 5 5 19" /></>,
+  AUTO: <><path d="M4 15h16l-1.6-5.2A2 2 0 0 0 16.5 8h-9a2 2 0 0 0-1.9 1.8z" /><path d="M4 15v3h3M20 15v3h-3" /><circle cx="7.5" cy="18" r="1.6" /><circle cx="16.5" cy="18" r="1.6" /></>,
+}
+
+const DEFAULT_ICON = (
+  <><path d="M3 20h18" /><path d="M6 20v-7M11 20v-11M16 20v-5" /></>
+)
+
+const themeIcon = (theme?: string) =>
+  (theme && THEME_ICON[theme]) ?? DEFAULT_ICON
 
 /* 카드 아이콘은 순서대로 색만 바꿔 쓴다. 그림으로 시대를 알려주지 않으려고
    프로토타입의 시나리오 일러스트 대신 도형만 남겼다. */
@@ -247,15 +246,14 @@ function Done({ runs, loading, failure, onRetry }: {
 
 export default function SeasonPractice() {
   const mine = useAsync(getMyRuns)
-  const openList = useAsync(getOpenRuns)
+  const openList = useAsync(getPracticeRuns)
 
   /* 이 화면은 연습만 다룬다. 대회·시연은 G-02 모드 선택에서 고른다. */
   const going = (mine.data?.ongoing ?? []).filter((r) => r.mode === 'PRACTICE')
   const done = (mine.data?.done ?? []).filter((r) => r.mode === 'PRACTICE')
-  const open = (openList.data?.items ?? [])
-    .filter(isJoinable)
-    .filter((s) => s.mode === 'PRACTICE')
-    .sort(joinableFirst)
+  /* 모드는 서버가 걸러 준다(?mode=PRACTICE) — DEMO 가 관리자 전용이라
+     응답 자체에 실려 오지 않아야 한다. 여기서는 참가 가능 여부만 본다. */
+  const open = (openList.data?.items ?? []).filter(isJoinable).sort(joinableFirst)
 
   /* 바로 들어갈 수 있는 연습이 있으면 그 상세로, 없으면 모드 선택으로 보낸다.
      주제로 시즌을 고르는 길은 아직 서버에 없어 주제 카드도 같은 곳을 가리킨다. */
@@ -289,20 +287,34 @@ export default function SeasonPractice() {
                 <h2>연습 주제</h2>
               </div>
 
-              <ul className="pr-scenarios">
-                {TOPICS.map((t) => (
-                  <li key={t.title}>
-                    <Link className="pr-scenario" to={startAt}>
-                      <i className={`t-${t.tone}`}><Ico size={26}>{t.icon}</Ico></i>
-                      <div><b>{t.title}</b><small>{t.note}</small></div>
-                      <em aria-hidden="true">›</em>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              {open.length > 0 ? (
+                <ul className="pr-scenarios">
+                  {open.map((s, i) => (
+                    <li key={s.id}>
+                      {/* 카드마다 그 시즌으로 간다 — 셋이 같은 곳을 가리키지 않는다 */}
+                      <Link className="pr-scenario" to={`/sim/seasons/${s.id}`}>
+                        <i className={`t-${CARD_TONES[i % CARD_TONES.length]}`}>
+                          <Ico size={26}>{themeIcon(s.theme)}</Ico>
+                        </i>
+                        <div>
+                          <b>{s.title}</b>
+                          <small>{s.note ?? `${s.lengthDays}게임일 · 예수금 ${won(s.initialCash)}`}</small>
+                        </div>
+                        <em aria-hidden="true">›</em>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="pr-note">
+                  {openList.loading
+                    ? '연습 주제를 불러오는 중입니다.'
+                    : '지금 참가할 수 있는 연습이 없습니다.'}
+                </p>
+              )}
 
-              {/* 고른 주제가 실제로 반영되지 않는다는 것을 숨기지 않는다 */}
-              <p className="pr-note">주제별 선택은 준비 중입니다 — 지금은 참가 가능한 연습으로 이동합니다.</p>
+              {/* 시기를 숨기는 것이 이 게임의 규칙이라는 걸 여기서 한 번 알린다 */}
+              <p className="pr-note">주제는 어떤 장이었는지만 알려줍니다. 실제 시기와 종목명은 가려집니다.</p>
             </section>
 
             <section className="pr-ai">
