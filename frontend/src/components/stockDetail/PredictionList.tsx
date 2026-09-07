@@ -21,26 +21,11 @@ import {
   PHASE_LABEL, PREDICTION_PHASES, fetchStockPredictions,
 } from '../../api/predictions'
 import type {
-  PredictionPhase, PredictionStatus, StockPrediction, StockPredictionMeta,
+  PredictionPhase, StockPrediction, StockPredictionMeta,
 } from '../../api/predictions'
 import ErrorState from '../state/ErrorState'
+import PredictionStatus from '../prediction/PredictionStatus'
 import { Panel } from './Block'
-
-const STATUS_LABEL: Record<PredictionStatus, string> = {
-  BASE: '기준가 대기',
-  OPEN: '판정 대기',
-  HIT: '적중',
-  MISS: '빗나감',
-}
-
-/* 상태 전이는 BASE → OPEN → HIT/MISS 다. 앞의 둘은 이름만으로 차이가 잘 읽히지
-   않아 설명을 붙인다 — 둘 다 "대기" 라 무엇을 기다리는지가 구분점이다. */
-const STATUS_HINT: Record<PredictionStatus, string> = {
-  BASE: '등록은 됐지만 판정의 출발점이 될 기준가가 아직 정해지지 않았습니다. 다음 영업일 종가로 확정됩니다.',
-  OPEN: '기준가가 정해졌고, 만기일 종가가 나오면 판정합니다.',
-  HIT: '만기 종가가 목표가에 닿아 적중으로 판정됐습니다.',
-  MISS: '만기 종가가 목표가에 닿지 못했습니다.',
-}
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 const day = (iso: string) => iso.slice(0, 10).replace(/-/g, '.').slice(2)
@@ -142,9 +127,7 @@ export default function PredictionList({ code, span }: { code: string; span?: 5 
                 </div>
 
                 <div className="pl-meta">
-                  <span className={`pl-status is-${p.status.toLowerCase()}`} title={STATUS_HINT[p.status]}>
-                    {STATUS_LABEL[p.status]}
-                  </span>
+                  <PredictionStatus status={p.status} />
                   {/* 대기 건은 언제까지인지, 완료 건은 언제 끝났는지가 궁금하다 */}
                   <span className="pl-when num">
                     {phase === 'PENDING'

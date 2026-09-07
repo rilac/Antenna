@@ -1,0 +1,170 @@
+/* C-02 내 예측 — /me/predictions
+
+   전 선택자를 .my-predictions-page 아래로 스코프했다. 화면 CSS 는 전역으로
+   올라가는데 .up · .down 같은 흔한 이름이 밖으로 새면 다른 화면을 건드린다.
+   (routes.ts 가 이 화면에 bodyClass 를 붙인다)
+
+   상태 배지는 여기에 없다 — B-03 과 함께 쓰는 공용 컴포넌트라 styles/prediction.css
+   에 있다. 색 결정을 두 곳에 두면 한쪽만 고쳐지며 갈라진다. */
+
+/* 한 줄에 담기는 값이 적다(응답 필드가 열 개다). 화면 폭을 다 쓰면 목표가와
+   결과 사이가 손바닥만큼 벌어져 같은 줄로 읽히지 않는다. 그래서 읽기 좋은
+   너비에서 묶는다 — 날짜 순으로 위아래를 훑는 화면이라 두 열로 쪼개지 않고
+   한 열을 유지한다. */
+.my-predictions-page .mp-head,
+.my-predictions-page .mp-filters,
+.my-predictions-page .mp-list,
+.my-predictions-page .mp-skel,
+.my-predictions-page .mp-load{max-width:1000px}
+
+.my-predictions-page .mp-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:20px;
+  margin:0 0 18px;
+}
+.my-predictions-page .mp-head h1{
+  margin:0 0 5px;font-size:24px;line-height:1.2;
+  font-weight:750;letter-spacing:-.03em;color:var(--ink);
+}
+.my-predictions-page .mp-head p{
+  margin:0;color:var(--muted);font-size:13px;line-height:1.6;word-break:keep-all;
+}
+
+/* 적중률. 이 화면에서 가장 먼저 눈에 들어와야 하는 숫자다 */
+.my-predictions-page .mp-hit{
+  flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:1px;
+  margin:0;padding:0 0 0 20px;border-left:1px solid var(--rule);
+}
+.my-predictions-page .mp-hit b{
+  font-size:26px;line-height:1.15;font-weight:800;letter-spacing:-.03em;color:var(--brand);
+}
+.my-predictions-page .mp-hit span{color:var(--faint);font-size:11.5px}
+
+/* ── 상태 거르개 ─────────────────────────────────────────
+   알약 모양. 셸의 밑줄 탭과 헷갈리지 않게 다른 모양으로 둔다. */
+.my-predictions-page .mp-filters{
+  display:inline-flex;gap:4px;margin:0 0 14px;padding:3px;
+  border-radius:11px;background:var(--surface-2);
+}
+.my-predictions-page .mp-filters button{
+  display:inline-flex;align-items:center;gap:6px;
+  height:32px;padding:0 14px;border:0;border-radius:8px;background:none;
+  color:var(--muted);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+  transition:background .14s,color .14s;
+}
+.my-predictions-page .mp-filters button:hover{color:var(--ink)}
+.my-predictions-page .mp-filters button.is-on{
+  background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(20,20,27,.06);
+}
+.my-predictions-page .mp-filters button:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.my-predictions-page .mp-n{
+  padding:0 6px;border-radius:999px;background:var(--surface-2);
+  color:var(--faint);font-size:11px;font-weight:700;
+}
+.my-predictions-page .mp-filters button.is-on .mp-n{
+  background:var(--brand-softer);color:var(--brand-ink);
+}
+
+/* ── 목록 ────────────────────────────────────────────────
+   한 줄에 종목 · 방향+목표가 · 결과(D-day 또는 오차) · 기간 · 상태 · 상세.
+   격자 폭을 고정해 줄마다 칸이 흔들리지 않게 한다 — 숫자를 위아래로 훑는
+   화면이라 칸이 밀리면 비교가 안 된다. */
+.my-predictions-page .mp-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+
+/* 줄마다 독립된 격자다. 그래서 auto·fr 이 섞이면 칸 폭이 행마다 제 내용에 맞춰
+   따로 계산되고, "기준가 대기" 가 든 줄과 "적중" 이 든 줄의 칸이 어긋난다.
+   숫자를 위아래로 훑는 화면이라 칸이 밀리면 비교가 안 된다 — 그래서 늘어나는
+   칸(방향·목표가) 하나만 fr 로 두고 나머지는 폭을 못 박는다. */
+.my-predictions-page .mp-row{
+  display:grid;align-items:center;gap:14px;
+  grid-template-columns:132px minmax(0,1fr) 104px 92px 84px 20px;
+  padding:13px 16px;
+  background:var(--surface);border:1px solid var(--rule);border-radius:14px;
+  box-shadow:var(--shadow);
+}
+/* 고정 칸이 내용에 밀려 넘치지 않게 한다 */
+.my-predictions-page .mp-row > *{min-width:0}
+
+/* 종목 — 이름이 크고 코드가 작게 아래에 붙는다. 이름으로 알아보고 코드로 짚는다 */
+.my-predictions-page .mp-stock{
+  display:flex;flex-direction:column;gap:1px;min-width:0;border-radius:7px;
+}
+.my-predictions-page .mp-stock b{
+  font-size:13.5px;font-weight:750;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.my-predictions-page .mp-stock span{color:var(--faint);font-size:11px}
+.my-predictions-page .mp-stock:hover b{color:var(--brand);text-decoration:underline}
+.my-predictions-page .mp-stock:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+.my-predictions-page .mp-call{display:flex;align-items:baseline;gap:8px;margin:0;min-width:0}
+.my-predictions-page .mp-call b{font-size:13px;font-weight:750}
+.my-predictions-page .mp-target{color:var(--body);font-size:13px;font-weight:700}
+.my-predictions-page .up{color:var(--up)}
+.my-predictions-page .down{color:var(--down)}
+
+/* 결과·기간은 오른쪽으로 맞춘다. 자릿수가 다른 숫자(D-7 · D-58 · 오차 -11.6%)를
+   위아래로 견주는 자리라 오른쪽 끝이 나란해야 눈이 따라간다. */
+.my-predictions-page .mp-result{
+  margin:0;font-size:12.5px;text-align:right;white-space:nowrap;
+}
+/* 남은 일수는 행동을 부르는 값이라 눈에 띄게 둔다 */
+.my-predictions-page .mp-dday{font-weight:750;color:var(--brand-ink)}
+.my-predictions-page .mp-err{color:var(--body);font-weight:700}
+/* 목표가에 가깝게 맞힌 건은 강조한다 — 이 서비스가 파는 값어치다 */
+.my-predictions-page .mp-err.is-near{color:#0a7f3d}
+.my-predictions-page .mp-none{color:var(--faint)}
+
+.my-predictions-page .mp-when{
+  display:flex;flex-direction:column;align-items:flex-end;gap:1px;margin:0;
+  color:var(--muted);font-size:11.5px;white-space:nowrap;
+}
+.my-predictions-page .mp-date{color:var(--faint);font-size:11px}
+
+/* 배지는 고정 칸 안에서 왼쪽에 붙인다. 가운데로 두면 글자 길이(적중 ↔ 기준가 대기)
+   에 따라 배지가 좌우로 흔들려 다시 어긋나 보인다. */
+.my-predictions-page .mp-row > .pred-status{justify-self:start}
+
+.my-predictions-page .mp-more{
+  display:grid;place-items:center;width:24px;height:24px;
+  border-radius:7px;color:var(--faint);
+}
+.my-predictions-page .mp-more:hover{background:var(--surface-2);color:var(--ink)}
+.my-predictions-page .mp-more:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+
+.my-predictions-page .mp-load{
+  width:100%;height:40px;margin-top:12px;
+  border:1px solid var(--rule);border-radius:11px;background:var(--surface);
+  color:var(--muted);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;
+}
+.my-predictions-page .mp-load:hover:not(:disabled){color:var(--ink);border-color:#c8ccdd}
+.my-predictions-page .mp-load:disabled{cursor:progress}
+.my-predictions-page .mp-load:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* 로딩 자리. 실제 줄 높이와 같게 둬서 자료가 오면 화면이 튀지 않는다 */
+.my-predictions-page .mp-skel{display:grid;gap:8px}
+.my-predictions-page .mp-skel span{
+  display:block;height:52px;border-radius:14px;
+  background:linear-gradient(100deg,var(--surface-2) 30%,#f2f3f8 46%,var(--surface-2) 62%);
+  background-size:220% 100%;animation:mp-shine 1.25s linear infinite;
+}
+@keyframes mp-shine{to{background-position:-120% 0}}
+@media (prefers-reduced-motion:reduce){
+  .my-predictions-page .mp-skel span{animation:none}
+}
+
+/* ── 좁은 화면 ───────────────────────────────────────────
+   격자를 두 줄로 접는다. 종목·방향이 윗줄, 결과·기간·상태가 아랫줄이다. */
+@media (max-width:860px){
+  .my-predictions-page .mp-row{
+    grid-template-columns:132px minmax(0,1fr) 84px 20px;
+    row-gap:8px;
+  }
+  /* 아랫줄 왼쪽으로 내려오므로 오른쪽 정렬을 되돌린다 */
+  .my-predictions-page .mp-result{grid-column:1 / 3;grid-row:2;text-align:left}
+  .my-predictions-page .mp-when{grid-column:3 / 5;grid-row:2;align-items:flex-end}
+  .my-predictions-page .mp-head{flex-direction:column;gap:12px}
+  .my-predictions-page .mp-hit{
+    align-items:flex-start;padding:0;border-left:0;
+    flex-direction:row;align-items:baseline;gap:8px;
+  }
+}
