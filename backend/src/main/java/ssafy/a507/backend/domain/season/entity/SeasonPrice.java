@@ -15,7 +15,13 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 시즌 가격. 커닝 차단 때문에 실제 날짜가 없고 게임일 인덱스만 둔다. */
+/**
+ * 시즌 가격. 실제 날짜가 없고 게임일 인덱스만 둔다 — 날짜가 곧 시대 단서다.
+ *
+ * <p>{@code game_day <= 0} 은 워밍업이다(ERD v0.8). 첫 게임일 앞의 과거 봉 30개를 함께 담아
+ * D+1 화면이 봉 하나로 시작하지 않게 한다. 진행일 절단({@code game_day <= currentDay})은
+ * 그대로 적용된다.
+ */
 @Entity
 @Table(
         name = "season_prices",

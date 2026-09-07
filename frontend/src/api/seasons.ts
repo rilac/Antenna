@@ -59,7 +59,7 @@ export type OpenRun = {
   sector?: string
   lengthDays: number
   initialCash: number
-  /** 블라인드 종목 수 */
+  /** 시즌 종목 수 — 실명이며 시총 상위 최대 200(API 명세 v0.26) */
   tickerCount?: number
   /** 대회만 값이 있다. 연습·시연은 참가비가 없다 */
   entryFee?: number

@@ -15,7 +15,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import ssafy.a507.backend.domain.market.entity.Stock;
 
-/** 시즌 종목. 블라인드일 때 참가자에게는 "A사"로만 보인다. */
+/**
+ * 시즌 종목. 실명이다(ERD v0.8) — "A사" 가명은 걷어냈다. 종목이 누구인지 모르면 업종 사이의
+ * 연관이나 실적 같은 공부가 성립하지 않는다. 숨기는 것은 실제 날짜뿐이다.
+ */
 @Entity
 @Table(
         name = "season_tickers",
@@ -38,18 +41,17 @@ public class SeasonTicker {
     @Column(name = "display_name", nullable = false, length = 20)
     private String displayName;
 
-    /** 정답 원본 종목. 시즌이 CLOSED 되기 전까지 어떤 응답에도 실으면 안 된다. */
+    /** 원본 종목. 종목코드·종목명은 응답에 실어도 된다(검색 재료). 실제 날짜는 여기서 나오지 않는다. */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "real_stock_code", nullable = false)
     private Stock realStock;
 
-    /** 블라인드에도 공개하는 힌트. 정답 누수를 막으려 값을 복제해 둔다. */
+    /** 종목의 KRX 업종명. 진행 화면의 업종 필터 재료다. 시즌 생성 시점 값을 복제해 둔다. */
     @Column(length = 30)
     private String sector;
 
     /**
-     * 시즌 종목 하나. {@code displayName} 은 "A사" 처럼 정체를 지운 이름이고
-     * {@code realStock} 은 정답이라 CLOSED 전까지 어떤 응답에도 실으면 안 된다.
+     * 시즌 종목 하나. {@code displayName} 은 종목의 실제 이름이다(v0.8).
      *
      * <p>{@code sector} 는 참가자에게 보여 주는 유일한 힌트다. 좁게 담으면 실제 주가와
      * 맞물려 종목이 추정되므로 상위 분류로만 담는다(ERD v0.6).
