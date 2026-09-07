@@ -133,13 +133,16 @@
 
 /* ── 진입 버튼 ──────────────────────────────────────── */
 .ss-cta{
-  display:flex;align-items:center;gap:10px;width:100%;max-width:var(--inner);
+  position:relative;display:flex;align-items:center;justify-content:center;
+  width:100%;max-width:var(--inner);
   height:58px;padding:0 18px;margin-inline:auto;
   border-radius:13px;font-size:16.5px;font-weight:800;letter-spacing:-.02em;
   transition:background .15s,border-color .15s;
 }
-.ss-cta b{margin:0 auto;font-weight:800}
-.ss-cta > span{margin-left:auto;font-size:19px}
+.ss-cta b{font-weight:800}
+/* 화살표를 흐름에서 빼야 글자가 버튼 전체의 한가운데에 온다 —
+   흐름 안에 두면 남은 폭의 가운데라 왼쪽으로 치우쳐 보인다 */
+.ss-cta > span{position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:19px}
 
 /* 열린 시즌이 없을 때. 링크가 아니라 span 이라 커서·포커스가 생기지 않는다 */
 .ss-cta.is-off{
@@ -149,25 +152,10 @@
 .ss-cta.is-off b{color:inherit}
 
 .ss-cta-meta{
-  max-width:var(--inner);margin:10px auto 0;min-height:18px;
+  max-width:var(--inner);margin:10px auto 0;min-height:18px;text-align:center;
   color:var(--muted);font-size:12.5px;font-weight:650;
   font-variant-numeric:tabular-nums;
 }
-
-/* 같은 모드에 시즌이 둘 이상일 때만 나온다 */
-.ss-others{
-  width:100%;max-width:var(--inner);margin:14px auto 0;padding:14px 0 0;list-style:none;
-  border-top:1px dashed var(--rule);
-  display:flex;flex-direction:column;gap:7px;
-}
-.ss-others a{
-  display:flex;align-items:baseline;gap:8px;padding:8px 11px;
-  border:1px solid var(--rule);border-radius:10px;text-align:left;
-  transition:border-color .12s;
-}
-.ss-others a:hover{border-color:var(--tone)}
-.ss-others b{flex:none;color:var(--tone-ink);font-size:11.5px;font-weight:750}
-.ss-others span{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 
 /* ── 모드별 색 (프로토타입 값 유지) ───────────────────── */
 .learn,.t-learn{--tone:#16a06a;--tone-ink:#17805a;--tone-soft:#e7f6ef}
@@ -217,6 +205,6 @@
   .ss-steps.n-2,.ss-steps.n-3{grid-template-columns:minmax(0,1fr)}
 }
 @media(prefers-reduced-motion:reduce){
-  .ss-mode,.ss-cta,.ss-others a{transition:none}
+  .ss-mode,.ss-cta{transition:none}
   .ss-mode:hover{transform:none}
 }
