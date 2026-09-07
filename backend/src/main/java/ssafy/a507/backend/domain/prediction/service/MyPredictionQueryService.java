@@ -38,15 +38,18 @@ public class MyPredictionQueryService {
     private final PredictionRepository predictions;
 
     /**
-     * status 파라미터 어휘(명세 §예측). 저장된 상태 네 값과 1:1 이 아니라 {@code PENDING} 이
-     * BASE·OPEN 을 묶는다 — 화면은 "대기 / 적중 / 실패" 세 칸으로 보여주고 기준가 확정 여부는 구분하지 않는다.
-     * 어휘 밖 값은 스프링의 변환 실패로 400 이다.
+     * status 파라미터 어휘(명세 §예측). 저장된 상태 네 값과 1:1 이 아니라 두 값이 묶음이다 —
+     * {@code PENDING} 이 BASE·OPEN 을, {@code JUDGED} 가 HIT·MISS 를 묶는다. 화면 C-02 의 칩이
+     * "전체 / 판정 대기 / 판정 완료" 세 칸이고 기준가 확정 여부는 구분하지 않는다. {@code JUDGED} 를
+     * 서버에서 묶는 이유는 커서 페이징이다 — HIT·MISS 를 따로 받아 프론트에서 합치면 커서가 둘이 되고
+     * 페이지 크기가 들쭉날쭉해진다. 어휘 밖 값은 스프링의 변환 실패로 400 이다.
      */
     public enum StatusFilter {
         ALL(EnumSet.allOf(Prediction.Status.class)),
         PENDING(EnumSet.of(Prediction.Status.BASE, Prediction.Status.OPEN)),
         HIT(EnumSet.of(Prediction.Status.HIT)),
-        MISS(EnumSet.of(Prediction.Status.MISS));
+        MISS(EnumSet.of(Prediction.Status.MISS)),
+        JUDGED(EnumSet.of(Prediction.Status.HIT, Prediction.Status.MISS));
 
         private final Set<Prediction.Status> statuses;
 
