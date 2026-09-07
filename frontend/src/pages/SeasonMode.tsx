@@ -327,8 +327,9 @@ function asApiError(e: unknown): ApiError {
   return new ApiError({ code: CLIENT_ERROR_CODE.UNKNOWN, message: String(e) }, 0)
 }
 
+/* 게임일 수는 적지 않는다 — 기간은 G-03 시즌 상세가 보여준다. 여기는 출발선(예수금)만. */
 function seasonMeta(s: Season) {
-  const parts = [`${s.lengthDays}게임일`, `예수금 ${won(s.initialCash)}`]
+  const parts = [`예수금 ${won(s.initialCash)}`]
   if (s.entryFee) parts.push(`참가비 ${ant(s.entryFee)}`)
   return parts.join(' · ')
 }
@@ -430,7 +431,6 @@ export default function SeasonMode() {
           {modes.map((m) => {
             const open = seasons ? joinable(seasons, m.key) : []
             const first = open[0]
-            const rest = open.slice(1)
             /* 허브가 있으면 시즌 유무와 무관하게 그리로 간다. 없으면 종전대로
                참가 가능한 시즌 하나를 골라 G-03 으로 보낸다. */
             const target = HUB[m.key] ?? (first ? `/sim/seasons/${first.id}` : null)
@@ -495,19 +495,6 @@ export default function SeasonMode() {
                       {seasons !== null && !error && '지금 참가할 수 있는 시즌이 없습니다'}
                     </p>
                   </>
-                )}
-
-                {rest.length > 0 && (
-                  <ul className="ss-others">
-                    {rest.map((s) => (
-                      <li key={s.id}>
-                        <Link to={`/sim/seasons/${s.id}`}>
-                          <b>{s.status === 'RUNNING' ? '진행 중' : '시작 전'}</b>
-                          <span>{seasonMeta(s)}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
                 )}
               </article>
             )
