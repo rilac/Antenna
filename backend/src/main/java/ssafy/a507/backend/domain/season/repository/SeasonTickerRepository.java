@@ -3,6 +3,7 @@ package ssafy.a507.backend.domain.season.repository;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ssafy.a507.backend.domain.season.entity.SeasonTicker;
@@ -20,4 +21,9 @@ public interface SeasonTickerRepository extends JpaRepository<SeasonTicker, Long
     List<SeasonTickerCount> countBySeasonIdIn(@Param("seasonIds") Collection<Long> seasonIds);
 
     long countBySeason_Id(Long seasonId);
+
+    /** 시즌의 종목 전부. 가격을 먼저 지운 뒤 부른다(FK). */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from SeasonTicker t where t.season.id = :seasonId")
+    void deleteBySeason_Id(@Param("seasonId") Long seasonId);
 }

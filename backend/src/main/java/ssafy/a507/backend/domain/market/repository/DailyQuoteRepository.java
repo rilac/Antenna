@@ -58,6 +58,23 @@ public interface DailyQuoteRepository extends JpaRepository<DailyQuote, Long> {
     List<LocalDate> findTradeDatesFrom(@Param("from") LocalDate from, Pageable pageable);
 
     /**
+     * 기준일 직전 영업일들 — 시즌 워밍업 봉 재료. <b>최근 날짜가 먼저</b> 온다(내림차순).
+     * 수집 시작보다 앞이면 있는 만큼만 돌아온다.
+     */
+    @Query("select distinct q.tradeDate from DailyQuote q where q.tradeDate < :before order by q.tradeDate desc")
+    List<LocalDate> findTradeDatesBefore(@Param("before") LocalDate before, Pageable pageable);
+
+    /**
+     * 그날 시가총액 큰 순서의 종목코드 — 시즌 종목 후보. 종가 × 상장주식수로 근사한다.
+     * 상장주식수는 마지막 수집일 기준 현재값이라 과거 구간에서는 근사치다.
+     * 상장주식수가 없는 종목은 순위를 매길 수 없어 빠진다. 동률은 코드순.
+     */
+    @Query("select q.stock.code from DailyQuote q join q.stock s"
+            + " where q.tradeDate = :day and s.listed = true and s.listedShares is not null"
+            + " order by (q.close * s.listedShares) desc, s.code asc")
+    List<String> findCodesByCapDescOn(@Param("day") LocalDate day);
+
+    /**
      * 그 구간에 시세가 빠짐없이 있는 종목만. 중간에 상장폐지·거래정지가 있으면 게임일에
      * 구멍이 생겨 시즌으로 쓸 수 없다 — 구간 길이와 행 수가 같은 종목만 고른다.
      */

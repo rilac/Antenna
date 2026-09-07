@@ -21,4 +21,7 @@ public interface SeasonParticipantRepository extends JpaRepository<SeasonPartici
      */
     @EntityGraph(attributePaths = "season")
     List<SeasonParticipant> findByUser_IdOrderByIdDesc(Long userId);
+
+    /** 누구든 참가한 적이 있는가 — 시더가 옛 시즌을 지워도 되는지 가르는 기준. */
+    boolean existsBySeason_Id(Long seasonId);
 }
