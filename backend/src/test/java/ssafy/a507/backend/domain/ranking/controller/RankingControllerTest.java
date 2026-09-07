@@ -74,12 +74,22 @@ class RankingControllerTest {
         insertRanking("REAL", "30D", user, 1, "20.000", "20.00", "2.000", 2);
         insertRanking("REAL", "ALL:SEC:전기전자", user, 1, "30.000", "30.00", "3.000", 3);
 
+        // 프론트가 실제로 보내는 값은 D30 이다(api/rankings.ts PERIODS). 한글 라벨도 함께 받는다.
+        for (String thirtyDays : new String[] {"D30", "30D", "30일"}) {
+            mockMvc.perform(get(URL)
+                            .param("track", "REAL")
+                            .param("period", thirtyDays)
+                            .with(user(String.valueOf(viewerId))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].score").value(20.0));
+        }
+
         mockMvc.perform(get(URL)
                         .param("track", "REAL")
-                        .param("period", "30일")
+                        .param("period", "ALL")
                         .with(user(String.valueOf(viewerId))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].score").value(20.0));
+                .andExpect(jsonPath("$.items[0].score").value(10.0));
 
         mockMvc.perform(get(URL)
                         .param("track", "REAL")

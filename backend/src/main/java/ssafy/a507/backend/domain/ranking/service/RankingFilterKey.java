@@ -41,14 +41,20 @@ public final class RankingFilterKey {
         return isBlank(sector) ? base : base + SECTOR_INFIX + sector.trim();
     }
 
-    /** 명세의 period 어휘는 "전체 | 30일" 이다. 프론트가 영문 축약을 보낼 수도 있어 둘 다 받는다. */
+    /**
+     * period 어휘. <b>프론트가 실제로 보내는 값이 기준이다</b> — {@code api/rankings.ts} 의
+     * {@code PERIODS = ['ALL', 'D30']} 이고, "전체 · 최근 30일" 은 화면에 그리는 라벨일 뿐이다.
+     * 명세서 표가 라벨("전체 | 30일")을 값처럼 적어 둬서 한글도 함께 받는다.
+     *
+     * <p>{@code D30} 을 안 받으면 랭킹 화면(E-01)의 "최근 30일" 탭이 통째로 400 이다.
+     */
     private static String period(String period) {
         if (isBlank(period)) {
             return ALL;
         }
         return switch (period.trim()) {
-            case "전체", "ALL" -> ALL;
-            case "30일", "30D" -> LAST_30_DAYS;
+            case "ALL", "전체" -> ALL;
+            case "D30", "30D", "30일" -> LAST_30_DAYS;
             default -> throw new BusinessException(ErrorCode.INVALID_REQUEST, "period");
         };
     }
