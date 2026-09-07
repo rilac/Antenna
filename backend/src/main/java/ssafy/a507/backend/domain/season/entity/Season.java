@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -26,21 +25,17 @@ import lombok.NoArgsConstructor;
  * <p>시기는 참가자에게 공개하지 않는다. {@code base_date} 는 서버 전용이며 어떤 응답에도
  * 싣지 않는다 — 연습은 성격({@code title})과 섹터만 고르고 시기는 서버가 고른다.
  *
- * <p><b>UQ(mode, theme, seed, base_date)</b> — 이 넷이 시즌의 정체다. 같으면 같은 종목이
- * 같은 구간으로 뽑히므로 같은 시즌이다. 시더가 두 겹으로 돌아도(개발 중 devtools 이중
- * 재기동) 겹쳐 쌓이지 않게 DB 가 막는다 — 검사만으로는 못 막는다. 두 흐름이 같은 순간에
- * "없다" 를 보고 둘 다 만들 수 있다.
+ * <p><b>유니크 제약을 걸지 않는다.</b> (mode, theme, seed) 가 같으면 같은 시즌이라
+ * DB 로 막고 싶지만, 이 프로젝트에는 마이그레이션 도구가 없고 {@code ddl-auto: update} 는
+ * 제약을 <b>만들 줄만 알고 지울 줄은 모른다</b>. 한 번 걸면 코드에서 빼도 팀원·배포 DB 에
+ * 그대로 남아, 나중에 키를 바꾸면 옛 제약에 걸려 기동이 실패한다(2026-09-07 실제로 겪었다).
  *
- * <p>{@code base_date} 를 키에 넣는 이유 — 같은 섹터·같은 seed 로 <b>다른 구간</b>을 두 시즌
- * 만드는 것은 정상이다. 셋만으로 잠그면 그걸 막는다.
+ * <p>중복은 시더의 exists 검사가 막는다. 그것만으로 못 막는 경우는 두 흐름이 같은 순간에
+ * "없다" 를 보는 동시 실행뿐인데, 그건 개발 중 devtools 이중 재기동에서만 생기고
+ * {@code removeStale()} 이 다음 기동에 정리한다. 도구가 들어오면 그때 제약을 건다.
  */
 @Entity
-@Table(
-        name = "seasons",
-        uniqueConstraints =
-                @UniqueConstraint(
-                        name = "uq_seasons_mode_theme_seed_base",
-                        columnNames = {"mode", "theme", "seed", "base_date"}))
+@Table(name = "seasons")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Season {
