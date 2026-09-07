@@ -7,7 +7,7 @@
    초기값으로 돌아간다 — 진짜 저장은 백엔드가 할 일이다. */
 import { phaseOf } from '../predictions'
 import type {
-  CreateResult, Horizon, MyPrediction, MyPredictionList, PredictionDetail,
+  CreateResult, Direction, Horizon, PredictionDetail,
   PredictionDraft, PredictionStatus, SlotStatus, StockPrediction, StockPredictionList,
 } from '../predictions'
 
@@ -169,14 +169,28 @@ export function stockPredictions(code: string, query: Query): Promise<StockPredi
   }, 340)
 }
 
-/* ── 내 예측 (C-02) ───────────────────────────────────────
-   명세의 아홉 필드에 stockName 을 더해 만든다(팀에서 추가하기로 정한 필드).
-   서버에 아직 없으므로 화면은 비었을 때 종목코드로 대체하게 되어 있다 —
-   그 갈래도 확인하려고 한 줄만 이름을 비워 둔다.
+/* C-03 상세 목업이 없는 id 로 들어왔을 때 만들어 낼 씨앗.
+
+   **C-02 의 MyPrediction 을 빌려 쓰지 않는다.** 그 타입은 이제 실제 서버
+   DTO(MyPredictionItemResponse)를 따라가므로, 목업이 거기 매달리면 서버가
+   필드를 바꿀 때 상세 목업까지 함께 깨진다. 필요한 만큼만 따로 적는다.
 
    상태 분포를 골고루 둔다. 등록 직후(BASE)는 dday·errorRate 가 둘 다 비어 있고,
    판정 대기(OPEN)는 dday 만, 판정 완료(HIT/MISS)는 errorRate 만 있다. */
-const MY_ROWS: MyPrediction[] = [
+type DetailSeed = {
+  id: string
+  stockCode: string
+  stockName: string | null
+  direction: Direction
+  targetPrice: number
+  horizon: Horizon
+  status: PredictionStatus
+  dday: number | null
+  errorRate: number | null
+  settleDate: string
+}
+
+const SEEDS: DetailSeed[] = [
   { id: 'p1', stockCode: '005930', stockName: '삼성전자', direction: 'UP', targetPrice: 78000, horizon: 20, status: 'BASE', dday: null, errorRate: null, settleDate: '2026-09-28' },
   { id: 'p2', stockCode: '000660', stockName: 'SK하이닉스', direction: 'UP', targetPrice: 215000, horizon: 10, status: 'OPEN', dday: 7, errorRate: null, settleDate: '2026-09-14' },
   { id: 'p3', stockCode: '035420', stockName: 'NAVER', direction: 'DOWN', targetPrice: 165000, horizon: 5, status: 'OPEN', dday: 2, errorRate: null, settleDate: '2026-09-07' },
@@ -193,34 +207,6 @@ const MY_ROWS: MyPrediction[] = [
   /* 이름이 아직 안 오는 갈래 — 화면이 종목코드로 대체하는지 본다 */
   { id: 'p14', stockCode: '005490', stockName: null, direction: 'DOWN', targetPrice: 390000, horizon: 10, status: 'HIT', dday: null, errorRate: -0.7, settleDate: '2026-06-22' },
 ]
-
-/* 서버가 할 일을 그대로 흉내낸다 — status 로 먼저 거르고 그다음 커서로 자른다.
-   집계는 거르기 전 전체에서 센다. 필터를 바꿔도 탭 옆 숫자가 흔들리면 안 된다. */
-export function myPredictions(query: Query): Promise<MyPredictionList> {
-  const pending = MY_ROWS.filter((r) => phaseOf(r.status) === 'PENDING')
-  const judged = MY_ROWS.filter((r) => phaseOf(r.status) === 'JUDGED')
-  const hit = judged.filter((r) => r.status === 'HIT').length
-
-  const status = query.status as string | undefined
-  const rows = status === 'PENDING' ? pending : status === 'JUDGED' ? judged : MY_ROWS
-
-  const size = Number(query.size ?? 12)
-  const cursor = query.cursor as string | undefined
-  const start = cursor ? rows.findIndex((r) => r.id === cursor) + 1 : 0
-  const page = rows.slice(start, start + size)
-  const last = page[page.length - 1]
-  const hasNext = last ? rows.indexOf(last) < rows.length - 1 : false
-
-  return delay({
-    items: page,
-    nextCursor: hasNext && last ? last.id : null,
-    hasNext,
-    total: MY_ROWS.length,
-    pendingCount: pending.length,
-    judgedCount: judged.length,
-    hitRate: judged.length ? Math.round((hit / judged.length) * 100) : null,
-  }, 320)
-}
 
 /* ── 예측 상세 (C-03) ─────────────────────────────────────
    잠금 두 갈래를 실제로 재현한다. 화면이 §5 를 지키는지 눈으로 확인하려는 것이다.
@@ -329,7 +315,7 @@ export function predictionDetail(id: string): Promise<PredictionDetail> {
 
   /* 내 예측 목록의 다른 id 로 들어오면 그 줄을 바탕으로 만들어 준다 —
      목록에서 아무 줄이나 눌러도 상세가 뜨게 해서 흐름을 확인할 수 있다. */
-  const row = MY_ROWS.find((r) => r.id === id)
+  const row = SEEDS.find((r) => r.id === id)
   if (!row) return notFoundPrediction(id)
 
   const judged = phaseOf(row.status) === 'JUDGED'
