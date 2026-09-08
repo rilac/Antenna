@@ -21,6 +21,7 @@ import { Panel } from './Block'
 import PredictionList from './PredictionList'
 import { useBlock } from '../../api/useBlock'
 import WalletLinkModal from '../wallet/WalletLinkModal'
+import CommitProgressModal, { type CommitPhase } from '../prediction/CommitProgressModal'
 import ErrorState from '../state/ErrorState'
 import { ApiError } from '../../api/errors'
 import { POINT_KINDS, POINT_LABEL, getPoints } from '../../api/stockDetail'
@@ -74,6 +75,10 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState<ApiError | null>(null)
   const [result, setResult] = useState<CreateResult | null>(null)
+  /* 지갑 승인 뒤 서버 응답까지 빈 시간이 있다. 그 사이 화면이 그대로면 승인이
+     먹혔는지 알 수 없고, 응답이 오는 순간 완료 화면이 튀어나온다.
+     null 이면 모달을 띄우지 않는다 — 아직 서명 흐름에 들어가지 않은 상태다. */
+  const [phase, setPhase] = useState<CommitPhase | null>(null)
   /** 지갑 창을 닫거나 거부했을 때처럼 서버까지 못 간 실패 */
   const [localMsg, setLocalMsg] = useState<string | null>(null)
 
@@ -147,12 +152,20 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
     }
 
     setSubmitting(true)
+    setPhase('signing')
     try {
       const address = await connectAddress()
       const nonce = await requestNonce('PREDICTION_BURN')
       const signature = await personalSign(signingPayload('PREDICTION_BURN', address, nonce), address)
+      // 지갑 승인이 끝났다. 여기서부터가 사용자가 기다리는 구간이다
+      setPhase('committing')
       setResult(await createPrediction(draft, signature))
+      setPhase('settled')
     } catch (e) {
+      /* 실패하면 모달을 걷는다. 오류는 폼 쪽에서 보여 준다 — 진행 모달에
+         오류까지 담으면 "무엇이 어디까지 갔나" 와 "무엇이 잘못됐나" 가 한 창에
+         섞인다. */
+      setPhase(null)
       if (e instanceof ApiError) setFailure(e)
       else if (e && typeof e === 'object' && 'code' in e) {
         setFailure(new ApiError({
@@ -164,10 +177,18 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
     }
   }
 
+  /* 진행 모달. 완료 화면과 입력 화면 두 갈래가 같은 것을 띄우므로 한 번만
+     만들어 둔다. 닫으면 뒤에 있는 완료 화면이 그대로 남는다 — 커밋 해시와
+     다음 걸음이 거기 적혀 있어 잃을 것이 없다. */
+  const progress = phase && (
+    <CommitProgressModal phase={phase} result={result} onClose={() => setPhase(null)} />
+  )
+
   /* ── 등록 완료 ────────────────────────────────────────── */
   if (result) {
     return (
       <div className="sd-grid">
+        {progress}
         <section className="sd-block sd-done" data-span="12">
           <span className="sd-done-mark" aria-hidden="true">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -398,6 +419,8 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
           )}
         </div>
       </Panel>
+
+      {progress}
 
       {/* 지갑이 없으면 먼저 연동하고, 끝나면 하던 등록을 이어 간다 */}
       {linking && (
