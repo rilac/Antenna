@@ -33,15 +33,20 @@ export type IndexQuote = {
   series: number[]
 }
 
-/* 목업으로 되돌렸다(2026-09-08 결정). 엔드포인트는 살아 있고 200 을 주지만
-   index_quotes 가 0행이라 items 가 늘 비어 있다 — 지수·환율 수집(ANT-DATA-04)이
-   아직 안 돌았다. 그대로 두면 홈 첫 카드가 통째로 빈 채로 보인다.
-   광고(getActiveAds)에 내린 것과 같은 판단이고, 수집이 붙으면 이 줄만 지운다.
+/* 지수는 실제 API 를 탄다.
 
-   **오류가 아니라 빈 목록이라는 점이 중요하다.** 화면이 "불러오지 못했습니다" 를
-   띄우는 게 아니라 아무것도 안 그린다 — 그래서 빈 상태 문구로도 덮이지 않는다. */
+   잠깐 목업으로 되돌렸다가(d203f1a) 다시 되돌린 자리다. items 가 늘 비어 있는 걸
+   보고 "수집이 아직 안 돌았다" 고 읽었는데, **원인은 백엔드가 아니라 우리 쪽
+   재기동이었다.** application.yaml 이 .env 를 optional:file 로 기동할 때 한 번만
+   읽는데, 그날 백엔드가 09:08 에 뜨고 .env 에 키가 09:59 에 들어왔다. 재기동하니
+   같은 코드가 지수 3,278행을 받아 왔다.
+
+   **다음에 "수집이 안 된다" 싶으면 .env 시각과 기동 시각부터 견주어 볼 것.**
+
+   USDKRW 는 아직 안 온다 — KOREAEXIM_AUTH_KEY 가 .env 에 없어 환율만 건너뛴다.
+   그래서 카드에 지수 셋이 아니라 둘이 뜬다. 빈 자리를 만들지 않고 온 것만 그린다 —
+   화면이 개수를 정하지 않고 서버가 준 만큼 그린다. */
 export function getMarketIndices(days = 30) {
-  if (MOCK) return mock.marketIndices()
   return api.get<{ items: IndexQuote[] }>('/market/indices', { query: { days } })
 }
 
