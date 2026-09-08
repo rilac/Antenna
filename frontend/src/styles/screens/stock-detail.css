@@ -681,6 +681,10 @@
 .stock-detail-page .sd-submit:disabled{background:var(--surface-2);color:var(--faint);cursor:progress}
 .stock-detail-page .sd-submit:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
 
+/* 제출 결과 안내. 버튼을 누른 뒤 그 아래에 생긴다 — 위에 두면 눌렀을 때
+   시선이 버튼에 있어 나타난 줄 모른다 */
+.stock-detail-page .sd-submit-msg{margin-top:10px}
+
 /* ── 등록 완료 ────────────────────────────────────────── */
 .stock-detail-page .sd-done{text-align:center;padding:44px 32px}
 .stock-detail-page .sd-done-mark{
