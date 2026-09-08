@@ -2,6 +2,7 @@ package ssafy.a507.backend.domain.season.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -26,4 +27,13 @@ public interface SeasonTickerRepository extends JpaRepository<SeasonTicker, Long
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from SeasonTicker t where t.season.id = :seasonId")
     void deleteBySeason_Id(@Param("seasonId") Long seasonId);
+
+    /** 시즌 종목 목록. 이름 순이다 — 연습은 실명이라 가나다순으로 온다. */
+    List<SeasonTicker> findBySeason_IdOrderByDisplayNameAsc(Long seasonId);
+
+    /**
+     * 그 시즌의 그 종목. 시즌 id 를 조건에 함께 넣는다 — id 만으로 찾으면 남의 시즌
+     * 종목 id 를 넣어 가격을 떠볼 수 있다.
+     */
+    Optional<SeasonTicker> findByIdAndSeason_Id(Long tickerId, Long seasonId);
 }
