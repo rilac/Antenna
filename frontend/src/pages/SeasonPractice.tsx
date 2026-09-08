@@ -39,9 +39,12 @@ import { useAsync } from '../api/useAsync'
 import ErrorState from '../components/state/ErrorState'
 import '../styles/screens/sim-practice.css'
 
-/* 홈과 같은 규칙 — 401 은 오류가 아니라 빈 상태로 그린다. 세션이 끊겼으면 API
-   클라이언트가 로그인 화면으로 보내므로 여기 남는 401 은 "그 API 가 아직 없다" 는 뜻이다. */
-const shown = (error: ApiError | null) => (error && error.status !== 401 ? error : null)
+/* 401 을 그대로 보여준다.
+   전에는 빈 상태로 뭉갰다 — 시즌 API 가 하나도 없던 때라 401 이 "그 API 가 아직 없다" 는
+   뜻이었기 때문이다. 이제 /seasons 계열이 다 붙었으므로 401 은 <b>로그인이 안 됐다</b> 는
+   뜻이고, 그걸 "연습이 없습니다" 로 그리면 서버가 거부한 것을 시즌이 없는 것으로 읽게 된다.
+   errorText 가 UNAUTHENTICATED 를 "로그인이 필요합니다" 로 풀어 준다. */
+const shown = (error: ApiError | null) => error
 
 /* 카드가 세 칸이라 그 이상은 받지 않는다. 전체는 G-09 기록에서 본다. */
 const GOING_CARDS = 3
@@ -99,7 +102,9 @@ function Ring({ percent }: { percent: number }) {
 /* ── 요약 스트립 ───────────────────────────────────────────
    프로토타입의 세 칸을 근거 있는 값으로 바꿔 채운다. 셋 다 목록에서 바로 나오는
    수라 별도 집계 API 가 필요 없다. */
-function Summary({ going, done, open }: { going: MyRun[]; done: MyRun[]; open: OpenRun[] }) {
+function Summary({ going, done, open, openFailed }: {
+  going: MyRun[]; done: MyRun[]; open: OpenRun[]; openFailed: boolean
+}) {
   const lead = [...going].sort(recentFirst)[0]
   const percent = lead ? progressOf(lead.currentDay, lead.lengthDays) : 0
 
@@ -140,8 +145,9 @@ function Summary({ going, done, open }: { going: MyRun[]; done: MyRun[]; open: O
         </i>
         <div>
           <dt>시작할 수 있는 연습</dt>
-          <dd className="hot num">{open.length}개</dd>
-          <small>지금 참가 가능</small>
+          {/* 목록을 못 받았으면 0개가 아니라 모르는 것이다 */}
+          <dd className="hot num">{openFailed ? '—' : `${open.length}개`}</dd>
+          <small>{openFailed ? '목록을 불러오지 못했습니다' : '지금 참가 가능'}</small>
         </div>
       </div>
     </dl>
@@ -259,6 +265,7 @@ export default function SeasonPractice() {
      주제로 시즌을 고르는 길은 아직 서버에 없어 주제 카드도 같은 곳을 가리킨다. */
   const first = open[0]
   const startAt = first ? `/sim/seasons/${first.id}` : '/sim/modes'
+  const topicsFailure = shown(openList.error)
 
   return (
     <main className="main">
@@ -277,7 +284,7 @@ export default function SeasonPractice() {
           </div>
         </header>
 
-        <Summary going={going} done={done} open={open} />
+        <Summary going={going} done={done} open={open} openFailed={topicsFailure !== null} />
 
         <div className="pr-body">
           <div className="pr-col">
@@ -302,7 +309,14 @@ export default function SeasonPractice() {
                 </i>
               </summary>
 
-              {open.length > 0 ? (
+              {/* 실패와 없음을 구분한다. 실패인데 "없습니다" 를 그리면 서버가 죽은 것을
+                  시즌이 없는 것으로 읽게 된다 — ①③ 패널과 같은 규칙을 쓴다. */}
+              {openList.loading && <p className="pr-state">불러오는 중…</p>}
+              {topicsFailure && (
+                <ErrorState error={topicsFailure} onRetry={openList.reload} inline />
+              )}
+
+              {!openList.loading && !topicsFailure && open.length > 0 && (
                 <ul className="pr-scenarios">
                   {open.map((s, i) => (
                     <li key={s.id}>
@@ -320,12 +334,10 @@ export default function SeasonPractice() {
                     </li>
                   ))}
                 </ul>
-              ) : (
-                <p className="pr-note">
-                  {openList.loading
-                    ? '연습 주제를 불러오는 중입니다.'
-                    : '지금 참가할 수 있는 연습이 없습니다.'}
-                </p>
+              )}
+
+              {!openList.loading && !topicsFailure && open.length === 0 && (
+                <p className="pr-note">지금 참가할 수 있는 연습이 없습니다.</p>
               )}
 
               {/* 시기를 숨기는 것이 이 게임의 규칙이라는 걸 여기서 한 번 알린다 */}

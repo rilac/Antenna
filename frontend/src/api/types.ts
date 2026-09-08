@@ -37,7 +37,13 @@ export type ClosePrice = {
   asOf: string
 }
 
-/** 모의투자 종목은 CLOSED 전까지 실명이 없다. 실명 필드를 아예 받지 않는 타입. */
+/**
+ * 모의투자 종목. 화면은 {@code displayName} 하나만 그린다.
+ *
+ * <p>연습은 이 값이 실제 종목명("삼성전자")이고 대회는 가명("A사")이다(2026-09-07 결정).
+ * 종목코드는 어느 쪽도 응답에 오지 않으므로 여기에 자리를 두지 않는다 — 응답 계약을
+ * 모드마다 갈라 두면 화면이 두 모양을 다뤄야 한다.
+ */
 export type DisplayTicker = {
   tickerId: string
   displayName: string

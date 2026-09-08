@@ -40,12 +40,13 @@ import '../styles/screens/sim-home.css'
 const RECENT_ROWS = 4
 const OPEN_ROWS = 3
 
-/* 401 은 배너로 띄우지 않는다. 세션이 정말 끊겼으면 API 클라이언트가 로그아웃시켜
-   로그인 화면으로 보내므로 여기까지 오지 않는다. 여기 남는 401 은 백엔드에 아직 그
-   API 가 없다는 뜻인데(Spring Security 가 라우팅보다 먼저 걸러 없는 경로도 401 이
-   온다), 그 사정을 "로그인이 필요합니다" 로 보여주면 로그인한 사람이 헷갈린다.
-   그때는 오류가 아니라 빈 상태로 그린다 — 참가한 것이 없는 화면과 같은 모습이다. */
-const shown = (error: ApiError | null) => (error && error.status !== 401 ? error : null)
+/* 401 을 그대로 보여준다.
+   전에는 빈 상태로 뭉갰다 — 이 화면이 부르는 /seasons·/seasons/me 가 없던 때라 401 이
+   "그 API 가 아직 없다"(Spring Security 가 라우팅보다 먼저 걸러 없는 경로도 401 을 준다)
+   는 뜻이었기 때문이다. 이제 둘 다 붙었으므로 401 은 로그인이 안 됐다는 뜻이고, 그걸
+   빈 상태로 그리면 서버가 거부한 것을 참가한 것이 없는 것으로 읽게 된다.
+   errorText 가 UNAUTHENTICATED 를 "로그인이 필요합니다" 로 풀어 준다. */
+const shown = (error: ApiError | null) => error
 
 const Ico = ({ size = 22, children }: { size?: number; children: React.ReactNode }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"

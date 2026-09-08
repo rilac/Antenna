@@ -1,0 +1,363 @@
+/* G-04 시즌 진행 · /sim/:id/play — [ANT-FE-SEASON-PLAY]
+   프로토타입 4·5번 화면(리플레이 투자하기)의 배치를 따른다. 색·서체는 app.css 토큰만 쓴다.
+   캔들 차트 자체의 색은 CandleChart 가 --up-vivid / --down-vivid 를 쓴다. */
+
+.sim-play{display:flex;flex-direction:column;gap:14px;word-break:keep-all}
+
+/* ── 머리 ───────────────────────────────────────────── */
+.sp-crumb{display:flex;align-items:center;gap:9px;color:#8a93ad;font-size:13.5px;font-weight:700}
+.sp-crumb a:hover{color:var(--brand)}
+.sp-crumb i{font-style:normal;color:#c2c8da}
+
+.sp-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.sp-head h1{
+  margin:0;color:#0e1330;font-size:26px;font-weight:850;letter-spacing:-.03em;
+  text-wrap:balance;
+}
+
+/* 날짜를 쓰지 않는다 — 시즌 가격에 실제 날짜가 없다(ERD). DAY n 만 센다 */
+.sp-day{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13.5px;font-weight:700}
+.sp-day b{color:var(--brand);font-size:17px;font-weight:850}
+.sp-bar{
+  position:relative;display:block;width:120px;height:6px;
+  border-radius:999px;background:var(--surface-2);overflow:hidden;
+}
+.sp-bar i{position:absolute;inset:0 auto 0 0;background:var(--brand);border-radius:999px}
+
+/* ── 본문 두 열 ─────────────────────────────────────── */
+/* 차트가 주인공이라 남는 폭을 차트가 받는다. 주문 패널은 폭이 고정이어야
+   숫자 자리가 흔들리지 않는다. */
+.sp-body{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+
+.sp-card{
+  padding:16px 18px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.sp-card h2{margin:0 0 12px;color:var(--ink);font-size:15px;font-weight:800;letter-spacing:-.02em}
+
+.sp-chart-card{
+  padding:16px 18px 12px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);
+  min-width:0;
+}
+
+/* ── 종목 줄 ────────────────────────────────────────── */
+.sp-ticker{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sp-ticker > div{display:flex;align-items:baseline;gap:9px;min-width:0}
+.sp-ticker b{
+  color:#0e1330;font-size:21px;font-weight:850;letter-spacing:-.02em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sp-sector{
+  flex:none;padding:3px 9px;border-radius:999px;
+  background:var(--surface-2);color:var(--muted);font-size:11.5px;font-weight:700;
+}
+
+.sp-swap{
+  flex:none;display:inline-flex;align-items:center;gap:7px;
+  padding:7px 13px;border:1px solid var(--rule);border-radius:10px;
+  color:var(--brand-ink);font-size:13px;font-weight:750;
+  transition:border-color .12s,background .12s;
+}
+.sp-swap:hover{border-color:var(--brand);background:var(--brand-softer)}
+.sp-swap span{
+  padding:1px 7px;border-radius:999px;
+  background:var(--surface-2);color:var(--muted);font-size:11.5px;
+}
+
+.sp-price{display:flex;align-items:baseline;gap:10px;margin:8px 0 10px}
+.sp-price b{color:#0e1330;font-size:27px;font-weight:850;letter-spacing:-.025em}
+.sp-price span{font-size:14px;font-weight:750}
+
+/* 손익 색은 한 곳에서 정한다 — 화면마다 빨강·파랑이 뒤집히지 않게 */
+.up{color:var(--up-vivid)}
+.down{color:var(--down-vivid)}
+.flat{color:var(--muted)}
+
+/* ── 오늘 시고저·거래량 ─────────────────────────────── */
+/* 네 칸을 한 줄로. 종가는 위에 크게 있으므로 여기 넣지 않는다 —
+   같은 값을 두 번 적으면 어느 쪽이 오늘인지 흐려진다. */
+.sp-ohlc{
+  display:flex;flex-wrap:wrap;gap:4px 0;margin:0 0 10px;
+}
+.sp-ohlc > div{
+  display:flex;align-items:baseline;gap:6px;
+  padding:0 14px;border-left:1px solid var(--rule);
+}
+.sp-ohlc > div:first-child{padding-left:0;border-left:0}
+.sp-ohlc dt{color:var(--muted);font-size:12px;font-weight:700}
+.sp-ohlc dd{margin:0;color:var(--body);font-size:13px;font-weight:750}
+
+/* ── 지표 토글 ──────────────────────────────────────── */
+.sp-inds{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.sp-inds button{
+  padding:5px 11px;border:1px solid var(--rule);border-radius:8px;
+  color:var(--muted);font-size:12px;font-weight:750;
+  transition:border-color .12s,background .12s,color .12s;
+}
+.sp-inds button:hover{border-color:var(--brand)}
+.sp-inds button.on{border-color:var(--brand);background:var(--brand-softer);color:var(--brand-ink)}
+
+.sp-state,.sp-hint{margin:8px 0 0;color:var(--muted);font-size:12.5px;font-weight:650}
+.sp-hint{color:#8a7a3c}
+
+/* ── 캔들 차트 (CandleChart) ────────────────────────── */
+.ck{display:block}
+
+/* 이평선 범례. 색 점이 차트의 선 색과 같아야 뜻이 있으므로 색은 인라인으로 온다
+   (CandleChart 의 MA_COLOR). 값은 차트 위에 두어 캔들을 가리지 않는다. */
+.ck-legend{
+  display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 6px;padding:0;list-style:none;
+}
+.ck-legend li{display:flex;align-items:center;gap:5px}
+.ck-legend i{
+  display:block;width:14px;height:2.5px;border-radius:2px;flex:none;
+}
+.ck-legend span{color:var(--muted);font-size:11.5px;font-weight:750}
+.ck-legend b{color:var(--body);font-size:12px;font-weight:750}
+.ck-svg{display:block;width:100%;outline:none}
+.ck-svg:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+.ck-empty{
+  padding:40px 0;text-align:center;color:var(--muted);font-size:13px;font-weight:650;
+}
+
+/* 플레이 구간에만 밝은 바닥을 깐다. 왼쪽이 워밍업이라는 걸 이 경계가 말해 준다 */
+.ck-play{fill:var(--surface)}
+.ck-play-edge{stroke:#d8dbe6;stroke-width:1;stroke-dasharray:3 3}
+
+.ck-candle.up line,.ck-candle.up rect{stroke:var(--up-vivid);fill:var(--up-vivid)}
+.ck-candle.down line,.ck-candle.down rect{stroke:var(--down-vivid);fill:var(--down-vivid)}
+.ck-candle line{stroke-width:1}
+
+.ck-vols rect{opacity:.32}
+.ck-vols rect.up{fill:var(--up-vivid)}
+.ck-vols rect.down{fill:var(--down-vivid)}
+
+.ck-ma{fill:none;stroke-width:1.3;opacity:.95}
+.ck-band path{fill:none;stroke:#9aa1b8;stroke-width:1;stroke-dasharray:4 3;opacity:.7}
+
+.ck-cursor{stroke:#6b7291;stroke-width:1;stroke-dasharray:3 3}
+.ck-axis text{fill:#8a93ad;font-size:11px;font-weight:700}
+
+/* 값은 차트 아래 줄에 둔다 — 숫자가 봉을 가리지 않게. 비어 있어도 자리를 지켜
+   화면이 튀지 않는다. CloseChart 와 같은 규칙이다. */
+.ck-readout{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;
+  min-height:20px;margin:6px 0 0;
+  color:var(--muted);font-size:12.5px;font-weight:650;
+}
+.ck-ro-day{color:var(--brand-ink);font-weight:800}
+.ck-readout b{color:var(--ink);font-weight:800}
+.ck-ro-idle{color:#a8afc2}
+
+/* ── RSI 패널 (IndicatorPane) ──────────────────────── */
+/* 캔들 아래에 칸을 따로 낸다. 축이 달라 캔들 위에 얹을 수 없다 —
+   캔들은 원, RSI 는 0~100 이다. */
+.ip{margin-top:8px;padding-top:8px;border-top:1px solid #eef0f6}
+.ip-svg{display:block;width:100%}
+
+.ip-head{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:0 0 2px;
+  color:var(--muted);font-size:11.5px;font-weight:700;
+}
+.ip-head b{color:var(--body);font-size:12px;font-weight:800}
+.ip-state{color:#a8afc2}
+
+/* 기준선. RSI 는 70·30 을 넘나드는 걸 보는 지표라 이 선들이 없으면
+   곡선만 남아 읽을 수 없다. */
+.ip-guide{stroke:#e3e6ef;stroke-width:1;stroke-dasharray:3 3}
+.ip-mid{stroke:#c8cddc;stroke-width:1}
+.ip-axis{fill:#a8afc2;font-size:10px;font-weight:700}
+
+.ip-rsi{fill:none;stroke:#7b61ff;stroke-width:1.4}
+
+.ip-empty{
+  margin:0;padding:14px 0;text-align:center;
+  color:var(--muted);font-size:12px;font-weight:650;
+}
+.ip-empty span{color:#a8afc2}
+
+/* ── 오른쪽 열 ──────────────────────────────────────── */
+.sp-side{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+.sp-status dl{display:flex;flex-direction:column;gap:11px;margin:0}
+.sp-status dl > div{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sp-status dt{color:var(--muted);font-size:13px;font-weight:700}
+.sp-status dd{margin:0;color:var(--ink);font-size:16px;font-weight:800;text-align:right}
+.sp-status dd small{display:block;margin-top:2px;font-size:12px;font-weight:700}
+
+/* ── 주문 ───────────────────────────────────────────── */
+.sp-sides{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
+.sp-sides button{
+  height:38px;border:1px solid var(--rule);border-radius:10px;
+  color:var(--muted);font-size:14px;font-weight:800;
+  transition:border-color .12s,background .12s,color .12s;
+}
+.sp-sides .buy.on{border-color:var(--up-vivid);background:#fdf0ef;color:var(--up-vivid)}
+.sp-sides .sell.on{border-color:var(--down-vivid);background:#eef3fd;color:var(--down-vivid)}
+
+.sp-qty{
+  display:flex;align-items:center;gap:8px;padding:0 12px;height:44px;
+  border:1px solid var(--rule);border-radius:11px;background:var(--surface);
+}
+.sp-qty > span{flex:none;color:var(--muted);font-size:12.5px;font-weight:700}
+.sp-qty input{
+  flex:1;min-width:0;border:0;background:transparent;outline:none;
+  color:var(--ink);font-size:16px;font-weight:800;text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+/* 숫자 입력의 위아래 화살표를 없앤다 — 옆에 +10·+100 버튼이 그 일을 한다 */
+.sp-qty input::-webkit-outer-spin-button,
+.sp-qty input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.sp-qty input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.sp-qty i{flex:none;font-style:normal;color:var(--muted);font-size:13px;font-weight:700}
+
+.sp-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:8px 0 12px}
+.sp-steps button{
+  height:32px;border:1px solid var(--rule);border-radius:8px;
+  color:var(--muted);font-size:12px;font-weight:750;
+  transition:border-color .12s,color .12s;
+}
+.sp-steps button:hover{border-color:var(--brand);color:var(--brand-ink)}
+
+.sp-amount{display:flex;flex-direction:column;gap:8px;margin:0 0 12px;padding-top:12px;border-top:1px solid var(--rule)}
+.sp-amount > div{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.sp-amount dt{color:var(--muted);font-size:12.5px;font-weight:700}
+.sp-amount dd{margin:0;color:var(--ink);font-size:15px;font-weight:800}
+
+.sp-reject{margin:0 0 10px;color:var(--down-vivid);font-size:12.5px;font-weight:750}
+.sp-filled{margin:0 0 10px;color:var(--up-vivid);font-size:12.5px;font-weight:750}
+
+.sp-submit{
+  width:100%;height:48px;border-radius:12px;
+  color:#fff;font-size:15.5px;font-weight:800;letter-spacing:-.02em;
+  transition:background .14s,opacity .14s;
+}
+.sp-submit.buy{background:var(--up-vivid)}
+.sp-submit.sell{background:var(--down-vivid)}
+.sp-submit:disabled{opacity:.42;cursor:default}
+
+.sp-advance{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  width:100%;height:44px;margin-top:8px;
+  border:1px solid var(--brand);border-radius:12px;
+  color:var(--brand-ink);font-size:14.5px;font-weight:800;
+  transition:background .14s,opacity .14s;
+}
+.sp-advance:hover:not(:disabled){background:var(--brand-softer)}
+.sp-advance:disabled{border-color:var(--rule);color:var(--faint);cursor:default}
+.sp-advance em{font-style:normal;font-size:12px}
+
+.sp-note{margin:8px 0 0;color:var(--muted);font-size:11.5px;font-weight:650;text-align:center}
+
+/* ── 보유 현황 ──────────────────────────────────────── */
+.sp-holdings ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sp-holdings button{
+  display:grid;grid-template-columns:minmax(0,1.4fr) repeat(4,minmax(0,1fr));
+  align-items:baseline;gap:10px;width:100%;
+  padding:11px 13px;border:1px solid var(--rule);border-radius:11px;
+  text-align:left;transition:border-color .12s,background .12s;
+}
+.sp-holdings button:hover{border-color:var(--brand);background:#fbfbff}
+.sp-holdings b{
+  color:var(--ink);font-size:14px;font-weight:800;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sp-holdings span{color:var(--muted);font-size:12.5px;font-weight:700;text-align:right}
+.sp-empty{margin:0;color:var(--muted);font-size:13px;font-weight:650}
+
+/* ── 아직 없는 자리 ─────────────────────────────────── */
+/* 목업을 넣지 않는다. 가짜 뉴스는 나중에 통째로 버려야 하고 문장이 시대 단서
+   규칙과도 엉킨다. 무엇이 올 자리인지와 어느 티켓인지만 적는다. */
+.sp-later{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.sp-soon{
+  margin:0;padding:20px;border:1px dashed var(--rule);border-radius:12px;
+  background:var(--surface-2);color:var(--muted);font-size:13px;line-height:1.6;font-weight:650;
+}
+.sp-soon small{display:block;margin-top:6px;color:#a8afc2;font-family:var(--mono);font-size:11px}
+
+/* ── 종목 고르기 모달 ───────────────────────────────── */
+/* 규칙은 M-01 지갑 연동 모달과 같다 — z-index 60, 사이드바(40)·상단바(30) 위 */
+.tp-backdrop{
+  position:fixed;inset:0;z-index:60;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(20,20,27,.44);
+}
+.tp-modal{
+  display:flex;flex-direction:column;
+  width:100%;max-width:560px;max-height:calc(100vh - 40px);
+  border-radius:14px;background:var(--surface);
+  box-shadow:0 24px 60px -20px rgba(20,20,27,.4);outline:none;
+}
+.tp-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:16px 18px;border-bottom:1px solid var(--rule);
+}
+.tp-head h2{margin:0;color:var(--ink);font-size:16px;font-weight:850}
+.tp-x{
+  width:30px;height:30px;border-radius:8px;
+  color:var(--muted);font-size:20px;line-height:1;
+}
+.tp-x:hover{background:var(--surface-2)}
+
+.tp-tools{display:flex;flex-direction:column;gap:10px;padding:14px 18px 10px}
+.tp-search{
+  display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;
+  border:1px solid var(--rule);border-radius:11px;color:var(--muted);
+}
+.tp-search:focus-within{border-color:var(--brand)}
+.tp-search svg{flex:none}
+.tp-search input{
+  flex:1;min-width:0;border:0;background:transparent;outline:none;
+  color:var(--ink);font-size:14px;font-weight:650;
+}
+
+/* 업종 탭. 서버가 종목마다 sector 를 주므로 그걸 모아 만든다 */
+.tp-sectors{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.tp-sectors button{
+  flex:none;padding:6px 12px;border:1px solid var(--rule);border-radius:999px;
+  color:var(--muted);font-size:12.5px;font-weight:750;white-space:nowrap;
+  transition:border-color .12s,background .12s,color .12s;
+}
+.tp-sectors button.on{border-color:var(--brand);background:var(--brand-softer);color:var(--brand-ink)}
+
+.tp-count{margin:0;padding:0 18px 8px;color:var(--muted);font-size:12px;font-weight:700}
+
+.tp-list{
+  flex:1;min-height:0;overflow-y:auto;
+  list-style:none;margin:0;padding:0 12px 14px;
+}
+.tp-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;
+  align-items:center;gap:10px;width:100%;
+  padding:11px 12px;border-radius:10px;text-align:left;
+  transition:background .12s;
+}
+.tp-row:hover{background:var(--surface-2)}
+.tp-row.on{background:var(--brand-softer)}
+.tp-row b{
+  color:var(--ink);font-size:14px;font-weight:800;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.tp-sector{flex:none;color:var(--muted);font-size:11.5px;font-weight:700}
+.tp-held{
+  flex:none;padding:2px 8px;border-radius:999px;
+  background:#e7f6ef;color:#17805a;font-size:11.5px;font-weight:800;
+}
+.tp-price{flex:none;min-width:78px;color:var(--body);font-size:13px;font-weight:750;text-align:right}
+.tp-empty{margin:0;padding:24px 18px 28px;text-align:center;color:var(--muted);font-size:13px;font-weight:650}
+
+/* ── 좁은 화면 ──────────────────────────────────────── */
+@media(max-width:1180px){
+  .sp-body{grid-template-columns:minmax(0,1fr)}
+  .sp-side{flex-direction:row;flex-wrap:wrap}
+  .sp-side > section{flex:1 1 320px}
+}
+@media(max-width:820px){
+  .sp-later{grid-template-columns:minmax(0,1fr)}
+  .sp-holdings button{grid-template-columns:minmax(0,1fr) repeat(2,minmax(0,1fr))}
+  .sp-head h1{font-size:22px}
+}
+@media(prefers-reduced-motion:reduce){
+  .sp-swap,.sp-inds button,.sp-steps button,.sp-submit,.sp-advance,.tp-row{transition:none}
+}

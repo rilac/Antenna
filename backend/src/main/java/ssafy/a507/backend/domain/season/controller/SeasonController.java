@@ -11,6 +11,8 @@ import ssafy.a507.backend.domain.season.dto.MySeasonListResponse;
 import ssafy.a507.backend.domain.season.dto.MySeasonStatus;
 import ssafy.a507.backend.domain.season.dto.SeasonDetailResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonListResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonPriceListResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonTickerListResponse;
 import ssafy.a507.backend.domain.season.entity.Season;
 import ssafy.a507.backend.domain.season.service.SeasonQueryService;
 
@@ -44,5 +46,23 @@ public class SeasonController {
     @GetMapping("/{seasonId}")
     public SeasonDetailResponse detail(@PathVariable Long seasonId) {
         return seasonQueryService.detail(currentUserProvider.currentUserId(), seasonId);
+    }
+
+    @GetMapping("/{seasonId}/tickers")
+    public SeasonTickerListResponse tickers(@PathVariable Long seasonId) {
+        return seasonQueryService.tickers(currentUserProvider.currentUserId(), seasonId);
+    }
+
+    /**
+     * {@code uptoDay} 는 상한을 <b>낮추는</b> 데만 쓴다. 진행일보다 크게 넣어도 진행일에서
+     * 잘린다 — 요청으로 커닝 상한을 넘길 수 없다.
+     */
+    @GetMapping("/{seasonId}/tickers/{tickerId}/prices")
+    public SeasonPriceListResponse prices(
+            @PathVariable Long seasonId,
+            @PathVariable Long tickerId,
+            @RequestParam(required = false) Integer uptoDay) {
+        return seasonQueryService.prices(
+                currentUserProvider.currentUserId(), seasonId, tickerId, uptoDay);
     }
 }
