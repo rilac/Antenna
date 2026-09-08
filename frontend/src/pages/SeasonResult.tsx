@@ -3,14 +3,14 @@
    설계서 docs/화면설계서.md §3 · §4 G-08 · API 명세 §모의투자
 
    ── 값이 어디서 오는가 ────────────────────────────────────
-   목업이 아니다. G-04 에서 굴린 그 판의 값을 그대로 읽는다 — useSeasonSim 이
-   브라우저에 남겨 둔 day · holdings · trades · equity 다. 체결가가 서버가 준 실제
-   게임일 종가라서 총자산도 수익률도 진짜 값이다.
+   목업이 아니다. 서버가 들고 있는 그 판의 값이다 — GET /seasons/{id}/me 의 총자산·
+   손익·포지션과 GET /trades 의 체결 내역이다. 자산 곡선만 그 둘에서 다시 만든다.
 
-   ── 보유 종목의 봉을 여기서 다시 받는다 ───────────────────
-   남은 보유가 있으면 마지막 게임일 종가로 평가해야 한다. G-04 는 화면에 띄운 종목만
-   봉을 받아 두므로(200종목을 다 받으면 요청이 200번이다) 여기서 보유한 것만 더 받는다.
-   보통 몇 개다.
+   ── 매매한 종목의 봉을 여기서 받는다 ─────────────────────
+   자산 곡선은 게임일마다의 잔고를 다시 만드는 것이고, 그러려면 그날 들고 있던 종목의
+   그날 종가가 필요하다. 그래서 보유 중인 것만이 아니라 <b>한 번이라도 매매한 종목</b>
+   전부를 받는다 — 중간에 사고팔았다 끝낸 종목도 곡선에는 들어가 있어야 한다.
+   보통 몇 개다(200종목을 다 받으면 요청이 200번이라 전부 받지는 않는다).
 
    ── 아직 서버가 주지 않는 것 ──────────────────────────────
    AI 복기 리포트 · 배지 · 순위. 자리만 잡고 목업을 넣지 않는다.
@@ -87,17 +87,23 @@ export default function SeasonResult() {
     candlesOf: (tickerId) => candles[tickerId],
   })
 
-  /* 남은 보유 종목의 봉만 받는다. 평가금액을 내려면 마지막 게임일 종가가 있어야 한다 */
-  const heldIds = useMemo(() => sim.positions.map((p) => p.tickerId), [sim.positions])
+  /* 자산 곡선에 필요한 종목. 지금 들고 있는 것과 한 번이라도 매매한 것을 합친다 —
+     중간에 사고팔았다 끝낸 종목도 그 구간의 곡선에는 들어가 있어야 한다. */
+  const curveIds = useMemo(() => {
+    const ids = new Set<number>()
+    sim.positions.forEach((p) => ids.add(p.tickerId))
+    sim.trades.forEach((t) => ids.add(t.tickerId))
+    return [...ids]
+  }, [sim.positions, sim.trades])
 
   useEffect(() => {
     if (!seasonId) return
-    const missing = heldIds.filter((t) => !candles[t])
+    const missing = curveIds.filter((t) => !candles[t])
     if (missing.length === 0) return
     Promise.all(missing.map((t) => getPrices(seasonId, t).then((r) => [t, r.items] as const)))
       .then((rows) => setCandles((prev) => ({ ...prev, ...Object.fromEntries(rows) })))
       .catch((e) => setLoadError(e instanceof ApiError ? e : null))
-  }, [seasonId, heldIds, candles])
+  }, [seasonId, curveIds, candles])
 
   /* 종목별 성적. 실현손익은 매도에서, 미실현은 지금 보유에서 온다 —
      둘을 합쳐야 "이 종목으로 얼마 벌었나" 가 된다.
@@ -128,8 +134,9 @@ export default function SeasonResult() {
   }
 
   const s = season.data
-  const done = sim.day >= s.lengthDays
-  const played = sim.trades.length > 0 || sim.day > 1
+  const done = sim.day > 0 && sim.day >= s.lengthDays
+  /* 참가하지 않았으면 결과가 있을 수 없다. 훅이 joined=false 로 알려 준다 */
+  const played = sim.joined === true && (sim.trades.length > 0 || sim.day > 1)
 
   /* 매매 요약. 승률은 매도 중 이익으로 끝난 비율이다 — 매수는 아직 결과가 없다 */
   const sells = sim.trades.filter((t) => t.realizedPnl !== null)
@@ -201,7 +208,9 @@ export default function SeasonResult() {
         {!played ? (
           <section className="sr-card">
             <p className="sr-none">
-              이 시즌은 아직 한 판도 하지 않았습니다.
+              {sim.joined === false
+                ? '아직 이 연습에 참가하지 않았습니다.'
+                : '이 시즌은 아직 한 판도 하지 않았습니다.'}
               <small>진행 화면에서 주문을 넣고 다음 영업일로 넘기면 여기에 결과가 쌓입니다.</small>
               <Link className="sr-go" to={`/sim/${seasonId}/play`}>진행하러 가기</Link>
             </p>
@@ -424,6 +433,7 @@ export default function SeasonResult() {
           </>
         )}
 
+        {sim.loadError && <ErrorState error={sim.loadError} onRetry={() => { void sim.reload() }} inline />}
         {loadError && <ErrorState error={loadError} onRetry={() => setLoadError(null)} inline />}
       </div>
     </main>
