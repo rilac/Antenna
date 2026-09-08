@@ -118,9 +118,15 @@ public class RankingSnapshotService {
     /**
      * 점수 내림차순으로 1부터 번호를 붙인다. 동점이면 user id 오름차순 — 조회의 정렬
      * ({@code rank, user_id})과 같은 기준이어야 페이지 경계가 어긋나지 않는다.
+     *
+     * <p><b>표본이 모자라면 아예 빼고 번호를 매긴다</b>({@link RankingScore#qualifies}).
+     * 점수 가중치로 낮추는 것만으로는 목록에서 사라지지 않아, 1 건 맞힌 사람이 "신뢰도 랭킹" 에
+     * 이름을 올린다. 명세가 {@code GET /rankings/me} 의 204 를 "표본 부족" 으로 설명하는 것도
+     * 이 규칙을 전제한 것이다. 거른 뒤에 번호를 붙이므로 순위는 여전히 1 부터 촘촘하다.
      */
     private List<Row> rank(List<Aggregate> found) {
         List<Aggregate> sorted = found.stream()
+                .filter(a -> RankingScore.qualifies(a.doneCount()))
                 .sorted(Comparator.comparing(
                                 (Aggregate a) -> RankingScore.of(a.doneCount(), a.hitCount(), a.avgError()))
                         .reversed()
