@@ -82,6 +82,11 @@ const BY_CODE: Record<string, Text> = {
   [CLIENT_ERROR_CODE.CLIENT_SIGN_REJECTED]: { title: '지갑에서 요청을 취소했습니다', hint: '연동하려면 지갑 창에서 승인해 주세요', retryable: true },
   [CLIENT_ERROR_CODE.CLIENT_WALLET_BUSY]: { title: '지갑이 응답을 기다리고 있습니다', hint: '열려 있는 지갑 창을 확인해 주세요', retryable: true },
   [CLIENT_ERROR_CODE.CLIENT_NO_ACCOUNT]: { title: '지갑 계정을 가져오지 못했습니다', hint: '지갑 잠금을 해제하고 계정을 선택해 주세요', retryable: true },
+  /* D-03 은 브라우저가 체인 RPC 를 직접 읽는다. CHAIN_UNAVAILABLE 과 문구를 나눈 이유 —
+     그건 서버가 못 붙은 것이고 이건 이 브라우저가 못 붙은 것이라, 사용자가 확인할 곳이 다르다. */
+  [CLIENT_ERROR_CODE.CLIENT_CHAIN_UNREACHABLE]: { title: '체인에서 확인하지 못했습니다', hint: '네트워크 연결을 확인한 뒤 다시 시도해 주세요', retryable: true },
+  // 배포 설정 문제라 사용자가 다시 눌러도 풀리지 않는다 — 재시도 버튼을 주지 않는다
+  [CLIENT_ERROR_CODE.CLIENT_CHAIN_NOT_CONFIGURED]: { title: '체인 접속 주소가 설정되지 않았습니다', hint: '관리자에게 알려 주세요' },
 }
 
 /* code 를 못 찾으면 status 로 떨어진다. 명세에 없는 사유가 와도 화면이 비지 않게. */

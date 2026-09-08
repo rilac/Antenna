@@ -1,0 +1,140 @@
+/* D-03 3단계 검산 — [ANT-FE-VERIFY]
+   색·간격은 app.css 토큰만 쓴다. 통과·불일치 색은 anchor-badge.css 와 같은 값을 쓴다
+   (확정 #15803d · 실패 var(--danger)) — 같은 뜻이 화면마다 다른 색이면 안 된다.
+
+   판정을 색으로만 말하지 않는다. 모든 줄에 아이콘과 글자가 함께 있고,
+   스크린리더에는 CheckLine 이 "통과 —" 를 먼저 읽어 준다. */
+
+.vf-back{
+  display:inline-flex; align-items:center; gap:4px;
+  margin-bottom:12px; padding:0;
+  border:0; background:none; cursor:pointer;
+  font:inherit; font-size:13px; font-weight:600; color:var(--muted);
+  text-decoration:none;
+}
+.vf-back:hover{ color:var(--brand-ink); }
+
+.vf-loading{ margin:24px 0; font-size:13.5px; color:var(--muted); }
+
+/* ── 무엇을 검산하는가 ─────────────────────────────── */
+.vf-subject{
+  margin:0 0 16px; padding:13px 16px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:12px;
+}
+.vf-subject-main{ display:flex; align-items:baseline; flex-wrap:wrap; gap:9px; }
+.vf-subject-code{ font-size:16px; font-weight:800; color:var(--ink); }
+.vf-dir{ font-size:12px; font-weight:800; padding:2px 8px; border-radius:999px; }
+.vf-dir.is-up{ background:#fdeceb; color:var(--up); }
+.vf-dir.is-down{ background:#e9f0ff; color:var(--down); }
+.vf-subject-target{ font-size:14.5px; font-weight:700; color:var(--body); }
+.vf-subject-h{ font-size:12.5px; color:var(--muted); }
+.vf-subject-sub{ margin:6px 0 0; font-size:12px; color:var(--faint); }
+
+/* ── 단계 카드 ───────────────────────────────────── */
+.vf-step{
+  margin:0 0 14px; padding:16px 18px 18px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:12px;
+}
+/* 통과·불일치는 왼쪽 띠로도 알린다 — 카드 전체를 물들이면 본문 대비가 떨어진다 */
+.vf-step.is-pass{ border-left:3px solid #15803d; }
+.vf-step.is-fail{ border-left:3px solid var(--danger); }
+.vf-step.is-wait, .vf-step.is-locked{ border-left:3px solid var(--rule); }
+
+.vf-step-head{ display:flex; align-items:flex-start; gap:11px; }
+.vf-step-no{
+  flex:0 0 auto;
+  width:23px; height:23px; margin-top:1px;
+  display:grid; place-items:center;
+  border-radius:999px;
+  background:var(--brand-soft); color:var(--brand-ink);
+  font-size:12.5px; font-weight:800;
+}
+.vf-step-title h2{ margin:0; font-size:15px; font-weight:800; color:var(--ink); letter-spacing:-.01em; }
+.vf-formula{
+  display:inline-block; margin-top:4px;
+  font-family:var(--mono); font-size:11.5px; color:var(--muted);
+  background:var(--surface-2); padding:2px 7px; border-radius:5px;
+}
+.vf-step-body{ margin-top:12px; }
+
+.vf-lead{ margin:0 0 12px; font-size:13px; line-height:1.65; color:var(--body); }
+
+/* ── 검산 결과 줄 ──────────────────────────────────── */
+.vf-checks{ margin:0 0 13px; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px; }
+
+.vf-check{ display:flex; align-items:flex-start; gap:9px; font-size:13px; }
+.vf-check-mark{
+  flex:0 0 auto;
+  width:20px; height:20px; margin-top:1px;
+  display:grid; place-items:center;
+  border-radius:999px;
+}
+.vf-check.is-pass .vf-check-mark{ background:#e7f5ec; color:#15803d; }
+.vf-check.is-fail .vf-check-mark{ background:#fdeeee; color:var(--danger); }
+/* "아직" 과 "잠김" 은 실패가 아니다 — 경고색을 쓰지 않는다(AnchorBadge PENDING 과 같은 규칙) */
+.vf-check.is-wait .vf-check-mark,
+.vf-check.is-locked .vf-check-mark{ background:var(--surface-2); color:var(--muted); }
+
+.vf-check-body{ min-width:0; }
+.vf-check-body b{ display:block; font-weight:700; color:var(--ink); line-height:1.5; }
+.vf-check.is-fail .vf-check-body b{ color:var(--danger); }
+.vf-check-detail{
+  display:flex; align-items:center; flex-wrap:wrap; gap:5px;
+  margin-top:3px; font-size:12px; line-height:1.6; color:var(--muted);
+}
+
+.vf-check-error{ list-style:none; }
+
+.vf-warn{
+  margin:0 0 13px; padding:10px 12px;
+  border:1px solid #f3c9c9; border-radius:9px; background:#fdf4f4;
+  font-size:12.5px; line-height:1.6; color:var(--danger);
+}
+
+/* ── 재료 표 ─────────────────────────────────────── */
+.vf-fields{
+  margin:0; padding:12px 0 0;
+  border-top:1px dashed var(--rule);
+  display:flex; flex-direction:column; gap:8px;
+}
+.vf-fields > div{ display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.vf-fields dt{ flex:0 0 74px; font-size:12px; color:var(--muted); }
+.vf-fields dd{ margin:0; display:flex; align-items:center; flex-wrap:wrap; gap:7px; font-size:13px; color:var(--body); }
+.vf-none{ font-size:12.5px; color:var(--faint); }
+.vf-chain{ font-size:11.5px; color:var(--faint); }
+.vf-link{ font-weight:700; color:var(--brand-ink); text-decoration:none; }
+.vf-link:hover{ text-decoration:underline; }
+
+/* ── ③ 판정 ─────────────────────────────────────── */
+.vf-settle{ display:flex; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:13px; }
+.vf-settle-badge{
+  flex:0 0 auto; padding:3px 10px; border-radius:999px;
+  font-size:11.5px; font-weight:800;
+}
+.vf-settle-badge.is-hit{ background:#e7f5ec; color:#15803d; }
+.vf-settle-badge.is-miss{ background:var(--surface-2); color:var(--muted); }
+.vf-settle-nums{ margin:0; display:flex; flex-wrap:wrap; gap:6px 20px; }
+.vf-settle-nums > div{ display:flex; flex-direction:column; gap:2px; }
+.vf-settle-nums dt{ font-size:11.5px; color:var(--muted); }
+.vf-settle-nums dd{ margin:0; font-size:13.5px; font-weight:700; color:var(--ink); }
+
+.vf-source{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 14px; border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface-2);
+  font-size:13px; font-weight:700; color:var(--brand-ink); text-decoration:none;
+}
+.vf-source:hover{ border-color:var(--brand-soft); background:var(--brand-softer); }
+
+.vf-hint{ margin:9px 0 0; font-size:12px; line-height:1.6; color:var(--muted); }
+.vf-hint code{ font-family:var(--mono); font-size:11.5px; background:var(--surface-2); padding:1px 5px; border-radius:4px; }
+
+@media (max-width:640px){
+  .vf-step{ padding:14px 14px 16px; }
+  .vf-fields dt{ flex-basis:100%; }
+}
+
+/* ③ 은 판정이 아니라 "직접 확인" 이다 — 통과 초록도, 대기 회색 시계도 아닌 브랜드색을 쓴다.
+   초록을 쓰면 우리가 대조해 준 것처럼 읽히고, 회색 시계는 곧 자동으로 될 것처럼 읽힌다. */
+.vf-step.is-manual{ border-left:3px solid var(--brand-soft); }
+.vf-check.is-manual .vf-check-mark{ background:var(--brand-soft); color:var(--brand-ink); }
