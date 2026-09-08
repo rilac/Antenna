@@ -103,27 +103,27 @@ export default function ChannelProfile() {
 
   return (
     <main className="main">
-      <div className="main-inner cp">
+      <div className="main-inner ch">
         {ch.error && <ErrorState error={ch.error} onRetry={ch.reload} />}
-        {ch.loading && !channel && <p className="cp-loading">채널을 불러오는 중…</p>}
+        {ch.loading && !channel && <p className="ch-loading">채널을 불러오는 중…</p>}
 
         {channel && (
           <>
             {/* ── 채널 헤더 ─────────────────────────────── */}
-            <header className="cp-head">
-              {channel.avatarUrl && <img className="cp-avatar" src={channel.avatarUrl} alt="" />}
-              <div className="cp-id">
+            <header className="ch-head">
+              {channel.avatarUrl && <img className="ch-avatar" src={channel.avatarUrl} alt="" />}
+              <div className="ch-id">
                 <h1>{channel.nickname}</h1>
-                {channel.bio && <p className="cp-bio">{channel.bio}</p>}
+                {channel.bio && <p className="ch-bio">{channel.bio}</p>}
 
                 {channel.interests.length > 0 && (
-                  <ul className="cp-interests">
+                  <ul className="ch-interests">
                     {channel.interests.map((tag) => <li key={tag}>{tag}</li>)}
                   </ul>
                 )}
 
                 {channel.externalLinks.length > 0 && (
-                  <ul className="cp-links">
+                  <ul className="ch-links">
                     {channel.externalLinks.map((l) => (
                       <li key={l.url}>
                         {/* 외부로 나가는 링크다. 참조자 정보를 넘기지 않는다 */}
@@ -142,7 +142,7 @@ export default function ChannelProfile() {
             </header>
 
             {/* ── 실적 통계 — 세 개 고정 ────────────────── */}
-            <section className="cp-stats">
+            <section className="ch-stats">
               <div>
                 <dt>적중률</dt>
                 <dd className="num">{pct(channel.stats.hitRate)}</dd>
@@ -159,14 +159,14 @@ export default function ChannelProfile() {
 
             {/* ── 구독 카드 ─────────────────────────────── */}
             {channel.isMe ? (
-              <section className="cp-sub is-me">
+              <section className="ch-sub is-me">
                 <p>내 채널입니다. 구독료는 설정에서 바꿉니다.</p>
-                <Link className="cp-sub-link" to="/settings">설정으로</Link>
+                <Link className="ch-sub-link" to="/settings">설정으로</Link>
               </section>
             ) : (
-              <section className="cp-sub">
-                <div className="cp-sub-price">
-                  <span className="cp-sub-label">구독료</span>
+              <section className="ch-sub">
+                <div className="ch-sub-price">
+                  <span className="ch-sub-label">구독료</span>
                   <p className="num">
                     <b>{formatFee(channel.fee)}</b><small>ANT</small>
                     <em>/ 30일</em>
@@ -174,19 +174,19 @@ export default function ChannelProfile() {
                 </div>
 
                 {sub?.status === 'ACTIVE' && sub.expiresAt ? (
-                  <div className="cp-sub-state">
-                    <span className="cp-sub-badge is-active">{SUB_LABEL.ACTIVE}</span>
-                    <p className="cp-sub-until">
+                  <div className="ch-sub-state">
+                    <span className="ch-sub-badge is-active">{SUB_LABEL.ACTIVE}</span>
+                    <p className="ch-sub-until">
                       {`${formatExpiry(sub.expiresAt)}까지 · ${daysLeft(sub.expiresAt)}일 남음`}
                     </p>
                     {/* 박제된 가격이 지금 가격과 다르면 알려 준다. 안 알리면 나중에
                         결제 금액이 달라 보이는 이유를 알 수 없다 */}
                     {sub.paidFee && sub.paidFee !== channel.fee && (
-                      <p className="cp-sub-locked-fee">
+                      <p className="ch-sub-locked-fee">
                         {`${formatFee(sub.paidFee)} ANT 로 결제한 구독입니다. 만료까지 이 가격입니다.`}
                       </p>
                     )}
-                    <p className="cp-sub-renew">
+                    <p className="ch-sub-renew">
                       {sub.autoRenew
                         ? '만료일에 자동으로 갱신됩니다'
                         : '자동 갱신을 해지했습니다. 만료일에 종료됩니다'}
@@ -194,14 +194,14 @@ export default function ChannelProfile() {
                   </div>
                 ) : sub?.status === 'PENDING' ? (
                   /* 아직 열람 권한이 없다. ACTIVE 와 같게 그리면 잠긴 예측이 고장으로 읽힌다 */
-                  <div className="cp-sub-state">
-                    <span className="cp-sub-badge is-pending">{SUB_LABEL.PENDING}</span>
-                    <p className="cp-sub-until">
+                  <div className="ch-sub-state">
+                    <span className="ch-sub-badge is-pending">{SUB_LABEL.PENDING}</span>
+                    <p className="ch-sub-until">
                       결제가 체인에서 확정되면 구독이 시작됩니다. 완료되면 알림으로 알려 드립니다.
                     </p>
                   </div>
                 ) : (
-                  <button type="button" className="cp-sub-cta" onClick={() => setSubscribing(true)}>
+                  <button type="button" className="ch-sub-cta" onClick={() => setSubscribing(true)}>
                     {sub?.status === 'EXPIRED' ? '다시 구독하기' : '구독하기'}
                   </button>
                 )}
@@ -226,17 +226,21 @@ export default function ChannelProfile() {
             )}
 
             {/* ── 예측 목록 ─────────────────────────────── */}
-            <section className="cp-section">
+            <section className="ch-section">
               <h2>예측</h2>
               {preds.error && <ErrorState error={preds.error} onRetry={preds.reload} inline />}
               {!preds.error && preds.data?.items.length === 0 && (
                 <EmptyState title="아직 등록한 예측이 없습니다" />
               )}
               {preds.data && preds.data.items.length > 0 && (
-                <ul className="cp-cards">
+                <ul className="ch-cards">
                   {preds.data.items.map((p) => (
                     <li key={p.id}>
-                      <PredictionCard data={{ ...toCard(p), channelId: channel.userId }} />
+                      {/* channelId 를 넘기지 않는다 — LockedCard 의 "채널 구독하고 보기" 가
+                          /channels/{id} 로 가는데 그게 바로 이 화면이라 눌러도 제자리다.
+                          구독 CTA 는 위 구독 카드 하나로 충분하다. 다른 화면(B-03 등)에서는
+                          여기로 보내야 하므로 카드가 channelId 를 받는 것 자체는 남긴다. */}
+                      <PredictionCard data={toCard(p)} />
                     </li>
                   ))}
                 </ul>
@@ -244,24 +248,24 @@ export default function ChannelProfile() {
             </section>
 
             {/* ── 리포트 목록 ───────────────────────────── */}
-            <section className="cp-section">
+            <section className="ch-section">
               <h2>리포트</h2>
               {reports.error && <ErrorState error={reports.error} onRetry={reports.reload} inline />}
               {!reports.error && reports.data?.items.length === 0 && (
                 <EmptyState title="아직 발행한 리포트가 없습니다" />
               )}
               {reports.data && reports.data.items.length > 0 && (
-                <ul className="cp-reports">
+                <ul className="ch-reports">
                   {reports.data.items.map((r: ChannelReportItem) => (
                     <li key={r.id}>
                       <Link to={`/reports/${r.id}`}>
-                        <span className="cp-report-title">{r.title}</span>
-                        <span className="cp-report-meta">
+                        <span className="ch-report-title">{r.title}</span>
+                        <span className="ch-report-meta">
                           {/* 두 배지는 뜻이 다르다 — visibility 는 글의 속성,
                               locked 는 내 권한이다(서버 주석). 합치지 않는다 */}
-                          {!r.visibility && <em className="cp-badge">구독자 전용</em>}
+                          {!r.visibility && <em className="ch-badge">구독자 전용</em>}
                           {r.locked && (
-                            <em className="cp-badge is-locked">
+                            <em className="ch-badge is-locked">
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <rect x="4" y="10" width="16" height="10" rx="2" />
                                 <path d="M8 10V7a4 4 0 0 1 8 0v3" />
@@ -279,7 +283,7 @@ export default function ChannelProfile() {
             </section>
 
             {/* ── 백테스트 — 무료 · 파라미터 고정 ───────── */}
-            <section className="cp-section">
+            <section className="ch-section">
               <h2>백테스트</h2>
               {back.error && <ErrorState error={back.error} onRetry={back.reload} inline />}
 
@@ -290,8 +294,8 @@ export default function ChannelProfile() {
                   hint="예측이 판정되면 이 채널을 따라갔을 때의 수익률을 계산합니다"
                 />
               ) : back.data && (
-                <div className="cp-backtest">
-                  <div className="cp-bt-figures">
+                <div className="ch-backtest">
+                  <div className="ch-bt-figures">
                     <div>
                       <dt>수익률</dt>
                       <dd className={`num ${back.data.returnRate >= 0 ? 'up' : 'down'}`}>
@@ -314,7 +318,7 @@ export default function ChannelProfile() {
                   {/* 조건을 적어 둔다. 안 적으면 어떤 가정의 숫자인지 알 수 없다.
                       값을 화면에 박지 않고 응답에서 받는 이유 — 기간이 바뀌면
                       문구와 계산 근거가 어긋난다 */}
-                  <p className="cp-bt-terms">
+                  <p className="ch-bt-terms">
                     {`최근 ${back.data.months}개월 · 원금 ${back.data.principal.toLocaleString('ko-KR')}원 · 수수료 0 기준입니다. 무료로 제공합니다.`}
                   </p>
                 </div>
