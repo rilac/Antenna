@@ -16,7 +16,6 @@
    id 안에 대상을 담아 두고 상세에서 되읽는다. */
 import { ApiError, ERROR_CODE } from '../errors'
 import type { BriefingDetail, BriefingItem } from '../briefings'
-import { stockName } from './stockDetail'
 
 const delay = <T,>(value: T, ms = 300) =>
   new Promise<T>((resolve) => setTimeout(() => resolve(value), ms))
@@ -74,12 +73,14 @@ function decodeStockId(id: number): { code: string; n: number } | null {
   return { code: String((rest - n) / 10).padStart(6, '0'), n }
 }
 
-function stockBriefing(code: string, n: number): { headline: string; body: string } {
-  const name = stockName(code) ?? code
+/* 종목명을 쓰지 않는다. 상세 목업이 들고 있던 열여덟 종목 표를 지웠고(실제 API 로
+   넘어갔다), 목업이 324종목의 이름을 알 길이 없다. 코드를 그대로 박으면
+   "005930, 최근 5거래일…" 이 되어 더 어색하다 — 화면에 이미 종목명이 떠 있다. */
+function stockBriefing(n: number): { headline: string; body: string } {
   if (n === 0) {
     return {
-      headline: `${name}, 최근 5거래일 종가 흐름과 업종 대비 위치`,
-      body: `${name}의 최근 5거래일 종가는 같은 기간 소속 업종 지수와 대체로 같은 방향으로 움직였습니다. 개별 재료보다 업황 요인이 우세했던 구간으로 읽힙니다.
+      headline: `최근 5거래일 종가 흐름과 업종 대비 위치`,
+      body: `최근 5거래일 종가는 같은 기간 소속 업종 지수와 대체로 같은 방향으로 움직였습니다. 개별 재료보다 업황 요인이 우세했던 구간으로 읽힙니다.
 
 거래대금은 직전 20일 평균을 밑돌았습니다. 방향이 바뀌는 구간에서는 대개 거래대금이 먼저 늘어나는데, 이번에는 그 신호가 함께 나타나지 않았습니다.
 
@@ -87,7 +88,7 @@ function stockBriefing(code: string, n: number): { headline: string; body: strin
     }
   }
   return {
-    headline: `${name} 수급과 밸류에이션 점검`,
+    headline: `수급과 밸류에이션 점검`,
     body: `기관과 외국인의 최근 매매 방향이 엇갈렸습니다. 한쪽의 순매수가 다른 쪽의 순매도와 규모가 비슷해 지분 구조에는 큰 변화가 없었습니다.
 
 밸류에이션 지표는 이익 추정치를 전제로 계산됩니다. 추정치가 내려가면 주가가 그대로여도 배수는 올라갑니다. 지금 배수만으로 비싸다·싸다를 가르기 어려운 이유입니다.
@@ -115,7 +116,7 @@ export function briefings(query: { scope?: string; stockCode?: string; date?: st
     for (let n = 0; n < STOCK_PER_CODE; n++) {
       items.push({
         id: stockId(code, n), scope: 'STOCK', stockCode: code,
-        headline: stockBriefing(code, n).headline, targetDate: date,
+        headline: stockBriefing(n).headline, targetDate: date,
       })
     }
   }
@@ -129,7 +130,7 @@ export function briefing(id: number): Promise<BriefingDetail> {
   }
   const at = decodeStockId(id)
   if (at) {
-    const b = stockBriefing(at.code, at.n)
+    const b = stockBriefing(at.n)
     return delay({ id, headline: b.headline, body: b.body, targetDate: BASE_DATE })
   }
   /* 서버와 같은 404 를 만든다. 딥링크가 오래돼 사라진 브리핑을 가리키는 경우다 */
