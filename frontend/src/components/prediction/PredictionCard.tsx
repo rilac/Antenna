@@ -29,7 +29,7 @@ export type PredictionCardData = {
   stockName?: string | null
   direction: Direction
   status: Status
-  /** 미판정을 볼 권한이 없을 때. 목표가·오차가 비어 온다 */
+  /** 근거 본문을 볼 권한이 없을 때. 카드의 다른 값은 그대로 온다 */
   locked?: boolean
   /** 잠금을 푸는 채널. 없으면 구독 CTA 를 숨긴다 */
   channelId?: string | null
@@ -89,7 +89,7 @@ export default function PredictionCard({ data }: { data: PredictionCardData }) {
       <dl className="pc-figures">
         <div>
           <dt>목표가</dt>
-          {/* 잠긴 카드는 여기만 비어 온다. 방향까지 가리면 목록이 통째로 빈다 */}
+          {/* 잠겨도 값이 온다. 비어 오는 것은 종목이 지워진 경우뿐이다 */}
           <dd className="num">{targetPrice === null || targetPrice === undefined ? '—' : won(targetPrice)}</dd>
         </div>
         {horizon !== undefined && (
@@ -122,12 +122,18 @@ export default function PredictionCard({ data }: { data: PredictionCardData }) {
   )
 
   /* 잠금은 카드를 대체하지 않고 카드 안에 든다. 무엇이 잠겼는지 보이지 않으면
-     구독 유인이 사라지므로 종목·방향·작성자는 위에 남긴 채 아래만 가린다. */
+     구독 유인이 사라진다(§5).
+
+     **잠기는 것은 근거뿐이다**(2026-09-08 결정). 예측가·종목·방향·목표가·기간은
+     누구에게나 보인다 — 전에는 목표가까지 가렸는데, 그러면 "누가 무언가를
+     예측했다" 만 남아 예측가를 고를 근거가 안 된다. 대신 판단의 이유(근거 본문)는
+     만기가 지나도 풀리지 않는다(payload 에 noteHash 만 들어가므로 애초에 공개
+     대상이 아니다 — §4 C-03). 그게 구독으로 사는 것이다. */
   if (locked) {
     return (
       <article className="pc is-locked">
         {body}
-        <LockedCard label="목표가와 근거" channelId={channelId ?? undefined} />
+        <LockedCard label="근거" channelId={channelId ?? undefined} />
       </article>
     )
   }

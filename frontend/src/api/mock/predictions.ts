@@ -130,11 +130,12 @@ function buildRows(code: string): StockPrediction[] {
       locked,
       /* 방향은 잠겨도 내린다. 목표가만 뺀다(서버 PredictionCardResponse 와 같은 규칙) */
       direction,
-      targetPrice: locked ? null : target,
+      /* 잠겨도 목표가는 온다(2026-09-08 결정). 잠기는 것은 근거뿐이다 */
+      targetPrice: target,
       /* 등록 직후(BASE)는 기준가가 아직 없다. 0 으로 채우지 않는다 */
       basePrice: status === 'BASE' ? null : base,
       closePrice: close,
-      errorRate: close === null || locked ? null : Math.round(((close - target) / target) * 1000) / 10,
+      errorRate: close === null ? null : Math.round(((close - target) / target) * 1000) / 10,
       channelId: locked ? a.userId : null,
     }
   })
@@ -215,9 +216,12 @@ const SEEDS: DetailSeed[] = [
    잠금 두 갈래를 실제로 재현한다. 화면이 §5 를 지키는지 눈으로 확인하려는 것이다.
 
      내 예측(p1~)        전부 열려 있다. 근거 본문까지 보인다
-     남의 예측(o-open)   미판정 + 비구독 → locked. 근거도 잠긴다
-     남의 예측(o-hit)    판정 완료 → 전체 공개. 다만 **근거 본문은 여전히 잠긴다**
+     남의 예측(o-open)   미판정이어도 **내용은 열려 있다** — 근거 본문만 잠긴다
+     남의 예측(o-hit)    판정 완료 → 전체 공개. 역시 **근거 본문은 잠긴다**
                          (만기 리빌 후에도 구독자 전용이다)
+
+   2026-09-08 결정 — 예측가를 고를 근거가 되어야 하므로 방향·목표가까지 공개한다.
+   구독으로 사는 것은 판단의 이유(근거 본문) 하나뿐이다.
 
    어느 경우에도 commitHash · 서명 주소 · 앵커는 내린다 — 잠금 대상이 아니다. */
 const ANCHOR_CONFIRMED = {
@@ -279,9 +283,11 @@ const DETAILS: Record<string, PredictionDetail> = {
     author: { userId: 'u2', nickname: '반도체존버' },
     status: 'OPEN', horizon: 20, createdAt: '2026-08-20T11:40:00+09:00',
     settleDate: '2026-09-18', dday: 11,
-    locked: true, direction: null, targetPrice: null,
-    basePrice: null, settlePrice: null, errorRate: null,
-    lastClose: null,
+    /* 남의 미판정 예측이지만 **내용은 열려 있다**(2026-09-08 결정).
+       잠기는 것은 근거 본문뿐이라 noteLocked 만 참이다. */
+    locked: false, direction: 'UP', targetPrice: 82000,
+    basePrice: 78600, settlePrice: null, errorRate: null,
+    lastClose: { asOf: '2026-09-07', close: 80100 },
     noteLocked: true, note: null, evidencePoints: [],
     commitHash: '0x58b0271f4a6d9c3b5e70128a4f6c9b3d5e701427d41e9a3c2c58f0716d4a9c3e',
     signerAddress: '0x4Bc7e19aD05f2C863b0e4719aD05f2C861e0B37d',
