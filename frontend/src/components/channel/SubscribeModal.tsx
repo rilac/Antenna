@@ -30,6 +30,7 @@ import type { ApiError } from '../../api/errors'
 import { useOperation } from '../../api/operations'
 import { requestNonce, signingPayload } from '../../api/wallet'
 import { connectAddress, hasWallet, personalSign } from '../../wallet/provider'
+import { useAuth } from '../../auth/context'
 import { errorText } from '../state/errorText'
 import '../../styles/screens/subscribe.css'
 
@@ -49,6 +50,7 @@ type Props = {
 }
 
 export default function SubscribeModal({ channel, onClose, onSubscribed, onNeedWallet }: Props) {
+  const { user } = useAuth()
   const [step, setStep] = useState<Step>('confirm')
   const [error, setError] = useState<ApiError | null>(null)
   const [operationId, setOperationId] = useState<string | null>(null)
@@ -82,7 +84,15 @@ export default function SubscribeModal({ channel, onClose, onSubscribed, onNeedW
   }, [status, onSubscribed])
 
   async function start() {
-    if (!hasWallet()) {
+    /* 미설치와 미연동을 여기서 가르지 않는다. M-01 이 이미 네 갈래(미설치 · 서명 거부 ·
+       주소 불일치 · 이미 연동됨)를 각각 다른 안내로 다루고, 늦게 주입되는 확장까지
+       onWalletReady 로 기다려 준다. 여기서 미설치만 걸러 문구를 쓰면 같은 안내가 두 곳에
+       생긴다 — ANT-FE-WALLET-GATE 가 PredictTab 에 세운 판단을 그대로 따른다.
+
+       walletLinked 를 함께 보는 것이 핵심이다. 확장은 깔았지만 계정에 연동하지 않은
+       사람을 hasWallet 만으로 통과시키면, 서명까지 다 받은 뒤 서버에서
+       WALLET_NOT_LINKED 로 튕긴다. 헛서명을 시키지 않는다. */
+    if (!hasWallet() || !user?.walletLinked) {
       onNeedWallet()
       return
     }
