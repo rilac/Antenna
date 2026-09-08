@@ -33,7 +33,15 @@ export type IndexQuote = {
   series: number[]
 }
 
+/* 목업으로 되돌렸다(2026-09-08 결정). 엔드포인트는 살아 있고 200 을 주지만
+   index_quotes 가 0행이라 items 가 늘 비어 있다 — 지수·환율 수집(ANT-DATA-04)이
+   아직 안 돌았다. 그대로 두면 홈 첫 카드가 통째로 빈 채로 보인다.
+   광고(getActiveAds)에 내린 것과 같은 판단이고, 수집이 붙으면 이 줄만 지운다.
+
+   **오류가 아니라 빈 목록이라는 점이 중요하다.** 화면이 "불러오지 못했습니다" 를
+   띄우는 게 아니라 아무것도 안 그린다 — 그래서 빈 상태 문구로도 덮이지 않는다. */
 export function getMarketIndices(days = 30) {
+  if (MOCK) return mock.marketIndices()
   return api.get<{ items: IndexQuote[] }>('/market/indices', { query: { days } })
 }
 
