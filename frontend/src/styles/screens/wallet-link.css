@@ -92,6 +92,18 @@
 .wl-btn.ghost:hover:not(:disabled){ background:var(--surface-2); }
 .wl-btn:disabled{ opacity:.55; cursor:not-allowed; }
 
+/* 지갑 설치 안내 링크. .wl-btn 은 <button> 을 전제로 만든 규칙이라 <a> 에는
+   블록·가운데 정렬을 따로 준다 — 인라인으로 두면 글자 폭만큼만 눌린다. */
+.wl-install{
+  display:block; margin-top:4px;
+  text-align:center; text-decoration:none;
+}
+.wl-install:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+
+/* 설치를 마치고 돌아온 사람을 위한 두 번째 행동. 설치 버튼보다 약하게 둔다 —
+   아직 설치 안 한 사람에게는 이게 기본 경로가 아니다 */
+.wl-reload{ display:block; width:100%; margin-top:6px; }
+
 /* ── 완료 ─────────────────────────────────────── */
 .wl-done-mark{ margin:4px auto 0; color:var(--brand); line-height:0; }
 .wl-done-title{

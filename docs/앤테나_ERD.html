@@ -767,6 +767,7 @@
       <li><div class="row"><span class="k no">·</span><span class="c">avg_error</span><span class="t">numeric(6,3)</span></div><div class="note">평균 목표가 오차 %</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">done_count</span><span class="t">int</span></div><div class="note">판정 완료 수 · 표본 부족 가중 판단</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">rank</span><span class="t">int</span></div><div class="note">사전 계산 순위 · 저장이 존재 이유</div></li>
+      <li><div class="row"><span class="k no">·</span><span class="c">prev_rank</span><span class="t">int</span></div><div class="note">직전 스냅샷 순위 · 배치가 갈아 끼우기 전 값을 옮겨 담는다 · NULL 이면 지난 회차에 이 필터에 없었다(신규 진입·첫 스냅샷) · GET /rankings/me 의 delta = prev_rank − rank</div></li>
       <li><div class="row"><span class="k no">·</span><span class="c">computed_at</span><span class="t">timestamptz</span></div><div class="note">배치 산출 시각</div></li>
     </ul>
     <div class="uqrow">UQ (track, filter_key, user_id)</div>
