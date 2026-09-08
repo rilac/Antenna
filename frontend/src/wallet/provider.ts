@@ -28,6 +28,17 @@ export function hasWallet() {
   return provider() !== null
 }
 
+/**
+ * 지갑이 없는 사용자를 보낼 곳.
+ *
+ * 이 자리에 두는 이유 — 지갑 감지(hasWallet)와 같은 경계다. 화면마다 주소를
+ * 적어 두면 지갑을 바꿀 때 한 곳만 고쳐지고 갈라진다.
+ *
+ * 특정 지갑을 지목한다. 우리가 쓰는 것은 EIP-1193 표준이라 다른 지갑도
+ * 동작하지만, "지갑 확장을 설치하세요" 만 알려 주면 무엇을 설치할지 모른다.
+ */
+export const WALLET_INSTALL_URL = 'https://metamask.io/download/'
+
 /* EIP-1193 표준 오류 코드. 지갑마다 문구는 달라도 code 는 같다.
    문구로 분기하면 지갑을 바꾸는 순간 죽는 분기가 된다. */
 const REJECTED = 4001

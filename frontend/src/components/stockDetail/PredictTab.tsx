@@ -133,13 +133,15 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
     setFailure(null)
     setLocalMsg(null)
 
-    if (!hasWallet()) {
-      setLocalMsg('브라우저에 지갑 확장이 없습니다. 지갑을 설치한 뒤 다시 시도해 주세요.')
-      return
-    }
-    /* 지갑이 연동돼 있지 않으면 M-01 을 먼저 띄운다. 모달이 성공을 올려 주면
-       이 함수를 다시 부른다 — 사용자가 같은 버튼을 두 번 누르지 않게 한다. */
-    if (!user?.walletLinked) {
+    /* 지갑이 준비되지 않았으면 M-01 을 띄운다. 모달이 성공을 올려 주면 이 함수를
+       다시 부른다 — 사용자가 같은 버튼을 두 번 누르지 않게 한다.
+
+       미설치와 미연동을 여기서 가르지 않는다. **M-01 이 이미 네 갈래(미설치 ·
+       서명 거부 · 주소 불일치 · 이미 연동됨)를 각각 다른 안내로 다룬다.**
+       여기서 미설치만 따로 걸러 문구를 쓰면 같은 안내가 두 곳에 생기고, 그때는
+       모달을 아예 열지 않아 설치 안내로 이어지지도 않는다.
+       티켓도 "지갑이 연동되지 않은 상태로 진입하면 M-01 을 먼저 띄운다" 다. */
+    if (!hasWallet() || !user?.walletLinked) {
       setLinking(true)
       return
     }

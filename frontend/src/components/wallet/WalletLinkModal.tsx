@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, ERROR_CODE } from '../../api/errors'
 import { linkWallet, requestNonce, shortAddress, signingPayload } from '../../api/wallet'
-import { connectAddress, hasWallet, personalSign } from '../../wallet/provider'
+import { WALLET_INSTALL_URL, connectAddress, hasWallet, personalSign } from '../../wallet/provider'
 import { errorText } from '../state/errorText'
 import { useAuth } from '../../auth/context'
 import '../../styles/screens/wallet-link.css'
@@ -166,6 +166,17 @@ export default function WalletLinkModal({
                 <p className="wl-note">
                   지갑 확장을 설치하고 잠금을 해제한 뒤 이 창을 다시 열어 주세요.
                 </p>
+                {/* "설치하세요" 만 두면 무엇을 어디서 설치할지 알 수 없다.
+                    새 탭으로 연다 — 이 창을 닫으면 하던 예측 등록이 끊긴다.
+                    rel 은 새 탭이 이 페이지를 조작하지 못하게 막는다. */}
+                <a
+                  className="wl-btn solid wl-install"
+                  href={WALLET_INSTALL_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  지갑 설치하기
+                </a>
               </>
             ) : (
               <>
