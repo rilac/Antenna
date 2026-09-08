@@ -81,6 +81,18 @@ public enum ErrorCode {
     SEASON_NOT_FOUND(HttpStatus.NOT_FOUND, "시즌을 찾을 수 없습니다."),
     /** 그 시즌에 없는 종목. 남의 시즌 종목 id 를 넣어 가격을 떠보는 것도 여기로 막힌다. */
     SEASON_TICKER_NOT_FOUND(HttpStatus.NOT_FOUND, "시즌 종목을 찾을 수 없습니다."),
+    /** 진행 중인 회차가 있다. 끝내야 다음 회차를 시작할 수 있다(ANT-SEASON-03). */
+    SEASON_ALREADY_JOINED(HttpStatus.CONFLICT, "이미 진행 중인 회차가 있습니다."),
+    /** RUNNING 이 아닌 시즌에는 참가할 수 없다. */
+    SEASON_NOT_RUNNING(HttpStatus.CONFLICT, "참가할 수 있는 상태의 시즌이 아닙니다."),
+    /** 대회 참가는 참가비 소각 서명이 붙는다 — 아직 없다(ANT-SEASON-06 · TOKEN). */
+    SEASON_JOIN_NOT_SUPPORTED(HttpStatus.NOT_IMPLEMENTED, "대회 참가는 아직 지원하지 않습니다."),
+    /** 참가한 적이 없는 시즌의 현황·주문·체결 내역을 불렀다. 참가가 먼저다(ANT-SEASON-03). */
+    SEASON_NOT_JOINED(HttpStatus.CONFLICT, "참가하지 않은 시즌입니다."),
+    /** 매도 수량이 보유 수량을 넘는다. 매수의 예수금 부족은 INSUFFICIENT_BALANCE 다. */
+    SEASON_INSUFFICIENT_QTY(HttpStatus.CONFLICT, "보유 수량이 부족합니다."),
+    /** 그 종목에 내 진행일 봉이 없다. 게임일 구간은 전 종목이 빠짐없이 있어야 하므로 데이터 결함이다. */
+    SEASON_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "그 게임일의 가격이 없습니다."),
 
     // AI 브리핑 (ANT-RESEARCH-03)
     BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),

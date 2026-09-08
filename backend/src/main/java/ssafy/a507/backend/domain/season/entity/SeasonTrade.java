@@ -56,8 +56,34 @@ public class SeasonTrade {
     @Column(name = "game_day", nullable = false)
     private int gameDay;
 
+    /**
+     * 실현손익 = (체결가 − 평단) × 수량. 매도에만 있고 매수는 NULL 이다(ERD v0.9).
+     * 체결 시점의 평단으로 굳혀 둔다 — 포지션이 지워진 뒤에는 다시 구할 수 없다.
+     */
+    @Column(name = "realized_pnl", precision = 14, scale = 2)
+    private BigDecimal realizedPnl;
+
     /** 요청 시각. 같은 게임일 안의 순서를 가른다. */
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static SeasonTrade of(
+            SeasonParticipant participant,
+            SeasonTicker ticker,
+            Side side,
+            int qty,
+            BigDecimal price,
+            int gameDay,
+            BigDecimal realizedPnl) {
+        SeasonTrade t = new SeasonTrade();
+        t.participant = participant;
+        t.ticker = ticker;
+        t.side = side;
+        t.qty = qty;
+        t.price = price;
+        t.gameDay = gameDay;
+        t.realizedPnl = realizedPnl;
+        return t;
+    }
 }

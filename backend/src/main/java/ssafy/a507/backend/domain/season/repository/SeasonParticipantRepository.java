@@ -1,8 +1,12 @@
 package ssafy.a507.backend.domain.season.repository;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import ssafy.a507.backend.domain.season.entity.SeasonParticipant;
 
@@ -21,6 +25,14 @@ public interface SeasonParticipantRepository extends JpaRepository<SeasonPartici
      */
     @EntityGraph(attributePaths = "season")
     List<SeasonParticipant> findByUser_IdOrderByIdDesc(Long userId);
+
+    /**
+     * 주문용 — 행 잠금을 걸고 읽는다. 같은 회차에 주문 둘이 겹치면 예수금 검사가 각자 통과해
+     * 잔액이 음수로 갈 수 있다. 잠금이면 두 번째는 첫 번째가 끝난 잔액을 본다.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from SeasonParticipant p where p.id = :id")
+    Optional<SeasonParticipant> lockById(@Param("id") Long id);
 
     /** 누구든 참가한 적이 있는가 — 시더가 옛 시즌을 지워도 되는지 가르는 기준. */
     boolean existsBySeason_Id(Long seasonId);

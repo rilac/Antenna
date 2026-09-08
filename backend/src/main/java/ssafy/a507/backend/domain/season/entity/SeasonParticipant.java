@@ -61,4 +61,29 @@ public class SeasonParticipant {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /**
+     * 연습·시연 참가 한 회차. 예수금은 시즌 공통 출발선이고 진행일은 <b>1</b> 에서 시작한다 —
+     * 가격 조회 상한이 내 진행일이라 0 이면 D+1 봉이 안 보여 첫 판단을 할 수 없다.
+     * 참가비 tx 는 없다(연습·시연은 참가비가 없다).
+     */
+    public static SeasonParticipant join(Season season, User user, short attemptNo) {
+        SeasonParticipant p = new SeasonParticipant();
+        p.season = season;
+        p.user = user;
+        p.attemptNo = attemptNo;
+        p.cash = season.getInitialCash();
+        p.currentDay = 1;
+        return p;
+    }
+
+    /** 매수 대금을 뺀다. 부족 검사는 서비스가 먼저 한다 — 여기서는 음수를 막지 않는다. */
+    public void debit(BigDecimal amount) {
+        this.cash = this.cash.subtract(amount);
+    }
+
+    /** 매도 대금을 더한다. */
+    public void credit(BigDecimal amount) {
+        this.cash = this.cash.add(amount);
+    }
 }
