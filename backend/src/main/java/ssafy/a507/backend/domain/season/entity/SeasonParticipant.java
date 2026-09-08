@@ -2,6 +2,8 @@ package ssafy.a507.backend.domain.season.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,6 +17,7 @@ import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import ssafy.a507.backend.domain.account.entity.User;
 
@@ -29,6 +32,16 @@ import ssafy.a507.backend.domain.account.entity.User;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SeasonParticipant {
+
+    /**
+     * 회차 상태. 끝남은 진행일이 아니라 <b>명시적 종료</b>로 정한다(ERD v0.10) — 마지막 게임일에도
+     * 주문할 수 있고, "종료하고 결과 확인" 을 눌러야 DONE 이다. ABANDONED 는 초기화로 버린 회차다.
+     */
+    public enum Status {
+        ONGOING,
+        DONE,
+        ABANDONED
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,6 +67,16 @@ public class SeasonParticipant {
     @Column(name = "current_day", nullable = false)
     private int currentDay;
 
+    /** 회차 상태. 옛 행은 컬럼 기본값으로 ONGOING 이 된다(ddl-auto update 가 default 를 같이 건다). */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 9)
+    @ColumnDefault("'ONGOING'")
+    private Status status;
+
+    /** 종료·초기화 시각. ONGOING 이면 NULL. */
+    @Column(name = "ended_at")
+    private Instant endedAt;
+
     /** 참가비 소각 tx. 연습(PRACTICE)은 NULL이다. */
     @Column(name = "entry_tx_hash", length = 66)
     private String entryTxHash;
@@ -74,7 +97,29 @@ public class SeasonParticipant {
         p.attemptNo = attemptNo;
         p.cash = season.getInitialCash();
         p.currentDay = 1;
+        p.status = Status.ONGOING;
         return p;
+    }
+
+    public boolean isOngoing() {
+        return status == Status.ONGOING;
+    }
+
+    /** 다음 게임일. 상한 검사는 서비스가 먼저 한다. */
+    public void advance() {
+        this.currentDay++;
+    }
+
+    /** 마지막 게임일에서 종료. 결과(season_results)는 호출부가 만든다. */
+    public void finish() {
+        this.status = Status.DONE;
+        this.endedAt = Instant.now();
+    }
+
+    /** 초기화로 버린다. 체결 내역은 append-only 라 남고, 목록에서는 status 로 가린다. */
+    public void abandon() {
+        this.status = Status.ABANDONED;
+        this.endedAt = Instant.now();
     }
 
     /** 매수 대금을 뺀다. 부족 검사는 서비스가 먼저 한다 — 여기서는 음수를 막지 않는다. */

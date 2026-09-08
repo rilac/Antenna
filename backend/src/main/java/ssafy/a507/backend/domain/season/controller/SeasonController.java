@@ -18,7 +18,11 @@ import ssafy.a507.backend.common.security.CurrentUserProvider;
 import ssafy.a507.backend.domain.season.dto.MySeasonListResponse;
 import ssafy.a507.backend.domain.season.dto.MySeasonStatus;
 import ssafy.a507.backend.domain.season.dto.MySeasonStatusResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonAdvanceRequest;
+import ssafy.a507.backend.domain.season.dto.SeasonAdvanceResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonDetailResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonFinishResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonJoinRequest;
 import ssafy.a507.backend.domain.season.dto.SeasonJoinResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonListResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderRequest;
@@ -94,21 +98,23 @@ public class SeasonController {
      * 없으면 400, 같은 키의 재요청은 처리 없이 첫 응답을 돌려준다 — 타임아웃 뒤 재시도가
      * 회차 둘을 만들지 않는다.
      *
-     * <p>본문이 없는 요청이라 해시는 빈 문자열이다. 저장하는 값은 응답을 다시 만들 수 있는
-     * 세 숫자뿐이다.
+     * <p>본문은 선택이다 — {@code { restart: true }} 면 진행 중 회차를 버리고 새 회차다. 해시는
+     * restart 여부만 담는다. 저장하는 값은 응답을 다시 만들 수 있는 세 숫자뿐이다.
      */
     @PostMapping("/{seasonId}/join")
     public ResponseEntity<SeasonJoinResponse> join(
             @PathVariable Long seasonId,
-            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody(required = false) SeasonJoinRequest request) {
         Long userId = currentUserProvider.currentUserId();
+        boolean restart = request != null && request.isRestart();
         String stored = idempotencyStore.execute(
                 userId,
                 JOIN_ENDPOINT + ":" + seasonId,
                 idempotencyKey,
-                IdempotencyStore.hash(""),
+                IdempotencyStore.hash(restart ? "restart" : ""),
                 () -> {
-                    SeasonJoinService.Joined joined = seasonJoinService.join(userId, seasonId);
+                    SeasonJoinService.Joined joined = seasonJoinService.join(userId, seasonId, restart);
                     return joined.participantId() + ":" + joined.attemptNo() + ":" + joined.currentDay();
                 });
         String[] parts = stored.split(":");
@@ -147,6 +153,23 @@ public class SeasonController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new SeasonOrderResponse(
                         Long.valueOf(parts[0]), new BigDecimal(parts[1]), Integer.parseInt(parts[2])));
+    }
+
+    /**
+     * 게임일 진행. Idempotency-Key 를 쓰지 않는다 — 본문의 {@code expectedDay} 가 낙관적 잠금이라
+     * 재시도·중복 클릭·여러 탭에서도 하루만 넘어간다(명세 §1).
+     */
+    @PostMapping("/{seasonId}/advance")
+    public SeasonAdvanceResponse advance(
+            @PathVariable Long seasonId, @Valid @RequestBody SeasonAdvanceRequest request) {
+        return seasonPlayService.advance(
+                currentUserProvider.currentUserId(), seasonId, request.expectedDay());
+    }
+
+    /** 종료 — 마지막 게임일에서 결과를 굳힌다. 이미 끝난 회차면 같은 결과를 다시 준다. */
+    @PostMapping("/{seasonId}/finish")
+    public SeasonFinishResponse finish(@PathVariable Long seasonId) {
+        return seasonPlayService.finish(currentUserProvider.currentUserId(), seasonId);
     }
 
     /** 체결 내역(매매일지). 최근 체결이 먼저고 커서는 id 다. */

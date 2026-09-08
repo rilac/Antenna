@@ -85,9 +85,11 @@ public class SeasonQueryService {
     public SeasonDetailResponse detail(Long userId, Long seasonId) {
         Season season = visibleSeason(userId, seasonId);
 
+        // 이어하기 대상은 진행 중 회차뿐이다. 끝났거나 버린 회차만 있으면 "참가" 로 새 회차를 연다.
         Optional<SeasonParticipant> mine =
                 participantRepository.findFirstBySeason_IdAndUser_IdOrderByAttemptNoDesc(
-                        seasonId, userId);
+                        seasonId, userId)
+                        .filter(SeasonParticipant::isOngoing);
 
         return new SeasonDetailResponse(
                 season.getId(),
@@ -111,12 +113,14 @@ public class SeasonQueryService {
     /**
      * 내 참가 목록. 진행 중인 쪽이 이어하기 진입점이다.
      *
-     * <p>끝났는지는 시즌 상태가 아니라 <b>내 진행일</b>로 가른다 — 연습은 사람마다 진행일이
-     * 다르므로 같은 시즌이 누구에게는 진행 중이고 누구에게는 끝난 것이다.
+     * <p>끝났는지는 시즌 상태가 아니라 <b>내 회차 상태</b>로 가른다 — 연습은 사람마다 진행이
+     * 다르므로 같은 시즌이 누구에게는 진행 중이고 누구에게는 끝난 것이다. 초기화로 버린
+     * 회차(ABANDONED)는 목록에 없다.
      */
     public MySeasonListResponse mine(Long userId, MySeasonStatus status) {
         return new MySeasonListResponse(
                 participantRepository.findByUser_IdOrderByIdDesc(userId).stream()
+                        .filter(p -> p.getStatus() != SeasonParticipant.Status.ABANDONED)
                         .filter(p -> status == null || status == statusOf(p))
                         .map(p -> new MySeasonItemResponse(
                                 p.getSeason().getId(),
@@ -241,8 +245,9 @@ public class SeasonQueryService {
         return null;
     }
 
+    /** 끝남은 진행일이 아니라 회차 상태(DONE)다 — 마지막 게임일에도 종료 전이면 진행 중이다(v0.35). */
     private static MySeasonStatus statusOf(SeasonParticipant participant) {
-        return participant.getCurrentDay() >= participant.getSeason().getLengthDays()
+        return participant.getStatus() == SeasonParticipant.Status.DONE
                 ? MySeasonStatus.DONE
                 : MySeasonStatus.ONGOING;
     }

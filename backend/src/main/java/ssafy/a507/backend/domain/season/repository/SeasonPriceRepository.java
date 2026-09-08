@@ -69,4 +69,11 @@ public interface SeasonPriceRepository extends JpaRepository<SeasonPrice, Long> 
 
     /** 여러 종목의 같은 게임일 봉. 보유 종목 평가에 쓴다 — 종목마다 따로 읽으면 N+1 이다. */
     List<SeasonPrice> findByTicker_IdInAndGameDay(Collection<Long> tickerIds, int gameDay);
+
+    /** 거래한 종목들의 게임일 구간 봉. 종료 시 일별 자산 곡선(최대 낙폭)을 만든다. */
+    List<SeasonPrice> findByTicker_IdInAndGameDayBetweenOrderByGameDayAsc(
+            Collection<Long> tickerIds, int fromDay, int toDay);
+
+    /** 시즌 전 종목의 한 게임일 봉. 벤치마크(등가중)가 첫날·마지막날 둘을 읽는다. */
+    List<SeasonPrice> findByTicker_Season_IdAndGameDay(Long seasonId, int gameDay);
 }
