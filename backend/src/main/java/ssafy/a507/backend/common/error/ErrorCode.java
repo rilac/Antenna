@@ -93,6 +93,16 @@ public enum ErrorCode {
     SEASON_INSUFFICIENT_QTY(HttpStatus.CONFLICT, "보유 수량이 부족합니다."),
     /** 그 종목에 내 진행일 봉이 없다. 게임일 구간은 전 종목이 빠짐없이 있어야 하므로 데이터 결함이다. */
     SEASON_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "그 게임일의 가격이 없습니다."),
+    /** expectedDay 가 서버의 현재 게임일과 다르다 — 낙관적 잠금(ANT-SEASON-04). 화면은 다시 읽고 다시 누른다. */
+    DAY_MISMATCH(HttpStatus.CONFLICT, "보고 있는 게임일이 서버와 다릅니다."),
+    /** 대회는 공용 진행일이라 개인이 넘길 수 없다 — 배치 B5 가 넘긴다(ANT-SEASON-08). */
+    SEASON_ADVANCE_NOT_ALLOWED(HttpStatus.CONFLICT, "대회 시즌은 수동으로 진행할 수 없습니다."),
+    /** 끝난(DONE) 회차에 주문·진행을 보냈다. 다시 하려면 새 회차로 참가한다. */
+    SEASON_ATTEMPT_ENDED(HttpStatus.CONFLICT, "끝난 회차입니다."),
+    /** 마지막 게임일에서 더 넘기려 했다. 종료(finish)가 다음 단계다. */
+    SEASON_LAST_DAY(HttpStatus.CONFLICT, "마지막 게임일입니다. 종료해 주세요."),
+    /** 마지막 게임일 전에 종료하려 했다. 연습은 끝까지 가야 결과가 있다. */
+    SEASON_NOT_LAST_DAY(HttpStatus.CONFLICT, "아직 마지막 게임일이 아닙니다."),
 
     // AI 브리핑 (ANT-RESEARCH-03)
     BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),

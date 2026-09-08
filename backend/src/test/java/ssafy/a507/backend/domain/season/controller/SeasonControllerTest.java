@@ -165,10 +165,10 @@ class SeasonControllerTest {
     }
 
     @Test
-    @DisplayName("이어하기 목록은 내 진행일로 진행 중·완료를 가른다")
+    @DisplayName("이어하기 목록은 회차 상태로 진행 중·완료를 가른다")
     void 내_진행일로_가른다() throws Exception {
-        insertParticipant(practiceId, Long.valueOf(me), 1, 60);
-        insertParticipant(practiceId, Long.valueOf(me), 2, 12);
+        insertParticipant(practiceId, Long.valueOf(me), 1, 60, "DONE");
+        insertParticipant(practiceId, Long.valueOf(me), 2, 12, "ONGOING");
         em.flush();
         em.clear();
 
@@ -383,17 +383,23 @@ class SeasonControllerTest {
     }
 
     private void insertParticipant(Long seasonId, Long userId, int attemptNo, int currentDay) {
+        insertParticipant(seasonId, userId, attemptNo, currentDay, "ONGOING");
+    }
+
+    private void insertParticipant(
+            Long seasonId, Long userId, int attemptNo, int currentDay, String status) {
         em.createNativeQuery(
                         """
                         INSERT INTO season_participants
-                          (season_id, user_id, attempt_no, cash, current_day, created_at)
-                        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                          (season_id, user_id, attempt_no, cash, current_day, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                         """)
                 .setParameter(1, seasonId)
                 .setParameter(2, userId)
                 .setParameter(3, attemptNo)
                 .setParameter(4, new BigDecimal("30000000"))
                 .setParameter(5, currentDay)
+                .setParameter(6, status)
                 .executeUpdate();
     }
 }

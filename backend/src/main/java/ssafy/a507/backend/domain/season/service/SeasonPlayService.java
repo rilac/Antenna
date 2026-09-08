@@ -2,8 +2,10 @@ package ssafy.a507.backend.domain.season.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
@@ -15,6 +17,8 @@ import ssafy.a507.backend.domain.account.entity.User;
 import ssafy.a507.backend.domain.account.repository.UserRepository;
 import ssafy.a507.backend.domain.season.dto.MyPositionResponse;
 import ssafy.a507.backend.domain.season.dto.MySeasonStatusResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonAdvanceResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonFinishResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderRequest;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTradeItemResponse;
@@ -23,12 +27,14 @@ import ssafy.a507.backend.domain.season.entity.Season;
 import ssafy.a507.backend.domain.season.entity.SeasonParticipant;
 import ssafy.a507.backend.domain.season.entity.SeasonPosition;
 import ssafy.a507.backend.domain.season.entity.SeasonPrice;
+import ssafy.a507.backend.domain.season.entity.SeasonResult;
 import ssafy.a507.backend.domain.season.entity.SeasonTicker;
 import ssafy.a507.backend.domain.season.entity.SeasonTrade;
 import ssafy.a507.backend.domain.season.repository.SeasonParticipantRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonPositionRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonPriceRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonRepository;
+import ssafy.a507.backend.domain.season.repository.SeasonResultRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonTickerRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonTradeRepository;
 
@@ -55,6 +61,7 @@ public class SeasonPlayService {
     private final SeasonPriceRepository seasonPriceRepository;
     private final SeasonPositionRepository positionRepository;
     private final SeasonTradeRepository tradeRepository;
+    private final SeasonResultRepository resultRepository;
     private final UserRepository userRepository;
 
     /** 내 현황. 보유 종목은 내 진행일 종가로 평가한다. */
@@ -104,9 +111,7 @@ public class SeasonPlayService {
      */
     @Transactional
     public SeasonOrderResponse order(Long userId, Long seasonId, SeasonOrderRequest request) {
-        SeasonParticipant me = participantRepository
-                .lockById(myAttempt(userId, seasonId).getId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_JOINED));
+        SeasonParticipant me = lockedOngoing(userId, seasonId);
         SeasonTicker ticker = seasonTickerRepository
                 .findByIdAndSeason_Id(request.tickerId(), seasonId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_TICKER_NOT_FOUND));
@@ -175,6 +180,104 @@ public class SeasonPlayService {
                 .toList();
         Long nextCursor = hasNext ? page.get(page.size() - 1).getId() : null;
         return new SeasonTradeListResponse(items, nextCursor, hasNext);
+    }
+
+    /**
+     * 다음 게임일(ANT-SEASON-04). {@code expectedDay} 는 낙관적 잠금이다 — 서버의 진행일과 다르면
+     * 넘기지 않는다. 두 번 눌러도, 탭이 둘이어도 하루만 간다. 마지막 게임일에서는 더 가지 않고
+     * 409 로 종료를 가리킨다.
+     */
+    @Transactional
+    public SeasonAdvanceResponse advance(Long userId, Long seasonId, int expectedDay) {
+        SeasonParticipant me = lockedOngoing(userId, seasonId);
+        Season season = me.getSeason();
+        if (season.getMode() == Season.Mode.COMPETITION) {
+            throw new BusinessException(ErrorCode.SEASON_ADVANCE_NOT_ALLOWED);
+        }
+        if (me.getCurrentDay() != expectedDay) {
+            throw new BusinessException(ErrorCode.DAY_MISMATCH);
+        }
+        if (me.getCurrentDay() >= season.getLengthDays()) {
+            throw new BusinessException(ErrorCode.SEASON_LAST_DAY);
+        }
+        me.advance();
+        return new SeasonAdvanceResponse(me.getCurrentDay(), me.getCurrentDay() == season.getLengthDays());
+    }
+
+    /**
+     * 종료 — 마지막 게임일에서만. 회차를 DONE 으로 굳히고 {@code season_results} 를 1회 만든다.
+     * 이미 끝난 회차면 저장된 결과를 그대로 준다(멱등). 점수·등급·AI 복기는 ANT-SEASON-09 다.
+     */
+    @Transactional
+    public SeasonFinishResponse finish(Long userId, Long seasonId) {
+        SeasonParticipant me = participantRepository
+                .lockById(myAttempt(userId, seasonId).getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_JOINED));
+        if (me.getStatus() == SeasonParticipant.Status.DONE) {
+            return resultRepository.findById(me.getId()).map(SeasonPlayService::toResponse)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_ATTEMPT_ENDED));
+        }
+        if (!me.isOngoing()) {
+            throw new BusinessException(ErrorCode.SEASON_ATTEMPT_ENDED);
+        }
+        Season season = me.getSeason();
+        int lastDay = season.getLengthDays();
+        if (me.getCurrentDay() < lastDay) {
+            throw new BusinessException(ErrorCode.SEASON_NOT_LAST_DAY);
+        }
+
+        List<SeasonTrade> trades = tradeRepository.findByParticipant_IdOrderByIdAsc(me.getId());
+        List<Long> traded = trades.stream().map(tr -> tr.getTicker().getId()).distinct().toList();
+        Map<Long, TreeMap<Integer, BigDecimal>> closes = new HashMap<>();
+        if (!traded.isEmpty()) {
+            for (SeasonPrice p : seasonPriceRepository
+                    .findByTicker_IdInAndGameDayBetweenOrderByGameDayAsc(traded, 1, lastDay)) {
+                closes.computeIfAbsent(p.getTicker().getId(), k -> new TreeMap<>())
+                        .put(p.getGameDay(), p.getClose());
+            }
+        }
+        SeasonResultCalculator.Result r = SeasonResultCalculator.compute(
+                season.getInitialCash(),
+                lastDay,
+                trades,
+                (tickerId, day) -> {
+                    Map.Entry<Integer, BigDecimal> e =
+                            closes.getOrDefault(tickerId, new TreeMap<>()).floorEntry(day);
+                    if (e == null) {
+                        throw new BusinessException(ErrorCode.SEASON_PRICE_NOT_FOUND);
+                    }
+                    return e.getValue();
+                },
+                closesOf(season.getId(), 1),
+                closesOf(season.getId(), lastDay));
+
+        me.finish();
+        SeasonResult saved = resultRepository.save(SeasonResult.of(
+                me, r.finalAsset(), r.returnRate(), r.benchmarkReturn(), r.maxDrawdown(),
+                r.winRate(), r.profitFactor(), r.avgHoldingDays()));
+        return toResponse(saved);
+    }
+
+    private Map<Long, BigDecimal> closesOf(Long seasonId, int gameDay) {
+        return seasonPriceRepository.findByTicker_Season_IdAndGameDay(seasonId, gameDay).stream()
+                .collect(Collectors.toMap(p -> p.getTicker().getId(), SeasonPrice::getClose));
+    }
+
+    private static SeasonFinishResponse toResponse(SeasonResult r) {
+        return new SeasonFinishResponse(
+                r.getParticipantId(), r.getFinalAsset(), r.getReturnRate(), r.getBenchmarkReturn(),
+                r.getMaxDrawdown(), r.getWinRate(), r.getProfitFactor(), r.getAvgHoldingDays());
+    }
+
+    /** 주문·진행용 — 내 마지막 회차를 잠그고 읽는다. 끝난 회차면 409. */
+    private SeasonParticipant lockedOngoing(Long userId, Long seasonId) {
+        SeasonParticipant me = participantRepository
+                .lockById(myAttempt(userId, seasonId).getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_JOINED));
+        if (!me.isOngoing()) {
+            throw new BusinessException(ErrorCode.SEASON_ATTEMPT_ENDED);
+        }
+        return me;
     }
 
     /** 볼 수 있는 시즌의 내 마지막 회차. 참가한 적이 없으면 409 다. */

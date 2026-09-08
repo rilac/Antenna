@@ -26,6 +26,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -95,9 +96,9 @@ class SeasonJoinControllerTest {
     }
 
     @Test
-    @DisplayName("끝난 회차만 있으면 다음 회차로 다시 참가한다")
+    @DisplayName("끝난(DONE) 회차만 있으면 다음 회차로 다시 참가한다")
     void 끝났으면_다음_회차다() throws Exception {
-        insertParticipant(practiceId, Long.valueOf(me), 1, 5);
+        insertParticipant(practiceId, Long.valueOf(me), 1, 5, "DONE");
         em.flush();
         em.clear();
 
@@ -106,6 +107,57 @@ class SeasonJoinControllerTest {
                 .andExpect(jsonPath("$.attemptNo").value(2))
                 .andExpect(jsonPath("$.currentDay").value(1));
         assertThat(participants(practiceId)).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("마지막 게임일이어도 종료 전(ONGOING)이면 참가는 409 다 — 끝남은 진행일이 아니라 상태다")
+    void 마지막_날이어도_종료_전이면_409() throws Exception {
+        insertParticipant(practiceId, Long.valueOf(me), 1, 5, "ONGOING");
+        em.flush();
+        em.clear();
+
+        mockMvc.perform(post(url(practiceId)).header(KEY, "k-1").with(user(me)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SEASON_ALREADY_JOINED"));
+    }
+
+    @Test
+    @DisplayName("restart 면 진행 중 회차를 버리고(ABANDONED) 새 회차로 시작한다 — 보유는 지우고 체결은 남긴다")
+    void 초기화하면_새_회차다() throws Exception {
+        mockMvc.perform(post(url(practiceId)).header(KEY, "k-1").with(user(me)))
+                .andExpect(status().isCreated());
+        Long first = ((Number) em.createNativeQuery(
+                        "SELECT id FROM season_participants WHERE season_id = ? AND attempt_no = 1")
+                .setParameter(1, practiceId).getSingleResult()).longValue();
+        insertStockTickerPositionTrade(practiceId, first);
+        em.flush();
+        em.clear();
+
+        mockMvc.perform(post(url(practiceId)).header(KEY, "k-2").with(user(me))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"restart\":true}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.attemptNo").value(2))
+                .andExpect(jsonPath("$.currentDay").value(1));
+
+        List<Object[]> rows = participantsWithStatus(practiceId);
+        assertThat(rows).hasSize(2);
+        assertThat(rows.get(0)[1]).isEqualTo("ABANDONED");
+        assertThat(rows.get(0)[2]).isNotNull();
+        assertThat(rows.get(1)[1]).isEqualTo("ONGOING");
+        assertThat(count("season_positions", first)).isZero();
+        assertThat(count("season_trades", first)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("진행 중 회차가 없을 때의 restart 는 그냥 참가다")
+    void 진행_중이_없으면_restart_는_참가다() throws Exception {
+        mockMvc.perform(post(url(practiceId)).header(KEY, "k-1").with(user(me))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"restart\":true}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.attemptNo").value(1));
+        assertThat(participants(practiceId)).hasSize(1);
     }
 
     @Test
@@ -159,6 +211,51 @@ class SeasonJoinControllerTest {
 
     private static String url(Long seasonId) {
         return "/api/v1/seasons/" + seasonId + "/join";
+    }
+
+    /** (attempt_no, status, ended_at) 회차 순. 더티체킹 변경은 flush 해야 보인다. */
+    @SuppressWarnings("unchecked")
+    private List<Object[]> participantsWithStatus(Long seasonId) {
+        em.flush();
+        em.clear();
+        return em.createNativeQuery(
+                        "SELECT attempt_no, status, ended_at FROM season_participants"
+                                + " WHERE season_id = ? ORDER BY attempt_no")
+                .setParameter(1, seasonId)
+                .getResultList();
+    }
+
+    private long count(String table, Long participantId) {
+        em.flush();
+        em.clear();
+        return ((Number) em.createNativeQuery(
+                        "SELECT COUNT(*) FROM " + table + " WHERE participant_id = ?")
+                .setParameter(1, participantId)
+                .getSingleResult())
+                .longValue();
+    }
+
+    /** 초기화 검증용 — 종목 하나, 보유 한 줄, 체결 한 건을 회차에 붙인다. */
+    private void insertStockTickerPositionTrade(Long seasonId, Long participantId) {
+        em.createNativeQuery(
+                        "INSERT INTO stocks (code, name, market, listed) VALUES ('A00010', '가', 'KOSPI', true)")
+                .executeUpdate();
+        em.createNativeQuery(
+                        "INSERT INTO season_tickers (season_id, display_name, real_stock_code, sector)"
+                                + " VALUES (?, '가', 'A00010', '전기·전자')")
+                .setParameter(1, seasonId)
+                .executeUpdate();
+        Long tickerId = ((Number) em.createNativeQuery(
+                        "SELECT id FROM season_tickers WHERE season_id = ?")
+                .setParameter(1, seasonId).getSingleResult()).longValue();
+        em.createNativeQuery(
+                        "INSERT INTO season_positions (participant_id, ticker_id, qty, avg_price)"
+                                + " VALUES (?, ?, 10, 1000)")
+                .setParameter(1, participantId).setParameter(2, tickerId).executeUpdate();
+        em.createNativeQuery(
+                        "INSERT INTO season_trades (participant_id, ticker_id, side, qty, price, game_day, created_at)"
+                                + " VALUES (?, ?, 'BUY', 10, 1000, 1, CURRENT_TIMESTAMP)")
+                .setParameter(1, participantId).setParameter(2, tickerId).executeUpdate();
     }
 
     /** (attempt_no, cash, current_day) 회차 순. */
@@ -218,17 +315,19 @@ class SeasonJoinControllerTest {
                 .longValue();
     }
 
-    private void insertParticipant(Long seasonId, Long userId, int attemptNo, int currentDay) {
+    private void insertParticipant(
+            Long seasonId, Long userId, int attemptNo, int currentDay, String status) {
         em.createNativeQuery(
                         """
                         INSERT INTO season_participants
-                          (season_id, user_id, attempt_no, cash, current_day, created_at)
-                        VALUES (?, ?, ?, 30000000, ?, CURRENT_TIMESTAMP)
+                          (season_id, user_id, attempt_no, cash, current_day, status, created_at)
+                        VALUES (?, ?, ?, 30000000, ?, ?, CURRENT_TIMESTAMP)
                         """)
                 .setParameter(1, seasonId)
                 .setParameter(2, userId)
                 .setParameter(3, attemptNo)
                 .setParameter(4, currentDay)
+                .setParameter(5, status)
                 .executeUpdate();
     }
 }

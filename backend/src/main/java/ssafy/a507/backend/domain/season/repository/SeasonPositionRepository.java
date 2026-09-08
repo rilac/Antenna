@@ -12,4 +12,7 @@ public interface SeasonPositionRepository extends JpaRepository<SeasonPosition, 
     /** 회차의 보유 전부. 종목을 함께 끌어온다 — 행마다 종목명을 읽으면 N+1 이다. */
     @EntityGraph(attributePaths = "ticker")
     List<SeasonPosition> findByParticipant_IdOrderByIdAsc(Long participantId);
+
+    /** 초기화로 버린 회차의 보유를 지운다. 체결 내역은 지우지 않는다(append-only). */
+    void deleteByParticipant_Id(Long participantId);
 }
