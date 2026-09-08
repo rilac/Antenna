@@ -23,9 +23,8 @@ import AnchorBadge from '../components/AnchorBadge'
 import PredictionStatus from '../components/prediction/PredictionStatus'
 import ErrorState from '../components/state/ErrorState'
 import SubscriptionGate from '../components/state/SubscriptionGate'
-import { api } from '../api/client'
 import { isSubscriptionGated } from '../api/errors'
-import { PROOF_STATUS_LABEL, proofPath, type Proof } from '../api/anchors'
+import { PROOF_STATUS_LABEL, fetchAnchorStatus } from '../api/proof'
 import { useBlock } from '../api/useBlock'
 import { getPredictionDetail, targetProgress, phaseOf, HORIZON_LABEL } from '../api/predictions'
 import '../styles/screens/predict-detail.css'
@@ -67,7 +66,7 @@ export default function PredictDetail() {
      id 로 부르면 400 이 난다. GET /predictions/{id} 가 붙어 상세가 실제
      데이터가 되면 이 갈래는 사라진다. */
   const isServerId = /^\d+$/.test(id)
-  const proof = useBlock(() => api.get<Proof>(proofPath(id)), [id], isServerId)
+  const proof = useBlock(() => fetchAnchorStatus(id), [id], isServerId)
 
   /* 403 은 잠금이라 SubscriptionGate 가 맡는다. 그 밖의 오류만 ErrorState 로 —
      둘을 합치면 서버가 죽은 것과 구독이 없는 것이 같은 화면으로 보인다. */

@@ -19,9 +19,8 @@
    합치지 않는다 — 사용자가 받은 것이 서로 다르다. */
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api } from '../../api/client'
-import { PROOF_STATUS_LABEL, isAnchorSettling, proofPath } from '../../api/anchors'
-import type { Proof, ProofAnchorStatus } from '../../api/anchors'
+import { PROOF_STATUS_LABEL, fetchAnchorStatus, isAnchorSettling } from '../../api/proof'
+import type { ProofAnchorStatus } from '../../api/proof'
 import type { CreateResult } from '../../api/predictions'
 import '../../styles/screens/commit-progress.css'
 
@@ -83,7 +82,7 @@ export default function CommitProgressModal({ phase, result, onClose }: Props) {
 
     const ask = async () => {
       try {
-        const p = await api.get<Proof>(proofPath(predictionId))
+        const p = await fetchAnchorStatus(predictionId)
         if (!alive) return
         setAnchor(p.anchorStatus)
         // 더 기다려도 안 바뀌는 상태면 멈춘다
