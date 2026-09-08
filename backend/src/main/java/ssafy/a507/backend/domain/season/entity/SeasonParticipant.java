@@ -61,4 +61,19 @@ public class SeasonParticipant {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /**
+     * 연습·시연 참가 한 회차. 예수금은 시즌 공통 출발선이고 진행일은 <b>1</b> 에서 시작한다 —
+     * 가격 조회 상한이 내 진행일이라 0 이면 D+1 봉이 안 보여 첫 판단을 할 수 없다.
+     * 참가비 tx 는 없다(연습·시연은 참가비가 없다).
+     */
+    public static SeasonParticipant join(Season season, User user, short attemptNo) {
+        SeasonParticipant p = new SeasonParticipant();
+        p.season = season;
+        p.user = user;
+        p.attemptNo = attemptNo;
+        p.cash = season.getInitialCash();
+        p.currentDay = 1;
+        return p;
+    }
 }

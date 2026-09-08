@@ -81,6 +81,12 @@ public enum ErrorCode {
     SEASON_NOT_FOUND(HttpStatus.NOT_FOUND, "시즌을 찾을 수 없습니다."),
     /** 그 시즌에 없는 종목. 남의 시즌 종목 id 를 넣어 가격을 떠보는 것도 여기로 막힌다. */
     SEASON_TICKER_NOT_FOUND(HttpStatus.NOT_FOUND, "시즌 종목을 찾을 수 없습니다."),
+    /** 진행 중인 회차가 있다. 끝내야 다음 회차를 시작할 수 있다(ANT-SEASON-03). */
+    SEASON_ALREADY_JOINED(HttpStatus.CONFLICT, "이미 진행 중인 회차가 있습니다."),
+    /** RUNNING 이 아닌 시즌에는 참가할 수 없다. */
+    SEASON_NOT_RUNNING(HttpStatus.CONFLICT, "참가할 수 있는 상태의 시즌이 아닙니다."),
+    /** 대회 참가는 참가비 소각 서명이 붙는다 — 아직 없다(ANT-SEASON-06 · TOKEN). */
+    SEASON_JOIN_NOT_SUPPORTED(HttpStatus.NOT_IMPLEMENTED, "대회 참가는 아직 지원하지 않습니다."),
 
     // AI 브리핑 (ANT-RESEARCH-03)
     BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),
