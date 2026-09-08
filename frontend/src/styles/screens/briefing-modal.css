@@ -1,0 +1,93 @@
+/* M-10 AI 브리핑 상세 모달
+
+   겉껍데기는 M-01 지갑 연동(wallet-link.css) · C-01 등록 진행(commit-progress.css)과
+   같은 규칙을 따른다. 한 서비스 안에서 뜨는 창들이라 생김새가 다르면 다른 단계로
+   읽힌다. 선택자만 bf- 로 나눈다.
+
+   다른 점 하나 — 이 창은 읽는 창이라 폭을 넓게 준다. 본문이 다섯 문단까지 오고,
+   460px 로 두면 한 문단이 예닐곱 줄로 늘어져 읽기 힘들다. */
+
+.bf-backdrop{
+  position:fixed; inset:0; z-index:60;   /* 사이드바(40)·상단바(30) 위 */
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  background:rgba(20,20,27,.44);
+}
+
+.bf-modal{
+  width:100%; max-width:620px;
+  background:var(--surface);
+  border-radius:16px;
+  box-shadow:0 24px 60px -20px rgba(20,20,27,.4);
+  outline:none;
+  max-height:calc(100vh - 40px);
+  display:flex; flex-direction:column;
+}
+
+/* ── 머리 ─────────────────────────────────────── */
+.bf-head{
+  flex:none;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:16px 20px 0;
+}
+.bf-eyebrow{
+  display:inline-flex; align-items:center; gap:5px;
+  margin:0; min-width:0;
+  color:var(--brand); font-size:12.5px; font-weight:700;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.bf-x{
+  flex:none;
+  display:grid; place-items:center; width:28px; height:28px;
+  border:0; border-radius:8px; background:none;
+  color:var(--faint); cursor:pointer;
+  transition:background .14s, color .14s;
+}
+.bf-x:hover{ background:var(--surface-2); color:var(--ink); }
+.bf-x:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+
+/* ── 본문 ─────────────────────────────────────── */
+.bf-body{ padding:12px 20px 20px; overflow:auto; }
+
+.bf-title{
+  margin:0 0 8px;
+  font-size:19px; line-height:1.42; font-weight:750; letter-spacing:-.02em;
+  color:var(--ink); word-break:keep-all;
+}
+
+/* 문단 사이를 넉넉히 띄운다. 읽는 창이라 줄 간격이 곧 가독성이다 */
+.bf-text{ margin:14px 0 0; }
+.bf-text p{
+  margin:0 0 13px;
+  color:var(--body); font-size:14px; line-height:1.85;
+  word-break:keep-all;
+}
+.bf-text p:last-child{ margin-bottom:0; }
+
+.bf-nobody{
+  margin:14px 0 0; padding:14px;
+  border:1px dashed var(--rule); border-radius:10px;
+  color:var(--muted); font-size:13px; text-align:center;
+}
+
+/* 무엇을 읽고 있는지 밝히는 줄. 본문보다 한 단 낮춘다 */
+.bf-note{
+  margin:18px 0 0; padding-top:12px;
+  border-top:1px solid var(--rule);
+  color:var(--faint); font-size:11.5px; line-height:1.6;
+  word-break:keep-all;
+}
+
+/* ── 로딩 ─────────────────────────────────────── */
+.bf-skeleton{ display:grid; gap:9px; padding:6px 0 4px; }
+.bf-skeleton span{
+  height:13px; border-radius:6px;
+  background:var(--surface-2);
+  animation:bf-pulse 1.2s ease-in-out infinite;
+}
+.bf-skeleton span:first-child{ height:20px; }
+@keyframes bf-pulse{ 50%{ opacity:.5 } }
+
+@media (prefers-reduced-motion:reduce){
+  .bf-skeleton span{ animation:none }
+}

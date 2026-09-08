@@ -6,7 +6,7 @@
      GET /stocks/{code}              요약 헤더
      GET /stocks/{code}/prices       종가 시계열 (from·to)
      GET /stocks/{code}/sentiment    예측 심리
-     GET /stocks/{code}/briefings    AI 브리핑
+     GET /briefings?scope=STOCK      AI 브리핑 — 이 파일이 아니라 api/briefings.ts 가 맡는다
      GET /stocks/{code}/documents    공시·뉴스 요약 + 원문 링크
      GET /stocks/{code}/points       투자 포인트
      GET /stocks/{code}/profile      기업 개요
@@ -28,14 +28,12 @@
      GET /stocks/{code}/documents   ResearchDocumentController
      GET /stocks/{code}/points      ResearchPointController
 
-   아직 없는 것 — 이 셋 때문에 화면이 아직 통째로 목업이다:
+   아직 없는 것 — 이 둘 때문에 화면이 아직 통째로 목업이다:
 
      GET /stocks/{code}            단건 조회가 없다. 헤더(종목명·전일 종가·등락률)를
                                    채울 길이 목록뿐인데, 목록은 커서 페이징이라
                                    코드 하나를 집어낼 수 없다
      GET /stocks/{code}/sentiment  예측 집계 — predictions 표가 아직 없다
-     GET /stocks/{code}/briefings  BriefingController 에 GET /briefings 와
-                                   /briefings/{id} 는 있으나 종목별 목록이 없다
 
    연결은 헤더부터다. 헤더가 목업인 채로 /prices 만 실제로 바꾸면 전일 종가와
    차트 끝점이 어긋난다 — 서로 다른 원천에서 오기 때문이다.
@@ -74,16 +72,6 @@ export type StockSentiment = {
   sampleSize: number
   /** 기간별 쏠림. horizon 은 C-01 과 같은 5·10·20·60 고정이다 */
   byHorizon: { horizon: number; upRatio: number | null; sampleSize: number }[]
-}
-
-export type Briefing = {
-  id: string
-  title: string
-  summary: string
-  /** 배치가 매긴 논조 */
-  tone: 'UP' | 'DOWN' | 'NEUTRAL'
-  /** 배치 산출 시각 — SnapshotStamp 로 병기한다(§7) */
-  computedAt: string
 }
 
 /** 문서 출처. 서버 ResearchDocument.Source 와 짝이다. */
@@ -216,11 +204,6 @@ export function getPrices(code: string, from?: string, to?: string) {
 export function getSentiment(code: string) {
   if (MOCK) return mock.sentiment(code)
   return api.get<StockSentiment>(`/stocks/${code}/sentiment`)
-}
-
-export function getBriefings(code: string) {
-  if (MOCK) return mock.briefings(code)
-  return api.get<{ items: Briefing[] }>(`/stocks/${code}/briefings`)
 }
 
 /* 최신순 고정이라 커서는 id 하나다. 지금 화면은 첫 페이지만 쓰지만
