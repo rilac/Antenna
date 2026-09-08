@@ -52,20 +52,25 @@
    개미가 블록 쪽으로 걸어 들어간다. 장식이므로 움직임을 줄여 달라는 설정에서는
    완전히 멈춘다 — 계속 도는 그림이 필요한 정보를 담고 있지 않다. */
 .cp-scene{
-  display:flex; align-items:center; justify-content:center; gap:14px;
+  display:flex; align-items:center; justify-content:center; gap:10px;
   margin:16px 0 4px;
-  padding:14px 12px;
+  padding:16px 10px;
   border-radius:14px;
   background:linear-gradient(180deg, var(--brand-softer), transparent);
 }
-.cp-ants{ display:flex; align-items:flex-end; gap:2px; }
+/* 개미 넷과 블록이 한 줄에 들어가야 하고 모달 폭(460px)이 상한이다.
+   그래서 겹쳐 세운다 — 줄지어 들어가는 그림이라 겹치는 편이 오히려 맞다. */
+.cp-ants{ display:flex; align-items:flex-end; }
 .cp-ant{
-  width:38px; height:38px; object-fit:contain;
+  width:78px; height:78px; object-fit:contain;
+  margin-right:-8px;
   animation:cp-walk 1.6s ease-in-out infinite;
 }
+.cp-ant:last-child{ margin-right:0 }
+/* 커진 만큼 걸음 폭도 키운다. 작을 때 쓰던 4px 은 이 크기에서 보이지 않는다 */
 @keyframes cp-walk{
   0%,100%{ transform:translateX(0) translateY(0) }
-  50%    { transform:translateX(4px) translateY(-3px) }
+  50%    { transform:translateX(7px) translateY(-6px) }
 }
 .cp-block{
   color:var(--brand);

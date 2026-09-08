@@ -118,7 +118,7 @@ export default function CommitProgressModal({ phase, result, onClose }: Props) {
             ))}
           </div>
           <div className="cp-block">
-            <svg width="52" height="58" viewBox="0 0 52 58" fill="none" aria-hidden="true">
+            <svg width="76" height="84" viewBox="0 0 52 58" fill="none" aria-hidden="true">
               <path d="M26 2 50 15v28L26 56 2 43V15z" stroke="currentColor" strokeWidth="2"
                     strokeLinejoin="round" />
               <path d="M2 15l24 13 24-13M26 28v28" stroke="currentColor" strokeWidth="1.4"

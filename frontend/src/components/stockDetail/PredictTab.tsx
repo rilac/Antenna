@@ -32,6 +32,7 @@ import {
 } from '../../api/predictions'
 import type { CreateResult, Direction, Horizon, PredictionDraft } from '../../api/predictions'
 import { requestNonce, signingPayload } from '../../api/wallet'
+import type { PredictForm } from './predictForm'
 import { connectAddress, hasWallet, personalSign } from '../../wallet/provider'
 import { useAuth } from '../../auth/context'
 
@@ -58,18 +59,25 @@ type Props = {
   picked: number[]
   onPick: (id: number) => void
   onGoInfo: () => void
+  form: PredictForm
+  onForm: (next: (prev: PredictForm) => PredictForm) => void
 }
 
-export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: Props) {
+export default function PredictTab({ code, summary, picked, onPick, onGoInfo, form, onForm }: Props) {
   const { user, setWalletLinked } = useAuth()
 
   const slots = useBlock(() => getSlots(), [])
   const points = useBlock(() => getPoints(code), [code])
 
-  const [direction, setDirection] = useState<Direction | null>(null)
-  const [target, setTarget] = useState('')
-  const [horizon, setHorizon] = useState<Horizon | null>(null)
-  const [note, setNote] = useState('')
+  /* 부모가 들고 있는 값을 그대로 쓴다. 호출부는 지역 state 때와 똑같이
+     setDirection(d) 처럼 값만 넘기면 된다. */
+  const { direction, target, horizon, note } = form
+  const setTarget = (v: string) => onForm((f) => ({ ...f, target: v }))
+  const setHorizon = (v: Horizon) => onForm((f) => ({ ...f, horizon: v }))
+  const setNote = (v: string) => onForm((f) => ({ ...f, note: v }))
+  /* 사람이 직접 고른 방향. 이때부터 목표가가 방향을 바꾸지 않는다 */
+  const setDirection = (v: Direction) =>
+    onForm((f) => ({ ...f, direction: v, directionTouched: true }))
 
   const [linking, setLinking] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -91,6 +99,19 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
     if (!validTarget || !summary?.prevClose) return null
     return ((targetPrice - summary.prevClose) / summary.prevClose) * 100
   }, [validTarget, targetPrice, summary?.prevClose])
+
+  /* 방향을 고르지 않고 목표가부터 적는 사람이 있다. 전일 종가보다 높으면 상승,
+     낮으면 하락으로 미리 세워 준다.
+
+     직접 고르기 전까지는 계속 따라간다 — 한 번만 정하면 "9" 까지 친 순간의
+     값으로 하락이 박히고, "90000" 을 마저 쳐도 그대로 남는다.
+     같은 값(gap 0)이면 방향을 정할 수 없으므로 비운다.
+     directionTouched 가 서면 이 효과는 더 이상 손대지 않는다. */
+  useEffect(() => {
+    if (form.directionTouched) return
+    const next: Direction | null = gap === null || gap === 0 ? null : gap > 0 ? 'UP' : 'DOWN'
+    onForm((f) => (f.direction === next ? f : { ...f, direction: next }))
+  }, [form.directionTouched, gap, onForm])
 
   const directionMismatch =
     direction !== null && gap !== null &&
