@@ -65,7 +65,10 @@ export function create(draft: PredictionDraft): Promise<CreateResult> {
 
   return delay<CreateResult>({
     kind: 'created',
-    data: { predictionId: `pr_${Date.now().toString(36)}`, status: 'BASE', commitHash: hash },
+    /* 서버 predictionId 는 long 이다. 문자열 id 를 주면 그걸 받은 화면이
+       /predictions/{id}/proof 같은 실제 경로를 부를 때 400 이 난다 — 모양을
+       맞춰 둔다. 값 자체는 서버에 없는 번호라 조회는 못 찾는다. */
+    data: { predictionId: String(Date.now() % 100000), status: 'BASE', commitHash: hash },
   }, 900)
 }
 
@@ -314,8 +317,14 @@ export function predictionDetail(id: string): Promise<PredictionDetail> {
   if (hit) return delay(hit, 300)
 
   /* 내 예측 목록의 다른 id 로 들어오면 그 줄을 바탕으로 만들어 준다 —
-     목록에서 아무 줄이나 눌러도 상세가 뜨게 해서 흐름을 확인할 수 있다. */
+     목록에서 아무 줄이나 눌러도 상세가 뜨게 해서 흐름을 확인할 수 있다.
+
+     **서버 id(숫자)도 받는다.** 내 예측 목록은 이미 실제 API 라 거기서 누른
+     id 는 long 이고, 목업 픽스처에는 없다. 404 로 막으면 실제 목록에서 상세로
+     넘어가는 길이 끊기고, 화면이 실제로 읽는 앵커 상태(GET .../proof)도 볼 수
+     없다. GET /predictions/{id} 가 붙으면 이 함수 전체가 사라진다. */
   const row = SEEDS.find((r) => r.id === id)
+    ?? (/^\d+$/.test(id) ? { ...SEEDS[1], id } : undefined)
   if (!row) return notFoundPrediction(id)
 
   const judged = phaseOf(row.status) === 'JUDGED'

@@ -23,7 +23,9 @@ import AnchorBadge from '../components/AnchorBadge'
 import PredictionStatus from '../components/prediction/PredictionStatus'
 import ErrorState from '../components/state/ErrorState'
 import SubscriptionGate from '../components/state/SubscriptionGate'
+import { api } from '../api/client'
 import { isSubscriptionGated } from '../api/errors'
+import { PROOF_STATUS_LABEL, proofPath, type Proof } from '../api/anchors'
 import { useBlock } from '../api/useBlock'
 import { getPredictionDetail, targetProgress, phaseOf, HORIZON_LABEL } from '../api/predictions'
 import '../styles/screens/predict-detail.css'
@@ -56,6 +58,16 @@ export default function PredictDetail() {
   const { id = '' } = useParams<{ id: string }>()
   const q = useBlock(() => getPredictionDetail(id), [id])
   const d = q.data
+
+  /* 앵커 상태만은 실제 서버에서 읽는다. GET /predictions/{id}/proof 는 이미 열려
+     있고(ANT-CHAIN-06), anchorStatus 하나로 WAITING·PENDING·CONFIRMED·FAILED 를
+     내려 준다 — 상세 본문이 아직 목업이어도 이 값은 참이다.
+
+     숫자 id 일 때만 묻는다. 서버 예측 id 는 long 이라 목업 픽스처의 'p2' 같은
+     id 로 부르면 400 이 난다. GET /predictions/{id} 가 붙어 상세가 실제
+     데이터가 되면 이 갈래는 사라진다. */
+  const isServerId = /^\d+$/.test(id)
+  const proof = useBlock(() => api.get<Proof>(proofPath(id)), [id], isServerId)
 
   /* 403 은 잠금이라 SubscriptionGate 가 맡는다. 그 밖의 오류만 ErrorState 로 —
      둘을 합치면 서버가 죽은 것과 구독이 없는 것이 같은 화면으로 보인다. */
@@ -210,7 +222,29 @@ export default function PredictDetail() {
               <div>
                 <dt>앵커</dt>
                 <dd>
-                  {d.anchor === null ? (
+                  {/* 실제 증명이 있으면 그것으로 그린다. 목업 상세로 들어온
+                      경우(숫자가 아닌 id)에만 픽스처 값으로 물러난다. */}
+                  {proof.data ? (
+                    proof.data.anchor === null ? (
+                      /* 아직 배치에 안 들어갔다. 서버가 anchor 를 null 로 두고
+                         상태값 하나로 대기를 말한다 — 없는 배치 번호를 만들지 않는다 */
+                      <span className="pd-pending">
+                        {PROOF_STATUS_LABEL[proof.data.anchorStatus]}
+                      </span>
+                    ) : (
+                      <span className="pd-anchor">
+                        <AnchorBadge status={proof.data.anchor.status} />
+                        <Link className="pd-anchor-link" to={`/ledger/anchors/${proof.data.anchor.batchId}`}>
+                          {`배치 #${proof.data.anchor.batchId}`}
+                        </Link>
+                        {proof.data.anchor.blockNumber !== null && (
+                          <span className="num">
+                            {`블록 ${proof.data.anchor.blockNumber.toLocaleString('ko-KR')}`}
+                          </span>
+                        )}
+                      </span>
+                    )
+                  ) : d.anchor === null ? (
                     <span className="pd-pending">아직 배치에 묶이지 않았습니다</span>
                   ) : (
                     <span className="pd-anchor">

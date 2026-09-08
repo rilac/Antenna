@@ -92,3 +92,86 @@ export function formatConfirmedAt(iso: string) {
     hour: '2-digit', minute: '2-digit',
   })
 }
+
+/* ── 예측 한 건의 커밋 증명 (GET /predictions/{id}/proof) ──
+   서버 ProofResponse 와 짝이다. D-03 3단계 검산의 재료이자, C-01·C-03 이
+   **앵커가 어디까지 갔는지** 를 아는 유일한 길이다.
+
+   여기 목업이 없다. 백엔드 ANT-CHAIN-06 으로 이미 열려 있다. */
+
+/** 커밋 배치 상태에 "아직 배치에 안 들어감"(WAITING) 이 하나 더 붙는다.
+    서버가 anchor 를 null 로 두고 이 값 하나로 대기를 말한다 — 배지 입력이 상태값 하나면 된다. */
+export const PROOF_ANCHOR_STATUSES = ['WAITING', 'PENDING', 'CONFIRMED', 'FAILED'] as const
+export type ProofAnchorStatus = (typeof PROOF_ANCHOR_STATUSES)[number]
+
+/** 커밋에 잠긴 값. 등록 시점 그대로이며 바뀌지 않는다 */
+export type ProofPayload = {
+  stockCode: string
+  direction: 'UP' | 'DOWN'
+  targetPrice: number
+  horizon: number
+  /** PRED-02 가 keccak256(note ‖ noteSalt) 를 저장하기 전까지 null 이다 */
+  noteHash: string | null
+  createdAt: string
+}
+
+/** 배치 안에서 이 커밋의 자리. 앵커 전에는 통째로 null 이다 */
+export type ProofAnchor = {
+  batchId: number
+  merkleRoot: string
+  /** 아래에서 위로 형제 해시. 정렬 결합이라 좌우 정보가 없다 */
+  merkleProof: string[]
+  leafIndex: number
+  leafCount: number
+  status: AnchorStatus
+  txHash: string | null
+  blockNumber: number | null
+  confirmedAt: string | null
+  /** 브라우저가 rootOf 를 부를 장부. 재배포 뒤에도 이 주소에서 찾아야 한다 */
+  contractAddress: string
+  chainId: number
+}
+
+/** 판정 결과. HIT/MISS 뒤에만 채워진다 */
+export type ProofSettle = {
+  status: 'BASE' | 'OPEN' | 'HIT' | 'MISS'
+  settleDate: string
+  settlePrice: number
+  basePrice: number
+  errorRate: number
+  /** 공공데이터 원본 조회 주소. 인증키가 붙지 않아 사용자가 자기 키로 연다 */
+  sourceUrl: string
+}
+
+export type Proof = {
+  predictionId: number
+  payload: ProofPayload
+  /* 아래 넷은 등록 경로(POST /predictions)를 거쳐야 채워진다.
+     SQL 로 직접 넣은 행에서는 비어 있다 — 화면이 빈 값을 그리지 않게 null 을 허용한다. */
+  commitHash: string | null
+  signature: string | null
+  signerAddress: string | null
+  revealedAt: string | null
+  /** 리빌 뒤 회원 전원에게 간다. 비구독자도 ①(해시 재계산)을 검산해야 한다 */
+  salt: string | null
+  /** 리빌 뒤에도 작성자·구독자만 받는다(결정 D6) */
+  noteSalt: string | null
+  /** 앵커 전에는 null. 그때는 anchorStatus 가 WAITING 이다 */
+  anchor: ProofAnchor | null
+  anchorStatus: ProofAnchorStatus
+  settle: ProofSettle | null
+}
+
+export const PROOF_STATUS_LABEL: Record<ProofAnchorStatus, string> = {
+  WAITING: '앵커 대기',
+  PENDING: '블록 확정 대기',
+  CONFIRMED: '앵커 확정',
+  FAILED: '앵커 실패',
+}
+
+/** 이 상태에서 더 기다리면 바뀌는가. 폴링을 언제 멈출지 여기서 정한다 */
+export const isAnchorSettling = (s: ProofAnchorStatus) => s === 'WAITING' || s === 'PENDING'
+
+/* 조회 경로만 둔다. 이 파일은 타입·헬퍼 전용이고 호출은 화면이 useApiQuery 로
+   한다 — D-01·D-02 가 '/anchors' 를 그렇게 쓰고 있어 관례를 따른다. */
+export const proofPath = (predictionId: string | number) => `/predictions/${predictionId}/proof`

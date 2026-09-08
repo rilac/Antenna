@@ -6,16 +6,22 @@
    승인이 먹혔는지 알 수 없고, 응답이 오는 순간 "등록했습니다" 가 튀어나온다.
    무엇이 어디까지 갔는지 단계로 보여준다.
 
-   **없는 진행을 만들지 않는다.**
-   앵커(머클 루트 확정)는 배치가 나중에 묶는다. 여기서 확인할 방법이 없으므로
-   마지막 단계는 끝내 "대기" 로 남는다 — 도는 표시를 완료로 바꾸지 않는다.
-   그래서 기다리게 두지 않고 닫기와 내 예측으로 가는 길을 함께 연다.
+   앵커는 GET /predictions/{id}/proof 로 물어본다(ANT-CHAIN-06). 배치가 나중에
+   묶으므로 등록 직후에는 WAITING 이고, 폴링해서 PENDING → CONFIRMED 로 넘어가면
+   그때 완료로 바꾼다. **없는 진행을 지어내지 않는다** — 서버가 말한 상태만 그린다.
+
+   폴링은 배치 주기를 따라잡을 수 없다(분 단위일 수 있다). 그래서 기다리게 두지
+   않고 닫기와 내 예측으로 가는 길을 처음부터 함께 연다. 창을 닫아도 등록은
+   그대로 진행된다.
 
    201 과 202 는 두 번째 단계의 뜻이 다르다. 201 은 커밋 해시를 받은 것이고,
    202 는 슬롯을 넘겨 소각으로 접수된 것이라 아직 예측 id 가 없다. 문구를 하나로
    합치지 않는다 — 사용자가 받은 것이 서로 다르다. */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { api } from '../../api/client'
+import { PROOF_STATUS_LABEL, isAnchorSettling, proofPath } from '../../api/anchors'
+import type { Proof, ProofAnchorStatus } from '../../api/anchors'
 import type { CreateResult } from '../../api/predictions'
 import '../../styles/screens/commit-progress.css'
 
@@ -29,7 +35,7 @@ type Props = {
   onClose: () => void
 }
 
-type StepState = 'done' | 'busy' | 'wait'
+type StepState = 'done' | 'busy' | 'wait' | 'fail'
 
 function Mark({ state }: { state: StepState }) {
   if (state === 'done') {
@@ -38,6 +44,18 @@ function Mark({ state }: { state: StepState }) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
              strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 12.5 9.5 18 20 6.5" />
+        </svg>
+      </span>
+    )
+  }
+  if (state === 'fail') {
+    /* 실패를 완료로 그리지 않는다. 앵커가 실패하면 재시도는 서버 몫이고,
+       사용자는 내 예측에서 상태를 확인한다 */
+    return (
+      <span className="cp-mark is-fail" aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="3.2" strokeLinecap="round">
+          <path d="M6 6l12 12M18 6L6 18" />
         </svg>
       </span>
     )
@@ -51,6 +69,34 @@ export default function CommitProgressModal({ phase, result, onClose }: Props) {
 
   const settled = phase === 'settled'
   const queued = result?.kind === 'queued'
+  const predictionId = result?.kind === 'created' ? result.data.predictionId : null
+
+  /* 앵커 상태. 서버가 말해 주기 전까지는 아무것도 주장하지 않는다 */
+  const [anchor, setAnchor] = useState<ProofAnchorStatus | null>(null)
+
+  /* 배치가 묶을 때까지 물어본다. 확정·실패로 끝나면 멈춘다.
+     202(소각)는 predictionId 가 아직 없어 폴링할 대상이 없다 — 그쪽은 M-02 몫이다. */
+  useEffect(() => {
+    if (!settled || !predictionId) return
+    let alive = true
+    let timer: number | undefined
+
+    const ask = async () => {
+      try {
+        const p = await api.get<Proof>(proofPath(predictionId))
+        if (!alive) return
+        setAnchor(p.anchorStatus)
+        // 더 기다려도 안 바뀌는 상태면 멈춘다
+        if (isAnchorSettling(p.anchorStatus)) timer = window.setTimeout(ask, 5000)
+      } catch {
+        /* 조회가 실패해도 등록 자체는 끝났다. 여기서 오류를 띄우면 성공한 일이
+           실패한 것처럼 보인다 — 조용히 멈추고 상태는 내 예측에서 확인한다. */
+      }
+    }
+    void ask()
+
+    return () => { alive = false; if (timer) window.clearTimeout(timer) }
+  }, [settled, predictionId])
 
   /* 아직 진행 중일 때는 닫지 않는다. 지갑 창이 떠 있거나 서버가 응답하는
      중인데 닫아 버리면, 등록이 됐는지 모른 채 화면만 사라진다. */
@@ -75,10 +121,20 @@ export default function CommitProgressModal({ phase, result, onClose }: Props) {
       state: settled ? 'done' : phase === 'committing' ? 'busy' : 'wait',
     },
     {
-      /* 배치가 묶을 때까지 확인할 방법이 없다. 완료로 바뀌지 않는 단계다 */
+      /* 서버가 말한 상태를 그대로 쓴다. 확정·실패면 도는 표시를 멈춘다 */
       key: 'anchor',
-      label: queued ? '블록 확정 대기' : '머클 앵커 대기',
-      state: settled ? 'busy' : 'wait',
+      label: queued
+        ? '블록 확정 대기'
+        : anchor
+          ? PROOF_STATUS_LABEL[anchor]
+          : '머클 앵커 대기',
+      state: !settled
+        ? 'wait'
+        : anchor === 'FAILED'
+          ? 'fail'
+          : anchor === 'CONFIRMED'
+            ? 'done'
+            : 'busy',
     },
   ]
 
