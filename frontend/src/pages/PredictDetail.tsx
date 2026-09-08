@@ -27,6 +27,7 @@ import { isSubscriptionGated } from '../api/errors'
 import { PROOF_STATUS_LABEL, fetchAnchorStatus } from '../api/proof'
 import { useBlock } from '../api/useBlock'
 import { getPredictionDetail, targetProgress, phaseOf, HORIZON_LABEL } from '../api/predictions'
+import { getProfile } from '../api/stockDetail'
 import '../styles/screens/predict-detail.css'
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
@@ -68,6 +69,16 @@ export default function PredictDetail() {
   const isServerId = /^\d+$/.test(id)
   const proof = useBlock(() => fetchAnchorStatus(id), [id], isServerId)
 
+  /* 종목명이 비어 오면 종목 개요에서 가져온다.
+
+     제목에 코드만 뜨면("000080") 무슨 종목인지 알 수 없다. 서버가 붙으면
+     stockName 이 실려 오므로 이 호출은 일어나지 않는다 — 이름이 없을 때만 부른다.
+     지금은 목업이 이름을 모른다(예측 목록 응답에 종목명이 없어서다). 나중에도
+     종목이 지워진 건은 이름이 비는데, 그때도 코드보다는 이 값이 낫다. */
+  const code = q.data?.stockCode ?? null
+  const needName = q.data != null && q.data.stockName === null && code !== null
+  const profile = useBlock(() => getProfile(code as string), [code], needName)
+
   /* 403 은 잠금이라 SubscriptionGate 가 맡는다. 그 밖의 오류만 ErrorState 로 —
      둘을 합치면 서버가 죽은 것과 구독이 없는 것이 같은 화면으로 보인다. */
   if (q.error && !isSubscriptionGated(q.error)) {
@@ -99,7 +110,8 @@ export default function PredictDetail() {
     )
   }
 
-  const stock = d.stockName ?? d.stockCode
+  /* 이름 → 개요에서 받은 이름 → 코드 순. 코드는 항상 온다 */
+  const stock = d.stockName ?? profile.data?.corpName ?? d.stockCode
 
   /* 진행률은 미판정 건에서만 뜻이 있다. 판정이 끝나면 답은 오차율이고, 진행 막대는
      같은 이야기를 한 번 더 하면서 "아직 가는 중" 처럼 읽히게 만든다.
@@ -127,8 +139,8 @@ export default function PredictDetail() {
             <h1>
               <Link to={`/stocks/${d.stockCode}`}>{stock}</Link>
             </h1>
-            {/* 이름이 없으면 제목이 이미 코드다. 그대로 두면 "005930 005930" 이 된다 */}
-            {d.stockName && <span className="pd-code num">{d.stockCode}</span>}
+            {/* 제목이 코드로 떨어졌으면 코드를 한 번 더 그리지 않는다 */}
+            {stock !== d.stockCode && <span className="pd-code num">{d.stockCode}</span>}
             <PredictionStatus status={d.status} />
           </div>
 
