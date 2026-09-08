@@ -26,12 +26,13 @@
                                getSummary 가 있는 것들로 헤더를 짜 맞춘다(아래).
    GET /stocks/{code}/sentiment 예측 심리. ANT-PRED-06 · 담당자 없음.
                                AI 와 무관하다 — predictions 의 UP/DOWN 집계이고
-                               표에는 이미 행이 있다. 이 하나만 목업으로 남는다.
+                               표에는 이미 행이 있다. 코드가 없을 뿐이다.
+
+   **이 파일에 목업이 없다.** 없는 것은 화면이 "왜 없는지" 를 적는다 —
+   지어낸 값을 실제 값 옆에 두면 어느 쪽이 참인지 알 수 없다.
    ─────────────────────────────────────────────────────── */
 import { api } from './client'
 import { getWatchlist } from './insight'
-// 목업은 예측 심리 하나만 남았다
-import * as mock from './mock/stockDetail'
 import type { ClosePoint } from '../components/CloseChart'
 import type { Market } from './stocks'
 
@@ -55,7 +56,13 @@ export type StockSummary = {
   watched: boolean
 }
 
-/** 예측 심리. 표본이 적으면 화면이 흐리게 그린다(§7 SentimentBadge). */
+/**
+ * 예측 심리. 서버가 아직 없어(GET /stocks/{code}/sentiment · ANT-PRED-06) 화면이
+ * 이 자리에 "아직 제공되지 않는다" 만 적는다. **목업으로 그리지 않는다** — 같은
+ * 카드의 브리핑·재무가 실제 값이라 지어낸 비율이 참으로 읽힌다.
+ *
+ * 타입은 남긴다. 서버가 붙는 날 화면이 이 모양을 그대로 받으면 된다.
+ */
 export type StockSentiment = {
   upRatio: number | null
   downRatio: number | null
@@ -248,12 +255,6 @@ export async function getSummary(code: string): Promise<StockSummary> {
 /** 구간을 주지 않으면 서버가 최근 30일을 준다. 화면은 기간 버튼으로 from 을 계산한다. */
 export function getPrices(code: string, from?: string, to?: string) {
   return api.get<{ items: ClosePoint[] }>(`/stocks/${code}/prices`, { query: { from, to } })
-}
-
-/* 서버가 아직 없다(ANT-PRED-06). 실제 호출로 바꿀 자리를 주석으로 남긴다:
-     return api.get<StockSentiment>(`/stocks/${code}/sentiment`) */
-export function getSentiment(code: string) {
-  return mock.sentiment(code)
 }
 
 /* 최신순 고정이라 커서는 id 하나다. 지금 화면은 첫 페이지만 쓰지만

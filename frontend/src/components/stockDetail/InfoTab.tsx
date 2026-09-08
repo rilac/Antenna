@@ -30,7 +30,7 @@ import { useBlock } from '../../api/useBlock'
 import {
   POINT_KINDS, POINT_LABEL, SOURCE_LABEL,
   getDocuments, getFinancials, getPeers, getPoints,
-  getPrices, getProfile, getSentiment, getValuation,
+  getPrices, getProfile, getValuation,
 } from '../../api/stockDetail'
 import { getStockBriefings } from '../../api/briefings'
 import { useBriefingParam } from '../briefingParam'
@@ -47,7 +47,6 @@ type RangeKey = (typeof RANGES)[number]['key']
 
 /* 이 수보다 예측이 적으면 비율을 흐리게 그린다. 5건은 한 명이 몇 번만 더 걸어도
    비율이 통째로 뒤집히는 구간이라, 또렷하게 보이면 없는 신호를 읽게 된다. */
-const THIN_SAMPLE = 5
 
 /* 접었다 펼치는 칸들.
 
@@ -130,7 +129,6 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
 
   /* 접힌 칸은 부르지 않는다 — 펼치는 순간 그때 부른다 */
   const prices = useBlock(() => getPrices(code, from), [code, from], open.chart)
-  const sentiment = useBlock(() => getSentiment(code), [code], open.sentiment)
   const briefings = useBlock(() => getStockBriefings(code), [code], open.sentiment)
   /* open 은 이 파일에서 이미 "펼친 블록" 이라는 뜻으로 쓰고 있다 */
   const { open: openBriefing } = useBriefingParam()
@@ -144,7 +142,6 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
   /* 서버가 열마다 배열을 따로 내려주므로 화면이 kind 로 다시 나누지 않는다.
      한 열이 비어도 나머지 두 열은 그대로 그린다. */
   const pointCount = POINT_KINDS.reduce((n, k) => n + (points.data?.[k].length ?? 0), 0)
-  const sd = sentiment.data
 
   return (
     <div className="sd-grid">
@@ -184,64 +181,16 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
           한 카드지만 원천이 둘이라 BlockState 를 따로 쓴다 */}
       <Panel
         title="예측 현황 · AI 브리핑"
-        note={sd ? `판정 대기 ${sd.sampleSize}건` : undefined}
         span={7}
         open={open.sentiment}
         onToggle={() => toggle('sentiment')}
       >
-        <BlockState
-          loading={sentiment.loading}
-          error={sentiment.error}
-          onRetry={sentiment.retry}
-          skeleton={64}
-          isEmpty={sd?.upRatio === null}
-          empty="아직 이 종목에 등록된 예측이 없습니다. 첫 예측을 남겨 보세요."
-        >
-          {sd && sd.upRatio !== null && (
-            /* 표본이 적으면 흐리게 그린다(§7 SentimentBadge). 2건짜리 50% 가
-               200건짜리 50% 와 같은 무게로 보이면 없는 신호를 읽게 된다. */
-            <div className={sd.sampleSize < THIN_SAMPLE ? 'sd-sent is-thin' : 'sd-sent'}>
-              <div
-                className="sd-sent-bar"
-                role="img"
-                aria-label={`상승 ${sd.upRatio}퍼센트, 하락 ${sd.downRatio}퍼센트`}
-              >
-                <span className="up" style={{ width: `${sd.upRatio}%` }} />
-                <span className="down" style={{ width: `${sd.downRatio}%` }} />
-              </div>
-              <p className="sd-sent-legend num">
-                <b className="up">{`상승 ${sd.upRatio}%`}</b>
-                <b className="down">{`하락 ${sd.downRatio}%`}</b>
-              </p>
-
-              {/* 기간별 쏠림. 가로로 늘어놓아 한 줄에 담는다.
-                  표본이 없는 기간은 막대를 그리지 않는다 — 0% 로 그리면 "다 하락" 으로 읽힌다 */}
-              <ul className="sd-horizons">
-                {sd.byHorizon.map((h) => (
-                  <li key={h.horizon}>
-                    <span className="sd-hz-label">{`${h.horizon}일`}</span>
-                    {h.upRatio === null ? (
-                      <span className="sd-hz-none">없음</span>
-                    ) : (
-                      <>
-                        <span className="sd-hz-bar">
-                          <i style={{ width: `${h.upRatio}%` }} />
-                        </span>
-                        <span className="sd-hz-val num">{`${h.upRatio}%`}</span>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-
-              {sd.sampleSize < THIN_SAMPLE && (
-                <p className="sd-thin-note">
-                  {`예측이 ${sd.sampleSize}건뿐이라 방향을 읽기에는 표본이 적습니다.`}
-                </p>
-              )}
-            </div>
-          )}
-        </BlockState>
+        {/* 예측 심리는 서버가 아직 없다(GET /stocks/{code}/sentiment).
+            목업으로 그리지 않는다 — 옆의 브리핑·재무가 실제 값이라 같은 카드 안에서
+            지어낸 비율이 참으로 읽힌다. 자리를 비우지도 않는다. 왜 없는지 말한다. */}
+        <p className="sd-block-empty">
+          예측 심리 집계는 아직 제공되지 않습니다. 준비되면 이 자리에 상승·하락 비율이 표시됩니다.
+        </p>
 
         <hr className="sd-rule" />
 
@@ -251,6 +200,7 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
           onRetry={briefings.retry}
           skeleton={130}
           isEmpty={briefings.data?.items.length === 0}
+          empty="이 종목의 AI 브리핑이 아직 없습니다. 생성 기능이 준비되면 이 자리에 표시됩니다."
         >
           {/* 목록은 헤드라인과 기준일만 준다 — 본문은 M-10 이 받는다.
               전에는 여기에 논조 배지와 요약 문단을 그렸는데, 서버 응답에
@@ -357,7 +307,7 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
         error={points.error}
         onRetry={points.retry}
         isEmpty={points.data !== null && pointCount === 0}
-        empty="아직 정리된 투자 포인트가 없습니다. 공시·뉴스가 쌓이면 채워집니다."
+        empty="투자 포인트가 아직 없습니다. 공시·뉴스를 요약하는 기능이 준비되면 이 자리에 채워집니다."
       >
         <div className="sd-points">
           {POINT_KINDS.map((kind) => {

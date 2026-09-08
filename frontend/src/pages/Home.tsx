@@ -236,7 +236,19 @@ function BriefingTicker() {
   const line = lines[index]
   const { open } = useBriefingParam()
 
-  if (!line) return null
+  /* 목업을 걷어 냈다. 생성 배치가 아직 안 돌아 목록이 비는데, 그때 이 띠가 통째로
+     사라지면 "원래 없는 자리" 로 보인다 — 옆의 지수는 실제 값이라 더 그렇다.
+     비는 대신 왜 없는지 한 줄로 적는다. 읽기만 하는 줄이라 버튼이 아니다. */
+  if (!line) {
+    return (
+      <div className="hm-ticker">
+        <span className="hm-ticker-tag"><SparkIcon />AI 브리핑</span>
+        <p className="hm-ticker-line is-muted">
+          오늘의 시장 브리핑이 아직 없습니다. 생성 기능이 준비되면 이 자리에 표시됩니다.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="hm-ticker">

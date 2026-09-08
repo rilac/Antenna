@@ -26,17 +26,14 @@
    돌려준다. 페이징이 없는 것도 그래서다 — 한 날짜에 MARKET 1건 + 종목당 1건이라는
    전제다. 화면이 "지난 브리핑 더 보기" 를 만들려면 date 를 직접 넘겨야 한다.
 
-   ── 백엔드가 붙으면 지울 것 ────────────────────────────────
-   엔드포인트는 **이미 살아 있다.** 막힌 건 데이터다 — 생성 배치 B6 가 아직 없고
-   AI 키가 없어 ai_briefings 가 0행이라, 실제로 부르면 항상 { items: [] } 다.
-   그래서 화면을 세우는 동안만 목업을 탄다. 행이 생기면 MOCK 을 false 로 바꾸고
-   api/mock/briefings.ts 와 각 함수의 `if (MOCK)` 한 줄씩만 지우면 끝이다.
-   목업은 위 응답 스키마를 글자 그대로 따르므로 화면 코드는 손대지 않는다.
+   ── 목업 없음 ────────────────────────────────────────────
+   엔드포인트는 살아 있다. 막힌 건 데이터다 — 생성 배치 B6 가 아직 안 돌아
+   ai_briefings 가 0행이고, 그래서 실제로 부르면 { items: [] } 다.
+   **그 빈 목록을 그대로 화면에 넘긴다.** 목업으로 채우면 종목 상세의 재무·개요가
+   실제 값인 옆자리에서 지어낸 브리핑이 참으로 읽힌다. 화면은 비는 대신
+   왜 없는지를 적는다(B-03 브리핑 블록 · 홈 띠).
    ─────────────────────────────────────────────────────── */
 import { api } from './client'
-import * as mock from './mock/briefings'
-
-const MOCK = true
 
 export const BRIEFING_SCOPES = ['MARKET', 'STOCK'] as const
 export type BriefingScope = (typeof BRIEFING_SCOPES)[number]
@@ -70,7 +67,6 @@ type Query = {
 }
 
 export function getBriefings(query: Query = {}) {
-  if (MOCK) return mock.briefings(query)
   return api.get<{ items: BriefingItem[] }>('/briefings', { query })
 }
 
@@ -80,6 +76,5 @@ export function getStockBriefings(stockCode: string) {
 }
 
 export function getBriefing(id: number) {
-  if (MOCK) return mock.briefing(id)
   return api.get<BriefingDetail>(`/briefings/${id}`)
 }
