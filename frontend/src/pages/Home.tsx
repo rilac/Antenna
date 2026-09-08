@@ -14,8 +14,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  getActiveAds, getBriefings, getMarketIndices, getTopPredictors, getWalletBalance, getWatchlist,
+  getActiveAds, getMarketIndices, getTopPredictors, getWalletBalance, getWatchlist,
 } from '../api/insight'
+import { getBriefings } from '../api/briefings'
+import { useBriefingParam } from '../components/briefingParam'
 import { useAsync } from '../api/useAsync'
 import { useAuth } from '../auth/context'
 import Sparkline from '../components/Sparkline'
@@ -209,28 +211,48 @@ function Hero() {
 
 /* AI 브리핑은 카드를 따로 두지 않고 이 카드 아래쪽에 한 줄 띠로 붙인다.
    자리를 적게 쓰려고 한 번에 한 문장만 두고 자동으로 넘긴다. */
+/* 모듈 스코프에 둔다 — useAsync 는 load 가 바뀌면 다시 읽으므로
+   매 렌더 새 함수를 만들면 안 된다(useAsync 머리말) */
+const marketBriefings = () => getBriefings({ scope: 'MARKET' })
+
 function BriefingTicker() {
-  const load = useCallback(() => getBriefings('MARKET'), [])
-  const { data } = useAsync(load)
+  const { data } = useAsync(marketBriefings)
   const lines = data?.items ?? []
   const { index } = useRotate(lines.length, BRIEF_ROTATE_MS)
   const line = lines[index]
+  const { open } = useBriefingParam()
 
   if (!line) return null
 
   return (
     <div className="hm-ticker">
       <span className="hm-ticker-tag"><SparkIcon />AI 브리핑</span>
-      {/* key 가 바뀌면 다시 마운트되어 페이드가 다시 돈다 */}
-      <p className="hm-ticker-line" key={line.id} aria-hidden="true">{line.headline}</p>
+      {/* 목록은 헤드라인만 준다 — 본문은 M-10 이 받는다. key 가 바뀌면 다시
+          마운트되어 페이드가 다시 도는데, 그 자리를 그대로 버튼으로 바꿨다.
+          지금 보이는 문장을 눌러야 그 문장이 열리기 때문이다. */}
+      <button
+        type="button" className="hm-ticker-line" key={line.id}
+        onClick={() => open(line.id)}
+        aria-hidden="true" tabIndex={-1}
+      >
+        {line.headline}
+      </button>
       {lines.length > 1 && (
         <span className="hm-ticker-no num" aria-hidden="true">
           {index + 1}/{lines.length}
         </span>
       )}
-      {/* 화면에서는 돌려 보여주지만, 읽어 주는 기기에는 전부 한 번에 준다 */}
+      {/* 화면에서는 한 줄씩 돌려 보여주지만, 읽어 주는 기기에는 전부 한 번에 준다.
+          돌아가는 줄 하나만 두면 나머지에 닿을 길이 없고, 4.5초마다 이름이 바뀌는
+          버튼은 초점을 두기도 어렵다. 그래서 보이는 줄은 a11y 트리에서 빼고
+          (aria-hidden + tabIndex -1) 조작은 이 목록이 맡는다 — 초점이 오면
+          home.css 의 :focus-within 이 목록을 드러낸다. */}
       <ul className="hm-sr">
-        {lines.map((b) => <li key={b.id}>{b.headline}</li>)}
+        {lines.map((b) => (
+          <li key={b.id}>
+            <button type="button" onClick={() => open(b.id)}>{b.headline}</button>
+          </li>
+        ))}
       </ul>
     </div>
   )

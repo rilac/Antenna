@@ -7,8 +7,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from './auth/context'
 import { takeOnboardingPending } from './auth/onboarding'
+import BriefingModal from './components/BriefingModal'
 import OnboardingTour from './components/OnboardingTour'
 import WalletLinkModal from './components/wallet/WalletLinkModal'
+import { useBriefingParam } from './components/briefingParam'
 
 export type Mode = 'insight' | 'sim'
 
@@ -111,6 +113,12 @@ export default function Layout({ mode, nav, bodyClass, children }: { mode: Mode;
      WalletLinkModal 머리말이 "호출부가 온보딩을 닫고 띄운다" 로 계약을 적어
      두었다. 그래서 튜토리얼을 먼저 닫고 이걸 세운다. */
   const [linking, setLinking] = useState(false)
+
+  /* M-10 브리핑 상세. 여는 쪽(B-01 홈 띠 · B-03 브리핑 카드)은 쿼리만 세우고,
+     그리는 것은 셸이 맡는다 — M-09 오버레이를 셸로 올린 것과 같은 이유다.
+     띠가 비어 있으면 그 컴포넌트는 null 을 돌려주는데, 모달을 그 안에 두면
+     ?briefing=12 로 들어온 딥링크가 아무것도 못 연다. */
+  const briefing = useBriefingParam()
 
   useEffect(() => {
     document.body.className = railOpen ? `${bodyClass} rail-open`.trim() : bodyClass
@@ -238,6 +246,10 @@ export default function Layout({ mode, nav, bodyClass, children }: { mode: Mode;
       )}
 
       {linking && <WalletLinkModal onClose={() => setLinking(false)} />}
+
+      {briefing.id !== null && (
+        <BriefingModal id={briefing.id} onClose={briefing.close} />
+      )}
     </>
   )
 }

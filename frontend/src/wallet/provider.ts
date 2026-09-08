@@ -28,6 +28,58 @@ export function hasWallet() {
   return provider() !== null
 }
 
+/**
+ * 지갑이 없는 사용자를 보낼 곳.
+ *
+ * 이 자리에 두는 이유 — 지갑 감지(hasWallet)와 같은 경계다. 화면마다 주소를
+ * 적어 두면 지갑을 바꿀 때 한 곳만 고쳐지고 갈라진다.
+ *
+ * 특정 지갑을 지목한다. 우리가 쓰는 것은 EIP-1193 표준이라 다른 지갑도
+ * 동작하지만, "지갑 확장을 설치하세요" 만 알려 주면 무엇을 설치할지 모른다.
+ */
+export const WALLET_INSTALL_URL = 'https://metamask.io/download/'
+
+/**
+ * 지갑이 주입되면 알려 준다. 구독을 끊는 함수를 돌려준다.
+ *
+ * 왜 한 번 확인으로 끝내면 안 되는가 — 확장은 페이지 로드 시점에 주입되는데
+ * **그게 렌더보다 늦을 수 있다.** MetaMask 는 준비되면 ethereum#initialized 를
+ * 쏜다. 화면이 렌더 한 번으로 판단하고 끝내면, 주입이 그 뒤에 끝났을 때
+ * "지갑을 찾을 수 없습니다" 에 굳고 다시 볼 계기가 없다.
+ *
+ * **이미 로드된 페이지에 나중에 설치한 경우는 이걸로 살아나지 않는다.**
+ * 확장은 로드 때만 주입되므로 새로고침 말고는 방법이 없다 — 그 갈래는 화면이
+ * 새로고침 버튼으로 안내한다.
+ *
+ * 폴링을 영원히 돌리지 않는다. 주입 경쟁은 로드 직후 몇 초 안에 끝나고,
+ * 그 뒤로도 도는 타이머는 아무것도 못 잡으면서 배터리만 먹는다.
+ */
+export function onWalletReady(onReady: () => void): () => void {
+  if (hasWallet()) {
+    onReady()
+    return () => {}
+  }
+
+  let stopped = false
+  const check = () => {
+    if (stopped || !hasWallet()) return
+    stop()
+    onReady()
+  }
+
+  const timer = setInterval(check, 250)
+  const deadline = setTimeout(() => { clearInterval(timer) }, 4000)
+  window.addEventListener('ethereum#initialized', check)
+
+  function stop() {
+    stopped = true
+    clearInterval(timer)
+    clearTimeout(deadline)
+    window.removeEventListener('ethereum#initialized', check)
+  }
+  return stop
+}
+
 /* EIP-1193 표준 오류 코드. 지갑마다 문구는 달라도 code 는 같다.
    문구로 분기하면 지갑을 바꾸는 순간 죽는 분기가 된다. */
 const REJECTED = 4001
