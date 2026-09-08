@@ -45,7 +45,21 @@ const AD_THEMES = [
 const WATCH_ROWS = 3
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const signed = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+/* 0 에는 부호를 붙이지 않는다. "+0.00%" 는 오른 것처럼 읽힌다.
+   B-04(Watchlist.tsx)가 먼저 같은 판단을 했고 여기만 남아 있었다. */
+const signed = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(2)}%`
+
+/* 등락률의 색. 0 은 상승도 하락도 아니다 — 이유는 Watchlist.tsx(B-04)에 적어 뒀다.
+   수집이 하루치뿐이면 서버가 changeRate 를 0 으로 내리므로(응답 규약 "점이 둘 미만이면 0")
+   이 구분이 없으면 온 종목이 빨강이 되어 "다 올랐다" 로 읽힌다. */
+const toneOf = (rate: number | null) =>
+  rate === null || rate === 0 ? '' : rate > 0 ? 'up' : 'down'
+
+/* 미니차트 색은 옆의 등락률을 따른다. 부호가 없을 때(0 · null)만 선의 양 끝을 쓴다. */
+const risingOf = (rate: number | null, series: number[]) =>
+  rate !== null && rate !== 0
+    ? rate > 0
+    : series.length < 2 || series[series.length - 1] >= series[0]
 
 /* 등락률과 종가만 내려오므로 변동액은 여기서 되돌려 구한다.
    prev = close / (1 + rate/100) 이고, 변동액은 close - prev 다. */
@@ -54,7 +68,7 @@ function deltaOf(close: number, rate: number) {
   return close - prev
 }
 const signedAmt = (n: number, digits = 0) =>
-  `${n >= 0 ? '+' : '−'}${Math.abs(n).toLocaleString('ko-KR', {
+  `${n === 0 ? '' : n > 0 ? '+' : '−'}${Math.abs(n).toLocaleString('ko-KR', {
     minimumFractionDigits: digits, maximumFractionDigits: digits,
   })}`
 
@@ -272,18 +286,18 @@ function MarketOverview() {
       {data && (
         <ul className="hm-indices">
           {data.items.map((it) => {
-            const up = it.changeRate >= 0
+            const tone = toneOf(it.changeRate)
             /* 지수는 소수 둘째 자리까지가 관례다 */
             const delta = deltaOf(it.close, it.changeRate)
             return (
               <li key={it.code}>
                 <span className="hm-ix-name">{INDEX_LABEL[it.code] ?? it.code}</span>
                 <b className="hm-ix-val num">{won(it.close)}</b>
-                <span className={`hm-ix-delta num ${up ? 'up' : 'down'}`}>
+                <span className={`hm-ix-delta num ${tone}`}>
                   {signedAmt(delta, 2)}
                   <em>({signed(it.changeRate)})</em>
                 </span>
-                <Sparkline series={it.series} up={up} width={78} height={52} area />
+                <Sparkline series={it.series} up={risingOf(it.changeRate, it.series)} width={78} height={52} area />
               </li>
             )
           })}
@@ -360,7 +374,7 @@ function Watchlist() {
             </thead>
             <tbody>
               {data.items.slice(0, WATCH_ROWS).map((s) => {
-                const up = s.changeRate >= 0
+                const tone = toneOf(s.changeRate)
                 // 시세가 없는 종목은 종가·변동액을 지어내지 않고 빈칸으로 둔다
                 const delta = s.prevClose === null ? null : deltaOf(s.prevClose, s.changeRate)
                 return (
@@ -372,7 +386,7 @@ function Watchlist() {
                       </Link>
                     </th>
                     <td className="r num">{s.prevClose === null ? '—' : `${won(s.prevClose)} 원`}</td>
-                    <td className={`r num ${up ? 'up' : 'down'}`}>
+                    <td className={`r num ${tone}`}>
                       {delta === null ? '—' : (
                         <>
                           {signedAmt(Math.round(delta))}
@@ -380,7 +394,7 @@ function Watchlist() {
                         </>
                       )}
                     </td>
-                    <td className="c"><Sparkline series={s.series} up={up} /></td>
+                    <td className="c"><Sparkline series={s.series} up={risingOf(s.changeRate, s.series)} /></td>
                     {/* 목록에 담긴 종목이라 채운 별이다. 담기·빼기는 B-04 의 몫이다. */}
                     <td className="s"><span className="hm-star"><StarIcon /></span></td>
                   </tr>
