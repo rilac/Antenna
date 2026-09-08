@@ -79,6 +79,27 @@ class RankingSnapshotServiceTest {
     }
 
     @Test
+    @DisplayName("판정 3건 미만은 랭킹에서 뺀다 — 점수를 깎는 것으로는 목록에서 사라지지 않는다")
+    void 최소_표본() {
+        Long enough = insertUser("세건채운사람");
+        Long tooFew = insertUser("두건뿐인사람");
+        insertJudged(enough, "REAL", 3, 2, "2.000");
+        // 두 건 전승이라 적중률은 100% 지만 실력인지 우연인지 구분되지 않는다.
+        insertJudged(tooFew, "REAL", 2, 2, "0.100");
+
+        snapshots.runOnce();
+        em.flush();
+        em.clear();
+
+        assertThat(userIdsOf("REAL", "ALL")).containsExactly(enough);
+        // 거른 뒤에 번호를 매기므로 순위는 여전히 1 부터 촘촘하다.
+        assertThat(rankRows("REAL", "ALL")).extracting(r -> ((Number) r[1]).intValue())
+                .containsExactly(1);
+        // 랭킹에 없으니 내 순위도 없다 — 컨트롤러가 204 로 바꾼다(명세 §랭킹).
+        assertThat(queries.myRank(tooFew, Track.REAL, null)).isEmpty();
+    }
+
+    @Test
     @DisplayName("표본이 적으면 가중치가 깎인다 — 3건 만점자가 20건 90%보다 낮다")
     void 표본_가중치() {
         Long lucky = insertUser("세건만맞춘사람");
