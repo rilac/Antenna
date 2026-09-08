@@ -426,14 +426,23 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
                 등록한 예측은 <b>수정하거나 삭제할 수 없습니다.</b> 목표가와 기간을 다시 확인해 주세요.
               </p>
 
-              {failure && <ErrorState error={failure} inline />}
-              {localMsg && <p className="sd-warn">{localMsg}</p>}
-
               <button type="button" className="sd-submit" disabled={submitting} onClick={submit}>
                 {submitting
                   ? '서명을 기다리는 중…'
                   : overSlot ? '토큰을 소각하고 등록' : '서명하고 등록'}
               </button>
+
+              {/* 누른 뒤에 생기는 것이라 버튼 **아래** 에 둔다. 위에 두면 눌렀을
+                  때 시선이 버튼에 있어 문구가 나타난 줄 모르고, 스크롤 위치에
+                  따라 화면 밖에 있기도 하다 — 실제로 "눌러도 아무 일이 없다" 는
+                  보고가 그래서 나왔다.
+                  role=alert 로 읽어 주는 순서도 맞춘다. */}
+              {(failure || localMsg) && (
+                <div className="sd-submit-msg" role="alert">
+                  {failure && <ErrorState error={failure} inline />}
+                  {localMsg && <p className="sd-warn">{localMsg}</p>}
+                </div>
+              )}
             </>
           ) : (
             <p className="pf-none">방향 · 목표가 · 기간을 모두 고르면 서명 단계로 넘어갑니다.</p>
