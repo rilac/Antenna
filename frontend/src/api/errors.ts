@@ -29,6 +29,14 @@ export function toApiError(status: number, body: unknown): ApiError {
     const b = body as ApiErrorBody
     return new ApiError({ code: b.code, message: b.message ?? '', field: b.field }, status)
   }
+  /* 본문 없는 401 은 UNAUTHENTICATED 로 읽는다.
+     Spring Security 의 기본 진입점이 본문 없이 401 만 보낸다(2026-09-07 확인 —
+     Content-Length: 0). 명세 §1 은 모든 오류가 {code, message} 를 갖는다고 정했으므로
+     서버 쪽이 고쳐질 자리지만, 그때까지 화면에 UNKNOWN 이 뜨면 로그인이 안 된 것을
+     알 수 없다. 상태 코드만으로도 뜻이 하나뿐인 경우라 여기서 메운다. */
+  if (status === 401) {
+    return new ApiError({ code: 'UNAUTHENTICATED', message: '' }, status)
+  }
   return new ApiError({ code: 'UNKNOWN', message: '' }, status)
 }
 
