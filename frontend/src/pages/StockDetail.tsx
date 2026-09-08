@@ -85,17 +85,19 @@ export default function StockDetail() {
             {/* ── 요약 헤더 ───────────────────────────────────
                 스크롤을 내려도 어느 종목을 보는지, 종가가 얼마인지 남아 있어야
                 아래쪽 재무·경쟁사를 읽을 때 기준을 잃지 않는다. */}
-            <header className="sd-head">
-              <div className="sd-head-top">
-                <Link className="sd-back" to="/stocks">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                       strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M15 5 8 12l7 7" />
-                  </svg>
-                  종목 탐색
-                </Link>
-              </div>
+            {/* 뒤로가기는 sticky 밖이다. 붙여 두면 스크롤 내내 따라다니는데,
+                한 번 쓰고 마는 길이라 자리만 차지한다. 위로 올리면 다시 보인다. */}
+            <div className="sd-head-top">
+              <Link className="sd-back" to="/stocks">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M15 5 8 12l7 7" />
+                </svg>
+                종목 탐색
+              </Link>
+            </div>
 
+            <header className="sd-head">
               <div className="sd-ident">
                 {summary.loading ? (
                   <span className="sd-skel sd-skel-title" aria-hidden="true" />

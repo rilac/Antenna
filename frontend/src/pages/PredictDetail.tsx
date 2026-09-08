@@ -27,6 +27,7 @@ import { isSubscriptionGated } from '../api/errors'
 import { PROOF_STATUS_LABEL, fetchAnchorStatus } from '../api/proof'
 import { useBlock } from '../api/useBlock'
 import { getPredictionDetail, targetProgress, phaseOf, HORIZON_LABEL } from '../api/predictions'
+import { getProfile } from '../api/stockDetail'
 import '../styles/screens/predict-detail.css'
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
@@ -68,6 +69,16 @@ export default function PredictDetail() {
   const isServerId = /^\d+$/.test(id)
   const proof = useBlock(() => fetchAnchorStatus(id), [id], isServerId)
 
+  /* 종목명이 비어 오면 종목 개요에서 가져온다.
+
+     제목에 코드만 뜨면("000080") 무슨 종목인지 알 수 없다. 서버가 붙으면
+     stockName 이 실려 오므로 이 호출은 일어나지 않는다 — 이름이 없을 때만 부른다.
+     지금은 목업이 이름을 모른다(예측 목록 응답에 종목명이 없어서다). 나중에도
+     종목이 지워진 건은 이름이 비는데, 그때도 코드보다는 이 값이 낫다. */
+  const code = q.data?.stockCode ?? null
+  const needName = q.data != null && q.data.stockName === null && code !== null
+  const profile = useBlock(() => getProfile(code as string), [code], needName)
+
   /* 403 은 잠금이라 SubscriptionGate 가 맡는다. 그 밖의 오류만 ErrorState 로 —
      둘을 합치면 서버가 죽은 것과 구독이 없는 것이 같은 화면으로 보인다. */
   if (q.error && !isSubscriptionGated(q.error)) {
@@ -99,7 +110,8 @@ export default function PredictDetail() {
     )
   }
 
-  const stock = d.stockName ?? d.stockCode
+  /* 이름 → 개요에서 받은 이름 → 코드 순. 코드는 항상 온다 */
+  const stock = d.stockName ?? profile.data?.corpName ?? d.stockCode
 
   /* 진행률은 미판정 건에서만 뜻이 있다. 판정이 끝나면 답은 오차율이고, 진행 막대는
      같은 이야기를 한 번 더 하면서 "아직 가는 중" 처럼 읽히게 만든다.
@@ -127,7 +139,8 @@ export default function PredictDetail() {
             <h1>
               <Link to={`/stocks/${d.stockCode}`}>{stock}</Link>
             </h1>
-            <span className="pd-code num">{d.stockCode}</span>
+            {/* 제목이 코드로 떨어졌으면 코드를 한 번 더 그리지 않는다 */}
+            {stock !== d.stockCode && <span className="pd-code num">{d.stockCode}</span>}
             <PredictionStatus status={d.status} />
           </div>
 
@@ -139,64 +152,60 @@ export default function PredictDetail() {
 
         <div className="pd-grid">
           {/* ── 예측 내용 · 진행률 ─────────────────────────
-              미판정 + 비구독이면 이 블록만 잠긴다 */}
+              **잠기지 않는다**(2026-09-08 결정). 방향·목표가·기준가·만기·진행률은
+              누구에게나 보인다 — 예측가를 고를 근거가 되어야 하기 때문이다.
+              구독으로 사는 것은 판단의 이유(아래 근거 본문)뿐이다. */}
           <section className="pd-card is-main">
             <h2>예측 내용</h2>
-            <SubscriptionGate
-              locked={d.locked}
-              label="이 예측의 목표가"
-              channelId={d.channelId}
-            >
-              <dl className="pd-figures">
-                <div>
-                  <dt>방향</dt>
-                  <dd className={d.direction === 'UP' ? 'up' : 'down'}>
-                    {d.direction === 'UP' ? '상승' : '하락'}
-                  </dd>
-                </div>
-                <div>
-                  <dt>목표가</dt>
-                  <dd className="num">{d.targetPrice === null ? '—' : won(d.targetPrice)}</dd>
-                </div>
-                <div>
-                  <dt>기준가</dt>
-                  {/* 배치 B2 가 다음 영업일 종가로 확정한다. 빈 값을 0 으로 그리지 않는다 */}
-                  <dd className="num">
-                    {d.basePrice === null
-                      ? <span className="pd-pending">다음 영업일 종가로 확정</span>
-                      : won(d.basePrice)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{d.settlePrice === null ? '만기' : '만기 종가'}</dt>
-                  <dd className="num">
-                    {d.settlePrice === null ? dot(d.settleDate) : won(d.settlePrice)}
-                  </dd>
-                </div>
-              </dl>
+            <dl className="pd-figures">
+              <div>
+                <dt>방향</dt>
+                <dd className={d.direction === 'UP' ? 'up' : 'down'}>
+                  {d.direction === 'UP' ? '상승' : '하락'}
+                </dd>
+              </div>
+              <div>
+                <dt>목표가</dt>
+                <dd className="num">{d.targetPrice === null ? '—' : won(d.targetPrice)}</dd>
+              </div>
+              <div>
+                <dt>기준가</dt>
+                {/* 배치 B2 가 다음 영업일 종가로 확정한다. 빈 값을 0 으로 그리지 않는다 */}
+                <dd className="num">
+                  {d.basePrice === null
+                    ? <span className="pd-pending">다음 영업일 종가로 확정</span>
+                    : won(d.basePrice)}
+                </dd>
+              </div>
+              <div>
+                <dt>{d.settlePrice === null ? '만기' : '만기 종가'}</dt>
+                <dd className="num">
+                  {d.settlePrice === null ? dot(d.settleDate) : won(d.settlePrice)}
+                </dd>
+              </div>
+            </dl>
 
-              {progress !== null && <Progress value={progress} />}
+            {progress !== null && <Progress value={progress} />}
 
-              {/* 전일 종가로 진행률을 그렸다는 사실을 밝힌다 — "현재가" 가 아니다 */}
-              {pending && d.lastClose && (
-                <p className="pd-basis num">
-                  {`${dot(d.lastClose.asOf)} 종가 ${won(d.lastClose.close)} 기준`}
-                </p>
-              )}
+            {/* 전일 종가로 진행률을 그렸다는 사실을 밝힌다 — "현재가" 가 아니다 */}
+            {pending && d.lastClose && (
+              <p className="pd-basis num">
+                {`${dot(d.lastClose.asOf)} 종가 ${won(d.lastClose.close)} 기준`}
+              </p>
+            )}
 
-              {d.errorRate !== null && (
-                <p className="pd-error num">
-                  <span>목표가 대비 오차</span>
-                  <b className={Math.abs(d.errorRate) <= 3 ? 'is-near' : undefined}>
-                    {`${d.errorRate > 0 ? '+' : ''}${d.errorRate}%`}
-                  </b>
-                </p>
-              )}
+            {d.errorRate !== null && (
+              <p className="pd-error num">
+                <span>목표가 대비 오차</span>
+                <b className={Math.abs(d.errorRate) <= 3 ? 'is-near' : undefined}>
+                  {`${d.errorRate > 0 ? '+' : ''}${d.errorRate}%`}
+                </b>
+              </p>
+            )}
 
-              {d.dday !== null && (
-                <p className="pd-dday num">{d.dday === 0 ? '오늘 만기' : `만기까지 D-${d.dday}`}</p>
-              )}
-            </SubscriptionGate>
+            {d.dday !== null && (
+              <p className="pd-dday num">{d.dday === 0 ? '오늘 만기' : `만기까지 D-${d.dday}`}</p>
+            )}
           </section>
 
           {/* ── 조작 불가 근거 ─────────────────────────────

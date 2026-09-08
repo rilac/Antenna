@@ -79,17 +79,26 @@ export function create(draft: PredictionDraft): Promise<CreateResult> {
 
    구독 중인 채널이 하나 있다고 가정해 잠기지 않은 미판정도 한 건 둔다 —
    "잠긴 것" 과 "구독해서 보이는 것" 이 같은 목록에 섞이는 모습을 봐야 한다. */
-const AUTHORS = [
-  { userId: 'u1', nickname: '데이터로보는사람', accuracy: 71.4, subscribed: true },
-  { userId: 'u2', nickname: '반도체존버', accuracy: 58.2, subscribed: false },
-  { userId: 'u3', nickname: '레드와이어사지마라했다', accuracy: 64.9, subscribed: false },
-  { userId: 'u4', nickname: '분기실적만본다', accuracy: null, subscribed: false },
-  { userId: 'u5', nickname: '차트는거들뿐', accuracy: 49.1, subscribed: false },
-  { userId: 'u6', nickname: '외국인수급추적', accuracy: 77.0, subscribed: false },
-  { userId: 'u7', nickname: '적립식개미', accuracy: 52.6, subscribed: false },
-  { userId: 'u8', nickname: 'HBM만판다', accuracy: 68.3, subscribed: false },
-  { userId: 'u9', nickname: '메모리사이클', accuracy: 61.5, subscribed: false },
-  { userId: 'u10', nickname: '공시읽는남자', accuracy: 55.8, subscribed: false },
+/* 채널 목업(mock/channels.ts)이 이 표를 읽는다. 표를 두 곳에 두면 같은 사람이
+   목록에서는 "반도체존버", 채널 화면에서는 다른 이름으로 뜬다 — 실제로 그랬다. */
+/* userId 는 **숫자 문자열**이다. 서버 userId 가 long 이라 'u2' 같은 값을 보내면
+   실제 API 가 400 INVALID_REQUEST 를 낸다 — 채널 화면이 리포트 목록만 실제로
+   부르는데 거기서 그렇게 터졌다.
+
+   **작성자 이름을 눌러 채널로 가면 404 다.** 채널 목업(mock/channels.ts)이
+   네 명('1'·'2'·'3'·'9')만 알기 때문인데, 그 파일은 채널 화면(E-02)의 것이라
+   여기서 고치지 않는다. 그쪽에 알린다. */
+export const AUTHORS = [
+  { userId: '101', nickname: '데이터로보는사람', accuracy: 71.4, subscribed: true },
+  { userId: '102', nickname: '반도체존버', accuracy: 58.2, subscribed: false },
+  { userId: '103', nickname: '레드와이어사지마라했다', accuracy: 64.9, subscribed: false },
+  { userId: '104', nickname: '분기실적만본다', accuracy: null, subscribed: false },
+  { userId: '105', nickname: '차트는거들뿐', accuracy: 49.1, subscribed: false },
+  { userId: '106', nickname: '외국인수급추적', accuracy: 77.0, subscribed: false },
+  { userId: '107', nickname: '적립식개미', accuracy: 52.6, subscribed: false },
+  { userId: '108', nickname: 'HBM만판다', accuracy: 68.3, subscribed: false },
+  { userId: '109', nickname: '메모리사이클', accuracy: 61.5, subscribed: false },
+  { userId: '110', nickname: '공시읽는남자', accuracy: 55.8, subscribed: false },
 ]
 
 const HORIZONS: Horizon[] = [5, 10, 20, 60]
@@ -128,13 +137,14 @@ function buildRows(code: string): StockPrediction[] {
       createdAt: `2026-08-${String(10 + i).padStart(2, '0')}T09:30:00+09:00`,
       dueDate: d.toISOString().slice(0, 10),
       locked,
-      /* 방향은 잠겨도 내린다. 목표가만 뺀다(서버 PredictionCardResponse 와 같은 규칙) */
       direction,
-      targetPrice: locked ? null : target,
+      /* 잠겨도 목표가는 온다(2026-09-08 결정). 잠기는 것은 근거뿐이다 */
+      targetPrice: target,
       /* 등록 직후(BASE)는 기준가가 아직 없다. 0 으로 채우지 않는다 */
       basePrice: status === 'BASE' ? null : base,
       closePrice: close,
-      errorRate: close === null || locked ? null : Math.round(((close - target) / target) * 1000) / 10,
+      errorRate: close === null ? null : Math.round(((close - target) / target) * 1000) / 10,
+      /* 잠금은 근거에만 걸린다. 구독 CTA 를 그리려면 채널을 알아야 한다 */
       channelId: locked ? a.userId : null,
     }
   })
@@ -215,9 +225,12 @@ const SEEDS: DetailSeed[] = [
    잠금 두 갈래를 실제로 재현한다. 화면이 §5 를 지키는지 눈으로 확인하려는 것이다.
 
      내 예측(p1~)        전부 열려 있다. 근거 본문까지 보인다
-     남의 예측(o-open)   미판정 + 비구독 → locked. 근거도 잠긴다
-     남의 예측(o-hit)    판정 완료 → 전체 공개. 다만 **근거 본문은 여전히 잠긴다**
+     남의 예측(o-open)   미판정이어도 **내용은 열려 있다** — 근거 본문만 잠긴다
+     남의 예측(o-hit)    판정 완료 → 전체 공개. 역시 **근거 본문은 잠긴다**
                          (만기 리빌 후에도 구독자 전용이다)
+
+   2026-09-08 결정 — 예측가를 고를 근거가 되어야 하므로 방향·목표가까지 공개한다.
+   구독으로 사는 것은 판단의 이유(근거 본문) 하나뿐이다.
 
    어느 경우에도 commitHash · 서명 주소 · 앵커는 내린다 — 잠금 대상이 아니다. */
 const ANCHOR_CONFIRMED = {
@@ -276,12 +289,14 @@ const DETAILS: Record<string, PredictionDetail> = {
      그래도 작성자·기간·커밋·앵커는 보인다(§5 "존재 자체는 공개") */
   'o-open': {
     id: 'o-open', stockCode: '005930', stockName: '삼성전자',
-    author: { userId: 'u2', nickname: '반도체존버' },
+    author: { userId: '102', nickname: '반도체존버' },
     status: 'OPEN', horizon: 20, createdAt: '2026-08-20T11:40:00+09:00',
     settleDate: '2026-09-18', dday: 11,
-    locked: true, direction: null, targetPrice: null,
-    basePrice: null, settlePrice: null, errorRate: null,
-    lastClose: null,
+    /* 남의 미판정 예측이지만 **내용은 열려 있다**(2026-09-08 결정).
+       잠기는 것은 근거 본문뿐이라 noteLocked 만 참이다. */
+    locked: false, direction: 'UP', targetPrice: 82000,
+    basePrice: 78600, settlePrice: null, errorRate: null,
+    lastClose: { asOf: '2026-09-07', close: 80100 },
     noteLocked: true, note: null, evidencePoints: [],
     commitHash: '0x58b0271f4a6d9c3b5e70128a4f6c9b3d5e701427d41e9a3c2c58f0716d4a9c3e',
     signerAddress: '0x4Bc7e19aD05f2C863b0e4719aD05f2C861e0B37d',
@@ -291,7 +306,7 @@ const DETAILS: Record<string, PredictionDetail> = {
   /* 남의 예측 · 판정 완료 → 내용은 전체 공개. 근거 본문만 여전히 잠긴다 */
   'o-hit': {
     id: 'o-hit', stockCode: '035420', stockName: 'NAVER',
-    author: { userId: 'u1', nickname: '데이터로보는사람' },
+    author: { userId: '101', nickname: '데이터로보는사람' },
     status: 'HIT', horizon: 10, createdAt: '2026-07-30T09:12:00+09:00',
     settleDate: '2026-08-13', dday: null,
     locked: false, direction: 'DOWN', targetPrice: 165000,
@@ -312,6 +327,10 @@ const notFoundPrediction = (id: string) =>
     message: `예측 ${id} 을(를) 찾을 수 없습니다`,
   }))
 
+/** 만기까지 남은 일수. 목록 응답에 dday 가 없어 만기일에서 센다 */
+const ddayTo = (dueDate: string) =>
+  Math.max(0, Math.round((Date.parse(dueDate) - Date.parse('2026-09-08')) / 86400000))
+
 export function predictionDetail(id: string): Promise<PredictionDetail> {
   const hit = DETAILS[id]
   if (hit) return delay(hit, 300)
@@ -323,6 +342,41 @@ export function predictionDetail(id: string): Promise<PredictionDetail> {
      id 는 long 이고, 목업 픽스처에는 없다. 404 로 막으면 실제 목록에서 상세로
      넘어가는 길이 끊기고, 화면이 실제로 읽는 앵커 상태(GET .../proof)도 볼 수
      없다. GET /predictions/{id} 가 붙으면 이 함수 전체가 사라진다. */
+  /* 종목 상세의 예측 목록에서 들어온 건({코드}-pr{n}). 그 목록과 같은 생성기를
+     써야 작성자·방향·목표가가 목록과 어긋나지 않는다 — 전에는 여기서 막혀
+     목록의 어느 줄을 눌러도 PREDICTION_NOT_FOUND 였다. */
+  const fromStock = /^([0-9]{6})-pr[0-9]+$/.exec(id)
+  if (fromStock) {
+    const found = buildRows(fromStock[1]).find((r) => r.id === id)
+    if (!found) return notFoundPrediction(id)
+    const settled = phaseOf(found.status) === 'JUDGED'
+    const basePrice = found.basePrice
+    return delay<PredictionDetail>({
+      /* 목록 응답에는 종목명이 없다 — 목록이 이미 종목 화면 안에 있어서다.
+         코드는 id 에서 되읽고, 이름은 상세 헤더가 따로 채운다. */
+      id: found.id, stockCode: fromStock[1], stockName: null,
+      author: found.author, status: found.status, horizon: found.horizon,
+      createdAt: found.createdAt, settleDate: found.dueDate,
+      dday: settled ? null : ddayTo(found.dueDate),
+      /* 예측 내용은 잠기지 않는다. 잠기는 것은 근거 본문뿐이고, 그건 구독 여부를
+         따른다 — 목록에서 잠겨 보이던 사람이 상세에서 열리면 안 된다. */
+      locked: false,
+      direction: found.direction, targetPrice: found.targetPrice, basePrice,
+      settlePrice: settled ? found.closePrice : null,
+      errorRate: found.errorRate,
+      lastClose: basePrice === null || found.targetPrice === null ? null
+        : { close: Math.round((basePrice + found.targetPrice) / 2), asOf: '2026-09-07' },
+      noteLocked: found.locked,
+      note: found.locked ? null
+        : '공시와 실적 발표만 근거로 씁니다. 이번 건은 분기 가이던스 상향을 보고 걸었습니다.',
+      evidencePoints: found.locked ? [] : [EVIDENCE[0]],
+      commitHash: '0x' + [...found.id].map((c) => c.charCodeAt(0).toString(16)).join('').padEnd(64, 'b41e').slice(0, 64),
+      signerAddress: '0x4Bc7e19aD05f2C863b0e4719aD05f2C861e0B37d',
+      anchor: found.status === 'BASE' ? null : ANCHOR_CONFIRMED,
+      channelId: found.author.userId,
+    }, 300)
+  }
+
   const row = SEEDS.find((r) => r.id === id)
     ?? (/^\d+$/.test(id) ? { ...SEEDS[1], id } : undefined)
   if (!row) return notFoundPrediction(id)
