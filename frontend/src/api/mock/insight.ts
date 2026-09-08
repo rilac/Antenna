@@ -6,7 +6,7 @@
 
    지연을 조금 주는 이유: 로딩 상태를 화면에서 실제로 보게 하려는 것이다. */
 import type {
-  ActiveAd, Briefing, IndexQuote, RankingRow, SearchResult, WalletBalance, WatchlistRow,
+  ActiveAd, IndexQuote, RankingRow, SearchResult, WalletBalance, WatchlistRow,
 } from '../insight'
 
 const delay = <T,>(value: T, ms = 320) =>
@@ -31,14 +31,6 @@ export const marketIndices = () => delay<{ items: IndexQuote[] }>({
     { code: 'KOSPI', close: 2663.33, changeRate: 0.70, series: walk(11, 30, 2610, 0.012) },
     { code: 'KOSDAQ', close: 842.67, changeRate: 0.73, series: walk(23, 30, 830, 0.014) },
     { code: 'USDKRW', close: 1363.20, changeRate: -0.25, series: walk(37, 30, 1372, 0.006) },
-  ],
-})
-
-export const briefings = () => delay<{ items: Briefing[] }>({
-  items: [
-    { id: 1, scope: 'MARKET', stockCode: null, headline: '반도체 수출 회복이 지수를 끌어올렸습니다', targetDate: '2026-08-31' },
-    { id: 2, scope: 'MARKET', stockCode: null, headline: '2차전지는 유럽 보조금 축소 소식에 조정받았습니다', targetDate: '2026-08-31' },
-    { id: 3, scope: 'MARKET', stockCode: null, headline: '환율 하락으로 수입 비중이 큰 업종에 여유가 생겼습니다', targetDate: '2026-08-31' },
   ],
 })
 

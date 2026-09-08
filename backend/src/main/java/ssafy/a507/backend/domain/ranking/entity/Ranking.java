@@ -70,6 +70,15 @@ public class Ranking {
     @Column(name = "`rank`", nullable = false)
     private int rank;
 
+    /**
+     * 직전 스냅샷에서의 순위. 배치가 표를 갈아 끼우기 전에 옮겨 담는다.
+     *
+     * <p>NULL 은 "직전 회차에 이 필터에 없었다" 는 뜻이다 — 새로 진입했거나 첫 스냅샷이다.
+     * 0 을 쓰지 않는 이유는 0 등이라는 순위가 없어서고, 조회는 NULL 을 변동 없음(0)으로 읽는다.
+     */
+    @Column(name = "prev_rank")
+    private Integer prevRank;
+
     @Column(name = "computed_at", nullable = false)
     private Instant computedAt;
 }

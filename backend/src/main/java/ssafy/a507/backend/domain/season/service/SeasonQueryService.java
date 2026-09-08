@@ -245,7 +245,7 @@ public class SeasonQueryService {
         return null;
     }
 
-    /** 끝남은 진행일이 아니라 회차 상태(DONE)다 — 마지막 게임일에도 종료 전이면 진행 중이다(v0.35). */
+    /** 끝남은 진행일이 아니라 회차 상태(DONE)다 — 마지막 게임일에도 종료 전이면 진행 중이다(v0.37). */
     private static MySeasonStatus statusOf(SeasonParticipant participant) {
         return participant.getStatus() == SeasonParticipant.Status.DONE
                 ? MySeasonStatus.DONE
