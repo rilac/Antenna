@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, ERROR_CODE } from '../../api/errors'
 import { linkWallet, requestNonce, shortAddress, signingPayload } from '../../api/wallet'
-import { WALLET_INSTALL_URL, connectAddress, hasWallet, personalSign } from '../../wallet/provider'
+import { WALLET_INSTALL_URL, connectAddress, hasWallet, onWalletReady, personalSign } from '../../wallet/provider'
 import { errorText } from '../state/errorText'
 import { useAuth } from '../../auth/context'
 import '../../styles/screens/wallet-link.css'
@@ -115,7 +115,10 @@ export default function WalletLinkModal({
 
   const text = error ? errorText(error) : null
   const terminal = error !== null && isTerminal(error)
-  const walletReady = hasWallet()
+  /* 주입이 렌더보다 늦을 수 있어 상태로 들고 구독한다. 한 번 확인으로 끝내면
+     늦게 주입된 지갑을 영영 못 본다(provider.ts 의 onWalletReady). */
+  const [walletReady, setWalletReady] = useState(hasWallet)
+  useEffect(() => onWalletReady(() => setWalletReady(true)), [])
 
   return (
     <div className="wl-backdrop" onClick={close}>
@@ -177,6 +180,18 @@ export default function WalletLinkModal({
                 >
                   지갑 설치하기
                 </a>
+
+                {/* 확장은 **페이지가 로드될 때만** 주입된다. 이 탭을 열어 둔 채
+                    설치하면 이 탭에는 들어오지 않아, 설치를 마치고 돌아와도
+                    같은 안내가 그대로 남는다. 그때 할 일은 새로고침뿐이라
+                    말로만 알리지 않고 버튼으로 준다. */}
+                <button
+                  type="button"
+                  className="wl-btn ghost wl-reload"
+                  onClick={() => window.location.reload()}
+                >
+                  설치를 마쳤다면 새로고침
+                </button>
               </>
             ) : (
               <>

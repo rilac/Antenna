@@ -100,6 +100,10 @@
 }
 .wl-install:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
 
+/* 설치를 마치고 돌아온 사람을 위한 두 번째 행동. 설치 버튼보다 약하게 둔다 —
+   아직 설치 안 한 사람에게는 이게 기본 경로가 아니다 */
+.wl-reload{ display:block; width:100%; margin-top:6px; }
+
 /* ── 완료 ─────────────────────────────────────── */
 .wl-done-mark{ margin:4px auto 0; color:var(--brand); line-height:0; }
 .wl-done-title{
