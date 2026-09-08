@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import ssafy.a507.backend.domain.common.Track;
+import ssafy.a507.backend.domain.ranking.dto.MyRankResponse;
 import ssafy.a507.backend.domain.ranking.dto.RankingItemResponse;
 
 /**
@@ -184,6 +185,99 @@ class RankingSnapshotServiceTest {
     }
 
     @Test
+    @DisplayName("직전 순위를 prev_rank 로 옮긴다 — 첫 회차는 NULL 이다")
+    void 직전_순위_이월() {
+        Long first = insertUser("일등");
+        Long second = insertUser("이등");
+        insertJudged(first, "REAL", 20, 20, "0.500");
+        insertJudged(second, "REAL", 20, 10, "3.000");
+
+        // 첫 회차는 비교할 지난 스냅샷이 없다.
+        snapshots.runOnce();
+        assertThat(prevRankOf("REAL", "ALL", first)).isNull();
+        assertThat(prevRankOf("REAL", "ALL", second)).isNull();
+
+        // 다음 영업일 회차는 어제 순위를 담고 있어야 한다.
+        하루_지나간다();
+        snapshots.runOnce();
+        assertThat(prevRankOf("REAL", "ALL", first)).isEqualTo(1);
+        assertThat(prevRankOf("REAL", "ALL", second)).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("같은 날 재실행해도 변동이 지워지지 않는다 — 직전 회차의 prev_rank 를 물려받는다")
+    void 같은_날_재실행() {
+        Long fading = insertUser("떨어질사람2");
+        Long rising = insertUser("올라갈사람2");
+        insertJudged(fading, "REAL", 20, 20, "0.500");
+        insertJudged(rising, "REAL", 20, 10, "3.000");
+        snapshots.runOnce();
+
+        // 다음 영업일, 순위가 뒤집힌 회차 — 여기서 prev_rank 가 1·2 로 박힌다.
+        하루_지나간다();
+        insertJudged(fading, "REAL", 20, 0, "8.000");
+        snapshots.runOnce();
+        assertThat(prevRankOf("REAL", "ALL", rising)).isEqualTo(2);
+
+        /* 같은 날 한 번 더 돈다(실패 회차 재시도). 지금 순위를 직전 값으로 담으면 변동이 0 으로
+           지워진다 — 재시도했다는 이유로 화면의 ▲▼ 가 사라지면 안 된다. */
+        snapshots.runOnce();
+        em.flush();
+        em.clear();
+
+        assertThat(prevRankOf("REAL", "ALL", rising)).isEqualTo(2);
+        assertThat(queries.myRank(rising, Track.REAL, null)).get().extracting(MyRankResponse::delta)
+                .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("순위가 오르면 delta 가 양수다 — 순위는 숫자가 작을수록 위라 부호가 뒤집힌다")
+    void 순위_변동_부호() {
+        Long fading = insertUser("떨어질사람");
+        Long rising = insertUser("올라갈사람");
+        insertJudged(fading, "REAL", 20, 20, "0.500");
+        insertJudged(rising, "REAL", 20, 10, "3.000");
+
+        snapshots.runOnce();
+        assertThat(userIdsOf("REAL", "ALL")).containsExactly(fading, rising);
+
+        // 다음 영업일, 앞사람이 20건을 내리 틀려 순위가 뒤집힌다.
+        하루_지나간다();
+        insertJudged(fading, "REAL", 20, 0, "8.000");
+        snapshots.runOnce();
+        em.flush();
+        em.clear();
+
+        assertThat(userIdsOf("REAL", "ALL")).containsExactly(rising, fading);
+        // 2등 → 1등은 +1, 1등 → 2등은 -1 이다.
+        assertThat(queries.myRank(rising, Track.REAL, null)).get().extracting(MyRankResponse::delta)
+                .isEqualTo(1);
+        assertThat(queries.myRank(fading, Track.REAL, null)).get().extracting(MyRankResponse::delta)
+                .isEqualTo(-1);
+    }
+
+    @Test
+    @DisplayName("새로 진입한 회원은 delta 가 0 이다 — 비교할 지난 순위가 없다")
+    void 신규_진입자() {
+        Long veteran = insertUser("기존참가자");
+        insertJudged(veteran, "REAL", 20, 15, "2.000");
+        snapshots.runOnce();
+
+        하루_지나간다();
+        Long rookie = insertUser("신규참가자");
+        insertJudged(rookie, "REAL", 20, 20, "0.500");
+        snapshots.runOnce();
+        em.flush();
+        em.clear();
+
+        assertThat(userIdsOf("REAL", "ALL")).containsExactly(rookie, veteran);
+        assertThat(prevRankOf("REAL", "ALL", rookie)).isNull();
+        // null 이 아니라 0 이다 — 화면이 delta !== 0 으로 ▲▼ 를 감춘다.
+        assertThat(queries.myRank(rookie, Track.REAL, null)).get().extracting(MyRankResponse::delta)
+                .isEqualTo(0);
+    }
+
+    @Test
     @DisplayName("전량 재작성 — 자격을 잃은 회원의 지난 순위가 남지 않는다")
     void 재실행_안전() {
         Long stays = insertUser("남는사람");
@@ -209,6 +303,40 @@ class RankingSnapshotServiceTest {
     }
 
     /* ── 도우미 ───────────────────────────────────────── */
+
+    /**
+     * 지금 있는 스냅샷을 하루 전 것으로 만든다. 배치는 영업일마다 한 번 도는데 테스트는 한
+     * 순간에 두 번 부르므로, 이걸 끼워 넣지 않으면 "어제 → 오늘" 이 아니라 "같은 날 재시도" 가
+     * 된다. 둘은 {@code prev_rank} 를 다르게 다룬다.
+     */
+    private void 하루_지나간다() {
+        em.flush();
+        // 한 회차의 행들은 산출 시각이 모두 같아서 한 값으로 밀어도 된다.
+        // INTERVAL 구문은 H2 가 못 읽어 바인딩으로 넣는다.
+        em.createNativeQuery("UPDATE rankings SET computed_at = ?")
+                .setParameter(
+                        1,
+                        java.sql.Timestamp.from(
+                                java.time.Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS)))
+                .executeUpdate();
+        em.clear();
+    }
+
+    /** 직전 스냅샷 순위. 첫 회차이거나 그때 이 필터에 없었으면 NULL 이다. */
+    private Integer prevRankOf(String track, String filterKey, Long userId) {
+        em.flush();
+        em.clear();
+        Number value = (Number) em.createNativeQuery(
+                        """
+                        SELECT prev_rank FROM rankings
+                         WHERE track = ? AND filter_key = ? AND user_id = ?
+                        """)
+                .setParameter(1, track)
+                .setParameter(2, filterKey)
+                .setParameter(3, userId)
+                .getSingleResult();
+        return value == null ? null : value.intValue();
+    }
 
     private List<Long> userIdsOf(String track, String filterKey) {
         return rankRows(track, filterKey).stream()

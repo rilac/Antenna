@@ -82,7 +82,10 @@ public class RankingQueryService {
             return Optional.empty();
         }
         return Optional.of(new MyRankResponse(
-                mine.get().getRank(), percentile(mine.get().getRank(), total), delta(), tier()));
+                mine.get().getRank(),
+                percentile(mine.get().getRank(), total),
+                delta(mine.get()),
+                tier()));
     }
 
     /**
@@ -102,18 +105,16 @@ public class RankingQueryService {
     }
 
     /**
-     * 직전 스냅샷 대비 순위 변동. 양수가 상승이다.
+     * 직전 스냅샷 대비 순위 변동. <b>양수가 상승</b>이다 — 순위는 숫자가 작을수록 위라서
+     * {@code prevRank - rank} 로 부호가 뒤집힌다(3등 → 1등이면 +2).
      *
-     * <p>ponytail: 늘 0 이다 — {@code rankings} 의 UQ 가 {@code (track, filter_key, user_id)} 라
-     * 유저당 한 행뿐이고 이전 순위를 담을 자리가 없다. {@code prev_rank} 컬럼을 더하고 배치
-     * (ANT-RANK-01)가 갱신 전 값을 옮기면 {@code prevRank - rank} 한 줄로 바뀐다. ERD 변경이라
-     * 팀 결정이 먼저다.
-     *
-     * <p>null 이 아니라 0 인 이유는 화면이 {@code delta !== 0} 으로 표시를 감추기 때문이다 —
-     * null 을 주면 "▼ 0" 을 그린다.
+     * <p>{@code prevRank} 가 null 이면 0 이다. 직전 회차에 이 필터에 없었다는 뜻이라 비교할
+     * 대상이 없다 — 새로 진입했거나 첫 스냅샷이다. <b>응답에서 null 이 아니라 0 인 이유</b>는
+     * 화면이 {@code delta !== 0} 으로 표시를 감추기 때문이다. null 을 주면 "▼ 0" 을 그린다.
      */
-    private int delta() {
-        return 0;
+    private int delta(Ranking mine) {
+        Integer previous = mine.getPrevRank();
+        return previous == null ? 0 : previous - mine.getRank();
     }
 
     /**
