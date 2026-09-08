@@ -1,0 +1,146 @@
+/* 예측 등록 진행 모달 — C-01
+
+   겉껍데기는 M-01 지갑 연동 모달(wallet-link.css) 규칙을 따른다. 같은 흐름에서
+   그 모달을 지나 이 모달이 뜨므로, 생김새가 다르면 같은 단계로 읽히지 않는다.
+   선택자만 cp- 로 나눈다. */
+
+.cp-backdrop{
+  position:fixed; inset:0; z-index:60;   /* 사이드바(40)·상단바(30) 위 */
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  background:rgba(20,20,27,.44);
+}
+
+.cp-modal{
+  width:100%; max-width:460px;
+  background:var(--surface);
+  border-radius:16px;
+  box-shadow:0 24px 60px -20px rgba(20,20,27,.4);
+  outline:none;
+  max-height:calc(100vh - 40px);
+  overflow:auto;
+  padding:16px 20px 20px;
+}
+
+/* ── 머리 ─────────────────────────────────────── */
+.cp-head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+}
+.cp-eyebrow{
+  margin:0; min-width:0;
+  color:var(--muted); font-size:12.5px; font-weight:600;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.cp-x{
+  flex:none;
+  display:grid; place-items:center; width:28px; height:28px;
+  border:0; border-radius:8px; background:none;
+  color:var(--faint); cursor:pointer;
+  transition:background .14s, color .14s;
+}
+.cp-x:hover:not(:disabled){ background:var(--surface-2); color:var(--ink); }
+.cp-x:disabled{ opacity:.4; cursor:not-allowed; }
+.cp-x:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+
+.cp-title{
+  margin:12px 0 0; text-align:center;
+  font-size:18px; line-height:1.4; font-weight:750; letter-spacing:-.02em;
+  color:var(--ink); word-break:keep-all;
+}
+
+/* ── 개미 행렬 ─────────────────────────────────
+   개미가 블록 쪽으로 걸어 들어간다. 장식이므로 움직임을 줄여 달라는 설정에서는
+   완전히 멈춘다 — 계속 도는 그림이 필요한 정보를 담고 있지 않다. */
+.cp-scene{
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  margin:16px 0 4px;
+  padding:16px 10px;
+  border-radius:14px;
+  background:linear-gradient(180deg, var(--brand-softer), transparent);
+}
+/* 개미 넷과 블록이 한 줄에 들어가야 하고 모달 폭(460px)이 상한이다.
+   그래서 겹쳐 세운다 — 줄지어 들어가는 그림이라 겹치는 편이 오히려 맞다. */
+.cp-ants{ display:flex; align-items:flex-end; }
+.cp-ant{
+  width:78px; height:78px; object-fit:contain;
+  margin-right:-8px;
+  animation:cp-walk 1.6s ease-in-out infinite;
+}
+.cp-ant:last-child{ margin-right:0 }
+/* 커진 만큼 걸음 폭도 키운다. 작을 때 쓰던 4px 은 이 크기에서 보이지 않는다 */
+@keyframes cp-walk{
+  0%,100%{ transform:translateX(0) translateY(0) }
+  50%    { transform:translateX(7px) translateY(-6px) }
+}
+.cp-block{
+  color:var(--brand);
+  animation:cp-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cp-pulse{
+  0%,100%{ opacity:.75; transform:scale(1) }
+  50%    { opacity:1;   transform:scale(1.04) }
+}
+
+/* ── 단계 ─────────────────────────────────────── */
+.cp-steps{
+  list-style:none; margin:14px 0 0; padding:0;
+  display:grid; gap:7px;
+}
+.cp-step{
+  display:flex; align-items:center; gap:9px;
+  padding:10px 13px;
+  border:1px solid var(--rule); border-radius:11px;
+  background:var(--surface-2);
+  font-size:13px; font-weight:700; color:var(--muted);
+}
+.cp-step.is-done{ border-color:var(--brand-softer); background:var(--brand-softer); color:var(--ink); }
+.cp-step.is-busy{ border-color:var(--brand); background:var(--surface); color:var(--ink); }
+/* 앵커 실패. 완료와 같은 색으로 두면 끝난 것으로 읽힌다 */
+.cp-step.is-fail{ border-color:var(--down); background:var(--surface); color:var(--ink); }
+
+.cp-mark{
+  flex:none;
+  display:grid; place-items:center;
+  width:20px; height:20px; border-radius:999px;
+  border:2px solid var(--rule); background:var(--surface);
+  color:#fff;
+}
+.cp-mark.is-done{ border-color:var(--brand); background:var(--brand); }
+.cp-mark.is-fail{ border-color:var(--down); background:var(--down); }
+/* 도는 표시. 이 단계는 끝을 알 수 없어 진행률을 그리지 않는다 */
+.cp-mark.is-busy{
+  border-color:var(--rule); border-top-color:var(--brand);
+  animation:cp-spin .8s linear infinite;
+}
+@keyframes cp-spin{ to{ transform:rotate(360deg) } }
+
+/* ── 잠금 고지 ─────────────────────────────────── */
+.cp-lock{
+  display:flex; align-items:flex-start; gap:7px;
+  margin:12px 0 0; padding:10px 12px;
+  border-radius:10px; background:var(--surface-2);
+  color:var(--muted); font-size:12px; line-height:1.6;
+  word-break:keep-all;
+}
+.cp-lock svg{ flex:none; margin-top:2px; color:var(--faint) }
+
+/* ── 발판 ─────────────────────────────────────── */
+.cp-actions{
+  display:grid; grid-template-columns:1fr 1.4fr; gap:8px;
+  margin-top:14px;
+}
+.cp-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  height:40px; border-radius:10px;
+  font-family:inherit; font-size:13px; font-weight:750;
+  cursor:pointer; text-decoration:none;
+}
+.cp-btn.solid{ border:1px solid var(--brand); background:var(--brand); color:#fff; }
+.cp-btn.solid:hover{ background:var(--brand-ink); border-color:var(--brand-ink); }
+.cp-btn.ghost{ border:1px solid var(--rule); background:var(--surface); color:var(--body); }
+.cp-btn.ghost:hover{ background:var(--surface-2); }
+.cp-btn:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+
+@media (prefers-reduced-motion:reduce){
+  .cp-ant, .cp-block, .cp-mark.is-busy{ animation:none }
+}

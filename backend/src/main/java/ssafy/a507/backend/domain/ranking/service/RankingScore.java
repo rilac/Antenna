@@ -33,6 +33,21 @@ final class RankingScore {
      */
     private static final int SAMPLE_FULL_COUNT = 20;
 
+    /**
+     * 랭킹에 들 최소 판정 수. 이보다 적으면 순위를 매기지 않는다.
+     *
+     * <p>명세 §랭킹이 {@code GET /rankings/me} 의 204 를 "스냅샷 전 · <b>표본 부족</b>" 으로
+     * 설명하는데, 그 표본 부족을 정하는 자리가 여기다.
+     *
+     * <p>3 으로 잡은 근거 — 1~2 건은 적중이 실력인지 우연인지 구분되지 않는다. 표본 가중치가
+     * 만점이 되는 {@link #SAMPLE_FULL_COUNT} 20 건과 짝을 이루는 하한이고, 시연 기간에 쌓이는
+     * 판정 수를 생각하면 이보다 높이면 랭킹이 통째로 빈다.
+     *
+     * <p>가중치로 낮추는 것만으로는 부족하다 — 점수는 낮아도 목록에는 뜨기 때문에, 1 건 맞힌
+     * 사람이 "신뢰도 랭킹" 에 이름을 올린다.
+     */
+    private static final int MIN_JUDGED_COUNT = 3;
+
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     private RankingScore() {}
@@ -50,6 +65,11 @@ final class RankingScore {
         return weighted.multiply(sampleWeight(doneCount))
                 .multiply(HUNDRED)
                 .setScale(3, RoundingMode.HALF_UP);
+    }
+
+    /** 랭킹에 들 자격. 표본이 모자라면 순위를 매기지 않는다 — 점수를 깎는 것과 다르다. */
+    static boolean qualifies(int doneCount) {
+        return doneCount >= MIN_JUDGED_COUNT;
     }
 
     /** 적중률 %. 화면과 {@code rankings.hit_rate} 가 쓰는 값이라 0~100 스케일이다. */

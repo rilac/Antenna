@@ -13,7 +13,6 @@
      /stocks          → ANT-DATA-03 (3년치 백필 선행)
      /search          → ANT-DATA-05
      /watchlist       → ANT-DATA-06
-     /briefings       → ANT-RESEARCH-03 (생성 배치 선행)
      /users/me        → ANT-AUTH-05
      /rankings        → 티켓 없음
      /ads/active      → 티켓 없음
@@ -34,25 +33,20 @@ export type IndexQuote = {
   series: number[]
 }
 
+/* 목업으로 되돌렸다(2026-09-08 결정). 엔드포인트는 살아 있고 200 을 주지만
+   index_quotes 가 0행이라 items 가 늘 비어 있다 — 지수·환율 수집(ANT-DATA-04)이
+   아직 안 돌았다. 그대로 두면 홈 첫 카드가 통째로 빈 채로 보인다.
+   광고(getActiveAds)에 내린 것과 같은 판단이고, 수집이 붙으면 이 줄만 지운다.
+
+   **오류가 아니라 빈 목록이라는 점이 중요하다.** 화면이 "불러오지 못했습니다" 를
+   띄우는 게 아니라 아무것도 안 그린다 — 그래서 빈 상태 문구로도 덮이지 않는다. */
 export function getMarketIndices(days = 30) {
+  if (MOCK) return mock.marketIndices()
   return api.get<{ items: IndexQuote[] }>('/market/indices', { query: { days } })
 }
 
-/* ── AI 브리핑 · GET /briefings ───────────────────────────── */
-
-export type Briefing = {
-  id: number
-  scope: 'MARKET' | 'STOCK'
-  stockCode: string | null
-  headline: string
-  /** 기준 영업일 YYYY-MM-DD */
-  targetDate: string
-}
-
-export function getBriefings(scope: 'MARKET' | 'STOCK' = 'MARKET') {
-  if (MOCK) return mock.briefings()
-  return api.get<{ items: Briefing[] }>('/briefings', { query: { scope } })
-}
+/* AI 브리핑은 여기 없다. 홈 띠(B-01) · 종목 상세(B-03) · 상세 모달(M-10)이
+   같은 응답을 읽으므로 계약을 api/briefings.ts 한 곳에 뒀다. */
 
 /* ── 관심 종목 · GET /watchlist ───────────────────────────── */
 

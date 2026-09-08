@@ -92,6 +92,34 @@ export function createReport(body: { title: string; body: string; visibility: bo
 }
 
 /** 발행일 표기. 목록에서는 시각까지 필요 없다. */
+/* ── 채널별 목록 (E-02) ───────────────────────────────────
+   서버 ChannelReportItemResponse 와 짝이다. 피드(ReportFeedItem)와 필드가 다르다 —
+   채널 화면이라 author 가 빠지고, 대신 visibility 가 온다.
+
+   visibility 와 locked 를 둘 다 쓰는 이유(서버 주석 그대로) — visibility 는 리포트
+   자체의 속성(전체 공개인가)이고 locked 는 **이 요청자가** 본문을 볼 수 있는가다.
+   구독자에게는 visibility=false, locked=false 가 온다. 그래서 "구독자 전용" 배지는
+   visibility 로, 잠금 표시는 locked 로 그린다. 하나로 합치면 구독자에게 이 리포트가
+   구독자 전용이라는 사실이 안 보인다. */
+export type ChannelReportItem = {
+  id: number
+  title: string
+  /** 전체 공개면 true. 이 열람자의 권한과는 무관하다 */
+  visibility: boolean
+  /** 이 열람자가 본문을 볼 수 없는 상태 */
+  locked: boolean
+  publishedAt: string
+  viewCount: number
+}
+
+/** 최신순 고정이라 정렬 파라미터가 없다. 커서는 id 하나다 */
+export function fetchChannelReports(userId: string, cursor?: number | null) {
+  return api.get<{ items: ChannelReportItem[]; nextCursor: number | null; hasNext: boolean }>(
+    `/channels/${userId}/reports`,
+    { query: { cursor: cursor ?? undefined } },
+  )
+}
+
 export function formatDate(iso: string) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso

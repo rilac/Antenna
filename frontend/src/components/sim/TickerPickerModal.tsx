@@ -11,6 +11,15 @@
    종목코드로 검색하지 않는다. 응답에 코드가 없다 — 이름으로만 찾는다.
    둘 다 서버가 채워 주면 풀린다(§메모: 목록 응답에 가격·코드 추가 요청).
 
+   ── 높이를 고정한다 ──────────────────────────────────────
+   목록 길이에 맞춰 늘었다 줄었다 하면 타자 한 글자마다 상자가 뛴다. "이니" 를 치는
+   동안 결과가 200 → 3 → 0 으로 바뀌는데 그때마다 높이가 따라 변하면 읽을 수가 없다.
+   그래서 높이를 먼저 정하고 목록만 안에서 구른다.
+
+   ── 업종을 탭이 아니라 드롭다운으로 둔다 ──────────────────
+   업종이 스무 개가 넘는다. 칩으로 늘어놓으면 가로 스크롤이 생기고, 스크롤바가 검색칸
+   바로 아래에 걸려 지저분하다. 접어 두면 한 줄이면 되고 개수도 같이 보여줄 수 있다.
+
    모달 규칙은 M-01 지갑 연동(WalletLinkModal)과 같다 — Escape 로 닫고, 열리면 초점을
    안으로 들인다. 없으면 탭이 뒤 화면을 돌아다닌다. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -63,7 +72,12 @@ export default function TickerPickerModal({
     tickers.forEach((t) => {
       if (t.sector) count.set(t.sector, (count.get(t.sector) ?? 0) + 1)
     })
-    return [ALL, ...[...count.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)]
+    return [
+      { name: ALL, count: tickers.length },
+      ...[...count.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, c]) => ({ name, count: c })),
+    ]
   }, [tickers])
 
   const rows = useMemo(() => {
@@ -111,28 +125,32 @@ export default function TickerPickerModal({
             />
           </label>
 
-          <div className="tp-sectors" role="tablist" aria-label="업종">
-            {sectors.map((s) => (
-              <button
-                key={s}
-                type="button"
-                role="tab"
-                aria-selected={sector === s}
-                className={sector === s ? 'on' : undefined}
-                onClick={() => setSector(s)}
-              >
-                {s}
-              </button>
-            ))}
+          <div className="tp-filter">
+            <label className="tp-pick">
+              <span>업종</span>
+              <select value={sector} onChange={(e) => setSector(e.target.value)}>
+                {sectors.map((x) => (
+                  <option key={x.name} value={x.name}>
+                    {x.name} ({x.count})
+                  </option>
+                ))}
+              </select>
+              <i aria-hidden="true">⌄</i>
+            </label>
+            <p className="tp-count num">
+              {rows.length}종목
+              {heldCount > 0 && <span> · 보유 {heldCount}종목 위</span>}
+            </p>
           </div>
         </div>
 
-        <p className="tp-count num">
-          {rows.length}종목
-          {heldCount > 0 && <span> · 보유 {heldCount}종목을 위에 둡니다</span>}
-        </p>
-
+        {/* 목록이 이 칸 안에서만 구른다. 비어도 칸 높이가 그대로라 상자가 안 뛴다 */}
         <ul className="tp-list">
+          {rows.length === 0 && (
+            <li className="tp-empty">
+              {query.trim() ? `"${query.trim()}" 에 맞는 종목이 없습니다` : '종목이 없습니다'}
+            </li>
+          )}
           {rows.map((t) => {
             const qty = heldQty[t.tickerId] ?? 0
             const price = priceOf(t.tickerId)
@@ -153,12 +171,6 @@ export default function TickerPickerModal({
             )
           })}
         </ul>
-
-        {rows.length === 0 && (
-          <p className="tp-empty">
-            {query.trim() ? `"${query.trim()}" 에 맞는 종목이 없습니다` : '종목이 없습니다'}
-          </p>
-        )}
       </div>
     </div>
   )

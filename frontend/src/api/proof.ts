@@ -110,3 +110,29 @@ export const SETTLE_LABEL: Record<ProofSettle['status'], string> = {
   HIT: '적중',
   MISS: '빗나감',
 }
+
+/* ── 앵커 상태 표시 (C-01 등록 모달 · C-03 예측 상세) ──────────
+   D-03 은 증명 전체를 쓰지만, 저 둘은 "어디까지 갔나" 만 알면 된다.
+   상태 어휘가 여기 있으니 그 표현도 여기 둔다 — 화면마다 문구를 새로 쓰면 갈린다. */
+
+export const PROOF_STATUS_LABEL: Record<ProofAnchorStatus, string> = {
+  WAITING: '앵커 대기',
+  PENDING: '블록 확정 대기',
+  CONFIRMED: '앵커 확정',
+  FAILED: '앵커 실패',
+}
+
+/** 더 기다리면 바뀌는가. 폴링을 언제 멈출지 이 하나로 정한다 */
+export const isAnchorSettling = (s: ProofAnchorStatus) => s === 'WAITING' || s === 'PENDING'
+
+/**
+ * 앵커 **상태만** 실제 서버에서 읽는다.
+ *
+ * fetchProof 를 쓰지 않는 이유 — 그쪽은 D-03 검산용이라 MOCK 이 켜져 있고,
+ * 목 데이터의 anchorStatus 가 CONFIRMED 다. 앵커가 안 잡힌 예측을 "확정" 으로
+ * 그리게 된다. 상태는 실제 서버가 이미 답하므로(앵커 전이면 WAITING) 여기서는
+ * 목업을 타지 않는다. MOCK 이 false 가 되면 이 함수는 fetchProof 로 합친다.
+ */
+export function fetchAnchorStatus(predictionId: string | number) {
+  return api.get<Proof>(`/predictions/${predictionId}/proof`)
+}

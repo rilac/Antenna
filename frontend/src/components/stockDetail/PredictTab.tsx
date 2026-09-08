@@ -21,6 +21,7 @@ import { Panel } from './Block'
 import PredictionList from './PredictionList'
 import { useBlock } from '../../api/useBlock'
 import WalletLinkModal from '../wallet/WalletLinkModal'
+import CommitProgressModal, { type CommitPhase } from '../prediction/CommitProgressModal'
 import ErrorState from '../state/ErrorState'
 import { ApiError } from '../../api/errors'
 import { POINT_KINDS, POINT_LABEL, getPoints } from '../../api/stockDetail'
@@ -31,6 +32,7 @@ import {
 } from '../../api/predictions'
 import type { CreateResult, Direction, Horizon, PredictionDraft } from '../../api/predictions'
 import { requestNonce, signingPayload } from '../../api/wallet'
+import type { PredictForm } from './predictForm'
 import { connectAddress, hasWallet, personalSign } from '../../wallet/provider'
 import { useAuth } from '../../auth/context'
 
@@ -57,23 +59,34 @@ type Props = {
   picked: number[]
   onPick: (id: number) => void
   onGoInfo: () => void
+  form: PredictForm
+  onForm: (next: (prev: PredictForm) => PredictForm) => void
 }
 
-export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: Props) {
+export default function PredictTab({ code, summary, picked, onPick, onGoInfo, form, onForm }: Props) {
   const { user, setWalletLinked } = useAuth()
 
   const slots = useBlock(() => getSlots(), [])
   const points = useBlock(() => getPoints(code), [code])
 
-  const [direction, setDirection] = useState<Direction | null>(null)
-  const [target, setTarget] = useState('')
-  const [horizon, setHorizon] = useState<Horizon | null>(null)
-  const [note, setNote] = useState('')
+  /* 부모가 들고 있는 값을 그대로 쓴다. 호출부는 지역 state 때와 똑같이
+     setDirection(d) 처럼 값만 넘기면 된다. */
+  const { direction, target, horizon, note } = form
+  const setTarget = (v: string) => onForm((f) => ({ ...f, target: v }))
+  const setHorizon = (v: Horizon) => onForm((f) => ({ ...f, horizon: v }))
+  const setNote = (v: string) => onForm((f) => ({ ...f, note: v }))
+  /* 사람이 직접 고른 방향. 이때부터 목표가가 방향을 바꾸지 않는다 */
+  const setDirection = (v: Direction) =>
+    onForm((f) => ({ ...f, direction: v, directionTouched: true }))
 
   const [linking, setLinking] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [failure, setFailure] = useState<ApiError | null>(null)
   const [result, setResult] = useState<CreateResult | null>(null)
+  /* 지갑 승인 뒤 서버 응답까지 빈 시간이 있다. 그 사이 화면이 그대로면 승인이
+     먹혔는지 알 수 없고, 응답이 오는 순간 완료 화면이 튀어나온다.
+     null 이면 모달을 띄우지 않는다 — 아직 서명 흐름에 들어가지 않은 상태다. */
+  const [phase, setPhase] = useState<CommitPhase | null>(null)
   /** 지갑 창을 닫거나 거부했을 때처럼 서버까지 못 간 실패 */
   const [localMsg, setLocalMsg] = useState<string | null>(null)
 
@@ -86,6 +99,19 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
     if (!validTarget || !summary?.prevClose) return null
     return ((targetPrice - summary.prevClose) / summary.prevClose) * 100
   }, [validTarget, targetPrice, summary?.prevClose])
+
+  /* 방향을 고르지 않고 목표가부터 적는 사람이 있다. 전일 종가보다 높으면 상승,
+     낮으면 하락으로 미리 세워 준다.
+
+     직접 고르기 전까지는 계속 따라간다 — 한 번만 정하면 "9" 까지 친 순간의
+     값으로 하락이 박히고, "90000" 을 마저 쳐도 그대로 남는다.
+     같은 값(gap 0)이면 방향을 정할 수 없으므로 비운다.
+     directionTouched 가 서면 이 효과는 더 이상 손대지 않는다. */
+  useEffect(() => {
+    if (form.directionTouched) return
+    const next: Direction | null = gap === null || gap === 0 ? null : gap > 0 ? 'UP' : 'DOWN'
+    onForm((f) => (f.direction === next ? f : { ...f, direction: next }))
+  }, [form.directionTouched, gap, onForm])
 
   const directionMismatch =
     direction !== null && gap !== null &&
@@ -133,24 +159,34 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
     setFailure(null)
     setLocalMsg(null)
 
-    if (!hasWallet()) {
-      setLocalMsg('브라우저에 지갑 확장이 없습니다. 지갑을 설치한 뒤 다시 시도해 주세요.')
-      return
-    }
-    /* 지갑이 연동돼 있지 않으면 M-01 을 먼저 띄운다. 모달이 성공을 올려 주면
-       이 함수를 다시 부른다 — 사용자가 같은 버튼을 두 번 누르지 않게 한다. */
-    if (!user?.walletLinked) {
+    /* 지갑이 준비되지 않았으면 M-01 을 띄운다. 모달이 성공을 올려 주면 이 함수를
+       다시 부른다 — 사용자가 같은 버튼을 두 번 누르지 않게 한다.
+
+       미설치와 미연동을 여기서 가르지 않는다. **M-01 이 이미 네 갈래(미설치 ·
+       서명 거부 · 주소 불일치 · 이미 연동됨)를 각각 다른 안내로 다룬다.**
+       여기서 미설치만 따로 걸러 문구를 쓰면 같은 안내가 두 곳에 생기고, 그때는
+       모달을 아예 열지 않아 설치 안내로 이어지지도 않는다.
+       티켓도 "지갑이 연동되지 않은 상태로 진입하면 M-01 을 먼저 띄운다" 다. */
+    if (!hasWallet() || !user?.walletLinked) {
       setLinking(true)
       return
     }
 
     setSubmitting(true)
+    setPhase('signing')
     try {
       const address = await connectAddress()
       const nonce = await requestNonce('PREDICTION_BURN')
       const signature = await personalSign(signingPayload('PREDICTION_BURN', address, nonce), address)
+      // 지갑 승인이 끝났다. 여기서부터가 사용자가 기다리는 구간이다
+      setPhase('committing')
       setResult(await createPrediction(draft, signature))
+      setPhase('settled')
     } catch (e) {
+      /* 실패하면 모달을 걷는다. 오류는 폼 쪽에서 보여 준다 — 진행 모달에
+         오류까지 담으면 "무엇이 어디까지 갔나" 와 "무엇이 잘못됐나" 가 한 창에
+         섞인다. */
+      setPhase(null)
       if (e instanceof ApiError) setFailure(e)
       else if (e && typeof e === 'object' && 'code' in e) {
         setFailure(new ApiError({
@@ -162,10 +198,18 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
     }
   }
 
+  /* 진행 모달. 완료 화면과 입력 화면 두 갈래가 같은 것을 띄우므로 한 번만
+     만들어 둔다. 닫으면 뒤에 있는 완료 화면이 그대로 남는다 — 커밋 해시와
+     다음 걸음이 거기 적혀 있어 잃을 것이 없다. */
+  const progress = phase && (
+    <CommitProgressModal phase={phase} result={result} onClose={() => setPhase(null)} />
+  )
+
   /* ── 등록 완료 ────────────────────────────────────────── */
   if (result) {
     return (
       <div className="sd-grid">
+        {progress}
         <section className="sd-block sd-done" data-span="12">
           <span className="sd-done-mark" aria-hidden="true">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -382,20 +426,31 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo }: 
                 등록한 예측은 <b>수정하거나 삭제할 수 없습니다.</b> 목표가와 기간을 다시 확인해 주세요.
               </p>
 
-              {failure && <ErrorState error={failure} inline />}
-              {localMsg && <p className="sd-warn">{localMsg}</p>}
-
               <button type="button" className="sd-submit" disabled={submitting} onClick={submit}>
                 {submitting
                   ? '서명을 기다리는 중…'
                   : overSlot ? '토큰을 소각하고 등록' : '서명하고 등록'}
               </button>
+
+              {/* 누른 뒤에 생기는 것이라 버튼 **아래** 에 둔다. 위에 두면 눌렀을
+                  때 시선이 버튼에 있어 문구가 나타난 줄 모르고, 스크롤 위치에
+                  따라 화면 밖에 있기도 하다 — 실제로 "눌러도 아무 일이 없다" 는
+                  보고가 그래서 나왔다.
+                  role=alert 로 읽어 주는 순서도 맞춘다. */}
+              {(failure || localMsg) && (
+                <div className="sd-submit-msg" role="alert">
+                  {failure && <ErrorState error={failure} inline />}
+                  {localMsg && <p className="sd-warn">{localMsg}</p>}
+                </div>
+              )}
             </>
           ) : (
             <p className="pf-none">방향 · 목표가 · 기간을 모두 고르면 서명 단계로 넘어갑니다.</p>
           )}
         </div>
       </Panel>
+
+      {progress}
 
       {/* 지갑이 없으면 먼저 연동하고, 끝나면 하던 등록을 이어 간다 */}
       {linking && (
