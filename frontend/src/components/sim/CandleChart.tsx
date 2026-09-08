@@ -98,9 +98,14 @@ export default function CandleChart({
     const volH = (height - padT - padB) * VOL_RATIO
     const priceH = height - padT - padB - volH - 8
 
-    /* 봉 하나가 차지하는 폭. 봉이 많으면 얇아지고 최소 1 은 남긴다 */
+    /* 봉 하나가 차지하는 폭.
+
+       상한이 9 였는데 봉이 적을 때 이게 문제였다. DAY 1 은 워밍업 30 + 1 = 31봉인데
+       칸은 30 넓고 몸통만 9 라 사이가 21씩 비어 성기게 보였다. HTS 는 봉이 적으면
+       봉이 굵어진다 — 칸의 68% 를 쓰고 상한만 남겨 둔다. 봉이 많아지면 어차피
+       칸이 좁아져 얇아지므로 상한은 적은 쪽에서만 걸린다. */
     const step = w / shown.length
-    const bodyW = Math.max(1, Math.min(9, step * 0.66))
+    const bodyW = Math.max(1, Math.min(18, step * 0.68))
 
     const cx = (i: number) => PAD_L + step * (i + 0.5)
     const y = (v: number) => padT + (1 - (v - min) / span) * priceH
