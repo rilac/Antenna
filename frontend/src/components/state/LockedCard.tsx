@@ -19,6 +19,19 @@ type Props = {
   children?: React.ReactNode
 }
 
+/**
+ * 조사를 label 의 받침에 맞춘다. "목표가와 근거은(는)" 처럼 읽히지 않게 하는 것뿐이다.
+ *
+ * 한글 음절은 유니코드에서 (초성×21 + 중성)×28 + 종성 으로 배열돼 있어, 28로 나눈
+ * 나머지가 0이면 받침이 없다. 그래서 표를 두지 않고 계산으로 가른다.
+ * 한글이 아닌 글자로 끝나면(영문·숫자) 판정할 수 없으므로 기존 "은(는)" 을 그대로 둔다.
+ */
+function topicParticle(word: string) {
+  const last = word.trim().charCodeAt(word.trim().length - 1)
+  if (Number.isNaN(last) || last < 0xac00 || last > 0xd7a3) return '은(는)'
+  return (last - 0xac00) % 28 === 0 ? '는' : '은'
+}
+
 export default function LockedCard({ label, title, channelId, preview, children }: Props) {
   return (
     <div className="state-locked">
@@ -35,7 +48,7 @@ export default function LockedCard({ label, title, channelId, preview, children 
             <path d="M8 10V7a4 4 0 0 1 8 0v3" />
           </svg>
         </i>
-        <p className="state-locked-title">{title ?? `${label}은(는) 구독자에게만 공개됩니다`}</p>
+        <p className="state-locked-title">{title ?? `${label}${topicParticle(label)} 구독자에게만 공개됩니다`}</p>
         {children}
         {channelId && (
           <Link className="state-cta" to={`/channels/${channelId}`}>

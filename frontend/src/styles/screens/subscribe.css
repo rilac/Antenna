@@ -1,0 +1,123 @@
+/* M-03 구독 결제 확인 모달 — [ANT-FE-CHANNEL-PROFILE]
+   틀(백드롭·모달·헤드·바디)은 M-01 wallet-link.css 와 같은 치수를 쓴다. 두 모달이
+   잇달아 뜰 수 있어서다 — 지갑이 없으면 M-03 을 닫고 M-01 을 띄운다. 크기가 다르면
+   화면이 튄다. 색·글꼴은 app.css 토큰만 쓴다. */
+
+.sub-backdrop{
+  position:fixed; inset:0; z-index:60;   /* 사이드바(40)·상단바(30) 위 */
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  background:rgba(20,20,27,.44);
+}
+
+.sub-modal{
+  width:100%; max-width:440px;
+  background:var(--surface);
+  border-radius:14px;
+  box-shadow:0 24px 60px -20px rgba(20,20,27,.4);
+  outline:none;
+  max-height:calc(100vh - 40px);
+  display:flex; flex-direction:column;
+}
+
+.sub-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:16px 18px;
+  border-bottom:1px solid var(--rule);
+}
+.sub-head h2{ margin:0; font-size:15px; font-weight:700; color:var(--ink); }
+
+.sub-x{
+  display:grid; place-items:center;
+  width:28px; height:28px; padding:0;
+  border:0; border-radius:8px;
+  background:transparent; color:var(--muted); cursor:pointer;
+}
+.sub-x:hover{ background:var(--surface-2); color:var(--ink); }
+
+.sub-body{ padding:18px; overflow-y:auto; }
+
+/* ── 결제 조건 ───────────────────────────────────────── */
+.sub-terms{ margin:0; display:flex; flex-direction:column; gap:9px; }
+.sub-terms > div{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.sub-terms dt{ font-size:12.5px; color:var(--muted); }
+.sub-terms dd{ margin:0; font-size:14px; font-weight:700; color:var(--ink); }
+/* 금액은 이 모달에서 가장 중요한 숫자다 — 한 단계 키운다 */
+.sub-amount{ font-size:17px !important; letter-spacing:-.01em; }
+
+.sub-note{
+  margin:13px 0 0; padding:10px 12px;
+  border-radius:9px; background:var(--surface-2);
+  font-size:12.5px; line-height:1.65; color:var(--body);
+}
+
+/* ── 오퍼레이터 위임 고지 ─────────────────────────────
+   설계 제약이 "반드시 고지" 라 접거나 흐리게 두지 않는다. 브랜드색 테두리로
+   눈에 띄게 하되 경고색은 쓰지 않는다 — 위험이 아니라 권한 설명이다. */
+.sub-authorize{
+  margin:12px 0 0; padding:12px 13px;
+  border:1px solid var(--brand-soft); border-radius:10px;
+  background:var(--brand-softer);
+}
+.sub-authorize p{ margin:0; font-size:12.5px; line-height:1.65; color:var(--body); }
+.sub-authorize-title{
+  font-weight:800 !important; color:var(--brand-ink) !important;
+  margin-bottom:5px !important;
+}
+.sub-authorize-off{ margin-top:7px !important; color:var(--muted) !important; }
+
+/* ── 진행 · 결과 ─────────────────────────────────────── */
+.sub-progress{ display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; padding:26px 18px; }
+.sub-progress-title{ margin:0; font-size:14.5px; font-weight:700; color:var(--ink); }
+.sub-progress-title.is-failed{ color:var(--danger); }
+.sub-sub{ margin:0; font-size:12.5px; line-height:1.6; color:var(--muted); max-width:320px; }
+
+.sub-spinner{
+  width:26px; height:26px; margin-bottom:2px;
+  border:2.5px solid var(--brand-soft); border-top-color:var(--brand);
+  border-radius:999px;
+  animation:sub-spin .8s linear infinite;
+}
+@keyframes sub-spin{ to{ transform:rotate(360deg); } }
+/* 움직임을 줄이도록 설정했으면 회전을 멈춘다 */
+@media (prefers-reduced-motion:reduce){ .sub-spinner{ animation:none; } }
+
+.sub-check{
+  display:grid; place-items:center;
+  width:42px; height:42px; border-radius:999px;
+  background:#e7f5ec; color:#15803d;
+}
+
+.sub-code{
+  font-family:var(--mono); font-size:11.5px;
+  padding:3px 8px; border-radius:6px;
+  background:var(--surface-2); color:var(--danger);
+}
+
+.sub-error{
+  display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  margin:12px 0 0; padding:10px 12px;
+  border:1px solid #f3c9c9; border-radius:9px; background:#fdf4f4;
+  font-size:12.5px; line-height:1.6; color:var(--danger);
+}
+.sub-error span{ color:var(--body); }
+
+/* ── 버튼 ────────────────────────────────────────────── */
+.sub-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+.sub-progress .sub-actions{ justify-content:center; width:100%; }
+
+.sub-btn{
+  padding:9px 16px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface);
+  font:inherit; font-size:13px; font-weight:700; color:var(--body);
+  cursor:pointer;
+}
+.sub-btn:hover{ border-color:var(--brand-soft); background:var(--brand-softer); color:var(--brand-ink); }
+.sub-btn.solid{ border-color:var(--brand); background:var(--brand); color:#fff; }
+.sub-btn.solid:hover{ background:var(--brand-ink); border-color:var(--brand-ink); color:#fff; }
+
+@media (max-width:520px){
+  .sub-actions{ flex-direction:column-reverse; }
+  .sub-btn{ width:100%; }
+}
