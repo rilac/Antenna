@@ -13,7 +13,7 @@
    - **종가만 받는다.** 여기 있는 지표 전부가 종가 기반이다. OHLC 를 받으면 어떤 지표가
      무엇을 쓰는지가 흐려진다.
    - 관례값은 국내 HTS 가 쓰는 값이다(MA 5·20·60 · 볼린저 20/2 · RSI 14 · MACD 12/26/9).
-     프로토타입 화면의 MA5·MA20·MA60 표기가 이 값이다.
+     이평선만 5·15·30 으로 좁혔다 — 워밍업이 30봉이라 MA60 은 플레이 중반에야 값이 나온다.
 
    앞쪽 null 이 몇 칸인지 — 60게임일 시즌에서 이게 문제가 된다. warmupOf() 를 보라. */
 
@@ -142,6 +142,9 @@ export type Macd = {
 /**
  * MACD. 기본 12/26/9.
  *
+ * <p><b>화면에서는 지금 쓰지 않는다</b>(2026-09-08 결정). 이 함수는 남겨 둔다 — 실제 시즌
+ * 종가로 검증해 둔 것이고 다시 넣을 때 IndicatorPane 의 kind 만 늘리면 된다.
+ *
  * 시그널선은 MACD 선의 EMA 인데, MACD 선 앞쪽은 아직 값이 없다. 그래서 **값이 있는
  * 구간만 잘라** EMA 를 구하고 원래 자리에 되돌린다 — null 을 0 으로 채워 넣고 계산하면
  * 없는 값이 평균에 섞여 초반 시그널이 0 쪽으로 끌려간다.
@@ -177,9 +180,9 @@ export function macd(values: number[], fast = 12, slow = 26, signal = 9): Macd {
 /**
  * 그 지표가 값을 내기 시작하는 데 필요한 봉 수.
  *
- * <b>60게임일 시즌에서 이게 문제가 된다.</b> 시즌 가격만으로 그리면 MA60 은 마지막 하루에
- * 값 하나가 찍히고 MACD 시그널은 34번째 봉부터 나온다 — 절반 넘게 빈 화면이다. 시즌
- * 시작 앞쪽 구간을 함께 받아야 첫날부터 지표가 보인다.
+ * <b>워밍업이 이걸 결정한다.</b> 시즌 가격만으로 그리면 첫날 봉이 한 개라 아무 지표도
+ * 값이 없다. 워밍업 30봉이면 이평선 5·15·30 과 볼린저(20)는 DAY 1 부터 값이 나오고,
+ * MACD 시그널만 34봉이 필요해 DAY 4 부터 나온다.
  *
  * 화면은 이 값으로 "지금 켤 수 있는 지표" 를 가려서 보여준다. 값이 없는 지표를 체크박스로
  * 내놓고 눌러도 아무 선이 안 그려지면 고장으로 보인다.
@@ -188,10 +191,10 @@ export function warmupOf(kind: IndicatorKind): number {
   switch (kind) {
     case 'MA5':
       return 5
-    case 'MA20':
-      return 20
-    case 'MA60':
-      return 60
+    case 'MA15':
+      return 15
+    case 'MA30':
+      return 30
     case 'BOLL':
       return 20
     case 'RSI':
@@ -202,7 +205,7 @@ export function warmupOf(kind: IndicatorKind): number {
   }
 }
 
-export type IndicatorKind = 'MA5' | 'MA20' | 'MA60' | 'BOLL' | 'RSI' | 'MACD'
+export type IndicatorKind = 'MA5' | 'MA15' | 'MA30' | 'BOLL' | 'RSI' | 'MACD'
 
 /** 봉이 이만큼 있으면 그 지표를 켤 수 있다. */
 export const canShow = (kind: IndicatorKind, barCount: number) =>

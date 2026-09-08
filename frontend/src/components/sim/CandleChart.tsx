@@ -28,24 +28,29 @@ type Props = {
 }
 
 /* viewBox 기준으로 그리고 CSS 로 늘린다. 폭을 재지 않아도 컨테이너에 맞춰
-   늘어나므로 리사이즈 관찰자가 필요 없다. CloseChart 와 같은 방식이다. */
-const VW = 1000
+   늘어나므로 리사이즈 관찰자가 필요 없다. CloseChart 와 같은 방식이다.
+
+   가로 좌표는 아래 지표 패널(IndicatorPane)과 <b>같아야 한다</b> — 봉 하나가 캔들과
+   MACD 에서 다른 x 에 서면 두 그림을 위아래로 읽을 수 없다. 그래서 내보낸다. */
+export const VW = 1000
+export const PAD_L = 6
+export const PAD_R = 68
 /* 거래량 막대가 차지하는 비율. 캔들이 주인공이라 5분의 1만 준다 */
 const VOL_RATIO = 0.2
 
 const MA_COLOR: Partial<Record<IndicatorKind, string>> = {
   MA5: '#e8a13c',
-  MA20: '#7b61ff',
-  MA60: '#16a06a',
+  MA15: '#7b61ff',
+  MA30: '#16a06a',
 }
-const MA_PERIOD: Partial<Record<IndicatorKind, number>> = { MA5: 5, MA20: 20, MA60: 60 }
+const MA_PERIOD: Partial<Record<IndicatorKind, number>> = { MA5: 5, MA15: 15, MA30: 30 }
 
 const won = (n: number) => Math.round(n).toLocaleString('ko-KR')
 
 export default function CandleChart({
   candles,
   currentDay,
-  indicators = ['MA5', 'MA20', 'MA60'],
+  indicators = ['MA5', 'MA15', 'MA30'],
   height = 340,
 }: Props) {
   const gid = useId()
@@ -54,8 +59,6 @@ export default function CandleChart({
 
   const padT = 12
   const padB = 22
-  const padL = 6
-  const padR = 68
 
   /* 진행일까지만 남긴다. 워밍업(gameDay <= 0)은 전부 남는다 —
      시즌 시작 전 구간이라 커닝이 아니고, 이게 있어야 첫날부터 지표가 나온다. */
@@ -91,7 +94,7 @@ export default function CandleChart({
     const max = hi + margin
     const span = max - min || 1
 
-    const w = VW - padL - padR
+    const w = VW - PAD_L - PAD_R
     const volH = (height - padT - padB) * VOL_RATIO
     const priceH = height - padT - padB - volH - 8
 
@@ -99,7 +102,7 @@ export default function CandleChart({
     const step = w / shown.length
     const bodyW = Math.max(1, Math.min(9, step * 0.66))
 
-    const cx = (i: number) => padL + step * (i + 0.5)
+    const cx = (i: number) => PAD_L + step * (i + 0.5)
     const y = (v: number) => padT + (1 - (v - min) / span) * priceH
 
     const maxVol = Math.max(1, ...shown.map((c) => c.volume ?? 0))
@@ -123,11 +126,18 @@ export default function CandleChart({
 
     /* 워밍업이 끝나는 자리. 플레이 구간 배경의 왼쪽 경계다 */
     const firstPlay = shown.findIndex((c) => c.gameDay > 0)
-    const playX = firstPlay < 0 ? VW - padR : padL + step * firstPlay
+    const playX = firstPlay < 0 ? VW - PAD_R : PAD_L + step * firstPlay
 
     return {
       min, max, lo, hi, cx, y, vy, step, bodyW, volTop, volH, priceH, maxVol, playX,
-      lines: lines.map((l) => ({ ...l, d: path(l.values) })),
+      /* 범례에 쓸 마지막 값도 함께 낸다. 선만 그리면 어느 게 MA5 인지, 값이 얼마인지
+         알 수 없다 — 53,500 과 53,900 은 선 두께 안에 들어가 눈으로 구분되지 않는다.
+         세 선의 순서가 곧 추세 신호라 숫자가 있어야 비교가 된다. */
+      lines: lines.map((l) => ({
+        ...l,
+        d: path(l.values),
+        last: l.values[l.values.length - 1],
+      })),
       band: band && { upper: path(band.upper), lower: path(band.lower) },
     }
   }, [shown, indicators, height])
@@ -140,7 +150,7 @@ export default function CandleChart({
     const box = svgRef.current?.getBoundingClientRect()
     if (!box) return
     const vx = ((clientX - box.left) / box.width) * VW
-    const i = Math.floor((vx - padL) / geom.step)
+    const i = Math.floor((vx - PAD_L) / geom.step)
     setCursor(Math.max(0, Math.min(shown.length - 1, i)))
   }
 
@@ -157,6 +167,22 @@ export default function CandleChart({
 
   return (
     <div className="ck">
+      {/* 이평선 범례. 색만 있으면 어느 선이 MA5 인지 모르고, 값이 없으면 현재가가 그 선
+          위인지 아래인지를 눈대중으로 재야 한다. 세 선의 순서가 추세 신호다 —
+          현재가 < MA5 < MA15 < MA30 이면 하락, 거꾸로면 상승. */}
+      {geom.lines.length > 0 && (
+        <ul className="ck-legend num" aria-label="이동평균선">
+          {geom.lines.map((l) => (
+            <li key={l.kind}>
+              <i style={{ background: l.color }} aria-hidden="true" />
+              <span>{l.kind}</span>
+              {/* 봉이 부족하면 값이 아직 없다. 그때는 왜 없는지 대신 적는다 */}
+              <b>{l.last === null ? '—' : won(l.last)}</b>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <svg
         ref={svgRef}
         className="ck-svg"
@@ -173,7 +199,7 @@ export default function CandleChart({
       >
         <defs>
           <clipPath id={`${gid}-plot`}>
-            <rect x={padL} y={padT} width={VW - padL - padR} height={geom.priceH} />
+            <rect x={PAD_L} y={padT} width={VW - PAD_L - PAD_R} height={geom.priceH} />
           </clipPath>
         </defs>
 
@@ -182,7 +208,7 @@ export default function CandleChart({
           className="ck-play"
           x={geom.playX}
           y={padT}
-          width={Math.max(0, VW - padR - geom.playX)}
+          width={Math.max(0, VW - PAD_R - geom.playX)}
           height={geom.priceH}
         />
         <line className="ck-play-edge" x1={geom.playX} x2={geom.playX} y1={padT} y2={height - padB} />
@@ -250,11 +276,15 @@ export default function CandleChart({
 
         {/* 세로축은 오른쪽에 최고·최저만. 격자를 촘촘히 깔면 봉이 묻힌다 */}
         <g className="ck-axis">
-          <text x={VW - padR + 8} y={geom.y(geom.hi) + 4}>{won(geom.hi)}</text>
-          <text x={VW - padR + 8} y={geom.y(geom.lo) + 4}>{won(geom.lo)}</text>
-          {/* x 축은 날짜가 아니라 게임일이다 */}
-          {warmup > 0 && <text x={geom.playX} y={height - 6} textAnchor="middle">DAY 1</text>}
-          <text x={VW - padR} y={height - 6} textAnchor="end">{`DAY ${last.gameDay}`}</text>
+          <text x={VW - PAD_R + 8} y={geom.y(geom.hi) + 4}>{won(geom.hi)}</text>
+          <text x={VW - PAD_R + 8} y={geom.y(geom.lo) + 4}>{won(geom.lo)}</text>
+          {/* x 축은 날짜가 아니라 게임일이다.
+              진행일이 얼마 안 됐을 때는 두 라벨이 같은 자리에 붙는다 — DAY 1 시작 경계와
+              마지막 봉이 겹쳐 "DADAY 1" 로 보였다. 떨어져 있을 때만 시작 라벨을 그린다. */}
+          {warmup > 0 && VW - PAD_R - geom.playX > 90 && (
+            <text x={geom.playX} y={height - 6} textAnchor="middle">DAY 1</text>
+          )}
+          <text x={VW - PAD_R} y={height - 6} textAnchor="end">{`DAY ${last.gameDay}`}</text>
         </g>
       </svg>
 
