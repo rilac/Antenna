@@ -1,9 +1,13 @@
 package ssafy.a507.backend.domain.ranking.repository;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -25,6 +29,9 @@ import ssafy.a507.backend.domain.common.Track;
 @Repository
 @RequiredArgsConstructor
 public class RankingAggregateRepository {
+
+    /** 회차를 "같은 날" 로 묶는 기준. 배치가 영업일 기준이라 서버 시간대와 무관하게 KST 로 센다. */
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -142,9 +149,15 @@ public class RankingAggregateRepository {
     /**
      * 필터 하나를 통째로 갈아 끼운다. 호출자의 트랜잭션 안에서 돌아야 한다 — 지운 뒤 넣기 전에
      * 커밋되면 그 순간 조회가 빈 랭킹을 본다.
+     *
+     * <p><b>지우기 전에 지금 순위를 읽어 {@code prev_rank} 로 옮겨 담는다</b>(ANT-RANK-05).
+     * 전량 재작성이라 이 자리를 놓치면 직전 순위를 되찾을 곳이 없다. 이전 회차에 없던 회원은
+     * NULL 로 남고 조회가 그것을 변동 없음으로 읽는다.
      */
     public void replaceFilter(
             Track track, String filterKey, List<Row> rows, java.time.Instant computedAt) {
+        Map<Long, Integer> previousRanks = previousRanks(track, filterKey, computedAt);
+
         jdbcTemplate.update(
                 "DELETE FROM rankings WHERE track = ? AND filter_key = ?", track.name(), filterKey);
         if (rows.isEmpty()) {
@@ -153,8 +166,8 @@ public class RankingAggregateRepository {
         jdbcTemplate.batchUpdate(
                 """
                 INSERT INTO rankings
-                  (track, filter_key, user_id, score, hit_rate, avg_error, done_count, "rank", computed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  (track, filter_key, user_id, score, hit_rate, avg_error, done_count, "rank", prev_rank, computed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 rows,
                 rows.size(),
@@ -167,7 +180,40 @@ public class RankingAggregateRepository {
                     ps.setBigDecimal(6, row.avgError());
                     ps.setInt(7, row.doneCount());
                     ps.setInt(8, row.rank());
-                    ps.setTimestamp(9, java.sql.Timestamp.from(computedAt));
+                    // 없으면 NULL 이다 — 0 을 넣으면 "0 등이었다" 가 되어 변동이 거꾸로 계산된다.
+                    ps.setObject(9, previousRanks.get(row.userId()), java.sql.Types.INTEGER);
+                    ps.setTimestamp(10, java.sql.Timestamp.from(computedAt));
                 });
+    }
+
+    /**
+     * 이번 회차가 덮어쓰기 직전의 순위. 회원 하나당 한 줄이라 UQ 가 키 중복을 막아 준다.
+     *
+     * <p><b>같은 날 두 번 돌면 지금 있는 행의 {@code prev_rank} 를 그대로 물려받는다.</b> 그러지
+     * 않으면 재실행이 "오늘 아침 순위" 를 직전 값으로 담아 변동이 전부 0 으로 지워진다. 재실행
+     * 안전은 이 배치의 AC 이고(실패한 회차는 다음 회차가 다시 계산한다), 재시도했다는 이유로
+     * 화면의 ▲▼ 가 사라지면 안 된다. 날짜가 다르면 지금 순위가 곧 직전 순위다.
+     */
+    private Map<Long, Integer> previousRanks(Track track, String filterKey, Instant computedAt) {
+        LocalDate today = LocalDate.ofInstant(computedAt, KST);
+        Map<Long, Integer> previous = new HashMap<>();
+        jdbcTemplate.query(
+                """
+                SELECT user_id, "rank", prev_rank, computed_at FROM rankings
+                 WHERE track = ? AND filter_key = ?
+                """,
+                rs -> {
+                    boolean sameDay = today.equals(
+                            LocalDate.ofInstant(rs.getTimestamp("computed_at").toInstant(), KST));
+                    int carried = sameDay ? rs.getInt("prev_rank") : rs.getInt("rank");
+                    // prev_rank 는 NULL 일 수 있다 — getInt 가 0 을 주므로 wasNull 로 갈라야 한다.
+                    if (sameDay && rs.wasNull()) {
+                        return;
+                    }
+                    previous.put(rs.getLong("user_id"), carried);
+                },
+                track.name(),
+                filterKey);
+        return previous;
     }
 }
