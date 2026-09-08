@@ -103,6 +103,8 @@ public enum ErrorCode {
     SEASON_LAST_DAY(HttpStatus.CONFLICT, "마지막 게임일입니다. 종료해 주세요."),
     /** 마지막 게임일 전에 종료하려 했다. 연습은 끝까지 가야 결과가 있다. */
     SEASON_NOT_LAST_DAY(HttpStatus.CONFLICT, "아직 마지막 게임일이 아닙니다."),
+    /** 끝나지 않은 회차의 결과를 불렀다. 결과는 finish 가 만든다. */
+    SEASON_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "아직 결과가 없습니다."),
 
     // AI 브리핑 (ANT-RESEARCH-03)
     BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),

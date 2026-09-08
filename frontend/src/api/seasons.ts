@@ -22,14 +22,20 @@ export const MODE_LABEL: Record<SeasonMode, string> = {
 
 /* ── 내 참가 목록 · GET /seasons/me ───────────────────────── */
 
-/** 이름도 수익률도 없다. 응답 5필드가 전부다. */
+/** v0.38 — 시즌 제목·종료 시각·최종 수익률이 함께 온다. 시기(연도)는 여전히 없다. */
 export type MyRun = {
   seasonId: number
   mode: SeasonMode
+  /** 시즌 제목("급락과 반등"). 카드 제목이다 */
+  title: string
   currentDay: number
   lengthDays: number
   /** 명세에 단위(0~1 인지 0~100 인지)가 없다 — 화면은 progressOf() 를 쓴다 */
   progress: number
+  /** 내가 끝낸 실제 시각. 진행 중이면 null. 시즌의 시기가 아니라 시대 단서가 아니다 */
+  endedAt?: string | null
+  /** 최종 수익률(%). 끝난 회차만 */
+  returnRate?: number | null
 }
 
 /** 진행 중과 완료를 한 번에 받는다. status 는 둘 중 하나만 받는 파라미터라 두 번 부른다. */

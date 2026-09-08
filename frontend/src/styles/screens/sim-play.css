@@ -566,3 +566,12 @@
   .sp-indbtn,.sp-indpop button,.sp-tpick,.sp-steps button,.sp-stepper > button,
   .sp-submit,.sp-advance,.tp-row,.pd-legend button,.sp-fold > summary i{transition:none}
 }
+
+/* ── G-08 결과 화면이 빌려 쓰는 것 ─────────────────────────
+   마지막 날 포트폴리오 목록과 복기 본문. 진행 화면과 같은 카드 안에 들어간다. */
+.sp-positions{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.sp-positions li{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;font-size:13.5px}
+.sp-positions li b{font-weight:750}
+.sp-positions li .up{color:#d94848}
+.sp-positions li .down{color:#2f7bf6}
+.sp-review{white-space:pre-wrap;line-height:1.7;font-size:14px}

@@ -21,14 +21,15 @@
    6. 초보자 모드 · 심급적용 토글. 아직 정의가 없다.
 
    ── 서버에서 오는 것 · 아직 안 오는 것 ────────────────────
-   온다   GET /seasons/{id} · /tickers · /tickers/{tickerId}/prices
-   안 온다 POST /orders · /advance · GET /seasons/{id}/me · /news (ANT-SEASON-03 · 04 · 07)
+   온다   GET /seasons/{id} · /tickers · /tickers/{tickerId}/prices · /me
+          POST /orders · /advance · /finish (ANT-SEASON-03 · 04)
+   안 온다 GET /news (ANT-SEASON-07)
 
-   그래서 주문·진행·투자현황은 useSeasonSim 이 브라우저에서 굴린다. 목업이 아니다 —
-   체결가가 서버가 준 실제 게임일 종가이고 나머지는 곱셈으로 나온다. 서버가 붙으면
-   그 훅 하나만 걷어낸다. */
+   주문·진행·투자현황은 useSeasonServer 가 서버로 돌린다. 진행일은 서버가 들고 있고,
+   가격 상한이 내 진행일이라 진행 뒤에는 봉을 다시 받아야 새 봉이 그려진다.
+   마지막 게임일에서는 "종료하고 결과 확인" — 확인창 뒤 POST /finish 로 결과를 굳힌다. */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../api/errors'
 import {
   getPrices, getTickers, maxBuyQty, orderAmount, rate, signOf,
@@ -40,7 +41,7 @@ import IndicatorPane, { type PaneKind } from '../components/sim/IndicatorPane'
 import PortfolioDonut, { type DonutSlice } from '../components/sim/PortfolioDonut'
 import TickerPickerModal from '../components/sim/TickerPickerModal'
 import ErrorState from '../components/state/ErrorState'
-import { useSeasonSim } from '../sim/useSeasonSim'
+import { useSeasonServer } from '../sim/useSeasonServer'
 import type { IndicatorKind } from '../sim/indicators'
 import '../styles/screens/sim-play.css'
 
@@ -80,7 +81,12 @@ const REJECT_TEXT: Record<string, string> = {
   CASH: '예수금이 부족합니다',
   QTY: '수량을 확인해 주세요',
   NO_PRICE: '이 게임일의 가격이 아직 없습니다',
+  ENDED: '이미 끝난 회차입니다. 결과를 확인해 주세요',
+  NOT_JOINED: '아직 참가하지 않은 시즌입니다',
+  UNKNOWN: '주문을 처리하지 못했습니다. 다시 시도해 주세요',
 }
+
+const FINISH_ASK = '모의투자 기간이 끝났습니다. 종료하고 결과를 확인하시겠습니까?'
 
 const Ico = ({ size = 18, children }: { size?: number; children: ReactNode }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -113,6 +119,7 @@ export default function SeasonPlay() {
   const { id } = useParams<{ id: string }>()
   const season = useApiQuery<SeasonHead>(`/seasons/${id}`)
   const seasonId = Number(id)
+  const navigate = useNavigate()
 
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [tickerError, setTickerError] = useState<ApiError | null>(null)
@@ -129,6 +136,7 @@ export default function SeasonPlay() {
   const [on, setOn] = useState<IndicatorKind[]>(['MA5', 'MA15', 'MA30'])
   const [indOpen, setIndOpen] = useState(false)
   const [filled, setFilled] = useState<string | null>(null)
+  const [finishError, setFinishError] = useState<ApiError | null>(null)
   const indRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -167,12 +175,14 @@ export default function SeasonPlay() {
   }, [indOpen])
 
   const candlesOf = useCallback((tickerId: number) => candles[tickerId], [candles])
+  /* 진행일이 오르면 봉을 전부 버린다 — 서버가 진행일까지만 주므로 새 봉은 다시 받아야 온다 */
+  const dropCandles = useCallback(() => setCandles({}), [])
 
-  const sim = useSeasonSim({
-    initialCash: season.data?.initialCash ?? 0,
+  const sim = useSeasonServer({
+    seasonId,
     lengthDays: season.data?.lengthDays ?? 0,
-    tickers,
     candlesOf,
+    onAdvanced: dropCandles,
   })
 
   const heldQty = useMemo(
@@ -210,6 +220,18 @@ export default function SeasonPlay() {
           {season.error
             ? <ErrorState error={season.error} onRetry={season.reload} />
             : <div className="placeholder tall">{'시즌을 찾을 수 없습니다'}</div>}
+        </div>
+      </main>
+    )
+  }
+
+  /* 참가하지 않았거나 회차를 못 읽으면 진행 화면을 그리지 않는다 — 숫자가 전부 0 으로 보인다 */
+  if (sim.error) {
+    return (
+      <main className="main">
+        <div className="main-inner sim-play">
+          <ErrorState error={sim.error} onRetry={() => void sim.reload()} />
+          <p className="sp-note"><Link to={`/sim/seasons/${seasonId}`}>시즌 상세로 가기 ›</Link></p>
         </div>
       </main>
     )
@@ -271,12 +293,24 @@ export default function SeasonPlay() {
     { key: 'CASH', label: '현금', value: sim.cash },
   ]
 
-  function submit() {
+  async function submit() {
     if (selected === null) return
-    const at = sim.order(selected, side, qty)
+    const at = await sim.order(selected, side, qty)
     if (at !== null) {
       setFilled(`${side === 'BUY' ? '매수' : '매도'} ${qty.toLocaleString('ko-KR')}주 · ${won(at)} 체결`)
       setQty(0)
+    }
+  }
+
+  /* 마지막 게임일의 버튼. 확인창을 거쳐야 굳힌다 — 되돌릴 수 없는 종료다 */
+  async function endGame() {
+    if (!window.confirm(FINISH_ASK)) return
+    setFinishError(null)
+    try {
+      await sim.finish()
+      navigate(`/sim/${seasonId}/result`)
+    } catch (e) {
+      setFinishError(e instanceof ApiError ? e : null)
     }
   }
 
@@ -541,22 +575,31 @@ export default function SeasonPlay() {
               <button
                 type="button"
                 className={`sp-submit ${side === 'BUY' ? 'buy' : 'sell'}`}
-                disabled={qty <= 0 || price === null}
-                onClick={submit}
+                disabled={qty <= 0 || price === null || sim.busy}
+                onClick={() => void submit()}
               >
                 {side === 'BUY' ? '매수 주문' : '매도 주문'}
               </button>
 
+              {/* 마지막 게임일이면 같은 자리가 종료 버튼이 된다. 그날도 주문은 되고,
+                  종료는 확인창을 거쳐야 굳는다. */}
               <button
                 type="button"
                 className="sp-advance"
-                disabled={sim.isLastDay}
-                onClick={() => { sim.advance(); setFilled(null) }}
+                disabled={!sim.ready || sim.busy}
+                onClick={sim.isLastDay
+                  ? () => void endGame()
+                  : () => { void sim.advance(); setFilled(null) }}
               >
-                <em aria-hidden="true">▶</em>
-                {sim.isLastDay ? '마지막 게임일입니다' : '다음 영업일 진행'}
+                <em aria-hidden="true">{sim.isLastDay ? '■' : '▶'}</em>
+                {sim.isLastDay ? '종료하고 결과 확인' : '다음 영업일 진행'}
               </button>
-              <p className="sp-note">주문은 그 게임일 종가로 한 번에 체결됩니다.</p>
+              {finishError && <ErrorState error={finishError} onRetry={() => void endGame()} inline />}
+              <p className="sp-note">
+                {sim.isLastDay
+                  ? '마지막 게임일입니다. 종료하면 결과가 확정됩니다.'
+                  : '주문은 그 게임일 종가로 한 번에 체결됩니다.'}
+              </p>
             </section>
           </div>
         </div>

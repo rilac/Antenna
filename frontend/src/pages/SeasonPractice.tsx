@@ -189,8 +189,8 @@ function Going({ runs, loading, failure, onRetry, startAt }: {
                 <i className={`t-${CARD_TONES[i % CARD_TONES.length]}`}>
                   <Ico size={26}><path d="M3 16l5-6 4 4 3-4 6 7" /></Ico>
                 </i>
-                <b>연습 모의투자</b>
-                {/* 달력 날짜는 쓰지 않는다 — 날짜가 곧 시대 단서다 */}
+                <b>{r.title}</b>
+                {/* 시즌의 달력 날짜는 쓰지 않는다 — 날짜가 곧 시대 단서다 */}
                 <p className="num">D+{r.currentDay} / 총 {r.lengthDays}일</p>
                 <span className="pr-bar" role="progressbar" aria-label="진행률"
                       aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
@@ -210,7 +210,8 @@ function Going({ runs, loading, failure, onRetry, startAt }: {
 
 /* ── ③ 최근 완료한 연습 ────────────────────────────────────
    프로토타입 "나의 연습 성과" 자리. 적중률·평균 수익률·성장 추이는 집계 API 가
-   없어(§9.2 G-01 과 같은 사정) 목록으로 대신한다. 수익률은 /seasons/me 응답에 없다. */
+   없어(§9.2 G-01 과 같은 사정) 목록으로 대신한다. 끝낸 실제 날짜와 수익률은
+   /seasons/me 가 준다(v0.38) — 끝낸 날은 시즌의 시기가 아니라 시대 단서가 아니다. */
 function Done({ runs, loading, failure, onRetry }: {
   runs: MyRun[]; loading: boolean; failure: ApiError | null; onRetry: () => void
 }) {
@@ -238,8 +239,12 @@ function Done({ runs, loading, failure, onRetry }: {
                 <Ico size={20}><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 5-5" /></Ico>
               </i>
               <div>
-                <b>연습 모의투자</b>
-                <small className="num">{r.lengthDays}일 완주</small>
+                <b>{r.title}</b>
+                <small className="num">
+                  {r.endedAt ? `${new Date(r.endedAt).toLocaleDateString('ko-KR')} 완료 · ` : ''}
+                  {r.lengthDays}일 완주
+                  {r.returnRate != null && ` · ${r.returnRate > 0 ? '+' : ''}${r.returnRate.toFixed(2)}%`}
+                </small>
               </div>
               <Link className="pr-done-go" to={`/sim/${r.seasonId}/result`}>결과 보기</Link>
             </li>

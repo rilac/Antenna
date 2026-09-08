@@ -27,8 +27,8 @@
    적어 둔다. 연습·시연은 바로 참가해서 G-04 로 넘긴다. */
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api } from '../api/client'
 import { ApiError } from '../api/errors'
+import { join as joinApi } from '../api/seasonPlay'
 import { useApiQuery } from '../api/useApiQuery'
 import ErrorState from '../components/state/ErrorState'
 import EmptyState from '../components/state/EmptyState'
@@ -106,20 +106,32 @@ export default function SeasonJoin() {
 
   const s = season.data
 
-  async function join() {
+  /* 한 주제에는 한 게임만 있다. 진행 중 회차가 있으면 서버가 409 로 막고, 화면은 초기화를
+     물어본 뒤에만 restart 로 다시 보낸다 — 확인 없이 초기화되는 길은 없다. */
+  const RESTART_ASK = '이미 진행하던 이력이 있습니다. 초기화하고 다시 시작하시겠습니까?'
+
+  async function join(restart = false) {
     if (!s || joining) return
     setJoining(true)
     setJoinError(null)
     try {
-      /* 되돌릴 수 없는 POST 라 Idempotency-Key 를 붙인다(명세 §멱등성).
-         같은 scope 로 재시도하면 같은 키가 나가 두 번 참가되지 않는다. */
-      await api.post(`/seasons/${s.id}/join`, undefined, { idempotencyScope: `join:${s.id}` })
+      await joinApi(s.id, restart)
       navigate(`/sim/${s.id}/play`)
     } catch (e) {
+      if (e instanceof ApiError && e.code === 'SEASON_ALREADY_JOINED' && !restart) {
+        setJoining(false)
+        if (window.confirm(RESTART_ASK)) await join(true)
+        else navigate(`/sim/${s.id}/play`)
+        return
+      }
       setJoinError(e instanceof ApiError ? e : null)
     } finally {
       setJoining(false)
     }
+  }
+
+  function restart() {
+    if (window.confirm(RESTART_ASK)) void join(true)
   }
 
   if (season.loading) {
@@ -252,6 +264,10 @@ export default function SeasonJoin() {
                 <p className="sj-cta-note">
                   {s.currentDay ? `${s.currentDay}게임일까지 진행했습니다` : '진행 중인 시즌입니다'}
                 </p>
+                {/* 같은 주제로 다시 — 확인창을 거친다. 진행 중 회차는 버려지고 새 회차가 열린다 */}
+                <button className="sj-cta-sub" type="button" onClick={restart} disabled={joining}>
+                  {joining ? '다시 시작하는 중…' : '초기화하고 다시 시작'}
+                </button>
               </>
             ) : isCompetition ? (
               /* 참가비 소각 서명이 필요해 지갑 연동에 걸려 있다.
@@ -266,7 +282,7 @@ export default function SeasonJoin() {
               </>
             ) : (
               <>
-                <button className="sj-cta" type="button" onClick={join} disabled={joining}>
+                <button className="sj-cta" type="button" onClick={() => void join()} disabled={joining}>
                   {joining ? '참여하는 중…' : '연습 참여하기'}
                   {!joining && <em aria-hidden="true">›</em>}
                 </button>

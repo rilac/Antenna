@@ -140,12 +140,19 @@ class SeasonProgressControllerTest {
     // ── POST /finish ─────────────────────────────────────────
 
     @Test
-    @DisplayName("마지막 게임일 전에는 종료할 수 없다 — 409 SEASON_NOT_LAST_DAY")
+    @DisplayName("마지막 게임일 전에는 종료할 수 없다 — 409 SEASON_NOT_LAST_DAY · 결과도 아직 404")
     void 끝까지_가야_종료다() throws Exception {
         mockMvc.perform(post(url("/finish")).with(user(me)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SEASON_NOT_LAST_DAY"));
         assertThat(participantStatus()).isEqualTo("ONGOING");
+        mockMvc.perform(get(url("/result/me")).with(user(me)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SEASON_RESULT_NOT_FOUND"));
+        mockMvc.perform(get("/api/v1/seasons/me").param("status", "ONGOING").with(user(me)))
+                .andExpect(jsonPath("$.items[0].title").value("급락과 반등"))
+                .andExpect(jsonPath("$.items[0].endedAt").doesNotExist())
+                .andExpect(jsonPath("$.items[0].returnRate").doesNotExist());
     }
 
     @Test
@@ -210,7 +217,17 @@ class SeasonProgressControllerTest {
 
         mockMvc.perform(get("/api/v1/seasons/me").param("status", "DONE").with(user(me)))
                 .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].seasonId").value(seasonId));
+                .andExpect(jsonPath("$.items[0].seasonId").value(seasonId))
+                .andExpect(jsonPath("$.items[0].title").value("급락과 반등"))
+                .andExpect(jsonPath("$.items[0].endedAt").isString())
+                .andExpect(jsonPath("$.items[0].returnRate").value(-0.333));
+        mockMvc.perform(get(url("/result/me")).with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantId").value(participantId))
+                .andExpect(jsonPath("$.finalAsset").value(29900000))
+                .andExpect(jsonPath("$.returnRate").value(-0.333))
+                .andExpect(jsonPath("$.review").doesNotExist())
+                .andExpect(jsonPath("$.closedAt").isString());
         mockMvc.perform(get("/api/v1/seasons/me").param("status", "ONGOING").with(user(me)))
                 .andExpect(jsonPath("$.items.length()").value(0));
         mockMvc.perform(get("/api/v1/seasons/" + seasonId).with(user(me)))
