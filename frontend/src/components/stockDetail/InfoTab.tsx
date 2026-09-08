@@ -29,9 +29,11 @@ import Block, { BlockState, Panel } from './Block'
 import { useBlock } from '../../api/useBlock'
 import {
   POINT_KINDS, POINT_LABEL, SOURCE_LABEL,
-  getBriefings, getDocuments, getFinancials, getPeers, getPoints,
+  getDocuments, getFinancials, getPeers, getPoints,
   getPrices, getProfile, getSentiment, getValuation,
 } from '../../api/stockDetail'
+import { getStockBriefings } from '../../api/briefings'
+import { useBriefingParam } from '../briefingParam'
 import type { StockSummary } from '../../api/stockDetail'
 
 /* 차트 기간. 서버는 from·to 를 받으므로 여기서 from 을 만들어 넘긴다. */
@@ -129,7 +131,9 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
   /* 접힌 칸은 부르지 않는다 — 펼치는 순간 그때 부른다 */
   const prices = useBlock(() => getPrices(code, from), [code, from], open.chart)
   const sentiment = useBlock(() => getSentiment(code), [code], open.sentiment)
-  const briefings = useBlock(() => getBriefings(code), [code], open.sentiment)
+  const briefings = useBlock(() => getStockBriefings(code), [code], open.sentiment)
+  /* open 은 이 파일에서 이미 "펼친 블록" 이라는 뜻으로 쓰고 있다 */
+  const { open: openBriefing } = useBriefingParam()
   const points = useBlock(() => getPoints(code), [code], open.points)
   const documents = useBlock(() => getDocuments(code), [code], open.documents)
   const profile = useBlock(() => getProfile(code), [code], open.profile)
@@ -248,17 +252,22 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
           skeleton={130}
           isEmpty={briefings.data?.items.length === 0}
         >
+          {/* 목록은 헤드라인과 기준일만 준다 — 본문은 M-10 이 받는다.
+              전에는 여기에 논조 배지와 요약 문단을 그렸는데, 서버 응답에
+              tone · summary · computedAt 이 없다. 목업이 지어낸 필드였다. */}
           <ul className="sd-briefs">
             {briefings.data?.items.map((b) => (
               <li key={b.id}>
-                <p className="sd-brief-head">
-                  <span className={`sd-tone is-${b.tone.toLowerCase()}`}>
-                    {b.tone === 'UP' ? '상승 우세' : b.tone === 'DOWN' ? '하락 우세' : '중립'}
-                  </span>
-                  <b>{b.title}</b>
-                  <span className="sd-brief-at num">{day(b.computedAt)}</span>
-                </p>
-                <p className="sd-brief-body">{b.summary}</p>
+                <button type="button" className="sd-brief" onClick={() => openBriefing(b.id)}>
+                  <b>{b.headline}</b>
+                  <span className="sd-brief-at num">{b.targetDate} 기준</span>
+                  {/* 눌러서 전문을 여는 줄이라는 표시. 이 화면의 다른 "더보기 ›" 와 같은 모양 */}
+                  <svg className="sd-brief-go" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                       aria-hidden="true">
+                    <path d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </li>
             ))}
           </ul>

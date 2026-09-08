@@ -11,7 +11,7 @@
    눈으로 확인하려는 것이다(§4 B-03 "블록 단위로 로딩·실패를 독립 처리"). */
 import type { StockListItem } from '../stocks'
 import type {
-  Briefing, ClosePoint, CompanyProfile, FinancialRow, Peer, PointGroups,
+  ClosePoint, CompanyProfile, FinancialRow, Peer, PointGroups,
   StockDocument, StockSentiment, StockSummary, Valuation,
 } from '../stockDetail'
 
@@ -63,6 +63,10 @@ const findRow = (code: string): StockListItem | null => {
   const r = ROWS.find((x) => x.code === code)
   return r ? withWatched(r) : null
 }
+
+/** 브리핑 목업(mock/briefings.ts)이 헤드라인에 종목명을 넣을 때 쓴다.
+    표를 두 곳에 두면 같은 코드가 서로 다른 이름으로 뜬다. */
+export const stockName = (code: string): string | null => ROWS.find((r) => r.code === code)?.name ?? null
 
 /** 경쟁사 나열에 쓴다 — 같은 섹터의 다른 종목들 */
 const rowsInSector = (sector: string, exclude: string): StockListItem[] =>
@@ -173,39 +177,6 @@ export function sentiment(code: string): Promise<StockSentiment> {
       }
     }),
   }, 400)
-}
-
-/* ── AI 브리핑 ─────────────────────────────────────────── */
-export function briefings(code: string): Promise<{ items: Briefing[] }> {
-  const r = findRow(code)
-  if (!r) return notFound(code)
-  const tone: Briefing['tone'] = r.changeRate === null
-    ? 'NEUTRAL'
-    : r.changeRate > 0.5 ? 'UP' : r.changeRate < -0.5 ? 'DOWN' : 'NEUTRAL'
-  const flow = tone === 'UP' ? '완만한 상승' : tone === 'DOWN' ? '조정' : '횡보'
-
-  return delay({
-    items: [
-      {
-        id: `${code}-b1`,
-        title: `${r.sector ?? '해당 업종'} 업황과 ${r.name}의 위치`,
-        summary: `최근 5거래일 ${r.name}의 종가는 ${flow} 흐름을 보였습니다. 같은 기간 ${
-          r.sector ?? '업종'} 종목 다수가 비슷하게 움직여 개별 재료보다 업황 요인이 우세한 구간으로 읽힙니다. 판정 대기 중인 예측 ${
-          r.predictionCount}건의 방향도 이 해석과 크게 어긋나지 않습니다.`,
-        tone,
-        computedAt: `${BASE_DATE}T18:20:00+09:00`,
-      },
-      {
-        id: `${code}-b2`,
-        title: '수급과 밸류에이션 점검',
-        summary: r.per === null
-          ? '재무가 아직 수집되지 않아 이익 기준 밸류에이션을 산출하지 못했습니다. 수급 지표만으로는 방향을 단정하기 어렵습니다.'
-          : `PER ${r.per} 배로, 이익 추정이 유지된다는 전제에서는 과열 구간으로 보기 어렵습니다. 다만 추정치가 낮아지면 같은 주가에서도 배수가 올라갑니다.`,
-        tone: 'NEUTRAL' as const,
-        computedAt: `${BASE_DATE}T18:20:00+09:00`,
-      },
-    ],
-  }, 520)
 }
 
 /* ── 공시·뉴스 ─────────────────────────────────────────── */
