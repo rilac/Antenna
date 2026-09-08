@@ -32,7 +32,8 @@
 /* 줄 간격을 글꼴이 정하게 두면 26px 제목이 39px 짜리 줄을 차지한다.
    헤더는 네 줄이 붙어 있는 자리라 그 여유가 그대로 빈 공간으로 쌓인다.
    그래서 줄 높이를 글자 크기에 맞춰 직접 못 박는다. */
-.stock-detail-page .sd-head-top{margin-bottom:1px;line-height:1.2}
+/* sticky 헤더 밖이다(스크롤하면 사라진다). 헤더가 바로 아래 붙으므로 여백만 준다 */
+.stock-detail-page .sd-head-top{margin-bottom:2px;line-height:1.2}
 .stock-detail-page .sd-back{
   display:inline-flex;align-items:center;gap:5px;
   color:var(--muted);font-size:12.5px;font-weight:600;border-radius:8px;
@@ -540,7 +541,15 @@
 /* 잠긴 줄은 흐리게. 다만 작성자와 적중률은 또렷해야 구독 유인이 산다 */
 .stock-detail-page .pl-row.is-locked .pl-main{opacity:.9}
 
-.stock-detail-page .pl-who{display:flex;align-items:baseline;gap:8px;min-width:0}
+/* 뱃지가 들어와 baseline 정렬로는 글자와 어긋난다 — 가운데로 맞춘다 */
+.stock-detail-page .pl-who{display:flex;align-items:center;gap:8px;min-width:0}
+
+/* 예측가 얼굴. 이름 첫 글자를 둥근 칩에 담는다 */
+.stock-detail-page .pl-avatar{
+  flex:none;display:grid;place-items:center;
+  width:26px;height:26px;border-radius:999px;
+  font-size:12px;font-weight:750;
+}
 .stock-detail-page .pl-name{
   font-size:13px;font-weight:750;color:var(--ink);border-radius:6px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;

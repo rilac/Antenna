@@ -30,6 +30,22 @@ import { Panel } from './Block'
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 const day = (iso: string) => iso.slice(0, 10).replace(/-/g, '.').slice(2)
 
+/* 예측가 얼굴. 아바타 자산이 없고 서버 author 에도 avatarUrl 이 없어,
+   닉네임 첫 글자로 만든다. 색은 userId 에서 뽑아 같은 사람이 늘 같은 색으로
+   나온다 — 무작위가 아니다. 종목 뱃지(Home·Stocks 의 StockBadge)와 같은 방식이다. */
+function Avatar({ userId, nickname }: { userId: string; nickname: string }) {
+  let h = 0
+  for (const ch of userId) h = (h * 31 + ch.charCodeAt(0)) % 360
+  return (
+    <span
+      className="pl-avatar" aria-hidden="true"
+      style={{ background: `hsl(${h} 62% 94%)`, color: `hsl(${h} 54% 38%)` }}
+    >
+      {nickname.slice(0, 1)}
+    </span>
+  )
+}
+
 export default function PredictionList({ code, span }: { code: string; span?: 5 | 6 | 7 }) {
   const [phase, setPhase] = useState<PredictionPhase>('PENDING')
 
@@ -84,6 +100,7 @@ export default function PredictionList({ code, span }: { code: string; span?: 5 
             {list.items.map((p) => (
               <li key={p.id} className={p.locked ? 'pl-row is-locked' : 'pl-row'}>
                 <div className="pl-who">
+                  <Avatar userId={p.author.userId} nickname={p.author.nickname} />
                   <Link className="pl-name" to={`/channels/${p.author.userId}`}>
                     {p.author.nickname}
                   </Link>
