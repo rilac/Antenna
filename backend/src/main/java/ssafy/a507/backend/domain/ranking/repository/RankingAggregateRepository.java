@@ -39,9 +39,12 @@ public class RankingAggregateRepository {
      *
      * @param sector KRX 업종명. null 이면 업종을 가리지 않는다
      * @param settledFrom 이 날짜 이후 판정분만. null 이면 전체 기간
+     * @param seasonId 리플레이 시즌. null 이면 시즌을 가리지 않는다. 시즌마다 종목도 기간도 다르므로
+     *     가르지 않으면 비교가 성립하지 않는 실적이 한 필터에 섞인다
      */
     @Transactional(readOnly = true)
-    public List<Aggregate> aggregate(Track track, String sector, LocalDate settledFrom) {
+    public List<Aggregate> aggregate(
+            Track track, String sector, LocalDate settledFrom, Long seasonId) {
         StringBuilder sql = new StringBuilder(
                 """
                 SELECT p.user_id,
@@ -63,6 +66,11 @@ public class RankingAggregateRepository {
         if (settledFrom != null) {
             sql.append("   AND p.settle_date >= ?\n");
             args.add(settledFrom);
+        }
+        if (seasonId != null) {
+            sql.append(
+                    "   AND EXISTS (SELECT 1 FROM season_tickers st WHERE st.id = p.season_ticker_id AND st.season_id = ?)\n");
+            args.add(seasonId);
         }
         sql.append(" GROUP BY p.user_id");
 
@@ -97,6 +105,28 @@ public class RankingAggregateRepository {
                  ORDER BY s.sector
                 """,
                 String.class,
+                track.name());
+    }
+
+    /**
+     * 랭킹을 낼 리플레이 시즌 목록. 판정된 리플레이 예측이 달린 시즌만 돈다 — 업종과 같은 이유로,
+     * 예측이 하나도 없는 시즌까지 돌면 빈 필터 스냅샷만 늘어난다.
+     *
+     * <p>{@code predictions.season_ticker_id} 가 시즌 종목을 가리키고 시즌은 그 위에 있다.
+     * REAL 예측은 이 컬럼이 비어 있어 조인에서 자연히 빠진다.
+     */
+    @Transactional(readOnly = true)
+    public List<Long> seasonsWithJudgedPredictions(Track track) {
+        return jdbcTemplate.queryForList(
+                """
+                SELECT DISTINCT st.season_id
+                  FROM predictions p
+                  JOIN season_tickers st ON st.id = p.season_ticker_id
+                 WHERE p.track = ?
+                   AND p.status IN ('HIT', 'MISS')
+                 ORDER BY st.season_id
+                """,
+                Long.class,
                 track.name());
     }
 

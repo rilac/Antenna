@@ -117,6 +117,15 @@ export const CLIENT_ERROR_CODE = {
   CLIENT_WALLET_BUSY: 'CLIENT_WALLET_BUSY',
   /** 잠긴 지갑 등으로 계정을 하나도 못 받았다 */
   CLIENT_NO_ACCOUNT: 'CLIENT_NO_ACCOUNT',
+
+  /* D-03 검산은 브라우저가 체인 RPC 를 직접 읽는다. 서버를 거치지 않는 실패라
+     서버 어휘에 자리가 없다. CHAIN_UNAVAILABLE 을 빌려 쓰지 않는 이유 —
+     그건 "서버가 체인에 못 붙었다" 이고 이건 "내 브라우저가 못 붙었다" 라
+     사용자가 할 일(새로고침·망 확인)과 우리가 할 일이 서로 다르다. */
+  /** VITE_CHAIN_RPC_URL 이 비어 있다 — 배포 설정 문제다 */
+  CLIENT_CHAIN_NOT_CONFIGURED: 'CLIENT_CHAIN_NOT_CONFIGURED',
+  /** RPC 에 닿지 못했거나 제한 시간 안에 답이 없다 */
+  CLIENT_CHAIN_UNREACHABLE: 'CLIENT_CHAIN_UNREACHABLE',
 } as const
 
 /**
