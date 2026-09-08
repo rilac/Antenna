@@ -1,7 +1,9 @@
 package ssafy.a507.backend.domain.season.repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -61,4 +63,10 @@ public interface SeasonPriceRepository extends JpaRepository<SeasonPrice, Long> 
      */
     List<SeasonPrice> findByTicker_IdAndGameDayLessThanEqualOrderByGameDayAsc(
             Long tickerId, int uptoDay);
+
+    /** 그 종목의 그 게임일 봉. 체결가(종가)가 여기서 나온다. */
+    Optional<SeasonPrice> findByTicker_IdAndGameDay(Long tickerId, int gameDay);
+
+    /** 여러 종목의 같은 게임일 봉. 보유 종목 평가에 쓴다 — 종목마다 따로 읽으면 N+1 이다. */
+    List<SeasonPrice> findByTicker_IdInAndGameDay(Collection<Long> tickerIds, int gameDay);
 }

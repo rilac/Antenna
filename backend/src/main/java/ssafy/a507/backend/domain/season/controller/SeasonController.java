@@ -1,11 +1,14 @@
 package ssafy.a507.backend.domain.season.controller;
 
+import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -13,14 +16,20 @@ import org.springframework.web.bind.annotation.RestController;
 import ssafy.a507.backend.common.idempotency.IdempotencyStore;
 import ssafy.a507.backend.common.security.CurrentUserProvider;
 import ssafy.a507.backend.domain.season.dto.MySeasonListResponse;
-import ssafy.a507.backend.domain.season.dto.SeasonJoinResponse;
 import ssafy.a507.backend.domain.season.dto.MySeasonStatus;
+import ssafy.a507.backend.domain.season.dto.MySeasonStatusResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonDetailResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonJoinResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonListResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonOrderRequest;
+import ssafy.a507.backend.domain.season.dto.SeasonOrderResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonPriceListResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTickerListResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonTradeListResponse;
 import ssafy.a507.backend.domain.season.entity.Season;
+import ssafy.a507.backend.domain.season.entity.SeasonTrade;
 import ssafy.a507.backend.domain.season.service.SeasonJoinService;
+import ssafy.a507.backend.domain.season.service.SeasonPlayService;
 import ssafy.a507.backend.domain.season.service.SeasonQueryService;
 
 /**
@@ -37,9 +46,11 @@ public class SeasonController {
 
     /** 멱등 저장소의 엔드포인트 식별자. 같은 키를 다른 API 에 써도 서로 간섭하지 않게 한다. */
     private static final String JOIN_ENDPOINT = "POST /seasons/{id}/join";
+    private static final String ORDER_ENDPOINT = "POST /seasons/{id}/orders";
 
     private final SeasonQueryService seasonQueryService;
     private final SeasonJoinService seasonJoinService;
+    private final SeasonPlayService seasonPlayService;
     private final IdempotencyStore idempotencyStore;
     private final CurrentUserProvider currentUserProvider;
 
@@ -104,5 +115,49 @@ public class SeasonController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new SeasonJoinResponse(
                         Long.valueOf(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
+    }
+
+    /** 내 현황·포트폴리오. 내 마지막 회차 기준이다. */
+    @GetMapping("/{seasonId}/me")
+    public MySeasonStatusResponse me(@PathVariable Long seasonId) {
+        return seasonPlayService.me(currentUserProvider.currentUserId(), seasonId);
+    }
+
+    /**
+     * 매수·매도 주문 — 명세 §1 의 멱등성 필수 대상. 같은 키의 재요청은 체결을 다시 만들지
+     * 않고 첫 응답을 돌려준다. 같은 키에 다른 본문이면 409 IDEMPOTENCY_KEY_REUSED 다.
+     */
+    @PostMapping("/{seasonId}/orders")
+    public ResponseEntity<SeasonOrderResponse> order(
+            @PathVariable Long seasonId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @Valid @RequestBody SeasonOrderRequest request) {
+        Long userId = currentUserProvider.currentUserId();
+        String stored = idempotencyStore.execute(
+                userId,
+                ORDER_ENDPOINT + ":" + seasonId,
+                idempotencyKey,
+                // record 의 toString 은 모든 구성요소를 순서대로 담아 같은 입력에 같은 문자열을 준다.
+                IdempotencyStore.hash(request.toString()),
+                () -> {
+                    SeasonOrderResponse r = seasonPlayService.order(userId, seasonId, request);
+                    return r.tradeId() + ":" + r.price().toPlainString() + ":" + r.gameDay();
+                });
+        String[] parts = stored.split(":");
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new SeasonOrderResponse(
+                        Long.valueOf(parts[0]), new BigDecimal(parts[1]), Integer.parseInt(parts[2])));
+    }
+
+    /** 체결 내역(매매일지). 최근 체결이 먼저고 커서는 id 다. */
+    @GetMapping("/{seasonId}/trades")
+    public SeasonTradeListResponse trades(
+            @PathVariable Long seasonId,
+            @RequestParam(required = false) Long tickerId,
+            @RequestParam(required = false) SeasonTrade.Side side,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(required = false) Integer size) {
+        return seasonPlayService.trades(
+                currentUserProvider.currentUserId(), seasonId, tickerId, side, cursor, size);
     }
 }

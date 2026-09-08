@@ -76,4 +76,14 @@ public class SeasonParticipant {
         p.currentDay = 1;
         return p;
     }
+
+    /** 매수 대금을 뺀다. 부족 검사는 서비스가 먼저 한다 — 여기서는 음수를 막지 않는다. */
+    public void debit(BigDecimal amount) {
+        this.cash = this.cash.subtract(amount);
+    }
+
+    /** 매도 대금을 더한다. */
+    public void credit(BigDecimal amount) {
+        this.cash = this.cash.add(amount);
+    }
 }
