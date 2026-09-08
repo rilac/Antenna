@@ -1,4 +1,4 @@
-/* 포트폴리오 도넛. G-04 아래쪽 "내 포트폴리오 요약" 카드가 쓴다.
+/* 포트폴리오 도넛. G-04 아래쪽 "내 포트폴리오 요약" 과 G-08 결과가 같이 쓴다.
 
    ── 왜 현금까지 한 조각으로 넣는가 ──────────────────────
    이 화면에서 보고 싶은 건 "내 돈이 지금 어디에 있나" 다. 주식만 그리면 3,000만원
@@ -12,6 +12,7 @@
    라이브러리를 쓰지 않는다. 원 하나에 stroke-dasharray 로 조각을 끊으면 되고,
    이 하나 때문에 차트 라이브러리를 넣으면 번들만 커진다. */
 import type { CSSProperties } from 'react'
+import '../../styles/portfolio-donut.css'
 
 export type DonutSlice = {
   key: string
@@ -28,6 +29,14 @@ type Props = {
   slices: DonutSlice[]
   total: number
   onPick?: (tickerId: number) => void
+  /**
+   * 접힌 줄에 넣는 작은 고리. 목록도 가운데 글자도 없이 원만 그린다.
+   *
+   * <p>카드를 접어도 비중은 보여야 해서 둔다 — 접으면 원이 사라지는 것이 이 화면에서
+   * 제일 아쉬운 부분이었다. 작아서 정확한 값은 못 읽지만 "거의 다 현금" 같은 덩어리는
+   * 읽힌다. 정확한 값은 펴면 나온다.
+   */
+  mini?: boolean
 }
 
 /* 보라 계열에서 시작해 초록·주황으로 벌린다. 옆 조각끼리 색상환에서 멀어야
@@ -42,7 +51,7 @@ const C = 2 * Math.PI * R
 const won = (n: number) => `${Math.round(n).toLocaleString('ko-KR')}원`
 const pct = (n: number) => `${n.toFixed(1)}%`
 
-export default function PortfolioDonut({ slices, total, onPick }: Props) {
+export default function PortfolioDonut({ slices, total, onPick, mini }: Props) {
   const colorOf = (s: DonutSlice, i: number) =>
     s.key === 'CASH' ? CASH : PIE[i % PIE.length]
 
@@ -55,6 +64,28 @@ export default function PortfolioDonut({ slices, total, onPick }: Props) {
     dash: `${lens[i].toFixed(2)} ${(C - lens[i]).toFixed(2)}`,
     offset: (-lens.slice(0, i).reduce((a, b) => a + b, 0)).toFixed(2),
   }))
+
+  if (mini) {
+    return (
+      <span className="pd-mini" aria-hidden="true">
+        <svg viewBox="0 0 120 120">
+          <circle className="pd-track" cx="60" cy="60" r={R} />
+          {arcs.map((a) => (
+            <circle
+              key={a.key}
+              cx="60"
+              cy="60"
+              r={R}
+              stroke={a.color}
+              strokeDasharray={a.dash}
+              strokeDashoffset={a.offset}
+              transform="rotate(-90 60 60)"
+            />
+          ))}
+        </svg>
+      </span>
+    )
+  }
 
   return (
     <div className="pd">

@@ -169,6 +169,7 @@ export default function SeasonPlay() {
   const candlesOf = useCallback((tickerId: number) => candles[tickerId], [candles])
 
   const sim = useSeasonSim({
+    seasonId,
     initialCash: season.data?.initialCash ?? 0,
     lengthDays: season.data?.lengthDays ?? 0,
     tickers,
@@ -271,9 +272,11 @@ export default function SeasonPlay() {
     { key: 'CASH', label: '현금', value: sim.cash },
   ]
 
-  function submit() {
+  /* await 로 부른다. 지금은 훅 안에서 즉시 끝나지만 서버가 붙으면 진짜로 기다리게
+     된다 — 그때 이 자리를 안 고치려고 지금부터 비동기로 쓴다. */
+  async function submit() {
     if (selected === null) return
-    const at = sim.order(selected, side, qty)
+    const at = await sim.order(selected, side, qty)
     if (at !== null) {
       setFilled(`${side === 'BUY' ? '매수' : '매도'} ${qty.toLocaleString('ko-KR')}주 · ${won(at)} 체결`)
       setQty(0)
@@ -542,21 +545,34 @@ export default function SeasonPlay() {
                 type="button"
                 className={`sp-submit ${side === 'BUY' ? 'buy' : 'sell'}`}
                 disabled={qty <= 0 || price === null}
-                onClick={submit}
+                onClick={() => { void submit() }}
               >
                 {side === 'BUY' ? '매수 주문' : '매도 주문'}
               </button>
 
-              <button
-                type="button"
-                className="sp-advance"
-                disabled={sim.isLastDay}
-                onClick={() => { sim.advance(); setFilled(null) }}
-              >
-                <em aria-hidden="true">▶</em>
-                {sim.isLastDay ? '마지막 게임일입니다' : '다음 영업일 진행'}
-              </button>
-              <p className="sp-note">주문은 그 게임일 종가로 한 번에 체결됩니다.</p>
+              {/* 마지막 날에는 버튼이 결과로 바뀐다. 전에는 "마지막 게임일입니다" 라고
+                  꺼진 버튼만 남아 흐름이 거기서 끊겼다 — 다 돌린 사람에게 다음 걸음이
+                  없으면 얼마 벌었는지도 못 본다. */}
+              {sim.isLastDay ? (
+                <Link className="sp-advance is-done" to={`/sim/${seasonId}/result`}>
+                  결과 보기
+                  <em aria-hidden="true">›</em>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="sp-advance"
+                  onClick={() => { void sim.advance(); setFilled(null) }}
+                >
+                  <em aria-hidden="true">▶</em>
+                  다음 영업일 진행
+                </button>
+              )}
+              <p className="sp-note">
+                {sim.isLastDay
+                  ? '마지막 게임일입니다. 진행은 여기까지입니다.'
+                  : '주문은 그 게임일 종가로 한 번에 체결됩니다.'}
+              </p>
             </section>
           </div>
         </div>
