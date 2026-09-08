@@ -5,6 +5,8 @@
      GET  /predictions/me            내 예측 (C-02) — 붙었다
      GET  /predictions/{id}          예측 상세 (C-03)
      GET  /stocks/{code}/predictions  이 종목에 걸린 남의 예측 (B-03 예측 탭)
+                                      **API 명세서에 이 항목 자체가 없다.** 프론트가
+                                      부르는 경로인데 명세에 빠져 있어 함께 올렸다.
 
    ── 붙은 것 ────────────────────────────────────────────────
    GET /predictions/me (ANT-PRED-06). 요청한 대로 stockName 이 항목에 들어왔고,
@@ -260,7 +262,15 @@ export function fetchMyPredictions(filter: MyFilter) {
 export type PredictionDetail = {
   id: string
   stockCode: string
-  /** C-02 와 같은 사정으로 서버에 아직 없다. 비면 종목코드로 대체한다 */
+  /**
+   * **명세에 없다.** GET /predictions/{id} 응답 스키마가 stockCode 만 적고 있어
+   * 서버가 붙어도 이름이 오지 않는다 — 제목이 "005930" 으로 뜬다. C-02 에서
+   * 같은 요청을 해 받아냈으므로(위 "붙은 것") 여기도 넣어 달라고 올렸다.
+   *
+   * 그때까지 화면(C-03)이 이름이 비면 종목 개요에서 가져온다. 그건 목업을 메우는
+   * 우회가 아니라 **이름이 없을 때의 폴백** 이다 — 종목이 지워진 건은 서버가
+   * 붙어도 이름이 비고, 그때도 코드보다는 그 값이 낫다.
+   */
   stockName: string | null
   author: { userId: string; nickname: string }
   status: PredictionStatus
