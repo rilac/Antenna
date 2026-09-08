@@ -64,7 +64,7 @@ const BY_CODE: Record<string, Text> = {
 
   // 시세 · 리서치 · 관심 종목
   [ERROR_CODE.STOCK_NOT_FOUND]: { title: '종목을 찾을 수 없습니다' },
-  [ERROR_CODE.BRIEFING_NOT_FOUND]: { title: '브리핑을 찾을 수 없습니다' },
+  [ERROR_CODE.BRIEFING_NOT_FOUND]: { title: '브리핑을 찾을 수 없습니다', hint: '지워졌거나 주소가 잘못된 링크입니다' },
   [ERROR_CODE.DUPLICATE_WATCHLIST_ITEM]: { title: '이미 관심 종목에 있습니다' },
 
   // 댓글 · 좋아요

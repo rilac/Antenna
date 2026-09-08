@@ -13,7 +13,6 @@
      /stocks          → ANT-DATA-03 (3년치 백필 선행)
      /search          → ANT-DATA-05
      /watchlist       → ANT-DATA-06
-     /briefings       → ANT-RESEARCH-03 (생성 배치 선행)
      /users/me        → ANT-AUTH-05
      /rankings        → 티켓 없음
      /ads/active      → 티켓 없음
@@ -38,21 +37,8 @@ export function getMarketIndices(days = 30) {
   return api.get<{ items: IndexQuote[] }>('/market/indices', { query: { days } })
 }
 
-/* ── AI 브리핑 · GET /briefings ───────────────────────────── */
-
-export type Briefing = {
-  id: number
-  scope: 'MARKET' | 'STOCK'
-  stockCode: string | null
-  headline: string
-  /** 기준 영업일 YYYY-MM-DD */
-  targetDate: string
-}
-
-export function getBriefings(scope: 'MARKET' | 'STOCK' = 'MARKET') {
-  if (MOCK) return mock.briefings()
-  return api.get<{ items: Briefing[] }>('/briefings', { query: { scope } })
-}
+/* AI 브리핑은 여기 없다. 홈 띠(B-01) · 종목 상세(B-03) · 상세 모달(M-10)이
+   같은 응답을 읽으므로 계약을 api/briefings.ts 한 곳에 뒀다. */
 
 /* ── 관심 종목 · GET /watchlist ───────────────────────────── */
 

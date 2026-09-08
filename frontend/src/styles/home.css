@@ -45,6 +45,20 @@
   overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
 }
 
+/* 안에 조작할 것이 생기면(브리핑 띠) 감춰 둘 수 없다 — 보이지 않는 곳으로
+   초점이 사라지면 키보드 사용자는 어디를 누르는지 모른다. 초점이 들어올 때만
+   제자리로 되돌린다. 마우스로는 여전히 보이지 않는다. */
+.hm-sr:focus-within{
+  position:static; width:auto; height:auto; margin:0;
+  overflow:visible; clip:auto; white-space:normal;
+  display:grid; gap:6px; padding:8px 0 2px;
+}
+.hm-sr button{
+  border:0; background:none; padding:0; text-align:left;
+  font:inherit; color:var(--body); cursor:pointer;
+}
+.hm-sr button:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+
 .hm-head{display:flex; align-items:center; gap:10px}
 .hm-head h2{
   display:flex; align-items:center; gap:7px;
@@ -179,12 +193,17 @@
   display:inline-flex; align-items:center; gap:5px; flex:none;
   color:var(--brand-ink); font-size:11.5px; font-weight:700;
 }
+/* <p> 였다가 버튼이 됐다(M-10 을 연다). 버튼 기본 모양을 지우고
+   문장으로 남긴다 — 띠 안에서 버튼처럼 보이면 오히려 시선을 뺏는다. */
 .hm-ticker-line{
-  flex:1; min-width:0; margin:0;
+  flex:1; min-width:0; margin:0; padding:0;
+  border:0; background:none; text-align:left; font:inherit;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   color:var(--body); font-size:13px; line-height:1.5;
+  cursor:pointer;
   animation:hm-fade .45s ease both;
 }
+.hm-ticker-line:hover{ text-decoration:underline; text-underline-offset:3px; }
 .hm-ticker-no{flex:none; color:var(--faint); font-size:11px; font-weight:650}
 
 @keyframes hm-fade{
