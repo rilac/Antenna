@@ -11,9 +11,22 @@
 /* ── 요약 헤더 ─────────────────────────────────────────────
    스크롤을 내려도 종목명·종가가 남아야 아래쪽 재무·경쟁사를 읽을 때 기준을 잃지 않는다. */
 .stock-detail-page .sd-head{
-  position:sticky;top:0;z-index:6;
+  /* 상단바는 fixed(z-index 30)라 이 헤더 위를 덮는다. top:0 으로 붙이면 종목명
+     줄이 그 아래로 들어가 스크롤 뒤에는 종가와 탭만 남았다 — 정작 기준이 되는
+     이름이 사라진다. 상단바 높이만큼 내려 붙인다. */
+  position:sticky;top:var(--topbar-h);z-index:6;
   margin:0 0 12px;padding:0;
-  background:linear-gradient(var(--ground) 82%,transparent);
+  /* 아래로 스크롤되는 내용이 비쳐 지나가지 않게 불투명하게 덮는다.
+     전에는 아래끝을 투명으로 흘렸는데(82% 뒤 transparent), 그 구간으로 목록
+     글자가 탭 줄과 겹쳐 지나갔다. 페이드는 헤더 밖 얇은 띠에서만 준다. */
+  background:var(--ground);
+}
+
+/* 헤더가 끝나는 자리에서만 부드럽게 흐린다 — 잘린 듯 보이지 않게 */
+.stock-detail-page .sd-head::after{
+  content:"";position:absolute;left:0;right:0;top:100%;height:10px;
+  background:linear-gradient(var(--ground),transparent);
+  pointer-events:none;
 }
 
 /* 줄 간격을 글꼴이 정하게 두면 26px 제목이 39px 짜리 줄을 차지한다.
