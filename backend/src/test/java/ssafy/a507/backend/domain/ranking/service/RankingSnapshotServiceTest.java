@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+import ssafy.a507.backend.domain.common.Track;
+import ssafy.a507.backend.domain.ranking.dto.RankingItemResponse;
 
 /**
  * ANT-RANK-01 — 랭킹 스냅샷 배치(B3)의 AC 검증.
@@ -26,6 +28,10 @@ class RankingSnapshotServiceTest {
 
     @Autowired
     RankingSnapshotService snapshots;
+
+    /** 왕복 검증용 — 배치가 쓴 키를 조회가 찾는지 보려면 조회 쪽도 있어야 한다. */
+    @Autowired
+    RankingQueryService queries;
 
     @Autowired
     EntityManager em;
@@ -134,6 +140,50 @@ class RankingSnapshotServiceTest {
     }
 
     @Test
+    @DisplayName("리플레이는 시즌마다 필터가 갈린다 — 다른 시즌 실적이 섞이지 않는다")
+    void 시즌_조합() {
+        Long seasonA = insertSeason();
+        Long seasonB = insertSeason();
+        Long playerA = insertUser("A시즌참가자");
+        Long playerB = insertUser("B시즌참가자");
+        insertReplayJudged(playerA, insertSeasonTicker(seasonA), 10, 9, "1.000");
+        insertReplayJudged(playerB, insertSeasonTicker(seasonB), 10, 3, "5.000");
+
+        snapshots.runOnce();
+
+        assertThat(userIdsOf("REPLAY", "SEASON:" + seasonA)).containsExactly(playerA);
+        assertThat(userIdsOf("REPLAY", "SEASON:" + seasonB)).containsExactly(playerB);
+        // 시즌을 가르지 않은 ALL 은 그대로 둘 다 담는다 — seasonId 없이 오는 조회가 쓰는 키다.
+        assertThat(userIdsOf("REPLAY", "ALL")).containsExactlyInAnyOrder(playerA, playerB);
+        // 예측이 달리지 않은 시즌은 필터 자체가 생기지 않는다.
+        assertThat(userIdsOf("REPLAY", "SEASON:" + insertSeason())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("왕복 — 배치가 쓴 필터 키를 조회가 실제로 찾아낸다")
+    void 배치_조회_왕복() {
+        Long seasonId = insertSeason();
+        Long player = insertUser("리플레이참가자");
+        insertReplayJudged(player, insertSeasonTicker(seasonId), 10, 7, "2.000");
+        Long real = insertUser("실전참가자");
+        insertJudged(real, "REAL", 10, 7, "2.000");
+
+        snapshots.runOnce();
+        em.flush();
+        em.clear();
+
+        /* 배치와 조회가 각자 필터 키를 만들기 때문에, 둘을 따로 검증하면 키가 어긋나도 드러나지 않는다
+           — 어긋난 결과가 예외가 아니라 빈 목록이라서다. 여기서만 두 쪽을 이어 붙여 확인한다. */
+        assertThat(queries.list(Track.REPLAY, null, null, seasonId, null, null, null).items())
+                .extracting(RankingItemResponse::userId)
+                .containsExactly(player);
+        assertThat(queries.myRank(player, Track.REPLAY, seasonId)).isPresent();
+        assertThat(queries.list(Track.REAL, "D30", null, null, null, null, null).items())
+                .extracting(RankingItemResponse::userId)
+                .containsExactly(real);
+    }
+
+    @Test
     @DisplayName("전량 재작성 — 자격을 잃은 회원의 지난 순위가 남지 않는다")
     void 재실행_안전() {
         Long stays = insertUser("남는사람");
@@ -226,6 +276,10 @@ class RankingSnapshotServiceTest {
 
     /** 리플레이 예측을 매달 자리. 시즌 하나와 시즌 종목 하나만 만든다. */
     private Long insertSeasonTicker() {
+        return insertSeasonTicker(insertSeason());
+    }
+
+    private Long insertSeason() {
         em.createNativeQuery(
                         """
                         INSERT INTO seasons
@@ -233,8 +287,11 @@ class RankingSnapshotServiceTest {
                         VALUES ('PRACTICE', 60, 10000000, 1, 10, 'RUNNING')
                         """)
                 .executeUpdate();
-        Long seasonId = ((Number) em.createNativeQuery("SELECT max(id) FROM seasons").getSingleResult())
+        return ((Number) em.createNativeQuery("SELECT max(id) FROM seasons").getSingleResult())
                 .longValue();
+    }
+
+    private Long insertSeasonTicker(Long seasonId) {
         em.createNativeQuery(
                         """
                         INSERT INTO season_tickers (season_id, display_name, real_stock_code, sector)

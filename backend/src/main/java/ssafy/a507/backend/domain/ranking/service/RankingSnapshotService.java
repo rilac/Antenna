@@ -60,15 +60,18 @@ public class RankingSnapshotService {
 
         int filters = 0;
         for (Track track : Track.values()) {
-            filters += snapshot(track, null, null, null, computedAt);
-            if (track != Track.REAL) {
+            filters += snapshot(track, null, null, null, null, computedAt);
+            if (track == Track.REAL) {
+                filters += snapshot(track, "D30", null, null, since, computedAt);
+                for (String sector : aggregates.sectorsWithJudgedPredictions(track)) {
+                    filters += snapshot(track, null, sector, null, null, computedAt);
+                    filters += snapshot(track, "D30", sector, null, since, computedAt);
+                }
+            } else {
                 // 기간·섹터 필터는 실전만이다 — 리플레이는 시즌이 그 자리를 대신한다(명세 §랭킹).
-                continue;
-            }
-            filters += snapshot(track, "D30", null, since, computedAt);
-            for (String sector : aggregates.sectorsWithJudgedPredictions(track)) {
-                filters += snapshot(track, null, sector, null, computedAt);
-                filters += snapshot(track, "D30", sector, since, computedAt);
+                for (Long seasonId : aggregates.seasonsWithJudgedPredictions(track)) {
+                    filters += snapshot(track, null, null, seasonId, null, computedAt);
+                }
             }
         }
         log.info("랭킹 스냅샷 완료 — 필터 {}개, 산출 시각 {}", filters, computedAt);
@@ -84,12 +87,27 @@ public class RankingSnapshotService {
      * 앱 안에서 섹터 목록이 두 벌이 되지 않도록 DB 값을 기준으로 삼았다. 랭킹 화면의 상수 교체가
      * 남은 후속이다.
      *
+     * <p><b>리플레이는 시즌이 필터가 된다</b>({@code SEASON:{시즌id}}). 조회(ANT-RANK-02·03)가
+     * {@code seasonId} 를 받으면 그 키를 찾으므로 배치가 같은 키를 써 두어야 한다 — 안 만들면
+     * 오류가 아니라 빈 목록·204 가 조용히 나간다. 시즌을 가르지 않은 {@code ALL} 도 함께 남긴다.
+     * {@code seasonId} 없이 오는 리플레이 조회가 그 키를 쓰기 때문이다.
+     *
      * @return 이 호출이 쓴 필터 수(항상 1) — 로그용
      */
     private int snapshot(
-            Track track, String period, String sector, LocalDate since, Instant computedAt) {
-        String filterKey = RankingFilterKey.of(track, period, sector, null);
-        List<Aggregate> found = aggregates.aggregate(track, sector, since);
+            Track track,
+            String period,
+            String sector,
+            Long seasonId,
+            LocalDate since,
+            Instant computedAt) {
+        /* 필터 키는 REAL 의 seasonId 를 무시한다(명세 §랭킹 — 트랙에 맞지 않는 파라미터는 무시).
+           집계도 같이 무시해야 한다. 한쪽만 시즌을 거르면 키는 ALL 인데 내용은 시즌별인 행이 생기고,
+           그것이 바로 이 스토리가 고친 종류의 어긋남이다 — 오류가 아니라 조용히 틀린 목록이 된다. */
+        Long season = track == Track.REPLAY ? seasonId : null;
+
+        String filterKey = RankingFilterKey.of(track, period, sector, season);
+        List<Aggregate> found = aggregates.aggregate(track, sector, since, season);
 
         List<Row> rows = rank(found);
         aggregates.replaceFilter(track, filterKey, rows, computedAt);
