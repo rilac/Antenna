@@ -86,6 +86,26 @@ export type MyStatus = {
 export const getMyStatus = (seasonId: number) =>
   api.get<MyStatus>(`/seasons/${seasonId}/me`)
 
+/* ── 참가 · POST /seasons/{id}/join ───────────────────────── */
+
+/** 새 회차가 열린다. 이미 끝낸 회차가 있으면 attemptNo 가 올라간다 */
+export type JoinResult = {
+  participantId: number
+  attemptNo: number
+  currentDay: number
+}
+
+/**
+ * 연습·시연은 즉시 201 이다. 대회는 참가비 소각 서명이 붙어 아직 열려 있지 않다
+ * (501 SEASON_JOIN_NOT_SUPPORTED).
+ *
+ * <p>멱등키를 붙인다 — 두 번 눌려 회차가 둘 생기면 어느 쪽이 내 판인지 알 수 없다.
+ */
+export const join = (seasonId: number) =>
+  api.post<JoinResult>(`/seasons/${seasonId}/join`, undefined, {
+    idempotencyScope: `join:${seasonId}`,
+  })
+
 /* ── 주문 · POST /seasons/{id}/orders ─────────────────────── */
 
 export type Side = 'BUY' | 'SELL'
@@ -156,8 +176,9 @@ export type Trade = {
   realizedPnl: number | null
 }
 
-export const getTrades = (seasonId: number, cursor?: string) =>
-  api.get<{ items: Trade[]; nextCursor: string | null; hasNext: boolean }>(
+/** 커서는 체결 id 다. 서버가 숫자로 준다 */
+export const getTrades = (seasonId: number, cursor?: number) =>
+  api.get<{ items: Trade[]; nextCursor: number | null; hasNext: boolean }>(
     `/seasons/${seasonId}/trades`,
     { query: { cursor } },
   )

@@ -1,0 +1,53 @@
+/* 포트폴리오 도넛 (components/sim/PortfolioDonut).
+
+   G-04 시즌 진행과 G-08 결과가 같이 쓴다. 그래서 화면 CSS 가 아니라 여기에 둔다 —
+   한쪽 화면 파일에 두면 다른 화면에서 스타일이 안 붙는다. */
+
+.pd{display:flex;flex-direction:column;gap:14px}
+
+.pd-ring{position:relative;width:132px;margin:0 auto}
+.pd-ring svg{display:block;width:100%;height:auto}
+.pd-ring circle{fill:none;stroke-width:15}
+.pd-track{stroke:var(--surface-2)}
+
+/* 가운데 총자산. 조각을 하나하나 더하지 않아도 되게 원 안에 둔다 */
+.pd-center{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1px;text-align:center;
+}
+.pd-center span{color:var(--muted);font-size:10.5px;font-weight:700}
+.pd-center b{color:#0e1330;font-size:12.5px;font-weight:850;letter-spacing:-.02em}
+
+.pd-legend{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.pd-legend li > *{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;
+  column-gap:9px;row-gap:2px;align-items:baseline;
+  width:100%;padding:7px 9px;border-radius:9px;text-align:left;
+  transition:background .12s;
+}
+.pd-legend button:hover{background:var(--surface-2)}
+
+.pd-name{
+  grid-column:1;display:flex;align-items:center;gap:7px;min-width:0;
+  color:var(--ink);font-size:13px;font-weight:750;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pd-name i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--dot)}
+.pd-share{grid-column:2;color:var(--muted);font-size:12.5px;font-weight:750}
+.pd-val{grid-column:3;color:var(--body);font-size:12.5px;font-weight:750;text-align:right}
+.pd-detail{grid-column:1/3;padding-left:15px;color:var(--faint);font-size:11.5px;font-weight:700}
+.pd-pnl{grid-column:3;font-size:11.5px;font-weight:800;text-align:right}
+
+
+/* 손익 색. 도넛 목록 안에서만 쓴다 — 화면마다 빨강·파랑이 뒤집히지 않게
+   범위를 좁혀 둔다. */
+.pd .up{color:var(--up-vivid)}
+.pd .down{color:var(--down-vivid)}
+.pd .flat{color:var(--muted)}
+
+/* ── 접힌 줄에 넣는 작은 고리 ─────────────────────────── */
+/* 접어도 비중은 보여야 한다. 작아서 정확한 값은 못 읽지만 "거의 다 현금" 같은
+   덩어리는 읽힌다 — 조각을 두껍게 그려야 그게 보인다. */
+.pd-mini{flex:none;display:block;width:26px;height:26px}
+.pd-mini svg{display:block;width:100%;height:100%}
+.pd-mini circle{fill:none;stroke-width:26}

@@ -81,6 +81,28 @@ public enum ErrorCode {
     SEASON_NOT_FOUND(HttpStatus.NOT_FOUND, "시즌을 찾을 수 없습니다."),
     /** 그 시즌에 없는 종목. 남의 시즌 종목 id 를 넣어 가격을 떠보는 것도 여기로 막힌다. */
     SEASON_TICKER_NOT_FOUND(HttpStatus.NOT_FOUND, "시즌 종목을 찾을 수 없습니다."),
+    /** 진행 중인 회차가 있다. 끝내야 다음 회차를 시작할 수 있다(ANT-SEASON-03). */
+    SEASON_ALREADY_JOINED(HttpStatus.CONFLICT, "이미 진행 중인 회차가 있습니다."),
+    /** RUNNING 이 아닌 시즌에는 참가할 수 없다. */
+    SEASON_NOT_RUNNING(HttpStatus.CONFLICT, "참가할 수 있는 상태의 시즌이 아닙니다."),
+    /** 대회 참가는 참가비 소각 서명이 붙는다 — 아직 없다(ANT-SEASON-06 · TOKEN). */
+    SEASON_JOIN_NOT_SUPPORTED(HttpStatus.NOT_IMPLEMENTED, "대회 참가는 아직 지원하지 않습니다."),
+    /** 참가한 적이 없는 시즌의 현황·주문·체결 내역을 불렀다. 참가가 먼저다(ANT-SEASON-03). */
+    SEASON_NOT_JOINED(HttpStatus.CONFLICT, "참가하지 않은 시즌입니다."),
+    /** 매도 수량이 보유 수량을 넘는다. 매수의 예수금 부족은 INSUFFICIENT_BALANCE 다. */
+    SEASON_INSUFFICIENT_QTY(HttpStatus.CONFLICT, "보유 수량이 부족합니다."),
+    /** 그 종목에 내 진행일 봉이 없다. 게임일 구간은 전 종목이 빠짐없이 있어야 하므로 데이터 결함이다. */
+    SEASON_PRICE_NOT_FOUND(HttpStatus.NOT_FOUND, "그 게임일의 가격이 없습니다."),
+    /** expectedDay 가 서버의 현재 게임일과 다르다 — 낙관적 잠금(ANT-SEASON-04). 화면은 다시 읽고 다시 누른다. */
+    DAY_MISMATCH(HttpStatus.CONFLICT, "보고 있는 게임일이 서버와 다릅니다."),
+    /** 대회는 공용 진행일이라 개인이 넘길 수 없다 — 배치 B5 가 넘긴다(ANT-SEASON-08). */
+    SEASON_ADVANCE_NOT_ALLOWED(HttpStatus.CONFLICT, "대회 시즌은 수동으로 진행할 수 없습니다."),
+    /** 끝난(DONE) 회차에 주문·진행을 보냈다. 다시 하려면 새 회차로 참가한다. */
+    SEASON_ATTEMPT_ENDED(HttpStatus.CONFLICT, "끝난 회차입니다."),
+    /** 마지막 게임일에서 더 넘기려 했다. 종료(finish)가 다음 단계다. */
+    SEASON_LAST_DAY(HttpStatus.CONFLICT, "마지막 게임일입니다. 종료해 주세요."),
+    /** 마지막 게임일 전에 종료하려 했다. 연습은 끝까지 가야 결과가 있다. */
+    SEASON_NOT_LAST_DAY(HttpStatus.CONFLICT, "아직 마지막 게임일이 아닙니다."),
 
     // AI 브리핑 (ANT-RESEARCH-03)
     BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),
