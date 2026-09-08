@@ -1,0 +1,123 @@
+/* E-02 채널 프로필 — [ANT-FE-CHANNEL-PROFILE]
+   색·간격은 app.css 토큰만 쓴다. 구독 상태 색은 anchor-badge.css 와 같은 값을 쓴다
+   (ACTIVE #15803d · PENDING 중립) — 같은 뜻이 화면마다 다른 색이면 안 된다. */
+
+.cp-loading{ margin:24px 0; font-size:13.5px; color:var(--muted); }
+
+/* ── 헤더 ────────────────────────────────────────────── */
+.cp-head{
+  display:flex; align-items:flex-start; gap:15px;
+  padding:18px 20px; margin-bottom:12px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:12px;
+}
+.cp-avatar{ flex:0 0 auto; width:56px; height:56px; border-radius:999px; object-fit:cover; background:var(--surface-2); }
+.cp-id{ min-width:0; }
+.cp-id h1{ margin:0; font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-.02em; }
+.cp-bio{ margin:6px 0 0; font-size:13px; line-height:1.65; color:var(--body); }
+
+.cp-interests{ display:flex; flex-wrap:wrap; gap:5px; margin:9px 0 0; padding:0; list-style:none; }
+.cp-interests li{
+  padding:2px 9px; border-radius:999px;
+  background:var(--brand-softer); color:var(--brand-ink);
+  font-size:11.5px; font-weight:700;
+}
+
+.cp-links{ display:flex; flex-wrap:wrap; gap:12px; margin:9px 0 0; padding:0; list-style:none; }
+.cp-links a{
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:12.5px; font-weight:600; color:var(--muted); text-decoration:none;
+}
+.cp-links a:hover{ color:var(--brand-ink); }
+
+/* ── 실적 통계 — 세 개 고정 ──────────────────────────── */
+.cp-stats{
+  display:grid; grid-template-columns:repeat(3, 1fr); gap:1px;
+  margin-bottom:12px;
+  background:var(--rule); border:1px solid var(--rule); border-radius:12px;
+  overflow:hidden;
+}
+.cp-stats > div{ padding:13px 16px; background:var(--surface); }
+.cp-stats dt{ font-size:11.5px; color:var(--muted); }
+.cp-stats dd{ margin:3px 0 0; font-size:19px; font-weight:800; color:var(--ink); letter-spacing:-.02em; }
+
+/* ── 구독 카드 ───────────────────────────────────────── */
+.cp-sub{
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:14px;
+  padding:16px 20px; margin-bottom:18px;
+  border:1px solid var(--brand-soft); border-radius:12px;
+  background:var(--brand-softer);
+}
+.cp-sub.is-me{ border-color:var(--rule); background:var(--surface-2); }
+.cp-sub.is-me p{ margin:0; font-size:13px; color:var(--body); }
+.cp-sub-link{ font-size:13px; font-weight:700; color:var(--brand-ink); text-decoration:none; }
+.cp-sub-link:hover{ text-decoration:underline; }
+
+.cp-sub-label{ font-size:11.5px; color:var(--muted); }
+.cp-sub-price p{ display:flex; align-items:baseline; gap:5px; margin:2px 0 0; }
+.cp-sub-price b{ font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-.02em; }
+.cp-sub-price small{ font-size:12.5px; font-weight:700; color:var(--body); }
+.cp-sub-price em{ font-style:normal; font-size:12px; color:var(--muted); }
+
+.cp-sub-state{ text-align:right; }
+.cp-sub-badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:800; }
+.cp-sub-badge.is-active{ background:#e7f5ec; color:#15803d; }
+/* 확정 대기는 정상 상태다 — 경고색을 쓰지 않는다(AnchorBadge PENDING 과 같은 규칙) */
+.cp-sub-badge.is-pending{ background:var(--surface-2); color:var(--muted); }
+.cp-sub-until{ margin:5px 0 0; font-size:12.5px; color:var(--body); }
+.cp-sub-locked-fee{ margin:3px 0 0; font-size:11.5px; color:var(--brand-ink); }
+.cp-sub-renew{ margin:3px 0 0; font-size:11.5px; color:var(--muted); }
+
+.cp-sub-cta{
+  padding:11px 22px;
+  border:0; border-radius:10px;
+  background:var(--brand); color:#fff;
+  font:inherit; font-size:14px; font-weight:800; cursor:pointer;
+}
+.cp-sub-cta:hover{ background:var(--brand-ink); }
+
+/* ── 섹션 공통 ───────────────────────────────────────── */
+.cp-section{ margin-bottom:22px; }
+.cp-section h2{ margin:0 0 10px; font-size:15px; font-weight:800; color:var(--ink); letter-spacing:-.01em; }
+
+.cp-cards{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:9px; }
+
+/* ── 리포트 목록 ─────────────────────────────────────── */
+.cp-reports{
+  margin:0; padding:0; list-style:none;
+  display:flex; flex-direction:column; gap:1px;
+  background:var(--rule); border:1px solid var(--rule); border-radius:11px; overflow:hidden;
+}
+.cp-reports a{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 15px; background:var(--surface);
+  text-decoration:none; color:inherit;
+}
+.cp-reports a:hover{ background:var(--brand-softer); }
+.cp-report-title{ font-size:13.5px; font-weight:700; color:var(--ink); min-width:0; }
+.cp-report-meta{ flex:0 0 auto; display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--faint); }
+.cp-badge{
+  display:inline-flex; align-items:center; gap:3px;
+  padding:2px 7px; border-radius:999px;
+  background:var(--brand-soft); color:var(--brand-ink);
+  font-style:normal; font-size:10.5px; font-weight:800;
+}
+.cp-badge.is-locked{ background:var(--surface-2); color:var(--muted); }
+
+/* ── 백테스트 ────────────────────────────────────────── */
+.cp-backtest{ padding:15px 18px; background:var(--surface); border:1px solid var(--rule); border-radius:12px; }
+.cp-bt-figures{ display:flex; flex-wrap:wrap; gap:8px 28px; }
+.cp-bt-figures > div{ display:flex; flex-direction:column; gap:2px; }
+.cp-bt-figures dt{ font-size:11.5px; color:var(--muted); }
+.cp-bt-figures dd{ margin:0; font-size:20px; font-weight:800; color:var(--ink); letter-spacing:-.02em; }
+.cp-bt-figures dd.up{ color:var(--up); }
+.cp-bt-figures dd.down{ color:var(--down); }
+.cp-bt-terms{ margin:11px 0 0; padding-top:10px; border-top:1px dashed var(--rule); font-size:11.5px; line-height:1.6; color:var(--muted); }
+
+@media (max-width:640px){
+  .cp-head{ flex-direction:column; }
+  .cp-stats{ grid-template-columns:1fr; }
+  .cp-sub{ flex-direction:column; align-items:stretch; }
+  .cp-sub-state{ text-align:left; }
+  .cp-sub-cta{ width:100%; }
+}
