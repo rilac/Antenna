@@ -127,7 +127,8 @@ export default function PredictDetail() {
             <h1>
               <Link to={`/stocks/${d.stockCode}`}>{stock}</Link>
             </h1>
-            <span className="pd-code num">{d.stockCode}</span>
+            {/* 이름이 없으면 제목이 이미 코드다. 그대로 두면 "005930 005930" 이 된다 */}
+            {d.stockName && <span className="pd-code num">{d.stockCode}</span>}
             <PredictionStatus status={d.status} />
           </div>
 
