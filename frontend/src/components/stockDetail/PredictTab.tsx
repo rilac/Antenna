@@ -8,13 +8,18 @@
    설계 제약(§4 C-01)
    - direction 은 UP/DOWN 둘뿐이고 horizon 은 5·10·20·60 고정이다. 임의 마감일이 없다.
    - targetPrice 는 등록 후 불변이다. 그래서 등록 전에 "수정·삭제 불가" 를 반드시 고지한다.
-   - note 는 5000자 이하이며 구독자 전용이다. payload 에는 noteHash 만 들어간다.
+   - note 는 5000자 이하이며 구독자 전용이다. 커밋 문자열에는 noteHash 만 들어간다.
    - evidencePointIds 는 B-03 투자 포인트에서 인계받은 것만 쓴다. 리포트·재무지표는 근거가 못 된다.
-   - commitHash 는 서버 salt 와 결합해 만들어져 클라이언트가 계산할 수 없다.
-     미리보기는 payload + noteHash 까지만 보여준다.
    - 기준가는 배치 B2 가 다음 영업일 종가로 확정한다. 등록 직후 basePrice 가 비어 있고,
      빈 값을 0 으로 그리지 않는다.
-   - 응답 네 갈래: 201 슬롯 내 · 202 슬롯 초과(소각) → M-02 · 401 서명 불일치 · 409 잔액 부족. */
+   - 응답 네 갈래: 201 슬롯 내 · 202 슬롯 초과(소각) → M-02 · 401 서명 불일치 · 409 잔액 부족.
+
+   커밋 규격이 정해진 뒤 바뀐 것 (ANT-PRED-02)
+   - commitHash 를 **이 화면이 직접 계산한다.** 커밋 salt 가 없어지고(09-09) 유일한 난수인
+     noteSalt 를 클라이언트가 만들게 되면서, 미리보기가 원장에 남을 값과 같은 해시를 보여 줄
+     수 있게 됐다. 규격·이유는 api/predictions.ts "커밋 봉인" 절.
+   - 서명 대상이 지갑 연동용 문자열이 아니라 예측 내용이다(결정 B3). 연동용에 서명하면
+     서버가 SIGNER_MISMATCH 로 거절한다. */
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Panel } from './Block'
@@ -28,15 +33,29 @@ import { POINT_KINDS, POINT_LABEL, getPoints } from '../../api/stockDetail'
 import type { InvestPoint, PointKind, StockSummary } from '../../api/stockDetail'
 import {
   DIRECTIONS, HORIZONS, HORIZON_LABEL, NOTE_MAX,
-  commitPayload, createPrediction, getSlots, noteHash,
+  commitHash, commitPayload, createPrediction, getSlots, newNoteSalt, noteHash,
+  predictionSigningPayload, targetPriceInScale,
 } from '../../api/predictions'
-import type { CreateResult, Direction, Horizon, PredictionDraft } from '../../api/predictions'
-import { requestNonce, signingPayload } from '../../api/wallet'
+import type {
+  CommitFields, CreateResult, Direction, Horizon, PredictionDraft,
+} from '../../api/predictions'
+import { requestNonce } from '../../api/wallet'
 import type { PredictForm } from './predictForm'
 import { connectAddress, hasWallet, personalSign } from '../../wallet/provider'
 import { useAuth } from '../../auth/context'
 
 const DIRECTION_LABEL: Record<Direction, string> = { UP: '오른다', DOWN: '내린다' }
+
+/* 커밋 문자열과 서명 문자열이 같은 다섯 값을 쓴다. 한 자리에서 꺼내야 둘이 갈리지 않는다.
+   draft 를 그대로 펼치지 않는 이유 — note·noteSalt·evidencePointIds 는 등록 본문에만
+   들어가고 해시 대상에는 없다. 무엇이 봉인되는지 이 함수가 그대로 보여 준다. */
+const commitFields = (d: PredictionDraft, hash: string): CommitFields => ({
+  stockCode: d.stockCode,
+  direction: d.direction,
+  targetPrice: d.targetPrice,
+  horizon: d.horizon,
+  noteHash: hash,
+})
 
 /* 기간 버튼에 붙일 만기일. horizon 은 거래일 수라 주말을 건너뛰며 센다.
    휴장일은 클라이언트가 알 수 없어 하루 이틀 어긋날 수 있다 — 그래서 버튼 아래에
@@ -91,14 +110,21 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
   const [localMsg, setLocalMsg] = useState<string | null>(null)
 
   const targetPrice = Number(target.replace(/[^0-9.]/g, ''))
-  const validTarget = target !== '' && Number.isFinite(targetPrice) && targetPrice > 0
+  const priceEntered = target !== '' && Number.isFinite(targetPrice) && targetPrice > 0
+  /* 소수 셋째 자리 이하는 서버가 반올림하지 않고 400 으로 거절한다(numeric(14,2)).
+     여기서 조용히 잘라 서명하면 서명한 값과 서버가 해시한 값이 달라진다. */
+  const priceTooPrecise = priceEntered && !targetPriceInScale(targetPrice)
+  const validTarget = priceEntered && !priceTooPrecise
 
   /* 목표가가 전일 종가 대비 몇 %인지. 방향과 어긋나면 미리 알려 준다 —
-     "오른다" 를 고르고 종가보다 낮은 목표가를 넣는 실수가 잦다. */
+     "오른다" 를 고르고 종가보다 낮은 목표가를 넣는 실수가 잦다.
+
+     자릿수가 넘쳐 등록이 막힌 값(priceTooPrecise)에도 비율은 보여 준다 — 비율이
+     깜빡이며 사라지면 자릿수 문제인지 입력이 지워진 건지 알 수 없다. */
   const gap = useMemo(() => {
-    if (!validTarget || !summary?.prevClose) return null
+    if (!priceEntered || !summary?.prevClose) return null
     return ((targetPrice - summary.prevClose) / summary.prevClose) * 100
-  }, [validTarget, targetPrice, summary?.prevClose])
+  }, [priceEntered, targetPrice, summary?.prevClose])
 
   /* 방향을 고르지 않고 목표가부터 적는 사람이 있다. 전일 종가보다 높으면 상승,
      낮으면 하락으로 미리 세워 준다.
@@ -121,25 +147,40 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
     if (!direction || !horizon || !validTarget) return null
     return {
       stockCode: code, direction, targetPrice, horizon,
-      note, evidencePointIds: picked,
+      note, noteSalt: form.noteSalt, evidencePointIds: picked,
     }
-  }, [code, direction, horizon, validTarget, targetPrice, note, picked])
+  }, [code, direction, horizon, validTarget, targetPrice, note, form.noteSalt, picked])
 
-  /* 미리보기의 noteHash 는 비동기라 상태로 들고 있는다. 미리보기가 실제로
-     보일 때만(draft 가 완성됐을 때) 계산한다.
+  /* 미리보기 세 값(noteHash → 커밋 문자열 → commitHash)은 비동기라 상태로 들고 있는다.
+     ethers 를 동적 import 하기 때문인데, 그 대신 이 화면에 들어오기 전에는 받지 않는다.
 
-     어느 본문의 해시인지 함께 들고 있는 이유 — 본문을 계속 고치면 계산이 끝나기
-     전에 다음 글자가 들어온다. 값만 저장하면 그 사이에 옛 본문의 해시가 새 본문의
-     것처럼 보인다. 지금 본문과 짝이 맞을 때만 값으로 인정한다. */
-  const [hashOf, setHashOf] = useState<{ note: string; value: string } | null>(null)
+     무엇으로 만든 값인지 함께 들고 있는 이유 — 입력을 계속 고치면 계산이 끝나기 전에
+     다음 글자가 들어온다. 값만 저장하면 그 사이에 옛 입력의 해시가 지금 입력의 것처럼
+     보이고, 그건 "무엇에 서명하는지" 를 틀리게 보여 주는 것이다. 지금 입력과 짝이 맞을
+     때만 값으로 인정한다. */
+  /* 여섯 값을 JSON 으로 잇는다 — 구분자를 문자 하나로 두면 근거 본문에 그 문자가
+     들어갔을 때 서로 다른 입력이 같은 열쇠가 된다. */
+  const previewKey = draft && JSON.stringify(
+    [draft.stockCode, draft.direction, draft.targetPrice, draft.horizon, draft.note, draft.noteSalt],
+  )
+
+  const [preview, setPreview] = useState<
+    { key: string; noteHash: string; payload: string; commitHash: string } | null
+  >(null)
+
   useEffect(() => {
-    if (!draft) return
+    if (!draft || !previewKey) return
     let alive = true
-    const target = draft.note
-    noteHash(target).then((h) => { if (alive) setHashOf({ note: target, value: h }) })
+    void (async () => {
+      const nh = await noteHash(draft.note, draft.noteSalt)
+      const payload = commitPayload(commitFields(draft, nh))
+      const ch = await commitHash(payload)
+      if (alive) setPreview({ key: previewKey, noteHash: nh, payload, commitHash: ch })
+    })()
     return () => { alive = false }
-  }, [draft])
-  const hash = hashOf?.note === note ? hashOf.value : null
+  }, [draft, previewKey])
+
+  const shown = preview?.key === previewKey ? preview : null
 
   /* 서버가 열 셋으로 나눠 주므로 한 자루에 담아 id 로 찾는다.
      어느 열에서 왔는지는 배지로 보여야 해서 kind 를 함께 기억한다. */
@@ -175,13 +216,25 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
     setSubmitting(true)
     setPhase('signing')
     try {
+      /* 미리보기 값을 쓰지 않고 여기서 다시 계산한다. 미리보기는 화면에 보이는 것이고,
+         서명에 들어갈 값은 지금 이 draft 에서 나와야 한다 — 계산이 끝나기 전에 눌렀을
+         때 옛 입력에 서명하는 길을 아예 만들지 않는다. */
+      const hash = await noteHash(draft.note, draft.noteSalt)
+
       const address = await connectAddress()
+      /* scope 는 아직 PREDICTION_BURN 이다. 규격상 PREDICTION 이 되지만(결정 B4) 서버
+         SignatureScope 에 그 값이 없어 지금 바꾸면 nonce 발급이 400 이다 — PRED-01 과 함께 바꾼다.
+         서명 문자열 자체는 scope 를 쓰지 않으므로 지금도 규격대로다. */
       const nonce = await requestNonce('PREDICTION_BURN')
-      const signature = await personalSign(signingPayload('PREDICTION_BURN', address, nonce), address)
+      const payload = predictionSigningPayload(commitFields(draft, hash), nonce)
+      const signature = await personalSign(payload, address)
       // 지갑 승인이 끝났다. 여기서부터가 사용자가 기다리는 구간이다
       setPhase('committing')
       setResult(await createPrediction(draft, signature))
       setPhase('settled')
+      /* 다음 예측은 새 난수로 봉인한다. 같은 noteSalt 를 두 번 쓰면 같은 근거가 같은
+         noteHash 로 남아, 원장만 보고도 "같은 말을 두 번 했다" 를 알 수 있다. */
+      onForm((f) => ({ ...f, noteSalt: newNoteSalt() }))
     } catch (e) {
       /* 실패하면 모달을 걷는다. 오류는 폼 쪽에서 보여 준다 — 진행 모달에
          오류까지 담으면 "무엇이 어디까지 갔나" 와 "무엇이 잘못됐나" 가 한 창에
@@ -327,6 +380,13 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
                   )}</>
                 : '이 종목은 전일 종가가 없어 대비 비율을 계산할 수 없습니다.'}
             </p>
+            {/* 자릿수는 방향 어긋남보다 먼저 알린다 — 이건 고치지 않으면 등록 자체가 막힌다 */}
+            {priceTooPrecise && (
+              <p className="sd-warn">
+                목표가는 <b>소수 둘째 자리까지</b> 입력할 수 있습니다. 봉인되는 값이라 서버가
+                임의로 반올림하지 않습니다.
+              </p>
+            )}
             {directionMismatch && (
               <p className="sd-warn">
                 {`방향은 "${DIRECTION_LABEL[direction]}" 인데 목표가가 반대쪽입니다. 다시 확인해 주세요.`}
@@ -408,16 +468,21 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
         <div className="pf-sign">
           {draft ? (
             <>
-              {/* commitHash 는 서버 salt 와 결합하므로 여기서 만들 수 없다.
-                  payload 와 noteHash 까지만 펼쳐 보여준다(SignConfirm, §7) */}
+              {/* 커밋 문자열을 그대로 펼쳐 보여 준다(SignConfirm, §7). 커밋 salt 가 없어져
+                  (09-09) 이 브라우저가 원장에 남을 commitHash 를 직접 계산할 수 있다 —
+                  값이 서로 다르면 등록 전에 알아챌 수 있어야 하므로 둘 다 적는다. */}
               <p className="sd-help">
-                아래 내용에 서명합니다. 커밋 해시는 서버가 자체 값을 섞어 만들기 때문에 등록 후에 확인할 수 있습니다.
+                아래 내용에 서명합니다. 커밋 해시는 이 브라우저가 계산한 값이며, 등록 뒤 원장에 남는 값과 같습니다.
               </p>
-              <pre className="sd-payload num">{commitPayload(draft)}</pre>
+              <pre className="sd-payload num">{shown ? shown.payload : '커밋 문자열을 만드는 중…'}</pre>
               <dl className="sd-commit">
                 <div>
                   <dt>근거 본문 해시</dt>
-                  <dd className="num">{hash ?? '계산 중…'}</dd>
+                  <dd className="num">{shown?.noteHash ?? '계산 중…'}</dd>
+                </div>
+                <div>
+                  <dt>커밋 해시</dt>
+                  <dd className="num">{shown?.commitHash ?? '계산 중…'}</dd>
                 </div>
               </dl>
 

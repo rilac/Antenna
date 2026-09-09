@@ -18,7 +18,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import InfoTab from '../components/stockDetail/InfoTab'
 import PredictTab from '../components/stockDetail/PredictTab'
-import { EMPTY_PREDICT_FORM, type PredictForm } from '../components/stockDetail/predictForm'
+import { emptyPredictForm, type PredictForm } from '../components/stockDetail/predictForm'
 import { useBlock } from '../api/useBlock'
 import ErrorState from '../components/state/ErrorState'
 import { addWatch, removeWatch, MARKET_LABEL } from '../api/stocks'
@@ -54,7 +54,9 @@ export default function StockDetail() {
   /* 예측 입력값도 여기서 든다. 탭을 바꾸면 PredictTab 이 언마운트되므로 그
      안에 두면 근거를 고르러 갔다 온 사이에 적어 둔 것이 전부 사라진다.
      picked 를 여기 둔 것과 같은 이유다. */
-  const [form, setForm] = useState<PredictForm>(EMPTY_PREDICT_FORM)
+  /* 함수를 그대로 넘긴다(호출하지 않는다) — useState 의 지연 초기화라 noteSalt 를
+     한 번만 뽑는다. emptyPredictForm() 로 부르면 다시 그릴 때마다 새 난수가 나온다. */
+  const [form, setForm] = useState<PredictForm>(emptyPredictForm)
   const onPick = useCallback((id: number) => {
     setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }, [])

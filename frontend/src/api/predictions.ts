@@ -23,10 +23,15 @@
 
      GET  /predictions/slots   { weeklyLimit, used, remaining, resetsAt }
      POST /predictions         { stockCode, direction, targetPrice, horizon,
-                                 note?, evidencePointIds[], signature }
+                                 note?, noteSalt, evidencePointIds[], signature }
                                201 { predictionId, status:'BASE', commitHash }
                                202 { operationId }              슬롯 초과 → M-02
                                401 서명 주소 불일치 · 409 잔액 부족
+
+       noteSalt 와 서명 문자열 규격은 ANT-PRED-02 가 정했다 — 아래 "커밋 봉인" 절.
+       **scope 만 아직 PREDICTION_BURN 이다.** 규격은 PREDICTION 으로 바뀔 예정인데
+       (결정 B4) 서버 SignatureScope 에 그 값이 아직 없어, 지금 바꾸면 nonce 발급이
+       400 으로 막힌다. PRED-01 이 열릴 때 PredictTab 의 scope 한 곳만 바꾼다.
 
      GET /predictions/me?status=JUDGED
        HIT·MISS 를 묶는 어휘 한 개. 지금 어휘로는 "판정 완료" 를 한 번에 받을 수
@@ -54,8 +59,10 @@
    ─────────────────────────────────────────────────────── */
 import { api } from './client'
 import * as mock from './mock/predictions'
+import { keccak256Utf8 } from '../chain/keccak'
 import type { Anchor } from './anchors'
 import type { ClosePrice, CursorList, OperationRef } from './types'
+import type { WalletNonce } from './wallet'
 
 const MOCK = true
 
@@ -91,6 +98,11 @@ export type PredictionDraft = {
   targetPrice: number
   horizon: Horizon
   note: string
+  /**
+   * 근거를 봉인하는 난수. 클라이언트가 만들어 본문에 함께 보낸다(ANT-PRED-02).
+   * 소문자 64 hex, `0x` 없음 — {@link newNoteSalt} 참고.
+   */
+  noteSalt: string
   /** B-03 투자 포인트에서 인계받은 id. 리포트·재무지표는 근거가 될 수 없다 */
   evidencePointIds: number[]
 }
@@ -379,28 +391,127 @@ export function createPrediction(draft: PredictionDraft, signature: string) {
       : { kind: 'created', data: body }))
 }
 
-/* ── 커밋 미리보기 ────────────────────────────────────────
-   commitHash 는 서버 salt 와 결합해 만들어지므로 클라이언트가 계산할 수 없다.
-   그래서 미리보기는 payload 와 noteHash 까지만 보여준다(§4 C-01). 여기서
-   commitHash 를 흉내내면 화면에 뜬 값과 원장에 남는 값이 달라진다. */
+/* ── 커밋 봉인 (ANT-PRED-02) ──────────────────────────────
+   규격 원본은 서버 CommitPayload · CommitHashes 이고, 기준값은
+   backend/src/test/resources/commit/commit-cross-fixture.json 다섯 건이다.
+   여기 조립 규칙은 그 다섯 건을 그대로 통과한다 — 고치면 다시 대조해야 한다.
 
-/** 등록 본문에서 해시 대상이 되는 부분. 서버 조립 순서를 그대로 따른다. */
-export function commitPayload(draft: PredictionDraft) {
-  return [
-    'antenna:prediction:v1',
-    `stockCode=${draft.stockCode}`,
-    `direction=${draft.direction}`,
-    `targetPrice=${draft.targetPrice}`,
-    `horizon=${draft.horizon}`,
-    /* 숫자 id 라 사전순이 아니라 값 순으로 세운다 — 기본 sort() 는 문자열 비교라
-       10 이 2 보다 앞서고, 그러면 같은 근거를 고르고도 payload 가 달라진다 */
-    `evidencePointIds=${[...draft.evidencePointIds].sort((a, b) => a - b).join(',')}`,
-  ].join('\n')
+   한 글자만 어긋나도 두 가지가 난다. 서명 문자열이 다르면 복원 주소가 달라져
+   이유가 로그에 남지 않는 401(SIGNER_MISMATCH), 커밋 문자열이 다르면 D-03 ①단계가
+   "불일치" 를 그린다 — 사용자에게는 "네 예측이 조작됐다" 로 읽힌다.
+
+   ── 미리보기가 진짜 commitHash 를 보여 준다 ────────────────
+   09-09 결정으로 커밋 salt 가 없어졌다. 유일한 난수인 noteSalt 를 클라이언트가
+   만들고, noteHash 가 그 난수성을 물려받아 salt 역할을 겸한다. 그래서 등록 전
+   미리보기가 원장에 남을 값과 **같은** commitHash 를 계산할 수 있다 — 서버 salt 가
+   있을 때는 불가능했다. */
+
+/** 커밋·서명 문자열에 함께 들어가는 다섯 값. 등록 폼(C-01)과 검산(D-03)이 나눠 쓴다. */
+export type CommitFields = {
+  stockCode: string
+  direction: Direction
+  targetPrice: number
+  /** 서버가 short 로 받는다. proof 응답은 Horizon 어휘 밖 값도 낼 수 있어 number 다 */
+  horizon: number
+  /** keccak256(note ‖ noteSalt) — `0x` + 소문자 64 hex */
+  noteHash: string
 }
 
-/** 근거 본문의 해시. 본문 자체는 payload 에 들어가지 않는다 — 구독자 전용이라서다. */
-export async function noteHash(note: string) {
-  const bytes = new TextEncoder().encode(note)
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return `0x${[...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')}`
+/**
+ * 이 시스템의 **유일한 난수**. 32바이트 CSPRNG → 소문자 64 hex, `0x` 없음.
+ *
+ * 커밋 salt 가 없어져(09-09) 예측 전체의 비밀성이 이 값 하나에 걸린다. 약하면
+ * 리빌 전에 남이 근거를 맞춰 볼 수 있다. crypto.getRandomValues 는 OS 엔트로피를
+ * 쓰는 브라우저 내장 CSPRNG 이고, crypto.subtle 과 달리 비보안 컨텍스트(http)에서도
+ * 돈다. Math.random() 은 암호용이 아니고 crypto.randomUUID() 는 122비트에 형식도
+ * 달라 둘 다 쓰면 안 된다.
+ *
+ * 예측 한 건마다 새로 뽑는다 — 재사용하면 같은 근거를 쓴 두 예측의 noteHash 가 같아져
+ * "같은 말을 두 번 했다" 가 원장에 그대로 드러난다.
+ */
+export function newNoteSalt() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32))
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * 근거 해시 `keccak256(utf8(note) ‖ utf8(noteSalt))`. 서버 CommitHashes.noteHash 와 짝이다.
+ *
+ * 본문은 받은 그대로 해시한다 — trim 도 `\r\n` → `\n` 정규화도 하지 않는다. 서버도
+ * 받은 바이트를 그대로 저장하고 해시하므로, 여기서 손대면 두 값이 갈린다.
+ * noteSalt 는 hex **문자열** 로 이어 붙인다(바이트로 디코드하지 않는다). 구분자 없음.
+ */
+export function noteHash(note: string, noteSalt: string) {
+  return keccak256Utf8(note + noteSalt)
+}
+
+/**
+ * 커밋·서명 문자열에 쓰는 목표가 표기. **항상 소수 둘째 자리** 다.
+ *
+ * 서버 CommitPayload.formatPrice 가 DB numeric(14,2) 모양으로 조립한다. 82000 과
+ * 82000.00 이 갈리면 서명 복원 주소가 달라져 원인이 남지 않는 401 이 난다.
+ */
+export const formatTargetPrice = (price: number) => price.toFixed(2)
+
+/**
+ * 셋째 자리 이하가 있는가. 서버는 **반올림하지 않고** 400 으로 거절하므로
+ * (CommitPayload.formatPrice, RoundingMode.UNNECESSARY) 등록 전에 폼에서 막는다.
+ * 조용히 반올림하면 서명한 값과 서버가 해시한 값이 달라진다.
+ */
+export const targetPriceInScale = (price: number) => Number(price.toFixed(2)) === price
+
+/**
+ * 커밋 문자열의 필드 줄 다섯 개. 서버 CommitPayload.lines() 와 같다.
+ *
+ * 커밋과 서명이 이 다섯 줄을 **함께** 쓴다. 두 곳에서 따로 목표가를 문자열로 만들면
+ * 서명은 통과하고 해시는 안 맞는 사고가 나므로, 포맷 규칙을 여기 한 곳에 둔다.
+ */
+function commitLines(f: CommitFields) {
+  return [
+    `stockCode=${f.stockCode}`,
+    `direction=${f.direction}`,
+    `targetPrice=${formatTargetPrice(f.targetPrice)}`,
+    `horizon=${f.horizon}`,
+    `noteHash=${f.noteHash}`,
+  ]
+}
+
+/**
+ * commitHash 의 대상 문자열. 서버 CommitPayload.canonical() 과 바이트가 같아야 한다.
+ * 구분은 `\n` 하나, 마지막 줄 뒤 개행 없음, UTF-8.
+ *
+ * 없는 줄 셋과 그 이유
+ * - `salt=`             커밋 salt 자체가 없다(09-09). noteHash 가 그 역할을 겸한다.
+ * - `evidencePointIds=` 리서치 포인트 내부 id 는 외부 검증자에게 의미가 없고, 봉인 뒤
+ *                       바꾸는 API 도 없다. 등록 **본문** 에는 그대로 들어간다.
+ * - `createdAt=`        서버 시각이라 검증자가 재현할 수 없다. "이때 있었다" 는 앵커가
+ *                       증명한다.
+ *
+ * 첫 줄이 서명 문자열(`antenna:prediction:v1`)과 다른 것도 규격이다 — 서명이 커밋으로,
+ * 커밋이 서명으로 오인·재사용되지 않게 한다.
+ */
+export function commitPayload(f: CommitFields) {
+  return ['antenna:commit:v1', ...commitLines(f)].join('\n')
+}
+
+/** 커밋 문자열의 해시. 등록 전 미리보기와 D-03 ①단계가 같은 함수를 쓴다. */
+export const commitHash = (payload: string) => keccak256Utf8(payload)
+
+/**
+ * personal_sign 대상 문자열 (결정 B3 — 예측 내용에 서명한다).
+ *
+ * 지갑 연동용 문자열(wallet.ts signingPayload)에 서명하면 예측 내용이 서명에 들어가지
+ * 않아 서버가 SIGNER_MISMATCH 로 거절한다. 여기서는 커밋과 같은 다섯 줄에 머리·꼬리만
+ * 다르게 붙인다.
+ *
+ * chainId 는 POST /wallet/nonce 응답값을 그대로 쓴다 — 지갑에서 eth_chainId 로 읽으면
+ * 서버 조립본과 어긋난다(wallet.ts WalletNonce 주석과 같은 이유).
+ */
+export function predictionSigningPayload(f: CommitFields, nonce: WalletNonce) {
+  return [
+    'antenna:prediction:v1',
+    ...commitLines(f),
+    `chainId=${nonce.chainId}`,
+    `nonce=${nonce.nonce}`,
+  ].join('\n')
 }

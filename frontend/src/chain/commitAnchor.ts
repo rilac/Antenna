@@ -16,8 +16,10 @@
    ② 서버 MerkleTree · 컨트랙트 _computeRoot · 이 파일 셋이 같은 규격이어야 하는데,
       그 규격의 기준값 픽스처(contracts/test/fixtures/merkle-cross-fixture.json)가
       바로 ethers 로 만들어졌다. 같은 구현을 쓰는 것이 어긋남을 없애는 가장 짧은 길이다.
-   메인 번들에 싣지 않으려고 동적 import 로 이 화면에서만 불러온다. */
+   메인 번들에 싣지 않으려고 동적 import 로 이 화면에서만 불러온다 — 로더는 chain/keccak.ts
+   하나뿐이라 ①단계와 여기가 같은 모듈을 나눠 쓴다. */
 import { ApiError, CLIENT_ERROR_CODE } from '../api/errors'
+import { ethers } from './keccak'
 
 /** 장부 컨트랙트에서 검증에 쓰는 두 함수. 둘 다 view — 권한도 가스도 필요 없다. */
 const ABI = [
@@ -30,12 +32,6 @@ export const ZERO_ROOT = `0x${'0'.repeat(64)}`
 
 /** RPC 가 답이 없을 때 화면이 영영 "조회 중" 에 머물지 않도록 끊는다. */
 const TIMEOUT_MS = 15_000
-
-let loading: Promise<typeof import('ethers')> | null = null
-function ethers() {
-  loading ??= import('ethers')
-  return loading
-}
 
 function clientError(code: string, message: string) {
   // status 0 — 서버까지 가지 않은 실패다. wallet/provider.ts 와 같은 규칙.
