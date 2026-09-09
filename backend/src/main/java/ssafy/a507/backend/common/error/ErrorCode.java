@@ -105,6 +105,7 @@ public enum ErrorCode {
     SEASON_NOT_LAST_DAY(HttpStatus.CONFLICT, "아직 마지막 게임일이 아닙니다."),
     /** 끝나지 않은 회차의 결과를 불렀다. 결과는 finish 가 만든다. */
     SEASON_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "아직 결과가 없습니다."),
+    SEASON_REVIEW_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "AI 복기를 만들지 못했습니다. 잠시 후 다시 시도해 주세요."),
 
     // AI 브리핑 (ANT-RESEARCH-03)
     BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),

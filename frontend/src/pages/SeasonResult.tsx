@@ -20,7 +20,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ApiError } from '../api/errors'
 import {
   getPrices, getTickers, rate, signOf,
-  type Candle, type SeasonFinishResult, type Ticker,
+  getResult, type Candle, type SeasonFinishResult, type Ticker,
 } from '../api/seasonPlay'
 import { useApiQuery } from '../api/useApiQuery'
 import EquityChart from '../components/sim/EquityChart'
@@ -76,6 +76,29 @@ export default function SeasonResult() {
   const [loadError, setLoadError] = useState<ApiError | null>(null)
   /** 서버 성적표. 회차를 끝내야 나온다 */
   const [card, setCard] = useState<SeasonFinishResult | null>(null)
+  /** AI 복기. 성적표와 함께 finish 가 만든다. 서버에 키가 없던 회차는 null */
+  const [review, setReview] = useState<string | null>(null)
+
+  /* 이미 끝난 회차면 성적표·복기를 바로 받는다. 404 는 "아직 안 끝남" 이라 조용히 넘긴다 —
+     그때는 아래 버튼이 종료 길이다. finish 를 여기서 자동으로 부르지 않는 이유는 그대로다. */
+  useEffect(() => {
+    if (!seasonId) return
+    getResult(seasonId)
+      .then((r) => { setCard(r); setReview(r.review) })
+      .catch((e) => {
+        if (e instanceof ApiError && e.code === 'SEASON_RESULT_NOT_FOUND') return
+        setLoadError(e instanceof ApiError ? e : null)
+      })
+  }, [seasonId])
+
+  /* 버튼으로 끝낸 경우 — 성적표는 finish 응답에 있고 복기는 result/me 로 한 번 더 받는다 */
+  function finishHere() {
+    void sim.finish().then((r) => {
+      if (!r) return
+      setCard(r)
+      getResult(seasonId).then((d) => setReview(d.review)).catch(() => {})
+    })
+  }
 
   useEffect(() => {
     if (!seasonId) return
@@ -327,8 +350,9 @@ export default function SeasonResult() {
                   진행도 막는 되돌릴 수 없는 요청이라, 결과를 보러 들어온 것만으로
                   판이 끝나면 안 된다. 누르는 것은 사람이어야 한다.
 
-                  (GET /me 가 회차 status 를 주면 이미 끝난 회차인지 알 수 있어
-                   그때는 물어보지 않고 바로 받아 올 수 있다 — 서버에 요청해 둘 것.) */}
+                  보통은 진행 화면(G-04)의 "결과 보기" 확인창에서 끝내고 여기로 온다 —
+                  그러면 위 useEffect 의 GET /result/me 가 성적표·복기를 바로 채운다.
+                  이 버튼은 끝내지 않고 URL 로 들어온 경우의 길이다(2026-09-09). */}
               <div className="sr-card-block">
               {card !== null ? null : !done ? (
                 <p className="sr-wait">
@@ -347,10 +371,17 @@ export default function SeasonResult() {
                     type="button"
                     className="sr-go"
                     disabled={sim.pending}
-                    onClick={() => { void sim.finish().then((r) => { if (r) setCard(r) }) }}
+                    onClick={finishHere}
                   >
-                    {sim.pending ? '끝내는 중…' : '이 판 끝내고 성적표 받기'}
+                    {sim.pending ? '성적표·복기 만드는 중…' : '이 판 끝내고 성적표 받기'}
                   </button>
+                  {sim.reject && (
+                    <b className="sr-reject" role="alert">
+                      {sim.reject === 'REVIEW'
+                        ? 'AI 복기를 만들지 못해 종료하지 않았습니다. 다시 시도해 주세요.'
+                        : '종료하지 못했습니다. 다시 시도해 주세요.'}
+                    </b>
+                  )}
                 </p>
               ) : null}
               {card !== null && (
@@ -403,6 +434,17 @@ export default function SeasonResult() {
                       </small>
                     </div>
                   </dl>
+
+                  {/* AI 복기 — 서버가 finish 때 만들어 저장한 본문(ANT-SEASON-09).
+                      세 단락(잘한 판단 / 아쉬운 판단 / 개선 제안)이라 줄바꿈을 그대로 살린다. */}
+                  <div className="sr-review">
+                    <h3>AI 복기</h3>
+                    {review ? (
+                      <p>{review}</p>
+                    ) : (
+                      <p className="sr-review-none">이 회차에는 AI 복기가 없습니다.</p>
+                    )}
+                  </div>
                   <p className="sr-note">
                     시장 대비는 <b>이 시즌 종목을 똑같이 나눠 사서 끝까지 들고 있었다면</b>과
                     견준 것입니다. 코스피 지수가 아니라 그 시즌 종목으로 만든 기준입니다.
@@ -531,8 +573,7 @@ export default function SeasonResult() {
                   </div>
                 </dl>
                 <p className="sr-soon">
-                  어느 판단이 좋았고 어디서 흔들렸는지는 AI 리포트가 짚어 줍니다.
-                  <small>GET /seasons/{'{id}'}/result/me · ANT-SEASON-09</small>
+                  어느 판단이 좋았고 어디서 흔들렸는지는 성적표 아래 AI 복기가 짚어 줍니다.
                 </p>
               </div>
             </details>
