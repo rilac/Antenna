@@ -115,7 +115,7 @@ class ResearchPointGenerationServiceTest {
     }
 
     @Test
-    @DisplayName("규칙을 어긴 건만 버리고 나머지는 저장한다 — kind 오류·빈 body·300자 초과·D16·목록 밖 documentId")
+    @DisplayName("규칙을 어긴 건만 버리고 나머지는 저장한다 — kind 오류·빈 body·300자 초과·D16·목록 밖 documentId·입력에 없는 숫자")
     void 건별_버리기() {
         seedQuotes(3);
         Long newsId = seedDocument(ResearchDocument.Source.NEWS, "n-1", "제목", "요약.", TARGET.minusDays(1));
@@ -126,7 +126,8 @@ class ResearchPointGenerationServiceTest {
                   {"kind": "RISK", "body": "%s", "documentId": null},
                   {"kind": "RISK", "body": "단기 하락 68%% 전망이다.", "documentId": null},
                   {"kind": "CHECK", "body": "없는 문서를 지목했다.", "documentId": 999999},
-                  {"kind": "POSITIVE", "body": "살아남는 유일한 건이다.", "documentId": %d}
+                  {"kind": "CHECK", "body": "순이익이 999억원이다.", "documentId": null},
+                  {"kind": "POSITIVE", "body": "종가 70,200원으로 살아남는 유일한 건이다.", "documentId": %d}
                 ]
                 """.formatted("가".repeat(301), newsId));
 
@@ -135,7 +136,7 @@ class ResearchPointGenerationServiceTest {
 
         assertThat(researchPointRepository.findAll()).singleElement().satisfies(p -> {
             assertThat(p.getKind()).isEqualTo(ResearchPoint.Kind.POSITIVE);
-            assertThat(p.getBody()).isEqualTo("살아남는 유일한 건이다.");
+            assertThat(p.getBody()).as("쉼표 붙은 숫자도 입력의 70200 과 같은 값으로 본다").isEqualTo("종가 70,200원으로 살아남는 유일한 건이다.");
             assertThat(p.getDocument().getId()).isEqualTo(newsId);
         });
     }

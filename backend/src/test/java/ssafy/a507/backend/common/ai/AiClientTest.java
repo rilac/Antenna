@@ -56,6 +56,7 @@ class AiClientTest {
                 .andExpect(header("Authorization", "Bearer gms-key"))
                 .andExpect(content().string(containsString("\"model\":\"gpt-5.4-mini\"")))
                 .andExpect(content().string(containsString("\"role\":\"system\"")))
+                .andExpect(content().string(containsString("\"temperature\":0")))
                 .andRespond(withSuccess(
                         """
                         {"id":"chatcmpl-1","model":"gpt-5.4-mini-2026-03-17",

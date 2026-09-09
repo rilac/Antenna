@@ -12,6 +12,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
@@ -78,11 +80,26 @@ public class ResearchPointGenerationService {
             - documentId 는 아래 "문서" 목록에 있는 번호만 쓴다. 목록에 없는 번호를 지어내지 않는다.
               특정 문서가 아니라 시세·재무 수치에서 나온 포인트는 null 로 둔다.
             - 주어진 수치와 문서 내용에 있는 사실만 쓴다. 새 수치를 계산하거나 지어내지 않는다.
+            - 숫자는 주어진 값을 단위까지 그대로 옮긴다. 억원·%·원 단위를 바꾸거나 환산하지 않는다.
+              입력에 없는 숫자가 한 개라도 들어간 원소는 버려진다.
+            - 평가·전망 어휘를 쓰지 않는다 — "높다", "낮다", "양호", "부담", "기대된다", "우려된다",
+              "상회", "하회", "시장 기대치" 를 쓰지 않는다. 수치와 사실만 적고 판단은 kind 로만 나타낸다.
             - 매수·매도 권유, 목표주가, 주가 방향 예측을 쓰지 않는다.
             - 상승·하락의 확률이나 가능성을 수치로 쓰지 않는다. "확률"이라는 단어를 쓰지 않는다.
             - 등락률을 인용할 때는 "3.2% 상승했다"처럼 수치를 앞에 쓴다. "상승 3.2%" 처럼 방향을
               앞세우지 않는다.
+
+            예시 — 입력(일부):
+            종가 31000원 · 1영업일 -1.90% · 20영업일 +9.73%
+            부채비율 1084.2% · ROE 11.8% (2025년 기준)
+            문서(번호 · 날짜 · 원천 · 내용):
+            - [7] 2026-09-03 · 뉴스 · 금융지주와 은행주에 매수세가 몰리며 JB금융지주는 5% 넘게 올랐다.
+            예시 — 출력:
+            [{"kind":"POSITIVE","body":"2026-09-03 금융지주와 은행주에 매수세가 몰리며 JB금융지주가 5% 넘게 올랐다.","documentId":7},{"kind":"RISK","body":"2025년 부채비율이 1084.2%다.","documentId":null},{"kind":"CHECK","body":"기준일 종가가 1영업일 전보다 1.90% 하락했고 20영업일 기준으로는 9.73% 올랐다.","documentId":null}]
             """;
+
+    /** 본문에서 숫자를 뽑는다 — 쉼표 천 단위, 소수점 포함. */
+    private static final Pattern NUMBER = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
 
     private final AiClient aiClient;
     private final AiProperties aiProperties;
@@ -137,7 +154,7 @@ public class ResearchPointGenerationService {
         Map<Long, ResearchDocument> documents = documents(stock.getCode(), targetDate);
         String input = facts + documentBlock(documents);
 
-        List<ResearchPoint> points = parse(aiClient.complete(INSTRUCTION, input), stock, targetDate, documents);
+        List<ResearchPoint> points = parse(aiClient.complete(INSTRUCTION, input), input, stock, targetDate, documents);
         if (points.isEmpty()) {
             // 전부 버려졌으면 저장하지 않는다 — 빈 채로 두면 다음 요청이 다시 만들어 본다.
             log.warn("[POINT] 쓸 수 있는 포인트가 없어 저장하지 않는다 stock={}", stock.getCode());
@@ -184,7 +201,7 @@ public class ResearchPointGenerationService {
 
     /** 배열 밖의 군말은 무시하고, 규칙을 어긴 원소는 그 건만 버린다. */
     private List<ResearchPoint> parse(
-            String text, Stock stock, LocalDate targetDate, Map<Long, ResearchDocument> documents) {
+            String text, String input, Stock stock, LocalDate targetDate, Map<Long, ResearchDocument> documents) {
         JsonNode array = array(text, stock.getCode());
         if (array == null) {
             return List.of();
@@ -202,6 +219,10 @@ public class ResearchPointGenerationService {
                 log.warn("[POINT] D16 위반 문구가 있어 포인트 한 건을 버린다 stock={}", stock.getCode());
                 continue;
             }
+            if (!numbersGrounded(body, input)) {
+                log.warn("[POINT] 입력에 없는 숫자가 있어 포인트 한 건을 버린다 stock={} body={}", stock.getCode(), body);
+                continue;
+            }
             Long documentId = documentId(node.path("documentId"));
             ResearchDocument document = documentId == null ? null : documents.get(documentId);
             if (documentId != null && document == null) {
@@ -216,6 +237,22 @@ public class ResearchPointGenerationService {
             points.add(ResearchPoint.of(stock, targetDate, kind, body, document));
         }
         return points;
+    }
+
+    /**
+     * 본문의 모든 숫자가 입력에 있는지. 양자화된 자체 서빙 모델이 "340000억원"을 "340억원"으로 옮기거나
+     * 없는 "시장 기대치 9%"를 붙이는 것을 막는다 — 규칙이 "새 수치를 만들지 않는다"라 숫자가 입력
+     * 밖이면 그 건은 지어낸 것이다. 쉼표는 양쪽에서 지우고 부분 문자열로 본다.
+     */
+    static boolean numbersGrounded(String body, String input) {
+        String haystack = input.replace(",", "");
+        Matcher m = NUMBER.matcher(body);
+        while (m.find()) {
+            if (!haystack.contains(m.group().replace(",", ""))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** 코드펜스나 인사말이 붙어 와도 첫 {@code [} 부터 마지막 {@code ]} 까지를 배열로 읽는다. */
