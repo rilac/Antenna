@@ -28,7 +28,10 @@ import ErrorState from '../components/state/ErrorState'
 import '../styles/screens/stocks.css'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
-const signed = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+/* 0 에는 부호를 붙이지 않고 색도 주지 않는다 — 근거는 Watchlist.tsx(B-04). */
+const signed = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(2)}%`
+const toneOf = (rate: number | null) =>
+  rate === null || rate === 0 ? '' : rate > 0 ? 'up' : 'down'
 const dotted = (iso: string) => iso.replaceAll('-', '.')
 /** 값이 없는 칸. 0 으로 그리면 "PER 0 배" 로 읽힌다 */
 const DASH = '—'
@@ -95,7 +98,7 @@ function SectorChips({ current, onPick }: {
             <span className="st-sector-name">{s.sector ?? '전체 종목'}</span>
             <span className="st-sector-meta">
               <em className="num">{s.count}개</em>
-              <b className={`num ${s.changeRate >= 0 ? 'up' : 'down'}`}>{signed(s.changeRate)}</b>
+              <b className={`num ${toneOf(s.changeRate)}`}>{signed(s.changeRate)}</b>
             </span>
           </button>
         )
@@ -327,7 +330,7 @@ export default function Stocks() {
                             {s.prevClose === null ? DASH : won(s.prevClose)}
                           </span>
                           <span className={`st-rate num ${
-                            s.changeRate === null ? '' : s.changeRate >= 0 ? 'up' : 'down'}`}>
+                            toneOf(s.changeRate)}`}>
                             {s.changeRate === null ? DASH : signed(s.changeRate)}
                           </span>
                           <span className="st-per num">

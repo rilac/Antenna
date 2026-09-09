@@ -5,6 +5,8 @@
      GET  /predictions/me            내 예측 (C-02) — 붙었다
      GET  /predictions/{id}          예측 상세 (C-03)
      GET  /stocks/{code}/predictions  이 종목에 걸린 남의 예측 (B-03 예측 탭)
+                                      **API 명세서에 이 항목 자체가 없다.** 프론트가
+                                      부르는 경로인데 명세에 빠져 있어 함께 올렸다.
 
    ── 붙은 것 ────────────────────────────────────────────────
    GET /predictions/me (ANT-PRED-06). 요청한 대로 stockName 이 항목에 들어왔고,
@@ -36,7 +38,7 @@
        /channels/{userId}/predictions 뿐이라 "이 종목에 누가 무엇을 걸었나" 를
        모을 수가 없다. 응답은 §5 게이팅을 따라야 한다:
          · 판정 완료(HIT/MISS) — direction·targetPrice·결과까지 전체 공개
-         · 미판정(BASE/OPEN)   — 작성자·구독자가 아니면 locked:true 로 내리고
+         · 미판정(BASE/OPEN)   — 근거만 잠근다. locked:true 로 내리고
                                  targetPrice 만 null 로 뺀다. 작성자·적중률·방향·
                                  기간은 공개한다(존재를 감추면 구독 유인이 사라진다).
                                  이 조합은 서버 PredictionCardResponse 가 이미
@@ -144,7 +146,10 @@ export type StockPrediction = {
   createdAt: string
   /** 만기 영업일 YYYY-MM-DD */
   dueDate: string
-  /** 미판정을 볼 권한이 없으면 true. targetPrice 가 비어 온다 */
+  /**
+   * 근거 본문을 볼 권한이 없으면 true. **다른 값은 그대로 온다**
+   * (2026-09-08 결정 — 전에는 목표가까지 비웠다).
+   */
   locked: boolean
   /* 방향은 잠긴 예측에서도 온다. 서버 PredictionCardResponse 가 정한 규칙으로
      (Jira S15P21A507-70), 잠글 때 종목·방향까지는 남기고 targetPrice 만 null 로
@@ -240,8 +245,13 @@ export function fetchMyPredictions(filter: MyFilter) {
 /* ── 예측 상세 (C-03) ─────────────────────────────────────
    잠금이 두 겹이다(§5 게이팅 표).
 
-     ① 예측 전체   미판정(BASE/OPEN) + 작성자·구독자 아님 → locked
-     ② 근거 본문   미구독 → noteLocked. **만기 리빌 후에도 풀리지 않는다**
+     ① 근거 본문   미구독 → noteLocked. **만기 리빌 후에도 풀리지 않는다**
+                   (payload 에 noteHash 만 들어가므로 애초에 공개 대상이 아니다)
+     ② 예측 자체   **잠그지 않는다**(2026-09-08 결정). 예측가·종목·방향·목표가·
+                   기준가·만기는 누구에게나 보인다 — 목표가까지 가리면 "누가
+                   무언가를 예측했다" 만 남아 예측가를 고를 수 없다.
+                   서버 명세(§5 · /channels/{userId}/predictions)가 아직 옛 규칙이라
+                   locked 필드는 남겨 두었다.
                     (payload 에 noteHash 만 들어가므로 애초에 공개 대상이 아니다)
 
    무엇을 잠그지 않는가 — commitHash · 앵커 · 서명 주소는 **언제나 공개**다.
@@ -252,7 +262,15 @@ export function fetchMyPredictions(filter: MyFilter) {
 export type PredictionDetail = {
   id: string
   stockCode: string
-  /** C-02 와 같은 사정으로 서버에 아직 없다. 비면 종목코드로 대체한다 */
+  /**
+   * **명세에 없다.** GET /predictions/{id} 응답 스키마가 stockCode 만 적고 있어
+   * 서버가 붙어도 이름이 오지 않는다 — 제목이 "005930" 으로 뜬다. C-02 에서
+   * 같은 요청을 해 받아냈으므로(위 "붙은 것") 여기도 넣어 달라고 올렸다.
+   *
+   * 그때까지 화면(C-03)이 이름이 비면 종목 개요에서 가져온다. 그건 목업을 메우는
+   * 우회가 아니라 **이름이 없을 때의 폴백** 이다 — 종목이 지워진 건은 서버가
+   * 붙어도 이름이 비고, 그때도 코드보다는 그 값이 낫다.
+   */
   stockName: string | null
   author: { userId: string; nickname: string }
   status: PredictionStatus
@@ -263,8 +281,13 @@ export type PredictionDetail = {
   /** 만기까지 남은 일수. 판정이 끝났거나 기준가 확정 전이면 null */
   dday: number | null
 
-  /* ── 잠금 대상 ────────────────────────────────────────
-     locked 면 아래 넷이 비어 온다. 0 으로 그리지 않는다. */
+  /* ── 잠금 ────────────────────────────────────────────
+     **아래 값들은 잠기지 않는다**(2026-09-08 결정). 예측가를 고를 근거가 되어야
+     하므로 방향·목표가·기준가·만기는 누구에게나 온다. 구독으로 사는 것은
+     판단의 이유(noteLocked 가 가리는 note)뿐이다.
+
+     locked 는 남긴다 — 서버가 아직 옛 규칙(예측 전체 잠금)으로 답할 수 있고,
+     그때는 화면이 잠금 카드로 그린다. 명세가 정리되면 지운다. */
   locked: boolean
   direction: Direction | null
   targetPrice: number | null
