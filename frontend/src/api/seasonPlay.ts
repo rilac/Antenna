@@ -144,6 +144,46 @@ export type AdvanceResult = {
 export const advance = (seasonId: number, expectedDay: number) =>
   api.post<AdvanceResult>(`/seasons/${seasonId}/advance`, { expectedDay })
 
+/* ── 회차 종료 · POST /seasons/{id}/finish ────────────────── */
+
+/**
+ * 성적표. 서버가 체결 내역을 처음부터 다시 돌려 계산하고 DB 에 굳힌다.
+ *
+ * <p>정의할 수 없는 값은 null 이다 — 매도가 없으면 승률·평균 보유일이 없고,
+ * 손실이 하나도 없으면 손익비의 분모가 0 이다.
+ */
+export type SeasonFinishResult = {
+  participantId: number
+  /** 마지막 게임일 종가로 평가한 총자산 */
+  finalAsset: number
+  /** 시작 예수금 대비 % */
+  returnRate: number
+  /**
+   * 등가중 벤치마크(%). 시즌 종목을 똑같이 나눠 사서 끝까지 들고 있었다면.
+   * 코스피 지수가 아니라 <b>그 시즌 종목으로 만든 지수</b>다.
+   */
+  benchmarkReturn: number | null
+  /**
+   * 최대 낙폭(%). 최고점에서 가장 깊게 파인 곳까지다 —
+   * 화면이 따로 세는 "최고점 대비 마감" 과 다르다. 그건 끝값이고 이건 도중의 바닥이다.
+   */
+  maxDrawdown: number
+  /** 매도 건수 중 이익으로 끝난 비율(%) */
+  winRate: number | null
+  /** 이익 본 매도의 합 ÷ 손해 본 매도의 합. 1 미만이면 잃은 것이다 */
+  profitFactor: number | null
+  /** (판 날 − 처음 산 날) 의 평균. 단타였는지 길게 들었는지 */
+  avgHoldingDays: number | null
+}
+
+/**
+ * 이 회차를 끝낸다. <b>되돌릴 수 없다</b> — 회차가 DONE 이 되어 주문도 진행도 막힌다.
+ * 마지막 게임일에서만 부를 수 있고(아니면 409 SEASON_NOT_LAST_DAY), 이미 끝난 회차면
+ * 저장해 둔 같은 결과를 다시 준다.
+ */
+export const finish = (seasonId: number) =>
+  api.post<SeasonFinishResult>(`/seasons/${seasonId}/finish`)
+
 /* ── 게임일 뉴스 · GET /seasons/{id}/news ─────────────────── */
 
 export type NewsKind = 'NEWS' | 'DISCLOSURE' | 'IR' | 'EVENT'
