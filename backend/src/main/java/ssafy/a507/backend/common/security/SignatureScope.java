@@ -9,6 +9,8 @@ package ssafy.a507.backend.common.security;
  */
 public enum SignatureScope {
     WALLET_LINK("wallet-link"),
+    /** 예측 등록(ANT-PRED-01, 결정 B4). 무료든 소각이든 등록 서명은 이 하나다 — 소각 여부는 서버가 슬롯 수로 판단한다. */
+    PREDICTION("prediction"),
     PREDICTION_BURN("prediction-burn"),
     SUBSCRIBE("subscribe"),
     AD("ad"),

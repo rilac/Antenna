@@ -142,4 +142,34 @@ public class Prediction {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    /**
+     * 실전(REAL) 예측 등록 (ANT-PRED-01). 상태는 BASE 로 시작하고 기준가(base_price)는 배치(PRED-03)가 채운다.
+     *
+     * <p>{@code baseDate}·{@code settleDate} 를 등록 때 확정하는 이유: 판정 배치가 "base_date 도래분" 을 찾고, 화면이 D-day 를
+     * 세야 한다. 둘 다 비워 두면 배치는 뭘 잡을지 모르고 D-day 는 못 그린다. {@code refClose} 는 등록 때 본 직전 종가의 박제 —
+     * 방향·목표가 모순 검사의 기준이며 기준가가 아니다.
+     */
+    public static Prediction register(
+            User user,
+            Stock stock,
+            Direction direction,
+            BigDecimal targetPrice,
+            BigDecimal refClose,
+            short horizon,
+            LocalDate baseDate,
+            LocalDate settleDate) {
+        Prediction p = new Prediction();
+        p.user = user;
+        p.track = Track.REAL;
+        p.stock = stock;
+        p.direction = direction;
+        p.targetPrice = targetPrice;
+        p.refClose = refClose;
+        p.horizon = horizon;
+        p.baseDate = baseDate;
+        p.settleDate = settleDate;
+        p.status = Status.BASE;
+        return p;
+    }
 }

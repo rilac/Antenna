@@ -128,6 +128,13 @@ public enum ErrorCode {
      */
     CHAIN_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "블록체인 네트워크에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."),
 
+    // 예측 등록 (ANT-PRED-01)
+    /**
+     * 오늘 무료 슬롯(3건)을 다 썼다. 명세는 "서명 동반 소각(202) 경로로 전환" 이라는 뜻으로 이 code 를 두었다 —
+     * 소각할 토큰(ANT-CHAIN-03)이 생기면 그 재요청을 받는 202 경로가 여기에 붙는다. 지금은 여기서 끝난다.
+     */
+    PREDICTION_SLOT_EXCEEDED(HttpStatus.CONFLICT, "오늘 무료 예측 슬롯을 모두 사용했습니다."),
+
     // 온체인 검증 (ANT-CHAIN-06)
     /** 없는 batchId 다. 체인에는 있는데 DB 에 없는 번호(데모 소모분)도 여기로 온다 — 원장은 DB 기준이다. */
     ANCHOR_NOT_FOUND(HttpStatus.NOT_FOUND, "앵커 배치를 찾을 수 없습니다."),
