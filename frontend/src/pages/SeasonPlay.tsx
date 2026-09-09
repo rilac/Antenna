@@ -573,7 +573,9 @@ export default function SeasonPlay() {
                     +{n.toLocaleString('ko-KR')}
                   </button>
                 ))}
-                <button type="button" onClick={() => setQty(maxQty)}>최대</button>
+                <button type="button" disabled={maxQty <= 0} onClick={() => setQty(maxQty)}>
+                  최대
+                </button>
               </div>
 
               {/* 예상 금액은 프론트 계산이다(명세 §모의투자). 종가 단일가라 곱하기 하나다.
@@ -605,7 +607,15 @@ export default function SeasonPlay() {
                 disabled={qty <= 0 || price === null || sim.pending}
                 onClick={() => { void submit() }}
               >
-                {sim.pending ? '주문 중…' : side === 'BUY' ? '매수 주문' : '매도 주문'}
+                {/* 꺼진 버튼은 왜 꺼졌는지 말해야 한다. "매수 주문" 이 회색으로 있으면
+                    누를 수 없는 이유가 수량인지 가격인지 서버인지 알 수 없다. */}
+                {sim.pending
+                  ? '주문 중…'
+                  : price === null
+                    ? '가격을 불러오는 중…'
+                    : qty <= 0
+                      ? '수량을 입력하세요'
+                      : side === 'BUY' ? '매수 주문' : '매도 주문'}
               </button>
 
               {/* 마지막 날에는 버튼이 결과로 바뀐다. 전에는 "마지막 게임일입니다" 라고
