@@ -2,7 +2,8 @@
    서버 스토리 ANT-RESEARCH-03 (BriefingController · BriefingService)
 
    왜 파일을 따로 두는가
-   브리핑을 읽는 곳이 셋이다 — B-01 홈 띠 · B-03 종목 상세 · M-10 상세 모달.
+   브리핑을 읽는 곳이 둘이다 — B-01 홈 띠 · M-10 상세 모달. (B-03 종목 상세의 종목
+   브리핑은 2026-09-09 에 생성을 없애면서 뺐다. scope=STOCK 행은 옛것만 남아 있다.)
    그런데 타입이 두 벌로 갈라져 있었다. api/insight.ts 는 서버와 같은 모양이었고
    api/stockDetail.ts 는 { title, summary, tone, computedAt } 이라는 **서버에 없는**
    모양이었다. 파일이 다르면 tsc 가 겹침을 잡지 못한다(Proof 때 같은 일을 겪었다).
@@ -68,11 +69,6 @@ type Query = {
 
 export function getBriefings(query: Query = {}) {
   return api.get<{ items: BriefingItem[] }>('/briefings', { query })
-}
-
-/** B-03 종목 상세용. 서버에 /stocks/{code}/briefings 는 없다 — 스코프로 좁힌다. */
-export function getStockBriefings(stockCode: string) {
-  return getBriefings({ scope: 'STOCK', stockCode })
 }
 
 export function getBriefing(id: number) {

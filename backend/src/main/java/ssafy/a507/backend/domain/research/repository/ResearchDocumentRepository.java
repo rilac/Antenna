@@ -15,36 +15,6 @@ public interface ResearchDocumentRepository extends JpaRepository<ResearchDocume
             ResearchDocument.Source source, List<String> externalIds);
 
     /**
-     * 요약이 필요한 문서 한 묶음 (배치 B6).
-     *
-     * <p>아직 요약이 없는 행과, 프롬프트 세대가 뒤처진 행을 한 조건으로 집는다 — 프롬프트를
-     * 고치면 {@code app.ai.prompt-version} 만 올리면 되고 재생성 경로를 따로 만들지 않는다.
-     *
-     * <p>종목을 함께 읽어 온다. 요약 프롬프트에 종목명을 넣어야 어느 회사 이야기인지 모델이
-     * 알고, 건마다 프록시를 깨우면 묶음 크기만큼 쿼리가 늘어난다.
-     *
-     * <p><b>{@code since} 로 기간을 자르는 이유 (2026-09-09).</b> 이 조건이 없으면 "요약이 없는
-     * 행"이 영원히 대상으로 남는다. 요약 배치를 꺼 두는 동안에도 수집은 계속 돌아 하루 ~900건씩
-     * 쌓이고, 다시 켜는 날 밀린 것부터 회차당 상한만큼 며칠에 걸쳐 그대로 GMS 에 청구된다 —
-     * 끄는 것으로 비용이 없어지는 게 아니라 이연될 뿐이었다. 기간을 자르면 재개한 시점부터의
-     * 기사만 요약하고 그 사이 행은 {@code summary} 가 NULL 인 채로 남는다. 지난 기사 요약은
-     * 화면에서 값이 거의 없어 그렇게 두기로 했다.
-     */
-    @Query("""
-            select d from ResearchDocument d
-              join fetch d.stock
-            where d.source = :source
-              and (d.promptVersion is null or d.promptVersion <> :promptVersion)
-              and d.publishedAt >= :since
-            order by d.publishedAt desc
-            """)
-    List<ResearchDocument> findPendingSummary(
-            @Param("source") ResearchDocument.Source source,
-            @Param("promptVersion") String promptVersion,
-            @Param("since") Instant since,
-            Limit limit);
-
-    /**
      * 브리핑 재료 — 기준일 안에 나온 뉴스 중 최신 몇 건 (ANT-RESEARCH-03).
      *
      * <p>기준일로 묶는 이유: 브리핑 기준일은 일봉이 들어온 마지막 영업일(D-1)인데 뉴스는 그날 저녁

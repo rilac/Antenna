@@ -48,6 +48,7 @@ class PointE2ELiveTest {
 
     @Autowired ResearchPointGenerationService generationService;
     @Autowired ResearchPointService researchPointService;
+    @Autowired ssafy.a507.backend.domain.market.repository.StockRepository stockRepository;
     @Autowired ResearchPointRepository researchPointRepository;
     @Autowired EntityManager em;
     @Autowired PlatformTransactionManager txManager;
@@ -118,7 +119,7 @@ class PointE2ELiveTest {
         });
 
         long t0 = System.currentTimeMillis();
-        int written = generationService.generate();
+        int written = generationService.generate(stockRepository.findById(SAMSUNG).orElseThrow());
         System.out.println("[E2E] 포인트 " + written + "건 (" + (System.currentTimeMillis() - t0) + "ms)");
         assertThat(written).as("전부 버려졌으면 0 — 원문 응답을 본다").isPositive();
 
@@ -146,18 +147,15 @@ class PointE2ELiveTest {
     }
 
     private Long seedDocument(
-            ResearchDocument.Source source, String externalId, String title, String summary, LocalDate publishedOn) {
+            ResearchDocument.Source source, String externalId, String title, String snippet, LocalDate publishedOn) {
         ResearchDocument document = ResearchDocument.collected(
                 em.getReference(ssafy.a507.backend.domain.market.entity.Stock.class, SAMSUNG),
                 source,
                 externalId,
                 title,
                 "https://example.com/" + externalId,
-                null,
+                snippet,
                 publishedOn.atTime(15, 0).atZone(KST).toInstant());
-        if (summary != null) {
-            document.summarize(summary, "v1");
-        }
         em.persist(document);
         em.flush();
         return document.getId();

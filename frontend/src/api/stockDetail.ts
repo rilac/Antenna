@@ -82,14 +82,14 @@ export const SOURCE_LABEL: Record<DocumentSource, string> = {
   IR: 'IR',
 }
 
-/** 공시·뉴스. 원문 본문을 저장하지 않으므로 요약과 링크만 온다(§4 B-03). */
+/** 공시·뉴스. 원문 본문을 저장하지 않으므로 발췌와 링크만 온다(§4 B-03). */
 export type StockDocument = {
   id: number
   source: DocumentSource
   title: string
-  /* 수집은 됐는데 요약 배치가 아직 안 돈 건은 null 이다. 그때는 제목만 보여준다 —
-     요약을 기다리느라 감추면 방금 난 기사가 가장 늦게 뜬다(서버 DTO 주석). */
-  summary: string | null
+  /* 네이버 검색 API 발췌 그대로. 공시는 발췌가 없어 null — 보고서명이 곧 내용이다.
+     AI 요약은 2026-09-09 에 없앴다(서버 DTO 주석). */
+  snippet: string | null
   originUrl: string
   publishedAt: string
 }
@@ -118,7 +118,11 @@ export type InvestPoint = {
   source: DocumentSource | null
 }
 
-export type PointGroups = Record<PointKind, InvestPoint[]>
+/* 서버가 없으면 그 자리에서 만든다(2026-09-09 요청 시점 생성). 첫 요청은 2~4초 걸리고,
+   실패하면 503 POINT_GENERATION_FAILED — 다시 부르면 다시 만든다. 같은 종목·같은 거래일은
+   한 번만 만들어 두 번째부터는 바로 온다. targetDate 는 어느 거래일 기준인지 — 시세·공시·
+   뉴스가 들어오는 시각이 제각각이라 화면이 "9/8 종가 기준" 처럼 적어 줘야 한다. 없으면 null */
+export type PointGroups = Record<PointKind, InvestPoint[]> & { targetDate: string | null }
 
 /**
  * 기업 개요.

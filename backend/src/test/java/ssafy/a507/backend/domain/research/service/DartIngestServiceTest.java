@@ -155,7 +155,6 @@ class DartIngestServiceTest {
         assertThat(saved.getTitle()).isEqualTo("사업보고서");
         assertThat(saved.getOriginUrl())
                 .isEqualTo("https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260831000066");
-        assertThat(saved.getSummary()).as("요약은 배치 B6 의 몫이다").isNull();
     }
 
     @Test

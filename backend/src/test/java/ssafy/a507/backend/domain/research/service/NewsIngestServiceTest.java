@@ -133,7 +133,6 @@ class NewsIngestServiceTest {
                 .singleElement()
                 .satisfies(document -> {
                     assertThat(document.getSnippet()).isEqualTo("발췌 본문");
-                    assertThat(document.getSummary()).as("요약은 B6 의 몫이다").isNull();
                     assertThat(document.getExternalId())
                             .as("주소 해시는 64자 고정 — external_id 컬럼이 100자다")
                             .hasSize(64);

@@ -38,7 +38,6 @@ class NewsE2ELiveTest {
 
     @Autowired NaverNewsClient newsClient;
     @Autowired NewsIngestService ingestService;
-    @Autowired DocumentSummaryService summaryService;
     @Autowired ResearchDocumentService documentService;
     @Autowired ResearchDocumentRepository researchDocumentRepository;
     @Autowired EntityManager em;
@@ -47,7 +46,6 @@ class NewsE2ELiveTest {
     @BeforeEach
     void setUp() {
         assumeThat(System.getenv("NAVER_API_KEY_ID")).as("NAVER_API_KEY_ID 없음").isNotBlank();
-        assumeThat(System.getenv("AI_API_KEY")).as("AI_API_KEY 없음").isNotBlank();
         new TransactionTemplate(txManager).executeWithoutResult(status -> {
             em.createNativeQuery("INSERT INTO stocks (code, name, listed) VALUES (?, ?, TRUE)")
                     .setParameter(1, SAMSUNG)
@@ -58,7 +56,7 @@ class NewsE2ELiveTest {
     }
 
     @Test
-    @DisplayName("수집 → 요약 → 조회가 실제로 이어진다")
+    @DisplayName("수집 → 조회가 실제로 이어진다")
     void 전체_파이프라인() {
         // 필터 통과율을 먼저 본다. 종목명 검색 결과 중 제목에 종목명이 든 것은 2026-09-03
         // 실측으로 15% 안팎이라, display 를 작게 잡으면 어느 날은 0건이 정상이다.
@@ -77,30 +75,13 @@ class NewsE2ELiveTest {
                 .forEach(document -> System.out.println(
                         "[E2E]   " + document.getPublishedAt() + " | " + document.getTitle()));
 
-        t0 = System.currentTimeMillis();
-        int summarized = summaryService.summarizeNews();
-        System.out.println("[E2E] 요약 생성 " + summarized + "건 (" + (System.currentTimeMillis() - t0) + "ms)");
-        assertThat(summarized).isPositive();
-
-        assertThat(researchDocumentRepository.findAll())
-                .filteredOn(document -> document.getSummary() != null)
-                .allSatisfy(document -> {
-                    System.out.println("[E2E]   요약: " + document.getSummary());
-                    assertThat(document.getPromptVersion()).isNotBlank();
-                    assertThat(document.getSummary()).doesNotContain("<b>");
-                });
-
-        assertThat(summaryService.summarizeNews())
-                .as("다시 돌려도 같은 세대는 건드리지 않는다")
-                .isZero();
-
         var page = documentService.documents(SAMSUNG, ResearchDocument.Source.NEWS, null, 5);
         System.out.println("[E2E] 조회 " + page.items().size() + "건 · hasNext=" + page.hasNext());
         assertThat(page.items())
                 .isNotEmpty()
                 .allSatisfy(item -> assertThat(item.originUrl()).startsWith("http"));
         assertThat(page.items())
-                .extracting(ResearchDocumentItemResponse::summary)
-                .anySatisfy(summary -> assertThat(summary).isNotBlank());
+                .extracting(ResearchDocumentItemResponse::snippet)
+                .anySatisfy(snippet -> assertThat(snippet).isNotBlank().doesNotContain("<b>"));
     }
 }

@@ -6,12 +6,15 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -43,7 +46,7 @@ class AiClientTest {
     }
 
     private AiClient client() {
-        return new AiClient(builder.build(), new AiProperties("gms-key", null, null, "v1", null));
+        return new AiClient(builder.build(), new AiProperties("gms-key", null, null, "v1"), Duration.ZERO);
     }
 
     @Test
@@ -52,7 +55,7 @@ class AiClientTest {
         server.expect(requestTo(URL))
                 .andExpect(header("Authorization", "Bearer gms-key"))
                 .andExpect(content().string(containsString("\"model\":\"gpt-5.4-mini\"")))
-                .andExpect(content().string(containsString("\"role\":\"developer\"")))
+                .andExpect(content().string(containsString("\"role\":\"system\"")))
                 .andRespond(withSuccess(
                         """
                         {"id":"chatcmpl-1","model":"gpt-5.4-mini-2026-03-17",
@@ -94,5 +97,46 @@ class AiClientTest {
         assertThatThrownBy(() -> client().complete("규칙", "재료"))
                 .isInstanceOf(AiException.class)
                 .hasMessageContaining("model not found");
+    }
+
+    @Test
+    @DisplayName("429 는 분당 한도다 — 한 번 쉬고 다시 부른다. 무료 티어(15 RPM 안팎)에서 건을 잃지 않으려고")
+    void 한도_초과는_한_번_재시도() {
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        server.expect(requestTo(URL))
+                .andRespond(withSuccess(
+                        """
+                        {"choices":[{"index":0,"finish_reason":"stop",
+                         "message":{"role":"assistant","content":"두 번째에 성공."}}]}
+                        """,
+                        JSON));
+
+        assertThat(client().complete("규칙", "재료")).isEqualTo("두 번째에 성공.");
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("두 번 연속 429 면 그 건은 포기한다 — 회차는 이어 간다")
+    void 두_번_막히면_포기() {
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        server.expect(requestTo(URL)).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+
+        assertThatThrownBy(() -> client().complete("규칙", "재료"))
+                .isInstanceOf(AiException.class)
+                .isNotInstanceOf(AiKeyRejectedException.class)
+                .hasMessageContaining("429");
+    }
+
+    @Test
+    @DisplayName("401 은 키가 죽은 것이다(토큰 소진·잘못된 키) — 건너뛰기가 아니라 회차 중단 신호로 구분해 던진다")
+    void 키_거부() {
+        server.expect(requestTo(URL))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+                        .contentType(JSON)
+                        .body("{\"message\":\"[GMS 에러] This GMS key has no token left\",\"statusCode\":401}"));
+
+        assertThatThrownBy(() -> client().complete("규칙", "재료"))
+                .isInstanceOf(AiKeyRejectedException.class)
+                .hasMessageContaining("no token left");
     }
 }

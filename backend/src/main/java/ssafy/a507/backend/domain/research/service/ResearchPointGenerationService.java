@@ -11,9 +11,9 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import ssafy.a507.backend.common.ai.AiClient;
@@ -27,9 +27,14 @@ import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
 import ssafy.a507.backend.domain.research.repository.ResearchPointRepository;
 
 /**
- * 긍정·위험·확인 포인트 생성 — 배치 B6 의 세 번째 갈래 (ANT-RESEARCH-04).
+ * 긍정·위험·확인 포인트 생성 (ANT-RESEARCH-04).
  *
- * <p>브리핑과 재료·기준일·대상 종목이 같다({@link StockMaterials}). 다른 것은 두 가지다.
+ * <p><b>요청 시점에 만든다(2026-09-09 부터).</b> 원래는 배치 B6 가 매일 상장 종목 전부(≈300)를
+ * 미리 만들었는데, 실제로 열리는 종목은 소수라 GMS 토큰이 하루 만에 바닥났다. 지금은 사용자가
+ * 예측 탭에서 포인트를 요청한 종목만, 최신 거래일 기준으로 한 번 만들어 저장한다 — 같은 종목·
+ * 같은 거래일의 다음 요청은 DB 에서 바로 나간다.
+ *
+ * <p>브리핑과 재료·기준일이 같다({@link StockMaterials}). 다른 것은 두 가지다.
  *
  * <p><b>① 응답을 JSON 배열로 받는다.</b> 브리핑은 줄글이라 첫 줄만 떼면 됐지만 포인트는 3열 × N건
  * 이고 건마다 근거 문서를 가리켜야 한다. 줄글에서 "이 문장의 근거는 몇 번 문서"를 뽑아내려면
@@ -87,33 +92,34 @@ public class ResearchPointGenerationService {
     private final DailyQuoteRepository dailyQuoteRepository;
 
     /**
-     * 기준일에 시세가 있는 종목 중 아직 포인트가 없는 종목만 만든다.
-     *
-     * @return 이번 회차에 저장한 포인트 행 수
+     * 종목별 잠금. 두 사용자가 같은 종목을 같은 순간 열면 둘 다 "없음"으로 보고 두 번 부른다 — 락 안에서
+     * 다시 확인한다. ponytail: 서버 인스턴스가 하나라 JVM 락으로 족하다. 스케일아웃하면 Redis 락으로.
      */
-    public int generate() {
+    private final ConcurrentHashMap<String, Object> locks = new ConcurrentHashMap<>();
+
+    /**
+     * 한 종목의 포인트를 최신 거래일 기준으로 만든다. 이미 있으면 부르지 않는다.
+     *
+     * @return 이번 호출로 저장한 행 수 · 이미 있거나 재료(키·시세)가 없으면 0
+     * @throws AiException 생성 실패 — 요청 경로라 삼키지 않는다. 호출부가 사용자에게 알린다
+     */
+    public int generate(Stock stock) {
         if (!aiProperties.isConfigured()) {
-            log.info("[B6] AI_API_KEY 가 없어 포인트 생성을 건너뛴다");
+            log.info("[POINT] AI_API_KEY 가 없어 포인트를 만들지 않는다 stock={}", stock.getCode());
             return 0;
         }
         LocalDate targetDate = dailyQuoteRepository.findLatestTradeDate().orElse(null);
         if (targetDate == null) {
-            log.warn("[B6] daily_quotes 가 비어 있어 포인트 생성을 건너뛴다 — 일봉 수집이 먼저다");
+            log.warn("[POINT] daily_quotes 가 비어 있어 포인트를 만들지 않는다 — 일봉 수집이 먼저다");
             return 0;
         }
-        List<Stock> stocks = stockMaterials.quotedOn(targetDate);
-
-        int written = 0;
-        for (Stock stock : stocks) {
-            try {
-                written += generateStock(stock, targetDate);
-            } catch (AiException | DataAccessException e) {
-                // 건 하나의 실패가 회차를 끝내면 뒤 종목이 통째로 밀린다. 다음 회차가 다시 집는다.
-                log.warn("[B6] 종목 포인트 실패 {} — {}", stock.getCode(), e.getMessage());
+        synchronized (locks.computeIfAbsent(stock.getCode(), code -> new Object())) {
+            int written = generateStock(stock, targetDate);
+            if (written > 0) {
+                log.info("[POINT] {} · 기준일 {} · {}건 생성", stock.getCode(), targetDate, written);
             }
+            return written;
         }
-        log.info("[B6] 포인트 — 기준일 {} · 종목 {}개 · {}건 생성", targetDate, stocks.size(), written);
-        return written;
     }
 
     private int generateStock(Stock stock, LocalDate targetDate) {
@@ -133,8 +139,8 @@ public class ResearchPointGenerationService {
 
         List<ResearchPoint> points = parse(aiClient.complete(INSTRUCTION, input), stock, targetDate, documents);
         if (points.isEmpty()) {
-            // 전부 버려졌으면 저장하지 않는다 — 빈 채로 두면 다음 회차가 다시 만들어 본다.
-            log.warn("[B6] 쓸 수 있는 포인트가 없어 저장하지 않는다 stock={}", stock.getCode());
+            // 전부 버려졌으면 저장하지 않는다 — 빈 채로 두면 다음 요청이 다시 만들어 본다.
+            log.warn("[POINT] 쓸 수 있는 포인트가 없어 저장하지 않는다 stock={}", stock.getCode());
             return 0;
         }
         researchPointRepository.saveAll(points);
@@ -144,7 +150,7 @@ public class ResearchPointGenerationService {
     // ── 재료 ─────────────────────────────────────────────────
 
     /**
-     * 근거로 지목할 수 있는 문서 — 뉴스 요약과 DART 공시.
+     * 근거로 지목할 수 있는 문서 — 뉴스와 DART 공시.
      *
      * <p>기준일 자정(KST) 이전 것만 본다. 브리핑과 같은 이유다 — 그날 저녁 들어온 D 기사가 D-1
      * 시세 재료에 붙으면 "급등 소식"과 마이너스 등락률이 한 프롬프트에 들어간다.
@@ -155,19 +161,10 @@ public class ResearchPointGenerationService {
         for (ResearchDocument.Source source : List.of(ResearchDocument.Source.NEWS, ResearchDocument.Source.DART)) {
             researchDocumentRepository
                     .findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
-                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE * 2))
-                    .stream()
-                    // 공시는 보고서명이 곧 요약이라 요약이 없어도 쓴다. 뉴스는 제목이 잘려 오는 일이
-                    // 흔해 요약이 없으면 재료가 되지 못한다.
-                    .filter(d -> source == ResearchDocument.Source.DART || hasSummary(d))
-                    .limit(DOCS_PER_SOURCE)
+                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE))
                     .forEach(d -> documents.put(d.getId(), d));
         }
         return documents;
-    }
-
-    private static boolean hasSummary(ResearchDocument document) {
-        return document.getSummary() != null && !document.getSummary().isBlank();
     }
 
     private static String documentBlock(Map<Long, ResearchDocument> documents) {
@@ -178,7 +175,7 @@ public class ResearchPointGenerationService {
         documents.values().forEach(d -> sb.append("- [").append(d.getId()).append("] ")
                 .append(d.getPublishedAt().atZone(KST).toLocalDate())
                 .append(" · ").append(d.getSource() == ResearchDocument.Source.DART ? "공시" : "뉴스")
-                .append(" · ").append(hasSummary(d) ? d.getSummary() : d.getTitle())
+                .append(" · ").append(d.excerpt())
                 .append('\n'));
         return sb.toString();
     }
@@ -198,11 +195,11 @@ public class ResearchPointGenerationService {
             ResearchPoint.Kind kind = kind(node.path("kind").asText(""));
             String body = node.path("body").asText("").trim();
             if (kind == null || body.isEmpty() || body.length() > MAX_BODY) {
-                log.debug("[B6] 포인트 한 건을 버린다 — kind·body 규칙 위반 stock={}", stock.getCode());
+                log.debug("[POINT] 포인트 한 건을 버린다 — kind·body 규칙 위반 stock={}", stock.getCode());
                 continue;
             }
             if (BriefingGenerationService.FORBIDDEN.matcher(body).find()) {
-                log.warn("[B6] D16 위반 문구가 있어 포인트 한 건을 버린다 stock={}", stock.getCode());
+                log.warn("[POINT] D16 위반 문구가 있어 포인트 한 건을 버린다 stock={}", stock.getCode());
                 continue;
             }
             Long documentId = documentId(node.path("documentId"));
@@ -210,7 +207,7 @@ public class ResearchPointGenerationService {
             if (documentId != null && document == null) {
                 // 우리가 주지 않은 번호다. 근거만 지우고 살리면 "근거 보기"가 없는 카드가 되는데,
                 // 모델이 없는 문서를 지어냈다는 것은 body 도 그 문서를 근거로 썼다는 뜻이다.
-                log.warn("[B6] 목록 밖 documentId={} 라 포인트 한 건을 버린다 stock={}", documentId, stock.getCode());
+                log.warn("[POINT] 목록 밖 documentId={} 라 포인트 한 건을 버린다 stock={}", documentId, stock.getCode());
                 continue;
             }
             if (counts.merge(kind, 1, Integer::sum) > MAX_PER_KIND) {
@@ -226,14 +223,14 @@ public class ResearchPointGenerationService {
         int start = text.indexOf('[');
         int end = text.lastIndexOf(']');
         if (start < 0 || end <= start) {
-            log.warn("[B6] JSON 배열이 없는 응답이라 포인트를 버린다 stock={}", stockCode);
+            log.warn("[POINT] JSON 배열이 없는 응답이라 포인트를 버린다 stock={}", stockCode);
             return null;
         }
         try {
             JsonNode root = objectMapper.readTree(text.substring(start, end + 1));
             return root.isArray() ? root : null;
         } catch (JsonProcessingException e) {
-            log.warn("[B6] 포인트 응답을 읽지 못했다 stock={} — {}", stockCode, e.getMessage());
+            log.warn("[POINT] 포인트 응답을 읽지 못했다 stock={} — {}", stockCode, e.getMessage());
             return null;
         }
     }

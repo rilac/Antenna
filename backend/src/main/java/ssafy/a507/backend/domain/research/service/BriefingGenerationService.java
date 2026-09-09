@@ -6,7 +6,6 @@ import static ssafy.a507.backend.domain.research.service.StockMaterials.plain;
 import static ssafy.a507.backend.domain.research.service.StockMaterials.rate;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -30,9 +29,7 @@ import ssafy.a507.backend.domain.market.entity.Stock;
 import ssafy.a507.backend.domain.market.repository.DailyQuoteRepository;
 import ssafy.a507.backend.domain.market.repository.IndexQuoteRepository;
 import ssafy.a507.backend.domain.research.entity.AiBriefing;
-import ssafy.a507.backend.domain.research.entity.ResearchDocument;
 import ssafy.a507.backend.domain.research.repository.AiBriefingRepository;
-import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
 
 /**
  * AI 브리핑 생성 — 배치 B6 의 브리핑 갈래 (ANT-RESEARCH-03).
@@ -52,9 +49,6 @@ import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
 @RequiredArgsConstructor
 public class BriefingGenerationService {
 
-    /** 브리핑에 넣는 최근 뉴스 요약 수. 더 넣으면 프롬프트만 길어지고 문단은 늘지 않는다. */
-    private static final int NEWS_PER_STOCK = 5;
-
     /** 시장 브리핑에 넣는 상승·하락 상위 종목 수. */
     private static final int MOVERS = 5;
 
@@ -63,7 +57,7 @@ public class BriefingGenerationService {
      * ("가능성이 60%"), ③ 방향 + 수치("하락 68%"). "3.2% 하락" 같은 사실 서술(수치가 앞)은 통과한다
      * — 그건 우리가 준 값이다.
      *
-     * <p>"확률" 단어 하나만으로는 막지 않는다. 뉴스 요약("금리 인하 확률이 높아졌다")이 재료로
+     * <p>"확률" 단어 하나만으로는 막지 않는다. 뉴스 발췌("금리 인하 확률이 높아졌다")가 재료로
      * 들어가면 모델이 그대로 옮기는데, 그걸 막으면 그 종목은 매일 호출하고 매일 버린다.
      *
      * <p>포인트 생성(ANT-RESEARCH-04)도 이 패턴을 그대로 쓴다 — 금지 문구는 화면마다 다를 이유가 없다.
@@ -82,7 +76,7 @@ public class BriefingGenerationService {
 
             - 첫 줄에 헤드라인 한 줄(40자 이내)을 쓰고, 빈 줄 뒤에 본문을 3~4개 문단으로 쓴다.
             - 한국어 평서문만 쓴다. 목록·머리말·마크다운·이모지를 쓰지 않는다. 전체 1500자 이내.
-            - 주어진 수치와 뉴스 요약에 있는 사실만 쓴다. 새 수치를 계산하거나 지어내지 않는다.
+            - 주어진 수치에 있는 사실만 쓴다. 새 수치를 계산하거나 지어내지 않는다.
             - 매수·매도 권유, 목표주가, 주가 방향 예측을 쓰지 않는다.
             - 상승·하락의 확률이나 가능성을 수치로 쓰지 않는다. "확률"이라는 단어를 쓰지 않는다.
             - 사실 서술과 "확인해 볼 점"까지만 쓴다. 판단은 읽는 사람에게 남긴다.
@@ -94,12 +88,15 @@ public class BriefingGenerationService {
     private final AiBriefingRepository aiBriefingRepository;
     private final DailyQuoteRepository dailyQuoteRepository;
     private final IndexQuoteRepository indexQuoteRepository;
-    private final ResearchDocumentRepository researchDocumentRepository;
 
     /**
-     * 시장 1건 + 상장 종목 전부. 없거나 세대가 뒤처진 것만 만든다.
+     * 시장 브리핑 1건. 없거나 세대가 뒤처졌을 때만 만든다 — 하루 1콜.
      *
-     * @return 이번 회차에 새로 만들거나 다시 쓴 건수
+     * <p>종목 브리핑은 2026-09-09 에 없앴다. 종목당 매일 1콜(≈300)을 쓰면서, 같은 탭에 숫자로 이미
+     * 있는 등락률·재무를 문장으로 다시 쓴 것이었다. 뉴스·공시 쪽은 투자 포인트가 담고, 그건 요청
+     * 시점에 종목별로 만든다({@link ResearchPointGenerationService}).
+     *
+     * @return 이번 회차에 새로 만들거나 다시 쓴 건수 · 0 또는 1
      */
     public int generate() {
         if (!aiProperties.isConfigured()) {
@@ -113,30 +110,14 @@ public class BriefingGenerationService {
         }
         LocalDate targetDate = latest.get();
         String promptVersion = aiProperties.promptVersion();
-
-        List<Stock> stocks = stockMaterials.quotedOn(targetDate);
-
-        int written = 0;
         try {
-            if (generateMarket(stocks, targetDate, promptVersion)) {
-                written++;
-            }
+            boolean written = generateMarket(stockMaterials.quotedOn(targetDate), targetDate, promptVersion);
+            log.info("[B6] 시장 브리핑 — 기준일 {} · {} (prompt {})", targetDate, written ? "생성" : "이미 있음", promptVersion);
+            return written ? 1 : 0;
         } catch (AiException | DataAccessException e) {
             log.warn("[B6] 시장 브리핑 실패 — {}", e.getMessage());
+            return 0;
         }
-        for (Stock stock : stocks) {
-            try {
-                if (generateStock(stock, targetDate, promptVersion)) {
-                    written++;
-                }
-            } catch (AiException | DataAccessException e) {
-                // 건 하나의 실패가 회차를 끝내면 뒤 종목이 통째로 밀린다. 다음 회차가 다시 집는다.
-                log.warn("[B6] 종목 브리핑 실패 {} — {}", stock.getCode(), e.getMessage());
-            }
-        }
-        log.info("[B6] 브리핑 — 기준일 {} · 종목 {}개 · {}건 생성 (prompt {})",
-                targetDate, stocks.size(), written, promptVersion);
-        return written;
     }
 
     // ── 시장 ─────────────────────────────────────────────────
@@ -152,7 +133,7 @@ public class BriefingGenerationService {
             log.info("[B6] 기준일 {} 지수 시세가 없어 시장 브리핑을 건너뛴다", targetDate);
             return false;
         }
-        return write(existing, AiBriefing.Scope.MARKET, null, targetDate, input, promptVersion);
+        return write(existing, targetDate, input, promptVersion);
     }
 
     /** 지수 셋의 1·5영업일 등락률 + 수집 종목 중 상승·하락 상위. 지수가 하나도 없으면 null. */
@@ -231,78 +212,23 @@ public class BriefingGenerationService {
         sb.append('\n');
     }
 
-    // ── 종목 ─────────────────────────────────────────────────
-
-    private boolean generateStock(Stock stock, LocalDate targetDate, String promptVersion) {
-        Optional<AiBriefing> existing =
-                aiBriefingRepository.findTarget(AiBriefing.Scope.STOCK, stock.getCode(), targetDate).stream().findFirst();
-        if (isCurrent(existing, promptVersion)) {
-            return false;
-        }
-        String input = stockInput(stock, targetDate);
-        if (input == null) {
-            // 그날 거래정지였거나 시세가 아직 안 들어온 종목. 재료 없이 만들면 지어낸 글이 된다.
-            return false;
-        }
-        return write(existing, AiBriefing.Scope.STOCK, stock, targetDate, input, promptVersion);
-    }
-
-    /** 공용 수치 재료 + 최근 뉴스 요약. 기준일 시세가 없으면 null. */
-    String stockInput(Stock stock, LocalDate targetDate) {
-        String facts = stockMaterials.facts(stock, targetDate);
-        if (facts == null) {
-            return null;
-        }
-        StringBuilder sb = new StringBuilder(facts);
-        appendNews(sb, stock.getCode(), targetDate);
-        return sb.toString();
-    }
-
-    /** 기준일 자정(KST) 이전 기사만. 그날 저녁 들어온 D 기사가 D-1 브리핑에 섞이지 않게 한다. */
-    private void appendNews(StringBuilder sb, String stockCode, LocalDate targetDate) {
-        Instant endOfTarget = targetDate.plusDays(1).atStartOfDay(KST).toInstant();
-        List<ResearchDocument> news = researchDocumentRepository
-                .findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
-                        stockCode, ResearchDocument.Source.NEWS, endOfTarget, Limit.of(NEWS_PER_STOCK * 2))
-                .stream()
-                .filter(d -> d.getSummary() != null && !d.getSummary().isBlank())
-                .limit(NEWS_PER_STOCK)
-                .toList();
-        if (news.isEmpty()) {
-            sb.append("최근 뉴스 요약: (없음)\n");
-            return;
-        }
-        sb.append("최근 뉴스 요약(날짜 · 내용):\n");
-        news.forEach(d -> sb.append("- ")
-                .append(d.getPublishedAt().atZone(KST).toLocalDate()).append(" · ")
-                .append(d.getSummary()).append('\n'));
-    }
-
     // ── 공통 ─────────────────────────────────────────────────
 
     private static boolean isCurrent(Optional<AiBriefing> existing, String promptVersion) {
         return existing.isPresent() && promptVersion.equals(existing.get().getPromptVersion());
     }
 
-    private boolean write(
-            Optional<AiBriefing> existing,
-            AiBriefing.Scope scope,
-            Stock stock,
-            LocalDate targetDate,
-            String input,
-            String promptVersion) {
+    private boolean write(Optional<AiBriefing> existing, LocalDate targetDate, String input, String promptVersion) {
         String text = aiClient.complete(INSTRUCTION, input);
         if (FORBIDDEN.matcher(text).find()) {
-            log.warn("[B6] D16 위반 문구가 있어 브리핑을 버린다 scope={} stock={}",
-                    scope, stock == null ? "-" : stock.getCode());
+            log.warn("[B6] D16 위반 문구가 있어 브리핑을 버린다 기준일={}", targetDate);
             return false;
         }
         String[] parts = text.split("\\R+", 2);
         if (parts.length < 2 || parts[1].isBlank()) {
             // 헤드라인만 오면 본문이 없다. 헤드라인을 본문에 복사해 저장하면 "현 세대"로 굳어 다시
             // 생성되지 않고 상세 화면에 같은 문장이 두 번 뜬다. D16 위반과 같이 버리고 다음 회차에 맡긴다.
-            log.warn("[B6] 본문 없는 응답이라 브리핑을 버린다 scope={} stock={}",
-                    scope, stock == null ? "-" : stock.getCode());
+            log.warn("[B6] 본문 없는 응답이라 브리핑을 버린다 기준일={}", targetDate);
             return false;
         }
         String headline = parts[0].trim();
@@ -313,7 +239,7 @@ public class BriefingGenerationService {
                     b.rewrite(headline, body, promptVersion);
                     return b;
                 })
-                .orElseGet(() -> AiBriefing.of(scope, stock, targetDate, headline, body, promptVersion));
+                .orElseGet(() -> AiBriefing.of(AiBriefing.Scope.MARKET, null, targetDate, headline, body, promptVersion));
         aiBriefingRepository.save(briefing);
         return true;
     }

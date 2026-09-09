@@ -1,6 +1,7 @@
 package ssafy.a507.backend.domain.research.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -22,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 import ssafy.a507.backend.common.ai.AiClient;
+import ssafy.a507.backend.common.ai.AiException;
 import ssafy.a507.backend.domain.market.repository.StockRepository;
 import ssafy.a507.backend.domain.research.entity.ResearchDocument;
 import ssafy.a507.backend.domain.research.entity.ResearchPoint;
@@ -38,7 +40,7 @@ import ssafy.a507.backend.domain.research.repository.ResearchPointRepository;
  */
 @SpringBootTest(properties = "app.ai.api-key=test-key")
 @Transactional
-@DisplayName("리서치 포인트 생성 (B6)")
+@DisplayName("리서치 포인트 생성 (요청 시점)")
 class ResearchPointGenerationServiceTest {
 
     private static final String SAMSUNG = "005930";
@@ -69,7 +71,7 @@ class ResearchPointGenerationServiceTest {
         Long dartId = seedDocument(ResearchDocument.Source.DART, "d-1", "반기보고서", null, TARGET.minusDays(2));
         given(aiClient.complete(anyString(), anyString())).willReturn(reply(newsId, dartId));
 
-        assertThat(generationService.generate()).isEqualTo(3);
+        assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isEqualTo(3);
         em.flush();
 
         ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
@@ -79,8 +81,8 @@ class ResearchPointGenerationServiceTest {
                 .contains("종가 72400원")
                 .contains("52주 범위 내 위치 100% (0%=최저, 100%=최고)")
                 .contains("문서(번호 · 날짜 · 원천 · 내용):")
-                .contains("[" + newsId + "] 2026-09-01 · 뉴스 · 신제품 양산 소식.")
-                .as("공시는 요약이 없어도 보고서명을 재료로 쓴다")
+                .contains("[" + newsId + "] 2026-09-01 · 뉴스 · 제목 · 신제품 양산 소식.")
+                .as("공시는 발췌가 없어 보고서명만 재료로 쓴다")
                 .contains("[" + dartId + "] 2026-08-31 · 공시 · 반기보고서");
 
         List<ResearchPoint> saved = researchPointRepository.findAll();
@@ -109,7 +111,7 @@ class ResearchPointGenerationServiceTest {
         given(aiClient.complete(anyString(), anyString()))
                 .willReturn("```json\n[{\"kind\":\"CHECK\",\"body\":\"거래량을 지켜볼 만하다.\",\"documentId\":null}]\n```");
 
-        assertThat(generationService.generate()).isEqualTo(1);
+        assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isEqualTo(1);
     }
 
     @Test
@@ -128,7 +130,7 @@ class ResearchPointGenerationServiceTest {
                 ]
                 """.formatted("가".repeat(301), newsId));
 
-        assertThat(generationService.generate()).isEqualTo(1);
+        assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isEqualTo(1);
         em.flush();
 
         assertThat(researchPointRepository.findAll()).singleElement().satisfies(p -> {
@@ -151,7 +153,7 @@ class ResearchPointGenerationServiceTest {
                 ]
                 """.formatted(newsId, newsId));
 
-        assertThat(generationService.generate()).isEqualTo(3);
+        assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isEqualTo(3);
         em.flush();
 
         List<ResearchPoint> saved = researchPointRepository.findAll();
@@ -176,7 +178,7 @@ class ResearchPointGenerationServiceTest {
                 ]
                 """);
 
-        assertThat(generationService.generate()).isEqualTo(3);
+        assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isEqualTo(3);
     }
 
     @Test
@@ -185,7 +187,18 @@ class ResearchPointGenerationServiceTest {
         seedQuotes(3);
         given(aiClient.complete(anyString(), anyString())).willReturn("포인트를 만들 수 없습니다.");
 
-        assertThat(generationService.generate()).isZero();
+        assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isZero();
+        assertThat(researchPointRepository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GMS 실패는 그대로 올린다 — 요청 경로라 삼키면 화면이 빈 3열을 '없음'으로 읽는다")
+    void 실패_전파() {
+        seedQuotes(3);
+        given(aiClient.complete(anyString(), anyString())).willThrow(new AiException("GMS 오류"));
+
+        assertThatThrownBy(() -> generationService.generate(stockRepository.getReferenceById(SAMSUNG)))
+                .isInstanceOf(AiException.class);
         assertThat(researchPointRepository.findAll()).isEmpty();
     }
 
@@ -195,9 +208,9 @@ class ResearchPointGenerationServiceTest {
         seedQuotes(3);
         given(aiClient.complete(anyString(), anyString())).willReturn(reply(null, null));
 
-        generationService.generate();
+        generationService.generate(stockRepository.getReferenceById(SAMSUNG));
         em.flush();
-        int second = generationService.generate();
+        int second = generationService.generate(stockRepository.getReferenceById(SAMSUNG));
 
         assertThat(second).isZero();
         verify(aiClient, times(1)).complete(anyString(), anyString());
@@ -211,7 +224,7 @@ class ResearchPointGenerationServiceTest {
         seedDocument(ResearchDocument.Source.NEWS, "n-new", "제목", "다음 날 기사 요약.", TARGET.plusDays(1));
         given(aiClient.complete(anyString(), anyString())).willReturn(reply(null, null));
 
-        generationService.generate();
+        generationService.generate(stockRepository.getReferenceById(SAMSUNG));
 
         ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
         verify(aiClient).complete(anyString(), input.capture());
@@ -221,7 +234,7 @@ class ResearchPointGenerationServiceTest {
     @Test
     @DisplayName("기준일 시세가 없으면 부르지 않는다 — 재료 없이 만들면 지어낸 포인트다")
     void 시세_없음() {
-        assertThat(generationService.generate()).isZero();
+        assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isZero();
         verify(aiClient, never()).complete(anyString(), anyString());
     }
 
@@ -254,20 +267,17 @@ class ResearchPointGenerationServiceTest {
         em.flush();
     }
 
-    /** 그날 15시(KST) 발행. {@code summary} 가 null 이면 아직 요약 전인 문서다. */
+    /** 그날 15시(KST) 발행. {@code snippet} 이 null 이면 발췌 없는 문서(공시)다. */
     private Long seedDocument(
-            ResearchDocument.Source source, String externalId, String title, String summary, LocalDate publishedOn) {
+            ResearchDocument.Source source, String externalId, String title, String snippet, LocalDate publishedOn) {
         ResearchDocument document = ResearchDocument.collected(
                 stockRepository.getReferenceById(SAMSUNG),
                 source,
                 externalId,
                 title,
                 "https://example.com/" + externalId,
-                "발췌",
+                snippet,
                 publishedOn.atTime(15, 0).atZone(KST).toInstant());
-        if (summary != null) {
-            document.summarize(summary, "v1");
-        }
         em.persist(document);
         em.flush();
         return document.getId();
