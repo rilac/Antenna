@@ -143,8 +143,3 @@
 @media(prefers-reduced-motion:reduce){
   .sj-cta{transition:none}
 }
-
-/* 이어서 하기 아래의 두 번째 길. 버튼처럼 눈에 띄면 실수로 초기화한다 — 글자 링크 정도로 둔다 */
-.sj-cta-sub{margin-top:10px;padding:0;border:0;background:none;color:#98a0b6;font-size:13px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
-.sj-cta-sub:hover{color:#d94848}
-.sj-cta-sub:disabled{cursor:default;opacity:.6}

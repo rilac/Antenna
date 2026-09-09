@@ -22,7 +22,7 @@ export const MODE_LABEL: Record<SeasonMode, string> = {
 
 /* ── 내 참가 목록 · GET /seasons/me ───────────────────────── */
 
-/** v0.38 — 시즌 제목·종료 시각·최종 수익률이 함께 온다. 시기(연도)는 여전히 없다. */
+/** v0.39 — 시즌 제목·종료 시각·최종 수익률이 함께 온다. 시기(연도)는 여전히 없다. */
 export type MyRun = {
   seasonId: number
   mode: SeasonMode

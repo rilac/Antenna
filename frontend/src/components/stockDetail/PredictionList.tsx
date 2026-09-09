@@ -30,6 +30,22 @@ import { Panel } from './Block'
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 const day = (iso: string) => iso.slice(0, 10).replace(/-/g, '.').slice(2)
 
+/* 예측가 얼굴. 아바타 자산이 없고 서버 author 에도 avatarUrl 이 없어,
+   닉네임 첫 글자로 만든다. 색은 userId 에서 뽑아 같은 사람이 늘 같은 색으로
+   나온다 — 무작위가 아니다. 종목 뱃지(Home·Stocks 의 StockBadge)와 같은 방식이다. */
+function Avatar({ userId, nickname }: { userId: string; nickname: string }) {
+  let h = 0
+  for (const ch of userId) h = (h * 31 + ch.charCodeAt(0)) % 360
+  return (
+    <span
+      className="pl-avatar" aria-hidden="true"
+      style={{ background: `hsl(${h} 62% 94%)`, color: `hsl(${h} 54% 38%)` }}
+    >
+      {nickname.slice(0, 1)}
+    </span>
+  )
+}
+
 export default function PredictionList({ code, span }: { code: string; span?: 5 | 6 | 7 }) {
   const [phase, setPhase] = useState<PredictionPhase>('PENDING')
 
@@ -84,6 +100,7 @@ export default function PredictionList({ code, span }: { code: string; span?: 5 
             {list.items.map((p) => (
               <li key={p.id} className={p.locked ? 'pl-row is-locked' : 'pl-row'}>
                 <div className="pl-who">
+                  <Avatar userId={p.author.userId} nickname={p.author.nickname} />
                   <Link className="pl-name" to={`/channels/${p.author.userId}`}>
                     {p.author.nickname}
                   </Link>
@@ -94,28 +111,17 @@ export default function PredictionList({ code, span }: { code: string; span?: 5 
                 </div>
 
                 <div className="pl-main">
-                  {/* 방향은 잠겨도 보인다. 잠기는 것은 목표가뿐이다 —
-                      방향까지 가리면 "누가 무엇을 걸었는지" 가 통째로 사라진다 */}
+                  {/* 방향·목표가 모두 공개다. 구독으로 사는 것은 판단의 이유
+                      (근거 본문)뿐이라, 목록에서 가릴 것이 없다 */}
                   <p className="pl-call num">
                     <b className={p.direction === 'UP' ? 'up' : 'down'}>
                       {p.direction === 'UP' ? '상승' : '하락'}
                     </b>
 
-                    {p.locked ? (
-                      <span className="pl-locked">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <rect x="4" y="10" width="16" height="10" rx="2" />
-                          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-                        </svg>
-                        목표가는 구독자에게만
-                        {p.channelId && (
-                          <Link className="pl-sub" to={`/channels/${p.channelId}`}>구독하고 보기</Link>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="pl-target">{p.targetPrice === null ? '—' : won(p.targetPrice)}</span>
-                    )}
+                    <span className="pl-target">{p.targetPrice === null ? '—' : won(p.targetPrice)}</span>
+
+                    {/* 잠기는 것은 근거 본문뿐이다(2026-09-08 결정). 목록에는 근거가
+                        없으므로 잠금 표시 대신 상세로 보낸다 — 거기서 잠긴 카드를 만난다 */}
 
                     {/* 판정 완료만 오차가 있다. 대기 중인 건 0 으로 그리지 않는다 */}
                     {p.errorRate !== null && (
@@ -134,6 +140,15 @@ export default function PredictionList({ code, span }: { code: string; span?: 5 
                       ? `${p.horizon}일 · ~${day(p.dueDate)}`
                       : `${p.horizon}일 · ${day(p.dueDate)} 판정`}
                   </span>
+                  {/* 행 전체를 링크로 감쌀 수 없다 — 안에 채널 링크가 이미 있어
+                      링크가 겹친다. 그래서 상세로 가는 길을 따로 둔다. */}
+                  <Link className="pl-go" to={`/predictions/${p.id}`}>
+                    상세
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
                 </div>
               </li>
             ))}

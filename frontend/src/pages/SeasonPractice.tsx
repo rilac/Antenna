@@ -211,7 +211,7 @@ function Going({ runs, loading, failure, onRetry, startAt }: {
 /* ── ③ 최근 완료한 연습 ────────────────────────────────────
    프로토타입 "나의 연습 성과" 자리. 적중률·평균 수익률·성장 추이는 집계 API 가
    없어(§9.2 G-01 과 같은 사정) 목록으로 대신한다. 끝낸 실제 날짜와 수익률은
-   /seasons/me 가 준다(v0.38) — 끝낸 날은 시즌의 시기가 아니라 시대 단서가 아니다. */
+   /seasons/me 가 준다(v0.39) — 끝낸 날은 시즌의 시기가 아니라 시대 단서가 아니다. */
 function Done({ runs, loading, failure, onRetry }: {
   runs: MyRun[]; loading: boolean; failure: ApiError | null; onRetry: () => void
 }) {

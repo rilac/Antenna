@@ -11,7 +11,7 @@
    담당 백엔드 티켓
    - GET /tickers · /prices — 됨(ANT-SEASON-10)
    - POST /join(restart 포함) · GET /me · POST /orders · GET /trades — 됨(ANT-SEASON-03, v0.36)
-   - POST /advance · POST /finish · GET /result/me — 됨(ANT-SEASON-04, v0.37~38)
+   - POST /advance · POST /finish · GET /result/me — 됨(ANT-SEASON-04, v0.37~39)
    - 대회 참가(참가비 소각 서명)는 501 — ANT-SEASON-06
    - GET /news — ANT-SEASON-07, season_news 가 0행이다
    - GET /indicators — MVP 에서 빼기로 했다. 절대값 하나로 구간이 특정된다
@@ -148,35 +148,45 @@ export type AdvanceResult = {
 export const advance = (seasonId: number, expectedDay: number) =>
   api.post<AdvanceResult>(`/seasons/${seasonId}/advance`, { expectedDay })
 
-/* ── 종료 · POST /seasons/{id}/finish · GET /seasons/{id}/result/me ── */
+/* ── 회차 종료 · POST /seasons/{id}/finish ────────────────── */
 
-/** season_results 의 성과 지표. 매도가 없으면 승률·손익비·보유일은 null */
-export type SeasonResultData = {
+/**
+ * 성적표. 서버가 체결 내역을 처음부터 다시 돌려 계산하고 DB 에 굳힌다.
+ *
+ * <p>정의할 수 없는 값은 null 이다 — 매도가 없으면 승률·평균 보유일이 없고,
+ * 손실이 하나도 없으면 손익비의 분모가 0 이다.
+ */
+export type SeasonFinishResult = {
   participantId: number
+  /** 마지막 게임일 종가로 평가한 총자산 */
   finalAsset: number
+  /** 시작 예수금 대비 % */
   returnRate: number
+  /**
+   * 등가중 벤치마크(%). 시즌 종목을 똑같이 나눠 사서 끝까지 들고 있었다면.
+   * 코스피 지수가 아니라 <b>그 시즌 종목으로 만든 지수</b>다.
+   */
   benchmarkReturn: number | null
-  maxDrawdown: number | null
+  /**
+   * 최대 낙폭(%). 최고점에서 가장 깊게 파인 곳까지다 —
+   * 화면이 따로 세는 "최고점 대비 마감" 과 다르다. 그건 끝값이고 이건 도중의 바닥이다.
+   */
+  maxDrawdown: number
+  /** 매도 건수 중 이익으로 끝난 비율(%) */
   winRate: number | null
+  /** 이익 본 매도의 합 ÷ 손해 본 매도의 합. 1 미만이면 잃은 것이다 */
   profitFactor: number | null
+  /** (판 날 − 처음 산 날) 의 평균. 단타였는지 길게 들었는지 */
   avgHoldingDays: number | null
-  score: number | null
-  grade: string | null
-  /** AI 복기 본문. 생성 전엔 null */
-  review: string | null
-  closedAt: string
 }
 
 /**
- * 마지막 게임일에서 종료 — 회차를 DONE 으로 굳히고 결과를 만든다. 이미 끝난 회차면 같은
- * 결과를 다시 준다(멱등이라 Idempotency-Key 가 없다). 마지막 날 전이면 409.
+ * 이 회차를 끝낸다. <b>되돌릴 수 없다</b> — 회차가 DONE 이 되어 주문도 진행도 막힌다.
+ * 마지막 게임일에서만 부를 수 있고(아니면 409 SEASON_NOT_LAST_DAY), 이미 끝난 회차면
+ * 저장해 둔 같은 결과를 다시 준다.
  */
 export const finish = (seasonId: number) =>
-  api.post<SeasonResultData>(`/seasons/${seasonId}/finish`)
-
-/** 내 마지막 회차의 결과. 끝나지 않았으면 404 SEASON_RESULT_NOT_FOUND */
-export const getResult = (seasonId: number) =>
-  api.get<SeasonResultData>(`/seasons/${seasonId}/result/me`)
+  api.post<SeasonFinishResult>(`/seasons/${seasonId}/finish`)
 
 /* ── 게임일 뉴스 · GET /seasons/{id}/news ─────────────────── */
 
@@ -210,8 +220,9 @@ export type Trade = {
   realizedPnl: number | null
 }
 
-export const getTrades = (seasonId: number, cursor?: string) =>
-  api.get<{ items: Trade[]; nextCursor: string | null; hasNext: boolean }>(
+/** 커서는 체결 id 다. 서버가 숫자로 준다 */
+export const getTrades = (seasonId: number, cursor?: number) =>
+  api.get<{ items: Trade[]; nextCursor: number | null; hasNext: boolean }>(
     `/seasons/${seasonId}/trades`,
     { query: { cursor } },
   )

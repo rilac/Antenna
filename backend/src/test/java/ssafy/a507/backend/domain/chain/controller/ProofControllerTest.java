@@ -80,7 +80,7 @@ class ProofControllerTest {
                     .andExpect(jsonPath("$.payload.direction").value("UP"))
                     .andExpect(jsonPath("$.payload.targetPrice").value(80000.0))
                     .andExpect(jsonPath("$.payload.horizon").value(30))
-                    .andExpect(jsonPath("$.payload.noteHash").value((Object) null))
+                    .andExpect(jsonPath("$.payload.noteHash").value(noteHashOf("seed")))
                     .andExpect(jsonPath("$.anchor").value((Object) null))
                     .andExpect(jsonPath("$.anchorStatus").value("WAITING"))
                     .andExpect(jsonPath("$.salt").value((Object) null))
@@ -157,26 +157,45 @@ class ProofControllerTest {
         }
 
         @Test
-        @DisplayName("리빌 전에는 salt 가 없고, 리빌 뒤에는 남에게도 salt 가 간다 — 비구독자도 ①단계를 검산해야 한다")
-        void 리빌_전후_salt() throws Exception {
-            long before = insertPrediction(authorId, "HIT");
-            insertCommit(before, "b", null);
-            long after = insertPrediction(authorId, "HIT");
-            insertCommit(after, "a", Instant.parse("2026-10-05T04:31:00Z"));
+        @DisplayName("리빌 전에는 작성자에게도 salt 가 없다 — 판정 전 공개는 봉인을 깨는 일이다")
+        void 리빌_전_salt_없음() throws Exception {
+            long pid = insertPrediction(authorId, "HIT");
+            insertCommit(pid, "b", null);
 
-            mockMvc.perform(get("/api/v1/predictions/{id}/proof", before).with(user(str(otherId))))
+            mockMvc.perform(get("/api/v1/predictions/{id}/proof", pid).with(user(str(authorId))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.salt").value((Object) null))
-                    .andExpect(jsonPath("$.revealedAt").value((Object) null));
-            mockMvc.perform(get("/api/v1/predictions/{id}/proof", after).with(user(str(otherId))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.salt").value(SALT))
-                    .andExpect(jsonPath("$.revealedAt").value("2026-10-05T04:31:00Z"));
+                    .andExpect(jsonPath("$.revealedAt").value((Object) null))
+                    // noteHash 는 salt 가 아니라 공개 값 — 리빌 전에도 (볼 수 있는 사람에게는) 나간다.
+                    .andExpect(jsonPath("$.payload.noteHash").value(noteHashOf("b")));
         }
 
         @Test
-        @DisplayName("noteSalt 자리는 있으나 PRED-02 전까지 작성자에게도 null 이다")
-        void noteSalt_는_아직_null() throws Exception {
+        @DisplayName("리빌 뒤 비구독자는 salt 없이 noteHash 로 ①단계를 검산한다 — salt(근거 salt)는 작성자·구독자만 받는다")
+        void 리빌_후_salt_는_구독자만() throws Exception {
+            long pid = insertPrediction(authorId, "HIT");
+            insertCommit(pid, "a", Instant.parse("2026-10-05T04:31:00Z"));
+            long subscriberId = insertUser();
+            insertSubscription(subscriberId, authorId, "ACTIVE", Instant.now().plusSeconds(86_400));
+
+            // 비구독자: 리빌 시각과 noteHash 는 받지만 salt 는 없다.
+            mockMvc.perform(get("/api/v1/predictions/{id}/proof", pid).with(user(str(otherId))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.revealedAt").value("2026-10-05T04:31:00Z"))
+                    .andExpect(jsonPath("$.payload.noteHash").value(noteHashOf("a")))
+                    .andExpect(jsonPath("$.salt").value((Object) null));
+            // 작성자·구독자: salt 까지.
+            mockMvc.perform(get("/api/v1/predictions/{id}/proof", pid).with(user(str(authorId))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.salt").value(SALT));
+            mockMvc.perform(get("/api/v1/predictions/{id}/proof", pid).with(user(str(subscriberId))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.salt").value(SALT));
+        }
+
+        @Test
+        @DisplayName("응답에 noteSalt 키는 없다 — salt 하나가 그 자리다 (ANT-PRED-02, 09-09 결정)")
+        void noteSalt_키_없음() throws Exception {
             long pid = insertPrediction(authorId, "HIT");
             insertCommit(pid, "a", Instant.parse("2026-10-05T04:31:00Z"));
 
@@ -187,8 +206,8 @@ class ProofControllerTest {
                     .getContentAsString();
 
             JsonNode json = JSON.readTree(body);
-            assertThat(json.has("noteSalt")).isTrue();
-            assertThat(json.get("noteSalt").isNull()).isTrue();
+            assertThat(json.has("noteSalt")).isFalse();
+            assertThat(json.has("salt")).isTrue();
         }
     }
 
@@ -294,6 +313,11 @@ class ProofControllerTest {
         return Numeric.toHexString(Hash.sha3(seed.getBytes()));
     }
 
+    /** 픽스처용 근거 해시. 실제 계산(keccak(note ‖ salt))은 CommitHashesTest 가 본다 — 여기서는 "저장된 값이 그대로 나가는가" 만. */
+    private static String noteHashOf(String seed) {
+        return hashOf(seed + "-note");
+    }
+
     private long insertUser() {
         User user = User.create();
         em.persist(user);
@@ -327,15 +351,16 @@ class ProofControllerTest {
         em.createNativeQuery(
                         """
                         INSERT INTO prediction_commits
-                          (prediction_id, commit_hash, salt, signature, signer_address, revealed_at)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                          (prediction_id, commit_hash, note_hash, salt, signature, signer_address, revealed_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                         """)
                 .setParameter(1, pid)
                 .setParameter(2, hashOf(seed))
-                .setParameter(3, SALT)
-                .setParameter(4, "0x" + "ab".repeat(65))
-                .setParameter(5, "0x" + "11".repeat(20))
-                .setParameter(6, revealedAt)
+                .setParameter(3, noteHashOf(seed))
+                .setParameter(4, SALT)
+                .setParameter(5, "0x" + "ab".repeat(65))
+                .setParameter(6, "0x" + "11".repeat(20))
+                .setParameter(7, revealedAt)
                 .executeUpdate();
         em.flush();
         em.clear();

@@ -1,0 +1,294 @@
+/* G-08 결과 · AI 복기 · /sim/:id/result — [ANT-FE-SEASON-RESULT]
+   G-04 진행 화면과 같은 규칙을 쓴다 — 카드·아이콘 배지·지표 칸의 생김새를 맞춰야
+   같은 게임의 두 장면으로 읽힌다. 색·서체는 app.css 토큰만 쓴다. */
+
+.sim-result{display:flex;flex-direction:column;gap:14px;word-break:keep-all}
+
+/* 손익 색. 이 화면 안에서만 정한다 — 화면마다 빨강·파랑이 뒤집히지 않게 */
+.sim-result .up{color:var(--up-vivid)}
+.sim-result .down{color:var(--down-vivid)}
+.sim-result .flat{color:var(--muted)}
+.sr-dim{color:var(--muted)}
+
+/* ── 머리 ───────────────────────────────────────────── */
+.sr-crumb{display:flex;align-items:center;gap:9px;color:#8a93ad;font-size:13.5px;font-weight:700}
+.sr-crumb a:hover{color:var(--brand)}
+.sr-crumb i{font-style:normal;color:#c2c8da}
+
+.sr-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.sr-head h1{
+  margin:0;color:#0e1330;font-size:26px;font-weight:850;letter-spacing:-.03em;
+  text-wrap:balance;
+}
+.sr-head p{margin:3px 0 0;color:var(--muted);font-size:13.5px;font-weight:700}
+.sr-head p span{color:var(--faint)}
+
+.sr-acts{display:flex;align-items:center;gap:8px}
+.sr-go,.sr-back{
+  display:inline-flex;align-items:center;height:38px;padding:0 16px;
+  border-radius:11px;font-size:14px;font-weight:800;
+  transition:background .14s,border-color .14s;
+}
+.sr-go{background:var(--brand);color:#fff}
+.sr-go:hover{background:var(--brand-ink)}
+.sr-back{border:1px solid var(--rule);color:var(--brand-ink)}
+.sr-back:hover{border-color:var(--brand);background:var(--brand-softer)}
+
+/* ── 성과 4칸 ───────────────────────────────────────── */
+/* G-04 상단 4칸과 같은 생김새다. 같은 게임의 처음과 끝이라 형태가 같아야
+   눈이 두 화면을 이어서 읽는다. */
+.sr-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.sr-stat{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:15px 17px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.sr-stat-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sr-stat-label{color:var(--muted);font-size:12.5px;font-weight:700}
+.sr-stat-val{
+  color:#0e1330;font-size:21px;font-weight:850;letter-spacing:-.025em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sr-stat-sub{font-size:12px;font-weight:750;color:var(--muted)}
+.sr-stat-ico{
+  flex:none;display:grid;place-items:center;width:38px;height:38px;
+  border-radius:11px;background:var(--tint);color:var(--tone);
+}
+.sr-stat.t-up{--tone:var(--up-vivid);--tint:#fdeceb}
+.sr-stat.t-down{--tone:var(--down-vivid);--tint:#e9f0fe}
+.sr-stat.t-flat{--tone:#8a93ad;--tint:var(--surface-2)}
+.sr-stat.t-trade{--tone:#5457e8;--tint:#ece9fd}
+.sr-stat.t-rate{--tone:#e8a13c;--tint:#fdf3e3}
+
+/* ── 카드 ───────────────────────────────────────────── */
+/* 왼쪽이 자산 곡선, 오른쪽이 손익 나누기다. 오른쪽을 왼쪽 높이에 맞춰 늘이고
+   합계 줄을 바닥에 붙인다 — 카드 아래가 비어 층이 진 것처럼 보이지 않게. */
+/* 곡선에 폭을 더 준다. 넓고 낮은 꺾은선이 오르내림을 과장하지 않고, 오른쪽
+   손익 카드와 바닥도 가까워진다. */
+.sr-body{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:14px;align-items:stretch}
+.sr-body > .sr-card{display:flex;flex-direction:column}
+
+/* 같은 리듬인데 늘이지 않는 줄. 접힌 토글이 옆 카드 높이까지 늘어나면
+   속이 빈 막대가 된다. */
+.sr-row{
+  display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);
+  gap:14px;align-items:start;
+}
+
+.sr-card{
+  padding:16px 18px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);min-width:0;
+}
+.sr-card h2{
+  display:flex;align-items:center;gap:8px;margin:0 0 12px;
+  color:var(--ink);font-size:15px;font-weight:800;letter-spacing:-.02em;
+}
+.sr-card h2 em{
+  margin-left:auto;font-style:normal;
+  color:var(--muted);font-size:12px;font-weight:700;
+}
+.sr-h-ico{
+  flex:none;display:grid;place-items:center;width:26px;height:26px;
+  border-radius:8px;background:var(--tint);color:var(--tone);
+}
+.sr-h-ico.t-eq{--tone:#16a06a;--tint:#e7f6ef}
+.sr-h-ico.t-board{--tone:#2f7bf6;--tint:#e8f1fe}
+.sr-h-ico.t-pie{--tone:#16a06a;--tint:#e7f6ef}
+.sr-h-ico.t-ai{--tone:#5457e8;--tint:#ece9fd}
+.sr-h-ico.t-card{--tone:#c9518f;--tint:#fbeaf2}
+.sr-h-ico.t-split{--tone:#e8a13c;--tint:#fdf3e3}
+
+.sr-note{margin:10px 0 0;color:var(--muted);font-size:12px;font-weight:650;line-height:1.55}
+.sr-note b{color:var(--body);font-weight:800}
+.sr-empty{margin:0;color:var(--muted);font-size:13px;font-weight:650}
+.sr-empty small{display:block;margin-top:5px;color:var(--faint);font-size:12px;font-weight:700}
+
+/* 한 판도 안 한 시즌 */
+.sr-none{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  margin:0;padding:34px 20px;text-align:center;
+  color:var(--body);font-size:14.5px;font-weight:700;
+}
+.sr-none small{
+  max-width:520px;color:var(--muted);font-size:12.5px;font-weight:650;line-height:1.6;
+}
+.sr-none small b{color:var(--down-vivid);font-weight:800}
+.sr-none .sr-go{margin-top:6px}
+.sr-none .sr-go:disabled{opacity:.5;cursor:default}
+/* 버튼도 링크와 같은 모양이라 button 일 때도 같은 규칙을 탄다 */
+.sr-none button.sr-go{border:0;cursor:pointer}
+
+/* 아직 서버가 안 주는 것. 목업을 넣지 않는다 — 무엇이 올 자리인지만 적는다 */
+.sr-soon{
+  margin:0;padding:22px;border:1px dashed var(--rule);border-radius:12px;
+  background:var(--surface-2);color:var(--muted);font-size:13px;line-height:1.6;font-weight:650;
+}
+.sr-soon small{display:block;margin-top:6px;color:#a8afc2;font-family:var(--mono);font-size:11px}
+
+/* ── 손익 나누기 ────────────────────────────────────── */
+.sr-dl{display:flex;flex-direction:column;gap:11px;margin:0}
+.sr-dl > div{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.sr-dl dt{color:var(--body);font-size:13.5px;font-weight:750}
+.sr-dl dt small{display:block;margin-top:2px;color:var(--faint);font-size:11.5px;font-weight:650}
+.sr-dl dd{margin:0;color:var(--ink);font-size:15.5px;font-weight:800;text-align:right;white-space:nowrap}
+/* 합계가 결론이다 — 위 두 줄과 선으로 갈라 크게.
+   남는 높이를 여기서 먹어 옆 곡선과 바닥이 맞는다. 곡선을 낮춰 둔 덕에
+   그 사이가 벌어져 봐야 한 뼘이라 구멍처럼 보이지 않는다. */
+.sr-dl{flex:1}
+.sr-dl .sr-total{margin-top:auto;padding-top:11px;border-top:1px dashed var(--rule)}
+.sr-dl .sr-total dt{font-size:14px;font-weight:800}
+.sr-dl .sr-total dd{font-size:19px;font-weight:850;letter-spacing:-.02em}
+
+/* ── 성적표 (전체 폭) ───────────────────────────────── */
+/* 네 칸을 한 줄로 늘어놓는다. 좁은 칸에서 2×2 로 접히면 마지막 칸만 아래에
+   혼자 남아 어긋나 보였다. */
+.sr-card2 .sr-facts{grid-template-columns:repeat(4,minmax(0,1fr))}
+.sr-card-block .sr-facts{margin:0}
+.sr-card-block .sr-none{padding:6px 4px}
+.sr-card-block .sr-note{margin-top:12px}
+
+/* 아직 마지막 날이 아닐 때 */
+.sr-wait{
+  margin:0;padding:6px 4px;text-align:center;
+  color:var(--muted);font-size:12.5px;font-weight:700;
+}
+.sr-wait small{display:block;margin-top:5px;color:var(--faint);font-size:11.5px;font-weight:650}
+
+/* ── 자산 곡선 (EquityChart) ────────────────────────── */
+.eq{display:block}
+.eq-svg{display:block;width:100%}
+
+/* 곡선 아래를 옅게 채운다. 선 하나보다 오르내림이 눈에 잘 들어온다 */
+.eq-area{stroke:none;opacity:.13}
+.eq-area.up{fill:var(--up-vivid)}
+.eq-area.down{fill:var(--down-vivid)}
+.eq-line{fill:none;stroke-width:2}
+.eq-line.up{stroke:var(--up-vivid)}
+.eq-line.down{stroke:var(--down-vivid)}
+
+/* 시작선. 이 위면 벌었고 아래면 잃었다 — 이 그림의 기준이라 점선으로 늘 보인다 */
+.eq-base{stroke:#9aa1b8;stroke-width:1;stroke-dasharray:4 3}
+.eq-axis{fill:#a8afc2;font-size:11px;font-weight:700}
+
+.eq-dot{stroke:#fff;stroke-width:2}
+.eq-dot.up{fill:var(--up-vivid)}
+.eq-dot.down{fill:var(--down-vivid)}
+
+.eq-foot{
+  display:flex;justify-content:space-between;margin:2px 0 0;
+  color:var(--faint);font-size:11.5px;font-weight:700;
+}
+.eq-empty{
+  margin:0;padding:36px 0;text-align:center;
+  color:var(--muted);font-size:13px;font-weight:650;
+}
+.eq-empty span{color:#a8afc2}
+
+/* ── 마지막 포트폴리오 ──────────────────────────────── */
+/* 도넛을 왼쪽에 두고 목록을 오른쪽에 편다. 세로로 쌓으면 오른쪽이 통째로 빈다.
+   종목이 많으면 목록이 여러 열로 갈라진다. */
+.sr-pie .sr-fold-body .pd{flex-direction:row;align-items:flex-start;gap:22px}
+.sr-pie .sr-fold-body .pd-ring{flex:none;width:132px;margin:0}
+.sr-pie .sr-fold-body .pd-legend{
+  flex:1;min-width:0;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:3px 16px;
+  align-content:start;
+}
+/* 접힌 줄의 작은 고리는 화살표 바로 앞에 세운다 */
+.sr-pie > summary .pd-mini{margin-left:2px}
+
+/* ── 접이식 카드 (종목별 성적 · 복기) ───────────────────── */
+/* 늘 펴 둘 값이 아니다. 종목이 한둘이면 표가 한 줄이고, 여러 종목이면 길어져
+   아래를 밀어낸다. 접힌 줄에 결론을 적어 두면 펴지 않고도 읽힌다.
+   details/summary 라 열림·닫힘을 브라우저가 들고 있어 상태 변수가 없다. */
+.sr-fold{
+  border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+/* 높이를 못 박는다. 한쪽 줄에 작은 고리(26px)가 들어가서, 높이를 내용에 맡기면
+   두 칸의 접힌 줄이 몇 px 어긋난다 — 나란히 선 카드는 그게 바로 보인다. */
+.sr-fold > summary{
+  display:flex;align-items:center;gap:8px;
+  min-height:54px;padding:0 18px;list-style:none;cursor:pointer;border-radius:16px;
+  color:var(--ink);font-size:15px;font-weight:800;letter-spacing:-.02em;
+}
+.sr-fold > summary::-webkit-details-marker{display:none}
+.sr-fold > summary::marker{content:''}
+.sr-fold > summary:hover{background:var(--surface-2)}
+.sr-fold > summary:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+/* 접힌 줄의 요약. 제목보다 약하게 두어 제목이 먼저 읽히게 한다 */
+.sr-fold > summary em{
+  flex:1;min-width:0;font-style:normal;
+  color:var(--muted);font-size:12.5px;font-weight:700;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* 요약을 오른쪽에 붙인다. 제목과 붙어 있으면 어디까지가 제목인지 흐려진다 */
+.sr-pie > summary em{flex:none;margin-left:auto;text-align:right}
+.sr-fold > summary em b{font-weight:850}
+.sr-fold > summary .sr-one{font-weight:650}
+.sr-fold > summary i{
+  flex:none;color:var(--muted);font-size:15px;line-height:1;font-style:normal;
+  transition:transform .15s;
+}
+.sr-fold[open] > summary i{transform:rotate(180deg)}
+.sr-fold[open] > summary{border-radius:16px 16px 0 0;border-bottom:1px solid #eef0f6}
+.sr-fold-body{padding:16px 18px 18px}
+
+/* 네 칸을 한 줄로. 복기 안의 수치와 성적표가 같이 쓴다 */
+.sr-facts{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;margin:0 0 14px;
+}
+.sr-facts > div{
+  display:flex;flex-direction:column;gap:3px;
+  padding:12px 14px;border-radius:12px;background:var(--surface-2);
+}
+.sr-facts dt{color:var(--muted);font-size:12px;font-weight:700}
+.sr-facts dd{margin:0;color:var(--ink);font-size:16px;font-weight:850;letter-spacing:-.02em}
+/* 값 아래 한 마디. 손익비 2.0 이 좋은 건지 나쁜 건지는 적어 줘야 안다 */
+.sr-facts small{color:var(--faint);font-size:11px;font-weight:650;line-height:1.45}
+
+/* ── 종목별 성적 ────────────────────────────────────── */
+/* 표가 아니라 목록이다. 줄 수가 0 에서 시작해 천천히 늘고, 좁은 화면에서
+   칸을 줄이기도 표보다 쉽다. */
+.sr-board{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.sr-board li{
+  display:grid;grid-template-columns:minmax(0,1.6fr) repeat(4,minmax(0,1fr));
+  align-items:baseline;gap:12px;
+  padding:10px 12px;border-radius:10px;
+}
+.sr-board li:not(.sr-board-head){background:var(--surface-2)}
+.sr-board-head{padding-bottom:2px}
+.sr-board-head span{color:var(--faint);font-size:11.5px;font-weight:750;text-align:right}
+.sr-board-head span:first-child{text-align:left}
+.sr-board b{
+  color:var(--ink);font-size:13.5px;font-weight:800;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sr-board span{color:var(--muted);font-size:12.5px;font-weight:750;text-align:right}
+.sr-board .sr-sum{font-weight:850}
+
+/* ── 좁은 화면 ──────────────────────────────────────── */
+@media(max-width:1100px){
+  .sr-body,.sr-row{grid-template-columns:minmax(0,1fr);align-items:start}
+  .sr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sr-card2 .sr-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  /* 도넛과 목록을 나란히 둘 폭이 안 된다 — 쌓는다 */
+  .sr-pie .sr-fold-body .pd{flex-direction:column;align-items:stretch;gap:14px}
+  .sr-pie .sr-fold-body .pd-ring{margin:0 auto}
+}
+@media(max-width:820px){
+  .sr-head h1{font-size:22px}
+  /* 실현·미실현을 접고 합계만 남긴다 — 좁으면 다섯 칸이 다 뭉갠다 */
+  .sr-board li{grid-template-columns:minmax(0,1.6fr) minmax(0,.7fr) minmax(0,1fr)}
+  .sr-board li > :nth-child(3),
+  .sr-board li > :nth-child(4){display:none}
+}
+@media(max-width:560px){
+  .sr-stats{grid-template-columns:minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){
+  .sr-go,.sr-back,.sr-fold > summary i{transition:none}
+}

@@ -17,9 +17,10 @@ import ssafy.a507.backend.domain.prediction.entity.Prediction;
  * 앵커 전에는 넷이 각각 null 이 아니라 {@code anchor == null} + {@link #anchorStatus} 하나로 "대기" 를 말한다 —
  * 프론트 AnchorBadge 의 입력이 상태값 하나면 된다.
  *
- * <p>비공개 값 두 가지의 규칙이 다르다. {@code salt} 는 리빌 뒤 <b>회원 전원</b>에게 간다 — 비구독자도 ①을 검산해야 한다.
- * {@code noteSalt} 는 리빌 뒤에도 <b>작성자·구독자만</b> 받는다(결정 D6) — 근거 본문은 판정 후에도 구독자 전용인데
- * {@code noteHash} 가 공개되면 짧은 근거를 후보 해시로 맞출 수 있어서다. 컬럼·계산은 PRED-02 몫이라 지금은 자리만 있다.
+ * <p>비밀은 {@code salt} 하나다(ANT-PRED-02, 09-09 결정 — 커밋 salt 를 따로 두지 않는다). 이 값은 근거 salt 이며 리빌 뒤에도
+ * <b>작성자·구독자만</b> 받는다(결정 D6) — 근거 본문은 판정 후에도 구독자 전용인데 {@code noteHash} 가 공개되면 짧은 근거를 후보 해시로
+ * 맞출 수 있어서다. 비구독자의 ①단계 검산에는 salt 가 필요 없다: 공개 필드 4개 + {@code payload.noteHash} 로 커밋 문자열을 다시 조립해
+ * {@code commitHash} 와 대조하면 된다. 구독자는 한 겹 더 {@code keccak256(note ‖ salt) == noteHash} 를 확인할 수 있다.
  */
 public record ProofResponse(
         long predictionId,
@@ -29,7 +30,6 @@ public record ProofResponse(
         String signerAddress,
         Instant revealedAt,
         String salt,
-        String noteSalt,
         Anchor anchor,
         AnchorStatus anchorStatus,
         Settle settle) {
@@ -47,8 +47,9 @@ public record ProofResponse(
     }
 
     /**
-     * 커밋 payload 의 구성 필드. 문자열 조립 규격(줄 구분, 결정 B2)은 PRED-02 가 정한다 — 여기서는 값만 내린다.
-     * {@code noteHash} 는 PRED-02 가 {@code keccak256(note ‖ noteSalt)} 로 계산해 저장하기 전까지 null 이다.
+     * 커밋 payload 의 구성 필드. 문자열 조립 규격은 {@code CommitPayload}(줄 구분, 결정 B2) — 여기서는 값만 내린다.
+     * {@code noteHash} 는 {@code keccak256(note ‖ salt)}. 커밋 문자열의 마지막 줄이고 바깥 해시의 salt 역할이라 리빌 뒤 전원에게 간다.
+     * {@code createdAt} 은 표시용이다 — 커밋 문자열에는 들어가지 않는다.
      */
     public record Payload(
             String stockCode,

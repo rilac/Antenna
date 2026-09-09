@@ -3,12 +3,18 @@
    설계서 docs/화면설계서.md §3 · §4 G-04 · API 명세 §모의투자
 
    배치는 프로토타입 4·5번 화면(리플레이 투자하기)을 따른다 — 머리줄, 지표 4칸,
-   차트, 주문, 이슈·AI. 셸(상단바·사이드바)은 프로토타입이 아니라 우리 것을 쓴다.
+   차트, 주문. 셸(상단바·사이드바)은 프로토타입이 아니라 우리 것을 쓴다.
 
-   본문은 세 칸이다: 차트 · AI/이슈 · 주문. 시즌이 30게임일이라 워밍업까지
-   합쳐도 봉이 60개라, 차트가 반 폭만 써도 봉이 오히려 굵고 촘촘하다. 남는 폭은
-   그 시점 사건이 받는다 — 사건을 보면서 차트를 읽는 화면이다.
-   포트폴리오는 맨 아래 접이식이다. 늘 보는 것이 아니라 가끔 확인하는 값이다.
+   본문은 세 칸이다: 포트폴리오 · 차트 · 주문. 차트를 주문 바로 옆에 붙이고
+   포트폴리오를 왼쪽에 세웠다 — 주문할 때 보는 것이 차트와 내 비중 둘이고,
+   그 둘이 주문 패널과 붙어 있어야 눈이 멀리 가지 않는다.
+
+   차트에 폭을 다 주지 않는다. 시즌이 30게임일이라 워밍업까지 합쳐도 봉이 60개라
+   넓게 늘어놓으면 오히려 성기게 보인다.
+
+   뉴스·AI 힌트는 아래 두 칸으로 내리고 접어 뒀다(2026-09-08). season_news 가
+   0행이라 빈 상자 둘이 화면 가운데를 차지하고 있었다 — 접힌 줄에 무엇이 올
+   자리인지만 적어 둔다. ANT-SEASON-07 이 들어오면 펴진 모습이 채워진다.
 
    ── 프로토타입에서 일부러 뺀 것 ──────────────────────────
    1. 날짜 배지(2008.09.19 금). 시기를 알려주면 결과를 아는 사람이 유리해진다.
@@ -21,15 +27,15 @@
    6. 초보자 모드 · 심급적용 토글. 아직 정의가 없다.
 
    ── 서버에서 오는 것 · 아직 안 오는 것 ────────────────────
-   온다   GET /seasons/{id} · /tickers · /tickers/{tickerId}/prices · /me
-          POST /orders · /advance · /finish (ANT-SEASON-03 · 04)
+   온다   GET /seasons/{id} · /tickers · /tickers/{tickerId}/prices
+          GET /seasons/{id}/me · /trades · POST /orders · /advance · /join
    안 온다 GET /news (ANT-SEASON-07)
 
-   주문·진행·투자현황은 useSeasonServer 가 서버로 돌린다. 진행일은 서버가 들고 있고,
-   가격 상한이 내 진행일이라 진행 뒤에는 봉을 다시 받아야 새 봉이 그려진다.
-   마지막 게임일에서는 "종료하고 결과 확인" — 확인창 뒤 POST /finish 로 결과를 굳힌다. */
+   주문·진행·투자현황은 useSeasonSim 이 서버를 부른다. 브라우저에서 굴리던 것을
+   2026-09-08 에 서버로 옮겼다 — 그때 order·advance 를 Promise 로 만들어 둔 덕에
+   이 화면은 await 두 줄 말고는 고치지 않았다. */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { ApiError } from '../api/errors'
 import {
   getPrices, getTickers, maxBuyQty, orderAmount, rate, signOf,
@@ -41,7 +47,7 @@ import IndicatorPane, { type PaneKind } from '../components/sim/IndicatorPane'
 import PortfolioDonut, { type DonutSlice } from '../components/sim/PortfolioDonut'
 import TickerPickerModal from '../components/sim/TickerPickerModal'
 import ErrorState from '../components/state/ErrorState'
-import { useSeasonServer } from '../sim/useSeasonServer'
+import { useSeasonSim } from '../sim/useSeasonSim'
 import type { IndicatorKind } from '../sim/indicators'
 import '../styles/screens/sim-play.css'
 
@@ -77,16 +83,17 @@ const OVERLAYS: IndicatorKind[] = ['MA5', 'MA15', 'MA30', 'BOLL']
 const PANES: PaneKind[] = ['RSI']
 const INDICATORS: IndicatorKind[] = [...OVERLAYS, ...PANES]
 
+/* 서버가 막은 이유를 사람 말로 바꾼다. 훅이 오류 코드를 이 몇 가지로 좁혀 준다 */
 const REJECT_TEXT: Record<string, string> = {
   CASH: '예수금이 부족합니다',
   QTY: '수량을 확인해 주세요',
   NO_PRICE: '이 게임일의 가격이 아직 없습니다',
-  ENDED: '이미 끝난 회차입니다. 결과를 확인해 주세요',
-  NOT_JOINED: '아직 참가하지 않은 시즌입니다',
-  UNKNOWN: '주문을 처리하지 못했습니다. 다시 시도해 주세요',
+  NOT_JOINED: '참가하지 않은 시즌입니다',
+  ENDED: '이미 끝난 회차입니다',
+  LAST_DAY: '마지막 게임일입니다',
+  DAY_MISMATCH: '다른 창에서 진행됐습니다. 화면을 새로 맞췄습니다',
+  FAILED: '주문을 처리하지 못했습니다. 다시 시도해 주세요',
 }
-
-const FINISH_ASK = '모의투자 기간이 끝났습니다. 종료하고 결과를 확인하시겠습니까?'
 
 const Ico = ({ size = 18, children }: { size?: number; children: ReactNode }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -119,7 +126,6 @@ export default function SeasonPlay() {
   const { id } = useParams<{ id: string }>()
   const season = useApiQuery<SeasonHead>(`/seasons/${id}`)
   const seasonId = Number(id)
-  const navigate = useNavigate()
 
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [tickerError, setTickerError] = useState<ApiError | null>(null)
@@ -136,7 +142,6 @@ export default function SeasonPlay() {
   const [on, setOn] = useState<IndicatorKind[]>(['MA5', 'MA15', 'MA30'])
   const [indOpen, setIndOpen] = useState(false)
   const [filled, setFilled] = useState<string | null>(null)
-  const [finishError, setFinishError] = useState<ApiError | null>(null)
   const indRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -149,8 +154,9 @@ export default function SeasonPlay() {
       .catch((e) => setTickerError(e instanceof ApiError ? e : null))
   }, [seasonId])
 
-  /* 고른 종목의 봉을 받는다. 이미 있으면 다시 부르지 않는다.
-     uptoDay 를 넘기지 않는다 — 서버가 내 진행일까지만 준다(커닝 차단). */
+  /* 고른 종목의 봉을 받는다. 이미 있으면 다시 부르지 않는다 —
+     진행일이 바뀌면 위에서 통째로 버리므로 그때 다시 받는다.
+     uptoDay 를 넘기지 않는다. 서버가 내 진행일까지만 준다(커닝 차단). */
   useEffect(() => {
     if (!seasonId || selected === null || candles[selected]) return
     getPrices(seasonId, selected)
@@ -175,15 +181,29 @@ export default function SeasonPlay() {
   }, [indOpen])
 
   const candlesOf = useCallback((tickerId: number) => candles[tickerId], [candles])
-  /* 진행일이 오르면 봉을 전부 버린다 — 서버가 진행일까지만 주므로 새 봉은 다시 받아야 온다 */
-  const dropCandles = useCallback(() => setCandles({}), [])
 
-  const sim = useSeasonServer({
+  const sim = useSeasonSim({
     seasonId,
+    initialCash: season.data?.initialCash ?? 0,
     lengthDays: season.data?.lengthDays ?? 0,
+    tickers,
     candlesOf,
-    onAdvanced: dropCandles,
   })
+
+  /* 진행일이 바뀌면 받아 둔 봉을 버린다.
+
+     서버는 내 진행일까지만 봉을 준다(커닝 차단). 그래서 DAY 8 에 받아 둔 배열에는
+     DAY 9 부터의 봉이 없다 — 다음 영업일로 넘겨도 캐시가 그대로면 차트가 어제에
+     멈추고, 오늘 종가가 없어 <b>매수 가능이 0주가 되어 주문이 막힌다</b>.
+     하루에 요청 한 번이면 되는 값이라 통째로 버리고 다시 받는다.
+
+     렌더 중에 갈아끼운다(리액트가 권하는 방식이다. 효과로 하면 한 프레임 동안
+     옛 봉이 그려진다). */
+  const [barsDay, setBarsDay] = useState(sim.day)
+  if (barsDay !== sim.day) {
+    setBarsDay(sim.day)
+    setCandles({})
+  }
 
   const heldQty = useMemo(
     () => Object.fromEntries(sim.positions.map((p) => [p.tickerId, p.qty])),
@@ -225,19 +245,38 @@ export default function SeasonPlay() {
     )
   }
 
-  /* 참가하지 않았거나 회차를 못 읽으면 진행 화면을 그리지 않는다 — 숫자가 전부 0 으로 보인다 */
-  if (sim.error) {
+  const s = season.data
+
+  /* 참가하지 않았으면 진행할 것이 없다. 서버가 GET /me 에 SEASON_NOT_JOINED 를 주고
+     훅이 joined=false 로 알려 준다 — 이때 차트만 띄워 두면 주문 버튼이 다 막힌
+     화면이 되어 왜 안 되는지 알 수 없다. */
+  if (sim.joined === false) {
     return (
       <main className="main">
         <div className="main-inner sim-play">
-          <ErrorState error={sim.error} onRetry={() => void sim.reload()} />
-          <p className="sp-note"><Link to={`/sim/seasons/${seasonId}`}>시즌 상세로 가기 ›</Link></p>
+          <nav className="sp-crumb" aria-label="위치">
+            <Link to="/sim">모의투자 홈</Link>
+            <i aria-hidden="true">›</i>
+            <Link to="/sim/practice">연습</Link>
+            <i aria-hidden="true">›</i>
+            <span>진행</span>
+          </nav>
+          <section className="sp-card">
+            <p className="sp-none">
+              <b>{s.title}</b>
+              아직 이 연습에 참가하지 않았습니다.
+              <small>참가하면 예수금 {won(s.initialCash)} 으로 DAY 1 부터 시작합니다.</small>
+              <button type="button" className="sp-join" disabled={sim.pending}
+                      onClick={() => { void sim.join() }}>
+                {sim.pending ? '참가 중…' : '참가하기'}
+              </button>
+            </p>
+          </section>
         </div>
       </main>
     )
   }
 
-  const s = season.data
   const ticker = tickers.find((t) => t.tickerId === selected) ?? null
   const bars = selected === null ? undefined : candles[selected]
   const price = selected === null ? null : sim.priceOf(selected)
@@ -293,24 +332,14 @@ export default function SeasonPlay() {
     { key: 'CASH', label: '현금', value: sim.cash },
   ]
 
+  /* await 로 부른다. 지금은 훅 안에서 즉시 끝나지만 서버가 붙으면 진짜로 기다리게
+     된다 — 그때 이 자리를 안 고치려고 지금부터 비동기로 쓴다. */
   async function submit() {
     if (selected === null) return
     const at = await sim.order(selected, side, qty)
     if (at !== null) {
       setFilled(`${side === 'BUY' ? '매수' : '매도'} ${qty.toLocaleString('ko-KR')}주 · ${won(at)} 체결`)
       setQty(0)
-    }
-  }
-
-  /* 마지막 게임일의 버튼. 확인창을 거쳐야 굳힌다 — 되돌릴 수 없는 종료다 */
-  async function endGame() {
-    if (!window.confirm(FINISH_ASK)) return
-    setFinishError(null)
-    try {
-      await sim.finish()
-      navigate(`/sim/${seasonId}/result`)
-    } catch (e) {
-      setFinishError(e instanceof ApiError ? e : null)
     }
   }
 
@@ -376,7 +405,37 @@ export default function SeasonPlay() {
         </section>
 
         <div className="sp-body">
-          {/* ── 왼쪽 · 차트 ─────────────────────────────── */}
+          {/* ── 왼쪽 · 포트폴리오 ────────────────────────
+              접지 않는다. 도넛은 주문을 정하는 동안 늘 옆에 있어야 하는 그림이다 —
+              "얼마나 들어가 있나" 를 보고 다음 주문을 정한다. 접어 두면 그때마다
+              펴야 하고, 펴 두면 접이식일 이유가 없다. */}
+          <section className="sp-card sp-pie" aria-label="포트폴리오">
+            <h2>
+              <span className="sp-h-ico t-pie" aria-hidden="true">
+                <Ico size={15}><circle cx="12" cy="12" r="8" /><path d="M12 4v8h8" /></Ico>
+              </span>
+              포트폴리오
+            </h2>
+            {/* 보유가 없어도 그린다. 전액 현금이면 회색 원 하나인데, 그것도 "아직
+                아무것도 안 넣었다" 를 말하는 그림이다 — 글자 두 줄만 남기면 카드가
+                비어 보이고, 사고 나서야 원이 생기면 화면이 튄다. */}
+            {/* 좁은 칸이라 셋까지만 펴 둔다. 더 있으면 "더 보기" 로 넘긴다 —
+                목록이 길어지면 이 카드가 줄 높이를 정해 버려 차트 아래가 빈다. */}
+            <PortfolioDonut
+              slices={slices}
+              total={sim.totalAsset}
+              onPick={setSelected}
+              maxRows={3}
+            />
+            {sim.positions.length === 0 && (
+              <p className="sp-empty">
+                아직 보유한 종목이 없습니다.
+                <small>종목을 사면 여기에 비중이 쌓입니다</small>
+              </p>
+            )}
+          </section>
+
+          {/* ── 가운데 · 차트. 주문 패널 바로 옆이다 ────── */}
           <section className="sp-chart-card" aria-label="시세">
             {/* 이름·가격·등락을 한 줄에 둔다. 프로토타입과 같은 자리다 —
                 가격을 아랫줄로 내리면 종목을 바꿨을 때 눈이 두 번 움직인다. */}
@@ -464,38 +523,6 @@ export default function SeasonPlay() {
               ))}
           </section>
 
-          {/* ── 가운데 · 아직 없는 자리 ──────────────────
-              뉴스와 AI 힌트는 자리만 잡는다. season_news 가 0행이고 목업을 넣지 않는다 —
-              가짜 뉴스는 나중에 통째로 버려야 하고, 문장이 시대 단서 규칙과도 엉킨다.
-              차트 옆이 제자리다. 그 시점 사건을 보면서 차트를 읽는 화면이다. */}
-          <div className="sp-mid">
-            <section className="sp-card">
-              <h2>
-                <span className="sp-h-ico t-ai" aria-hidden="true">
-                  <Ico size={15}><path d="m12 4 1.6 3.6L17 9.2l-3.4 1.6L12 14.4l-1.6-3.6L7 9.2l3.4-1.6z" /><path d="M18 15.5 18.8 17l1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z" /></Ico>
-                </span>
-                AI 한줄 요약
-              </h2>
-              <p className="sp-soon">
-                그 시점 사건을 요약해 판단 근거를 짚어 줍니다.
-                <small>배치 생성 · ANT-SEASON-07</small>
-              </p>
-            </section>
-
-            <section className="sp-card">
-              <h2>
-                <span className="sp-h-ico t-news" aria-hidden="true">
-                  <Ico size={15}><path d="M5 4h11v16H5z" /><path d="M16 8h3v9.5a2.5 2.5 0 0 1-5 0" /><path d="M8 8h5M8 11.5h5M8 15h3" /></Ico>
-                </span>
-                당시 주요 이슈
-              </h2>
-              <p className="sp-soon">
-                게임일 시점의 뉴스·공시가 이 자리에 옵니다.
-                <small>GET /seasons/{'{id}'}/news · ANT-SEASON-07</small>
-              </p>
-            </section>
-          </div>
-
           {/* ── 오른쪽 · 주문 ───────────────────────────── */}
           <div className="sp-side">
             <section className="sp-card sp-order" aria-label="주문">
@@ -546,7 +573,9 @@ export default function SeasonPlay() {
                     +{n.toLocaleString('ko-KR')}
                   </button>
                 ))}
-                <button type="button" onClick={() => setQty(maxQty)}>최대</button>
+                <button type="button" disabled={maxQty <= 0} onClick={() => setQty(maxQty)}>
+                  최대
+                </button>
               </div>
 
               {/* 예상 금액은 프론트 계산이다(명세 §모의투자). 종가 단일가라 곱하기 하나다.
@@ -575,62 +604,91 @@ export default function SeasonPlay() {
               <button
                 type="button"
                 className={`sp-submit ${side === 'BUY' ? 'buy' : 'sell'}`}
-                disabled={qty <= 0 || price === null || sim.busy}
-                onClick={() => void submit()}
+                disabled={qty <= 0 || price === null || sim.pending}
+                onClick={() => { void submit() }}
               >
-                {side === 'BUY' ? '매수 주문' : '매도 주문'}
+                {/* 꺼진 버튼은 왜 꺼졌는지 말해야 한다. "매수 주문" 이 회색으로 있으면
+                    누를 수 없는 이유가 수량인지 가격인지 서버인지 알 수 없다. */}
+                {sim.pending
+                  ? '주문 중…'
+                  : price === null
+                    ? '가격을 불러오는 중…'
+                    : qty <= 0
+                      ? '수량을 입력하세요'
+                      : side === 'BUY' ? '매수 주문' : '매도 주문'}
               </button>
 
-              {/* 마지막 게임일이면 같은 자리가 종료 버튼이 된다. 그날도 주문은 되고,
-                  종료는 확인창을 거쳐야 굳는다. */}
-              <button
-                type="button"
-                className="sp-advance"
-                disabled={!sim.ready || sim.busy}
-                onClick={sim.isLastDay
-                  ? () => void endGame()
-                  : () => { void sim.advance(); setFilled(null) }}
-              >
-                <em aria-hidden="true">{sim.isLastDay ? '■' : '▶'}</em>
-                {sim.isLastDay ? '종료하고 결과 확인' : '다음 영업일 진행'}
-              </button>
-              {finishError && <ErrorState error={finishError} onRetry={() => void endGame()} inline />}
+              {/* 마지막 날에는 버튼이 결과로 바뀐다. 전에는 "마지막 게임일입니다" 라고
+                  꺼진 버튼만 남아 흐름이 거기서 끊겼다 — 다 돌린 사람에게 다음 걸음이
+                  없으면 얼마 벌었는지도 못 본다. */}
+              {sim.isLastDay ? (
+                <Link className="sp-advance is-done" to={`/sim/${seasonId}/result`}>
+                  결과 보기
+                  <em aria-hidden="true">›</em>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="sp-advance"
+                  disabled={sim.pending}
+                  onClick={() => { void sim.advance(); setFilled(null) }}
+                >
+                  <em aria-hidden="true">▶</em>
+                  {sim.pending ? '진행 중…' : '다음 영업일 진행'}
+                </button>
+              )}
               <p className="sp-note">
                 {sim.isLastDay
-                  ? '마지막 게임일입니다. 종료하면 결과가 확정됩니다.'
+                  ? '마지막 게임일입니다. 진행은 여기까지입니다.'
                   : '주문은 그 게임일 종가로 한 번에 체결됩니다.'}
               </p>
             </section>
           </div>
         </div>
 
-        {/* ── 아래 · 내 포트폴리오 (접이식) ───────────────
-            details/summary 를 쓴다. 열고 닫는 상태를 브라우저가 들고 있어 useState 가
-            필요 없고, 접혀 있을 때 안쪽이 접근성 트리에서도 빠진다.
-            처음엔 펴 둔다 — 닫아 두면 있는 줄 모른다. */}
-        <details className="sp-fold" open>
-          <summary>
-            <span className="sp-h-ico t-pie" aria-hidden="true">
-              <Ico size={15}><circle cx="12" cy="12" r="8" /><path d="M12 4v8h8" /></Ico>
-            </span>
-            내 포트폴리오 요약
-            <em className="num">
-              {sim.positions.length > 0 ? `${sim.positions.length}종목` : '전액 현금'}
-            </em>
-            <i aria-hidden="true">⌄</i>
-          </summary>
-          <div className="sp-fold-body">
-            {sim.positions.length === 0 ? (
-              <p className="sp-empty">
-                아직 보유한 종목이 없습니다.
-                <small>전액 현금 {won(sim.cash)}</small>
-              </p>
-            ) : (
-              <PortfolioDonut slices={slices} total={sim.totalAsset} onPick={setSelected} />
-            )}
-          </div>
-        </details>
+        {/* ── 아래 두 칸 (접이식) ──────────────────────────
+            뉴스와 AI 힌트는 자리만 잡는다. season_news 가 0행이고 목업을 넣지 않는다 —
+            가짜 뉴스는 나중에 통째로 버려야 하고, 문장이 시대 단서 규칙과도 엉킨다.
 
+            접어 둔다. 빈 상자 둘이 펴져 있으면 화면을 차지하기만 하고, 접힌 줄에
+            무엇이 올 자리인지 적어 두면 그것만으로 뜻이 전해진다. */}
+        <div className="sp-later">
+          <details className="sp-fold">
+            <summary>
+              <span className="sp-h-ico t-ai" aria-hidden="true">
+                <Ico size={15}><path d="m12 4 1.6 3.6L17 9.2l-3.4 1.6L12 14.4l-1.6-3.6L7 9.2l3.4-1.6z" /><path d="M18 15.5 18.8 17l1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z" /></Ico>
+              </span>
+              AI 한줄 요약
+              <em>아직 준비 중입니다</em>
+              <i aria-hidden="true">⌄</i>
+            </summary>
+            <div className="sp-fold-body">
+              <p className="sp-soon">
+                그 시점 사건을 요약해 판단 근거를 짚어 줍니다.
+                <small>배치 생성 · ANT-SEASON-07</small>
+              </p>
+            </div>
+          </details>
+
+          <details className="sp-fold">
+            <summary>
+              <span className="sp-h-ico t-news" aria-hidden="true">
+                <Ico size={15}><path d="M5 4h11v16H5z" /><path d="M16 8h3v9.5a2.5 2.5 0 0 1-5 0" /><path d="M8 8h5M8 11.5h5M8 15h3" /></Ico>
+              </span>
+              당시 주요 이슈
+              <em>아직 준비 중입니다</em>
+              <i aria-hidden="true">⌄</i>
+            </summary>
+            <div className="sp-fold-body">
+              <p className="sp-soon">
+                게임일 시점의 뉴스·공시가 이 자리에 옵니다.
+                <small>GET /seasons/{'{id}'}/news · ANT-SEASON-07</small>
+              </p>
+            </div>
+          </details>
+        </div>
+
+        {sim.loadError && <ErrorState error={sim.loadError} onRetry={() => { void sim.reload() }} inline />}
         {tickerError && <ErrorState error={tickerError} onRetry={() => setTickerError(null)} inline />}
 
         {picking && (

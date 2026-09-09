@@ -3,6 +3,8 @@ package ssafy.a507.backend.domain.prediction.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import ssafy.a507.backend.domain.chain.dto.ProofResponse;
+import ssafy.a507.backend.domain.chain.entity.AnchorBatch;
 import ssafy.a507.backend.domain.market.entity.Stock;
 import ssafy.a507.backend.domain.prediction.entity.Prediction;
 
@@ -14,6 +16,9 @@ import ssafy.a507.backend.domain.prediction.entity.Prediction;
  *
  * <p>{@code status} 는 엔티티의 네 값({@code BASE·OPEN·HIT·MISS})을 그대로 내린다.
  * 필터 파라미터의 {@code PENDING} 은 BASE·OPEN 을 묶은 조회용 어휘일 뿐이고 저장된 상태가 아니다.
+ *
+ * <p>{@code anchorStatus} 는 "이 예측이 블록에 올라갔는가" (프론트 요청 2026-09-09, 화면 C-02 행마다 AnchorBadge).
+ * 어휘는 proof 의 {@link ProofResponse.AnchorStatus} 그대로 — 상세(C-03)와 같은 값으로 그린다. 커밋이 아직 없으면 WAITING.
  */
 public record MyPredictionItemResponse(
         long id,
@@ -25,9 +30,10 @@ public record MyPredictionItemResponse(
         Prediction.Status status,
         Integer dday,
         BigDecimal errorRate,
-        LocalDate settleDate) {
+        LocalDate settleDate,
+        ProofResponse.AnchorStatus anchorStatus) {
 
-    public static MyPredictionItemResponse of(Prediction p, LocalDate today) {
+    public static MyPredictionItemResponse of(Prediction p, LocalDate today, AnchorBatch batch) {
         Stock stock = p.getStock();
         return new MyPredictionItemResponse(
                 p.getId(),
@@ -39,7 +45,8 @@ public record MyPredictionItemResponse(
                 p.getStatus(),
                 dday(p, today),
                 p.getErrorRate(),
-                p.getSettleDate());
+                p.getSettleDate(),
+                ProofResponse.AnchorStatus.of(batch));
     }
 
     /**

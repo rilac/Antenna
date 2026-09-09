@@ -5,16 +5,13 @@
    GET /rankings/me?track=&seasonId=
      → { rank, percentile, delta, tier }
 
-   ── 백엔드가 붙으면 지울 것 ────────────────────────────────
-   아래 MOCK 을 false 로 바꾸면 전부 실제 호출로 넘어간다. 그다음
-   api/mock/rankings.ts 와 각 함수의 `if (MOCK)` 한 줄씩만 지우면 흔적이 없다.
-   실제 호출부는 이미 명세서 경로·쿼리대로 적어 두었다 — api/insight.ts 가 쓰는 방식과 같다.
+   백엔드 3건(ANT-RANK-01 배치 · 02 목록 · 03 내 순위)이 모두 dev 에 있어 목업을 걷어냈다
+   (ANT-FE-RANKING-LIVE).
 
-   Ranking 엔티티와 RankingRepository 는 있으나 컨트롤러가 없다(티켓 없음). */
+   **판정이 쌓이기 전에는 빈 목록이 정상이다.** 배치 B3 가 predictions 의 HIT/MISS 로
+   스냅샷을 만들므로 판정이 0건이면 서버가 computedAt: null · items: [] 를 준다.
+   404 가 아니다 — 화면은 이걸 오류가 아니라 빈 상태로 그린다. */
 import { api } from './client'
-import * as mock from './mock/rankings'
-
-const MOCK = true
 
 /** 실전과 리플레이는 랭킹이 분리된다. 리플레이 실적은 실전 신뢰도에 반영하지 않는다. */
 export const TRACKS = ['REAL', 'REPLAY'] as const
@@ -34,9 +31,18 @@ export const PERIOD_LABEL: Record<Period, string> = {
   D30: '최근 30일',
 }
 
-/** 종목 탐색(B-02)과 같은 섹터 어휘를 쓴다. */
-export const SECTORS = ['반도체', '2차전지', '자동차', '인터넷', '바이오', '금융'] as const
-export type Sector = (typeof SECTORS)[number]
+/**
+ * 섹터 필터 값. **목록을 여기서 만들지 않는다.**
+ *
+ * 서버는 stocks.sector 의 KRX 업종명(전기·전자 · 화학 등)을 필터 키로 쓰고, 그 어휘는
+ * GET /stocks/sectors 가 준다. 예전에는 여기 테마 6개(반도체 · 2차전지 · 자동차 …)를
+ * 상수로 두었는데 서버 어휘와 1:1 이 아니었다 — 전기·전자 안에 반도체가, 화학 안에
+ * 2차전지가 들어 있다. 그대로 두고 실 API 로 넘기면 섹터 필터가 항상 빈 목록을 낸다.
+ *
+ * 종목 탐색(B-02)이 이미 같은 함수로 칩을 그리므로, 재사용하면 앱 안에서 섹터 목록이
+ * 한 벌로 통일된다. 어휘가 늘어도 화면을 고칠 필요가 없다.
+ */
+export type Sector = string
 
 /**
  * 랭킹 한 줄. 서버 Ranking 엔티티의 공개 필드와 짝이다.
@@ -64,7 +70,8 @@ export type RankingRow = {
  * 요청할 때 다시 계산하지 않는다. 설계서 §7 의 SnapshotStamp 가 이 자리다.
  */
 export type RankingPage = {
-  computedAt: string
+  /** 배치가 아직 안 돌았으면 null 이다(서버 RankingListResponse.empty). 화면은 이때 도장을 숨긴다 */
+  computedAt: string | null
   items: RankingRow[]
 }
 
@@ -104,13 +111,17 @@ export type RankingQuery = {
 /* ── 조회 ─────────────────────────────────────────────── */
 
 export function fetchRankings(query: RankingQuery): Promise<RankingPage> {
-  if (MOCK) return mock.rankings(query)
   return api.get<RankingPage>('/rankings', { query })
 }
 
-export function fetchMyRank(track: Track, seasonId?: number): Promise<MyRank> {
-  if (MOCK) return mock.myRank(track, seasonId)
-  return api.get<MyRank>('/rankings/me', { query: { track, seasonId } })
+/**
+ * 내 순위. **랭킹에 없으면 204 라 undefined 가 온다** — 서버가 404 를 쓰지 않는 이유는
+ * "없는 리소스" 가 아니라 "아직 순위가 안 잡힌 정상 상태"(스냅샷 전이거나 판정 3건 미만,
+ * 명세 v0.35)라서다. client.ts 가 204 를 undefined 로 바꿔 주므로 반환 타입에 그대로
+ * 드러낸다 — MyRank 로 적어 두면 호출부가 없는 값을 있다고 믿는다.
+ */
+export function fetchMyRank(track: Track, seasonId?: number): Promise<MyRank | undefined> {
+  return api.get<MyRank | undefined>('/rankings/me', { query: { track, seasonId } })
 }
 
 /** 배치 산출 시각. 실시간이 아니라는 것을 드러내야 하므로 분까지 적는다. */
