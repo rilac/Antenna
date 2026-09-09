@@ -15,13 +15,17 @@
    그래서 이 목으로도 ②단계는 진짜 체인을 읽어 진짜로 통과한다 — 목 데이터에
    맞춰 초록불이 켜지도록 화면을 속인 것이 아니다.
 
-   payload · settle · 서명 쪽 값은 지어냈다. 커밋 원문이 남아 있지 않아서인데,
-   ①단계가 어차피 규격 미확정으로 잠겨 있어(proof.ts ProofPayload 주석) 검산에 쓰이지 않는다.
+   1번의 payload · settle · 서명 쪽 값은 지어냈다. 저 commitHash 는 체인에 실제로 올라간
+   리프라 값을 바꿀 수 없고(바꾸면 ②가 깨진다) 커밋 원문은 남아 있지 않다. 그래서 1번은
+   noteHash 가 없고 ①이 "재료 없음" 으로 잠긴다 — 여기에 아무 noteHash 나 넣으면 ①이
+   붉게 뜨는데, 그건 목업 사정을 조작 고발로 그리는 것이다.
 
-   일부러 세 가지를 넣었다
-   - 1번 판정 완료 + 앵커 확정 → ② 전부 통과, ③ 재료 있음
-   - 2번 미판정 + 배치 대기   → 만기 전이라 ①③ 잠기고 ②도 "아직 배치 전"
-   - 3번 proof 한 칸 훼손     → 복원 루트가 어긋나는 붉은 화면을 실제로 보기 위한 것 */
+   일부러 네 가지를 넣었다
+   - 1번 판정 완료 + 앵커 확정 → ② 전부 통과, ③ 재료 있음. ①은 재료가 없어 잠김
+   - 2번 미판정 + 배치 대기   → **①이 실제로 통과한다.** 만기 전이라 ③은 잠기고
+                                ②도 "아직 배치 전". 아래 값은 규격대로 계산한 진짜다
+   - 3번 proof 한 칸 훼손     → 복원 루트가 어긋나는 붉은 화면(②)을 보기 위한 것
+   - 4번 commitHash 한 글자 훼손 → ①이 어긋나는 붉은 화면을 보기 위한 것 */
 import { ApiError } from '../errors'
 import type { Proof } from '../proof'
 
@@ -72,8 +76,8 @@ const SETTLED: Proof = {
     + '1b4e7d0a3c96f25b8e1d4a7c0f3b6e9d2a5c8f1b4e7d0a3c96f25b8e1d4a7c0f1b',
   signerAddress: '0x8f3c2a1d9e7b4c60f5a8d2e1b7c40395a6f1d2e8',
   revealedAt: '2026-09-04T15:02:00Z',
-  salt: 'b1f0a94c73d8e26510af3c8d97b24e05',
-  noteSalt: null,
+  /* 근거 salt. 서버 ERD 가 varchar(64) 라 32바이트 = 64 hex 다 */
+  salt: 'b1f0a94c73d8e26510af3c8d97b24e05c6a70b3f19d82e4c50a7b1936d2ef048',
   anchor: ANCHORED,
   anchorStatus: 'CONFIRMED',
   settle: {
@@ -88,7 +92,21 @@ const SETTLED: Proof = {
   },
 }
 
-/** 아직 만기 전 — salt 도 판정도 없고 배치에도 안 들어갔다 */
+/* 2번의 ①단계 재료. 규격(api/predictions.ts "커밋 봉인")대로 실제로 계산한 값이라
+   화면이 계산한 것과 맞아떨어진다 — 초록불이 켜지도록 화면을 속인 것이 아니다.
+
+     note       = "메모리 가격이 3분기 정점을 지났다고 본다. 서버 교체 수요가 한 박자 쉬어 간다."
+     noteSalt   = 4f1b7e2c90a3d5648f0c1e7b2a9d3546c8e0b1f7a24d69538c0e1b7a2f9d4653
+     noteHash   = keccak256(utf8(note) ‖ utf8(noteSalt))
+     commitHash = keccak256("antenna:commit:v1\nstockCode=000660\n…\nnoteHash=…")
+
+   본문과 salt 는 응답에 담지 않는다 — 본문은 proof 가 주는 값이 아니고(GET /predictions/{id}
+   쪽이다), salt 는 리빌 전이라 작성자에게도 가지 않는다. 여기 적어 두는 것은 이 해시가
+   어디서 나왔는지 나중에 되짚기 위해서다. */
+const NOTE_HASH = '0xdca767152c0fcc3d1bce0c6f5f6d992ef5c560faca41dd103e35e3328bd38354'
+const COMMIT_OF_2 = '0x2c29d2749eccd8c8486d99616b01a929a7563b0516754db58358cda5b344fe28'
+
+/** 아직 만기 전 — 판정도 없고 배치에도 안 들어갔다. salt 는 리빌 전이라 오지 않는다 */
 const WAITING: Proof = {
   predictionId: 2,
   payload: {
@@ -96,15 +114,14 @@ const WAITING: Proof = {
     direction: 'DOWN',
     targetPrice: 214000,
     horizon: 20,
-    noteHash: null,
+    noteHash: NOTE_HASH,
     createdAt: '2026-09-06T01:12:44Z',
   },
-  commitHash: '0x2c7b41e0a95d38f6410c8ba27e5d09f3b6a1c4e8d720f5a93b1c6e0d47a82f35',
+  commitHash: COMMIT_OF_2,
   signature: null,
   signerAddress: '0x8f3c2a1d9e7b4c60f5a8d2e1b7c40395a6f1d2e8',
   revealedAt: null,
   salt: null,
-  noteSalt: null,
   anchor: null,
   anchorStatus: 'WAITING',
   settle: null,
@@ -124,7 +141,15 @@ const TAMPERED: Proof = {
   },
 }
 
-const CASES: Record<string, Proof> = { 1: SETTLED, 2: WAITING, 3: TAMPERED }
+/* 2번에서 commitHash 마지막 글자만 바꿨다 — 커밋 문자열은 그대로라 ①만 어긋난다.
+   ②는 2번과 같이 앵커 전이라 잠긴 채다: ① 하나만 붉은 화면을 보기 위한 것이다. */
+const RESEALED: Proof = {
+  ...WAITING,
+  predictionId: 4,
+  commitHash: `${COMMIT_OF_2.slice(0, -1)}9`,
+}
+
+const CASES: Record<string, Proof> = { 1: SETTLED, 2: WAITING, 3: TAMPERED, 4: RESEALED }
 
 export function proof(predictionId: string | number): Promise<Proof> {
   const found = CASES[String(predictionId)]
