@@ -24,8 +24,14 @@
    POST /seasons/{id}/join · PRACTICE·DEMO 는 즉시 201, COMPETITION 은 참가비
    소각 서명을 동반해 202 → M-02 폴링(명세 §1 규칙 4). 서명 흐름은 지갑 연동에
    걸려 있어 [ANT-FE-WALLET-LINK] 뒤에 붙는다 — 지금은 대회 버튼을 막고 이유를
-   적어 둔다. 연습·시연은 바로 참가해서 G-04 로 넘긴다. */
-import { useState } from 'react'
+   적어 둔다. 연습·시연은 바로 참가해서 G-04 로 넘긴다.
+
+   ── 같은 주제는 진행 중 회차 하나 ─────────────────────────────
+   서버가 강제한다 — 진행 중 회차가 있으면 POST /join 은 409 SEASON_ALREADY_JOINED
+   이고, 본문 { restart: true } 일 때만 그 회차를 ABANDONED 로 버리고 새 회차를 연다.
+   그래서 다시 시작은 반드시 확인창을 거친다(2026-09-09). 버린 회차는 끝낸 것이
+   아니라 성적표·복기가 생기지 않는다 — 확인창이 그 말을 한다. */
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { ApiError } from '../api/errors'
@@ -103,20 +109,33 @@ export default function SeasonJoin() {
 
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<ApiError | null>(null)
+  /* 초기화 확인창. 네이티브 dialog — 포커스 가둠·Esc·배경막을 브라우저가 준다.
+     서버가 진행 중 회차를 알려 줄 때(joined)와, 화면이 낡아 참가가 409 로 막혔을 때
+     둘 다 여기로 온다. */
+  const restartDialog = useRef<HTMLDialogElement>(null)
 
   const s = season.data
 
-  async function join() {
+  async function join(restart = false) {
     if (!s || joining) return
     setJoining(true)
     setJoinError(null)
     try {
       /* 되돌릴 수 없는 POST 라 Idempotency-Key 를 붙인다(명세 §멱등성).
-         같은 scope 로 재시도하면 같은 키가 나가 두 번 참가되지 않는다. */
-      await api.post(`/seasons/${s.id}/join`, undefined, { idempotencyScope: `join:${s.id}` })
+         같은 scope 로 재시도하면 같은 키가 나가 두 번 참가되지 않는다.
+         서버가 restart 여부를 키 해시에 넣으므로 restart 는 scope 를 따로 쓴다. */
+      await api.post(`/seasons/${s.id}/join`, restart ? { restart: true } : undefined, {
+        idempotencyScope: `join:${s.id}${restart ? ':restart' : ''}`,
+      })
       navigate(`/sim/${s.id}/play`)
     } catch (e) {
-      setJoinError(e instanceof ApiError ? e : null)
+      const already = e instanceof ApiError && e.code === 'SEASON_ALREADY_JOINED'
+      if (already && !restart) {
+        restartDialog.current?.showModal()
+      } else {
+        restartDialog.current?.close()
+        setJoinError(e instanceof ApiError ? e : null)
+      }
     } finally {
       setJoining(false)
     }
@@ -252,6 +271,11 @@ export default function SeasonJoin() {
                 <p className="sj-cta-note">
                   {s.currentDay ? `${s.currentDay}게임일까지 진행했습니다` : '진행 중인 시즌입니다'}
                 </p>
+                {/* 같은 주제는 진행 중 회차 하나뿐이다. 다시 시작은 초기화라 확인을 거친다 */}
+                <button type="button" className="sj-restart"
+                        onClick={() => restartDialog.current?.showModal()}>
+                  처음부터 다시 시작
+                </button>
               </>
             ) : isCompetition ? (
               /* 참가비 소각 서명이 필요해 지갑 연동에 걸려 있다.
@@ -266,7 +290,7 @@ export default function SeasonJoin() {
               </>
             ) : (
               <>
-                <button className="sj-cta" type="button" onClick={join} disabled={joining}>
+                <button className="sj-cta" type="button" onClick={() => void join()} disabled={joining}>
                   {joining ? '참여하는 중…' : '연습 참여하기'}
                   {!joining && <em aria-hidden="true">›</em>}
                 </button>
@@ -276,7 +300,32 @@ export default function SeasonJoin() {
           </div>
         </section>
 
-        {joinError && <ErrorState error={joinError} onRetry={join} inline />}
+        {joinError && <ErrorState error={joinError} onRetry={() => void join()} inline />}
+
+        {/* 초기화 확인. 성공하면 G-04 로 넘어가며 창도 같이 사라진다.
+            실패는 창을 닫고 위의 ErrorState 로 보인다. */}
+        <dialog className="sj-dialog" ref={restartDialog} aria-labelledby="sj-restart-title">
+          <h2 id="sj-restart-title">이미 진행 중인 모의투자가 있습니다</h2>
+          <p>
+            초기화하고 다시 시작하시겠습니까?
+            <br />
+            진행했던 내용은 분석되지 않습니다.
+          </p>
+          <small>
+            {s.currentDay ? `D+${s.currentDay}까지 진행한 회차는 ` : '지금 회차는 '}
+            기록에 남지 않고 성적표·복기도 만들어지지 않습니다.
+          </small>
+          <div className="sj-dialog-actions">
+            <button type="button" className="sj-dialog-btn"
+                    onClick={() => restartDialog.current?.close()}>
+              취소
+            </button>
+            <button type="button" className="sj-dialog-btn solid" disabled={joining}
+                    onClick={() => void join(true)}>
+              {joining ? '초기화하는 중…' : '초기화하고 다시 시작'}
+            </button>
+          </div>
+        </dialog>
 
         {/* 진행 규칙 요약 — 명세 §2·설계서 §4 G-04 에서 확정된 것만 적는다 */}
         <section className="sj-rules" aria-labelledby="sj-rules-title">
