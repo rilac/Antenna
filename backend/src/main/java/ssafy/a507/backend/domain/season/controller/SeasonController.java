@@ -28,6 +28,7 @@ import ssafy.a507.backend.domain.season.dto.SeasonListResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderRequest;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonPriceListResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonResultResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTickerListResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTradeListResponse;
 import ssafy.a507.backend.domain.season.entity.Season;
@@ -170,6 +171,12 @@ public class SeasonController {
     @PostMapping("/{seasonId}/finish")
     public SeasonFinishResponse finish(@PathVariable Long seasonId) {
         return seasonPlayService.finish(currentUserProvider.currentUserId(), seasonId);
+    }
+
+    /** 최종 결과. 끝나지 않은 회차면 404. AI 복기는 아직 null 이다(ANT-SEASON-09). */
+    @GetMapping("/{seasonId}/result/me")
+    public SeasonResultResponse result(@PathVariable Long seasonId) {
+        return seasonPlayService.result(currentUserProvider.currentUserId(), seasonId);
     }
 
     /** 체결 내역(매매일지). 최근 체결이 먼저고 커서는 id 다. */

@@ -21,6 +21,7 @@ import ssafy.a507.backend.domain.season.dto.SeasonAdvanceResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonFinishResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderRequest;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonResultResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTradeItemResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTradeListResponse;
 import ssafy.a507.backend.domain.season.entity.Season;
@@ -256,6 +257,18 @@ public class SeasonPlayService {
                 me, r.finalAsset(), r.returnRate(), r.benchmarkReturn(), r.maxDrawdown(),
                 r.winRate(), r.profitFactor(), r.avgHoldingDays()));
         return toResponse(saved);
+    }
+
+    /** 내 마지막 회차의 결과. 끝나지 않았으면 404 — 결과는 finish 가 만든다. */
+    @Transactional(readOnly = true)
+    public SeasonResultResponse result(Long userId, Long seasonId) {
+        SeasonParticipant me = myAttempt(userId, seasonId);
+        SeasonResult r = resultRepository.findById(me.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_RESULT_NOT_FOUND));
+        return new SeasonResultResponse(
+                r.getParticipantId(), r.getFinalAsset(), r.getReturnRate(), r.getBenchmarkReturn(),
+                r.getMaxDrawdown(), r.getWinRate(), r.getProfitFactor(), r.getAvgHoldingDays(),
+                r.getScore(), r.getGrade(), r.getReviewBody(), r.getClosedAt());
     }
 
     private Map<Long, BigDecimal> closesOf(Long seasonId, int gameDay) {
