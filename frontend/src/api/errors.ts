@@ -126,6 +126,13 @@ export const CLIENT_ERROR_CODE = {
   CLIENT_CHAIN_NOT_CONFIGURED: 'CLIENT_CHAIN_NOT_CONFIGURED',
   /** RPC 에 닿지 못했거나 제한 시간 안에 답이 없다 */
   CLIENT_CHAIN_UNREACHABLE: 'CLIENT_CHAIN_UNREACHABLE',
+
+  /* 이미지 업로드(M-07)는 XHR 로 보낸다 — fetch 에 업로드 진행 이벤트가 없어서다.
+     그래서 client.ts 의 오류 변환을 타지 않고 여기 둘로 갈린다. */
+  /** 서버에 닿지 못했다. 서버가 거절한 것과 다르다 — 같은 파일로 다시 시도할 수 있다 */
+  CLIENT_UPLOAD_FAILED: 'CLIENT_UPLOAD_FAILED',
+  /** 사용자가 취소했다. 오류 문구를 띄우지 않는다 */
+  CLIENT_UPLOAD_ABORTED: 'CLIENT_UPLOAD_ABORTED',
 } as const
 
 /**
