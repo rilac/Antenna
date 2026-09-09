@@ -29,12 +29,13 @@
    ── 같은 주제는 진행 중 회차 하나 ─────────────────────────────
    서버가 강제한다 — 진행 중 회차가 있으면 POST /join 은 409 SEASON_ALREADY_JOINED
    이고, 본문 { restart: true } 일 때만 그 회차를 ABANDONED 로 버리고 새 회차를 연다.
-   그래서 다시 시작은 반드시 확인창을 거친다(2026-09-09). 버린 회차는 끝낸 것이
-   아니라 성적표·복기가 생기지 않는다 — 확인창이 그 말을 한다. */
+   버튼은 "참여하기" 하나다 — 진행 중 회차가 있으면 그 버튼이 초기화 확인창을 띄운다
+   (2026-09-09). 이어하기는 홈·연습 페이지 카드의 몫이라 여기 따로 두지 않는다.
+   버린 회차는 끝낸 것이 아니라 성적표·복기가 생기지 않는다 — 확인창이 그 말을 한다. */
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { api } from '../api/client'
 import { ApiError } from '../api/errors'
+import { join as joinApi } from '../api/seasonPlay'
 import { useApiQuery } from '../api/useApiQuery'
 import ErrorState from '../components/state/ErrorState'
 import EmptyState from '../components/state/EmptyState'
@@ -121,12 +122,8 @@ export default function SeasonJoin() {
     setJoining(true)
     setJoinError(null)
     try {
-      /* 되돌릴 수 없는 POST 라 Idempotency-Key 를 붙인다(명세 §멱등성).
-         같은 scope 로 재시도하면 같은 키가 나가 두 번 참가되지 않는다.
-         서버가 restart 여부를 키 해시에 넣으므로 restart 는 scope 를 따로 쓴다. */
-      await api.post(`/seasons/${s.id}/join`, restart ? { restart: true } : undefined, {
-        idempotencyScope: `join:${s.id}${restart ? ':restart' : ''}`,
-      })
+      /* joinApi 가 Idempotency-Key 를 붙이고 성공 뒤 반납한다(api/seasonPlay). */
+      await joinApi(s.id, restart)
       navigate(`/sim/${s.id}/play`)
     } catch (e) {
       const already = e instanceof ApiError && e.code === 'SEASON_ALREADY_JOINED'
@@ -265,18 +262,6 @@ export default function SeasonJoin() {
                 <span className="sj-cta is-off" aria-disabled="true">종료된 시즌</span>
                 <p className="sj-cta-note">기록은 결과 화면에서 볼 수 있습니다</p>
               </>
-            ) : s.joined ? (
-              <>
-                <Link className="sj-cta" to={`/sim/${s.id}/play`}>이어서 하기</Link>
-                <p className="sj-cta-note">
-                  {s.currentDay ? `${s.currentDay}게임일까지 진행했습니다` : '진행 중인 시즌입니다'}
-                </p>
-                {/* 같은 주제는 진행 중 회차 하나뿐이다. 다시 시작은 초기화라 확인을 거친다 */}
-                <button type="button" className="sj-restart"
-                        onClick={() => restartDialog.current?.showModal()}>
-                  처음부터 다시 시작
-                </button>
-              </>
             ) : isCompetition ? (
               /* 참가비 소각 서명이 필요해 지갑 연동에 걸려 있다.
                  눌러도 서명할 곳이 없어 막아 두고 이유를 적는다. */
@@ -289,12 +274,21 @@ export default function SeasonJoin() {
                 </p>
               </>
             ) : (
+              /* 버튼 하나. 진행 중 회차가 있으면(joined) 서버를 부르기 전에 확인창부터 —
+                 같은 주제는 진행 중 회차 하나뿐이고 새로 시작은 곧 초기화다. */
               <>
-                <button className="sj-cta" type="button" onClick={() => void join()} disabled={joining}>
+                <button
+                  className="sj-cta" type="button" disabled={joining}
+                  onClick={() => { if (s.joined) restartDialog.current?.showModal(); else void join() }}
+                >
                   {joining ? '참여하는 중…' : '연습 참여하기'}
                   {!joining && <em aria-hidden="true">›</em>}
                 </button>
-                <p className="sj-cta-note">참가비 없이 바로 시작합니다</p>
+                <p className="sj-cta-note">
+                  {s.joined
+                    ? `${s.currentDay ? `${s.currentDay}게임일까지 진행한` : '진행 중인'} 모의투자가 있습니다`
+                    : '참가비 없이 바로 시작합니다'}
+                </p>
               </>
             )}
           </div>

@@ -130,14 +130,6 @@
 }
 
 /* ── 초기화 확인 ──────────────────────────────────────── */
-/* 다시 시작은 보조 동작이다 — 이어하기 아래 글자 버튼으로 둔다 */
-.sj-restart{
-  margin:0 auto;padding:6px 10px;border-radius:8px;
-  color:var(--muted);font-size:13px;font-weight:700;
-  text-decoration:underline;text-underline-offset:3px;
-}
-.sj-restart:hover{color:var(--ink);background:var(--surface-2)}
-
 /* 네이티브 dialog. 배경막은 ::backdrop 이 그린다 */
 .sj-dialog{
   width:min(420px,calc(100vw - 32px));padding:26px 26px 22px;
