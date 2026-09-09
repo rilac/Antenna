@@ -110,6 +110,9 @@ public enum ErrorCode {
     // AI 브리핑 (ANT-RESEARCH-03)
     BRIEFING_NOT_FOUND(HttpStatus.NOT_FOUND, "브리핑을 찾을 수 없습니다."),
 
+    // 투자 포인트 (ANT-RESEARCH-04) — 요청 시점 생성이 실패했다. 다시 부르면 다시 만든다.
+    POINT_GENERATION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "투자 포인트를 만들지 못했습니다. 잠시 후 다시 시도해 주세요."),
+
     // 관심 종목 (ANT-DATA-06)
     /** 이미 담은 종목을 다시 담았다. 빼기(DELETE)는 멱등(204)이라 이 code 를 쓰지 않는다. */
     DUPLICATE_WATCHLIST_ITEM(HttpStatus.CONFLICT, "이미 관심 종목에 있습니다."),

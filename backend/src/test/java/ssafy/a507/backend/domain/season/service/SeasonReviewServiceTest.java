@@ -20,7 +20,7 @@ class SeasonReviewServiceTest {
     void 키_없으면_null() {
         AiClient client = mock(AiClient.class);
         SeasonReviewService service =
-                new SeasonReviewService(client, new AiProperties("  ", null, null, null, null));
+                new SeasonReviewService(client, new AiProperties("  ", null, null, null));
 
         assertThat(service.hasKey()).isFalse();
         assertThat(service.review("재료")).isNull();
@@ -33,7 +33,7 @@ class SeasonReviewServiceTest {
         AiClient client = mock(AiClient.class);
         given(client.complete(SeasonReviewService.INSTRUCTION, "재료")).willReturn("잘한 판단: …");
         SeasonReviewService service =
-                new SeasonReviewService(client, new AiProperties("k", null, null, "v1", null));
+                new SeasonReviewService(client, new AiProperties("k", null, null, "v1"));
 
         assertThat(service.review("재료")).isEqualTo("잘한 판단: …");
         assertThat(service.promptVersion()).isEqualTo("v1");

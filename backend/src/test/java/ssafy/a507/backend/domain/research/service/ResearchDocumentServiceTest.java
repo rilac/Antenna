@@ -89,14 +89,14 @@ class ResearchDocumentServiceTest {
     }
 
     @Test
-    @DisplayName("요약 전 기사도 목록에 나온다 — 기다렸다 보여주면 최신 기사가 가장 늦게 뜬다")
-    void 요약_전에도_보인다() {
+    @DisplayName("발췌를 그대로 내려보낸다 — AI 요약을 기다리지 않는다")
+    void 발췌가_보인다() {
         save(ResearchDocument.Source.NEWS, "n1");
 
         assertThat(documentService.documents(SAMSUNG, null, null, 20).items())
                 .singleElement()
                 .satisfies(item -> {
-                    assertThat(item.summary()).isNull();
+                    assertThat(item.snippet()).isEqualTo("발췌");
                     assertThat(item.title()).isNotBlank();
                     assertThat(item.originUrl()).isNotBlank();
                 });

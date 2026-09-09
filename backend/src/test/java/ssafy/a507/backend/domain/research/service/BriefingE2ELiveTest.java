@@ -82,12 +82,12 @@ class BriefingE2ELiveTest {
     }
 
     @Test
-    @DisplayName("시장 + 종목 브리핑이 실제로 생성되고 조회된다")
+    @DisplayName("시장 브리핑이 실제로 생성되고 조회된다")
     void 생성_조회() {
         long t0 = System.currentTimeMillis();
         int written = generationService.generate();
         System.out.println("[E2E] 브리핑 " + written + "건 (" + (System.currentTimeMillis() - t0) + "ms)");
-        assertThat(written).as("D16 가드에 둘 다 걸리면 0 — 응답 로그를 본다").isPositive();
+        assertThat(written).as("D16 가드에 걸리면 0 — 응답 로그를 본다").isEqualTo(1);
 
         for (AiBriefing b : aiBriefingRepository.findAll()) {
             System.out.println("[E2E] " + b.getScope() + " | " + b.getHeadline());

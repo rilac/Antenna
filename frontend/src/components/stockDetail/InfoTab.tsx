@@ -32,8 +32,6 @@ import {
   getDocuments, getFinancials, getPeers, getPoints,
   getPrices, getProfile, getValuation,
 } from '../../api/stockDetail'
-import { getStockBriefings } from '../../api/briefings'
-import { useBriefingParam } from '../briefingParam'
 import type { StockSummary } from '../../api/stockDetail'
 
 /* 차트 기간. 서버는 from·to 를 받으므로 여기서 from 을 만들어 넘긴다. */
@@ -129,9 +127,6 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
 
   /* 접힌 칸은 부르지 않는다 — 펼치는 순간 그때 부른다 */
   const prices = useBlock(() => getPrices(code, from), [code, from], open.chart)
-  const briefings = useBlock(() => getStockBriefings(code), [code], open.sentiment)
-  /* open 은 이 파일에서 이미 "펼친 블록" 이라는 뜻으로 쓰고 있다 */
-  const { open: openBriefing } = useBriefingParam()
   const points = useBlock(() => getPoints(code), [code], open.points)
   const documents = useBlock(() => getDocuments(code), [code], open.documents)
   const profile = useBlock(() => getProfile(code), [code], open.profile)
@@ -177,51 +172,22 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
         <CloseChart series={prices.data?.items ?? []} label={summary?.name ?? ''} height={286} />
       </Block>
 
-      {/* ── 예측 현황 · AI 브리핑 ─────────────────────────
-          한 카드지만 원천이 둘이라 BlockState 를 따로 쓴다 */}
+      {/* ── 예측 현황 ─────────────────────────────────────
+          종목 AI 브리핑 목록이 있던 자리. 생성 배치를 2026-09-09 에 없앴다 — 같은 탭에
+          숫자로 있는 등락률·재무를 문장으로 다시 쓴 것에 종목당 매일 1콜을 썼다.
+          뉴스·공시 쪽은 아래 투자 포인트가 담는다 */}
       <Panel
-        title="예측 현황 · AI 브리핑"
+        title="예측 현황"
         span={7}
         open={open.sentiment}
         onToggle={() => toggle('sentiment')}
       >
         {/* 예측 심리는 서버가 아직 없다(GET /stocks/{code}/sentiment).
-            목업으로 그리지 않는다 — 옆의 브리핑·재무가 실제 값이라 같은 카드 안에서
-            지어낸 비율이 참으로 읽힌다. 자리를 비우지도 않는다. 왜 없는지 말한다. */}
+            목업으로 그리지 않는다 — 옆의 재무가 실제 값이라 같은 화면에서 지어낸 비율이
+            참으로 읽힌다. 자리를 비우지도 않는다. 왜 없는지 말한다. */}
         <p className="sd-block-empty">
           예측 심리 집계는 아직 제공되지 않습니다. 준비되면 이 자리에 상승·하락 비율이 표시됩니다.
         </p>
-
-        <hr className="sd-rule" />
-
-        <BlockState
-          loading={briefings.loading}
-          error={briefings.error}
-          onRetry={briefings.retry}
-          skeleton={130}
-          isEmpty={briefings.data?.items.length === 0}
-          empty="이 종목의 AI 브리핑이 아직 없습니다. 생성 기능이 준비되면 이 자리에 표시됩니다."
-        >
-          {/* 목록은 헤드라인과 기준일만 준다 — 본문은 M-10 이 받는다.
-              전에는 여기에 논조 배지와 요약 문단을 그렸는데, 서버 응답에
-              tone · summary · computedAt 이 없다. 목업이 지어낸 필드였다. */}
-          <ul className="sd-briefs">
-            {briefings.data?.items.map((b) => (
-              <li key={b.id}>
-                <button type="button" className="sd-brief" onClick={() => openBriefing(b.id)}>
-                  <b>{b.headline}</b>
-                  <span className="sd-brief-at num">{b.targetDate} 기준</span>
-                  {/* 눌러서 전문을 여는 줄이라는 표시. 이 화면의 다른 "더보기 ›" 와 같은 모양 */}
-                  <svg className="sd-brief-go" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                       aria-hidden="true">
-                    <path d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </BlockState>
       </Panel>
 
       {/* ── 종목 정보(개요 · 밸류 · 재무) ────────────────────
@@ -465,9 +431,8 @@ export default function InfoTab({ code, summary, picked, onPick, onGoPredict }: 
                     <path d="M13 5h6v6M19 5l-8 8M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4" />
                   </svg>
                 </a>
-                {/* 요약 배치가 아직 안 돈 건은 제목만 보여준다. 요약을 기다리느라
-                    감추면 방금 난 기사가 가장 늦게 뜬다 */}
-                {d.summary && <p>{d.summary}</p>}
+                {/* 공시는 발췌가 없어 제목만 보여준다 */}
+                {d.snippet && <p>{d.snippet}</p>}
                 <span className="sd-doc-meta num">{day(d.publishedAt)}</span>
               </div>
             </li>
