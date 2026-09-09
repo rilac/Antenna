@@ -110,15 +110,106 @@ export function measure(file: File): Promise<{ width: number; height: number; pr
   })
 }
 
-/** 디코딩 뒤 검사. 화소 수와 비율은 크기를 알아야 판단할 수 있다. */
-export function checkSize(width: number, height: number, aspect?: AspectRule): ApiError | null {
+/** 화소 수. 자르기 전에 본다 — 4천만 화소짜리는 캔버스에 올리는 것부터 실패한다. */
+export function checkPixels(width: number, height: number): ApiError | null {
   if (width * height > MAX_PIXELS) {
     return new ApiError({ code: 'IMAGE_TOO_LARGE', message: 'local', field: 'file' }, 400)
   }
-  if (aspect && Math.abs(width / height - aspect.ratio) > aspect.tolerance) {
+  return null
+}
+
+/** 디코딩 뒤 검사. 자르기가 제대로 됐는지 확인하는 마지막 관문으로도 쓴다. */
+export function checkSize(width: number, height: number, aspect?: AspectRule): ApiError | null {
+  const pixels = checkPixels(width, height)
+  if (pixels) return pixels
+  if (aspect && !fitsAspect(width, height, aspect)) {
     return new ApiError({ code: 'INVALID_IMAGE_RATIO', message: 'local', field: 'file' }, 400)
   }
   return null
+}
+
+export function fitsAspect(width: number, height: number, aspect: AspectRule) {
+  return Math.abs(width / height - aspect.ratio) <= aspect.tolerance
+}
+
+/* ── 비율 맞추기 ───────────────────────────────────────
+   비율이 어긋나면 거절하지 않고 **가운데를 기준으로 잘라서** 넣는다.
+
+   왜 거절하지 않는가 — 사용자가 할 수 있는 일이 "밖에서 잘라 오기" 뿐인데, 그건 이 화면이
+   대신 할 수 있는 일이다. 서버도 자르는 쪽을 전제하고 오차를 두었다
+   (UploadProperties: "사용자가 자른 이미지는 정수 픽셀이라 정확히 나누어떨어지지 않는다").
+
+   왜 가운데인가 — 어디를 남길지 물으려면 자르기 UI 가 필요하고, 그건 이 티켓 범위가 아니다.
+   배너는 가운데에 글자를 두는 것이 보통이라 가장 덜 틀린다. **대신 잘랐다는 사실과 결과
+   크기를 반드시 화면에 보여준다** — 모르는 사이에 그림이 바뀌면 그게 더 나쁘다.
+
+   늘리지 않는다. 4:1 자리에 1:1 그림을 늘려 넣으면 얼굴도 글자도 뭉개진다. */
+
+/** 자르기 결과. 잘라야 할 이유가 없으면 crop 자체를 부르지 않는다 */
+export type CroppedImage = {
+  file: File
+  width: number
+  height: number
+  /** 잘리기 전 크기. 화면이 "1600×900 → 1200×300" 을 보여줄 수 있게 */
+  from: { width: number; height: number }
+}
+
+/** 캔버스가 다시 뽑아낼 수 있는 형식. 그 외(그리고 형식 없음)는 png 로 떨어뜨린다 */
+const ENCODABLE = ['image/png', 'image/jpeg', 'image/webp']
+
+/**
+ * 가운데를 기준으로 잘라 비율을 맞춘다.
+ *
+ * 원본 형식을 지킨다 — png 를 jpeg 로 바꾸면 투명한 배경이 검게 칠해진다. 다만 다시 뽑는
+ * 과정이라 **바이트 수는 원본과 다르다**(보통 줄지만 늘 그렇지는 않다). 그래서 여기서
+ * 용량을 한 번 더 본다. 서버가 최종 판정자인 것은 그대로다.
+ */
+export async function cropToAspect(
+  file: File,
+  size: { width: number; height: number },
+  aspect: AspectRule,
+): Promise<CroppedImage> {
+  const { width, height } = size
+  const wide = width / height > aspect.ratio
+
+  /* 넓으면 좌우를, 높으면 위아래를 덜어 낸다. 어느 쪽이든 남는 변은 건드리지 않는다 —
+     양쪽을 다 줄이면 원본보다 작아져 화질을 공짜로 버린다. */
+  const w = wide ? Math.round(height * aspect.ratio) : width
+  const h = wide ? height : Math.round(width / aspect.ratio)
+  const sx = Math.round((width - w) / 2)
+  const sy = Math.round((height - h) / 2)
+
+  const mime = ENCODABLE.includes(file.type) ? file.type : 'image/png'
+  /* from-image 를 명시한다. measure() 의 <img> 는 EXIF 회전을 적용해 크기를 재는데
+     createImageBitmap 의 기본값은 브라우저마다 달라, 세워 찍은 휴대폰 사진에서 가로·세로가
+     뒤바뀌어 엉뚱한 자리를 자를 수 있다. */
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new ApiError({ code: CLIENT_ERROR_CODE.CLIENT_UPLOAD_FAILED, message: 'no 2d context' }, 0)
+    ctx.drawImage(bitmap, sx, sy, w, h, 0, 0, w, h)
+
+    /* jpeg·webp 는 품질을 정해 주지 않으면 브라우저마다 다르다. 0.92 는 눈으로 구분이
+       거의 안 되면서 용량이 크게 붇지 않는 선이다. png 는 무손실이라 이 값을 무시한다. */
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, mime, 0.92))
+    if (!blob) {
+      throw new ApiError({ code: CLIENT_ERROR_CODE.CLIENT_UPLOAD_FAILED, message: 'encode failed' }, 0)
+    }
+    if (blob.size > MAX_BYTES) {
+      // 자르고도 5MB 를 넘겼다. 여기서 품질을 더 떨어뜨리면 사용자가 모르는 사이에 흐려진다.
+      throw new ApiError({ code: 'FILE_TOO_LARGE', message: 'after crop', field: 'file' }, 400)
+    }
+
+    /* 이름과 lastModified 를 원본 그대로 둔다 — 사용자가 자기 파일로 알아보고,
+       멱등 키 scope 가 이 둘을 쓰기 때문이다(같은 파일을 다시 골라도 같은 키가 나간다). */
+    const cropped = new File([blob], file.name, { type: mime, lastModified: file.lastModified })
+    return { file: cropped, width: w, height: h, from: { width, height } }
+  } finally {
+    bitmap.close()
+  }
 }
 
 /* ── 업로드 ────────────────────────────────────────────── */

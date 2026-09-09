@@ -25,7 +25,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, CLIENT_ERROR_CODE } from '../../api/errors'
 import {
   ACCEPT_ATTR, ASPECT_BY_PURPOSE, MAX_BYTES,
-  checkSize, formatAspect, formatBytes, measure, precheck, uploadImage,
+  checkPixels, checkSize, cropToAspect, fitsAspect, formatAspect, formatBytes,
+  measure, precheck, uploadImage,
   type AspectRule, type UploadPurpose, type UploadedImage,
 } from '../../api/uploads'
 import { errorText } from '../state/errorText'
@@ -42,6 +43,8 @@ type Picked = {
   width: number
   height: number
   previewUrl: string
+  /** 비율을 맞추려고 잘랐다면 잘리기 전 크기. 화면이 그 사실을 반드시 알려야 한다 */
+  croppedFrom?: { width: number; height: number }
 }
 
 type Props = {
@@ -113,16 +116,41 @@ export default function ImageUploadModal({ purpose, onClose, onUploaded, aspect 
       return
     }
 
-    const sizeError = checkSize(measured.width, measured.height, rule)
-    if (sizeError) {
+    // ③ 화소 수는 자르기 전에 본다 — 4천만 화소짜리는 캔버스에 올리는 것부터 실패한다
+    const tooBig = checkPixels(measured.width, measured.height)
+    if (tooBig) {
       URL.revokeObjectURL(measured.previewUrl)
-      setError(sizeError)
+      setError(tooBig)
       return
     }
 
+    /* ④ 비율이 어긋나면 거절하지 않고 가운데를 기준으로 잘라 맞춘다(api/uploads.ts cropToAspect).
+       올리는 것은 잘린 파일이고, 미리보기도 잘린 그림이어야 한다 — 원본을 보여 주면
+       사용자는 자기가 고른 그림이 그대로 올라가는 줄 안다. */
+    let next: Picked
+    if (rule && !fitsAspect(measured.width, measured.height, rule)) {
+      try {
+        const cut = await cropToAspect(file, measured, rule)
+        // 자른 결과가 정말 규격 안인지 마지막으로 본다. 아주 작은 그림은 반올림이 오차를 넘는다
+        const stillBad = checkSize(cut.width, cut.height, rule)
+        if (stillBad) throw stillBad
+        URL.revokeObjectURL(measured.previewUrl)
+        next = {
+          file: cut.file, width: cut.width, height: cut.height,
+          previewUrl: URL.createObjectURL(cut.file), croppedFrom: cut.from,
+        }
+      } catch (e) {
+        URL.revokeObjectURL(measured.previewUrl)
+        setError(e as ApiError)
+        return
+      }
+    } else {
+      next = { file, width: measured.width, height: measured.height, previewUrl: measured.previewUrl }
+    }
+
     releasePreview()
-    previewRef.current = measured.previewUrl
-    setPicked({ file, width: measured.width, height: measured.height, previewUrl: measured.previewUrl })
+    previewRef.current = next.previewUrl
+    setPicked(next)
     setStep('ready')
   }
 
@@ -202,8 +230,9 @@ export default function ImageUploadModal({ purpose, onClose, onUploaded, aspect 
                 </svg>
                 <b>이미지를 끌어다 놓거나 눌러서 고르세요</b>
                 <span>{`PNG · JPG · WebP · ${formatBytes(MAX_BYTES)} 이하`}</span>
-                {/* 비율 제약은 있을 때만 알린다. 없는 화면에 규칙을 만들어 보이지 않는다 */}
-                {rule && <span className="iu-rule">{`가로세로 ${formatAspect(rule)} 비율이어야 합니다`}</span>}
+                {/* 비율 제약은 있을 때만 알린다. 없는 화면에 규칙을 만들어 보이지 않는다.
+                    거절이 아니라 자른다는 것을 고르기 전에 말해 둔다 — 결과가 놀랍지 않게 */}
+                {rule && <span className="iu-rule">{`${formatAspect(rule)} 이 아니면 가운데를 기준으로 잘라 넣습니다`}</span>}
               </button>
 
               <input
@@ -237,6 +266,15 @@ export default function ImageUploadModal({ purpose, onClose, onUploaded, aspect 
                   <dd className="num">{formatBytes(picked.file.size)}</dd>
                 </div>
               </dl>
+              {/* 잘랐으면 반드시 말한다. 모르는 사이에 그림이 바뀌는 쪽이 거절보다 나쁘다 */}
+              {picked.croppedFrom && rule && (
+                <p className="iu-cropped">
+                  {`${formatAspect(rule)} 에 맞춰 가운데를 잘랐습니다`}
+                  <span className="num">
+                    {`${picked.croppedFrom.width} × ${picked.croppedFrom.height} → ${picked.width} × ${picked.height}`}
+                  </span>
+                </p>
+              )}
             </div>
           )}
 

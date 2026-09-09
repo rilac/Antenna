@@ -70,6 +70,15 @@
 /* 파일명이 길어도 모달을 밀지 않는다 */
 .iu-name{ max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
+/* 잘렸다는 알림. 오류가 아니라 알림이라 빨강을 쓰지 않는다 — 사용자는 아무것도 고칠 게 없다 */
+.iu-cropped{
+  margin:0; padding:8px 10px;
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;
+  border-radius:8px; background:var(--surface-2);
+  font-size:12px; color:var(--ink);
+}
+.iu-cropped span{ color:var(--muted); }
+
 /* ── 진행률 ─────────────────────────────────────────── */
 .iu-progress{ display:flex; align-items:center; gap:11px; margin-top:14px; }
 .iu-bar{
