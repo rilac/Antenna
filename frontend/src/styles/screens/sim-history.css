@@ -1,0 +1,141 @@
+/* G-09 기록 · /sim/history — [ANT-FE-SEASON-HISTORY]
+   G-04 진행 · G-06 매매일지 · G-08 결과와 같은 규칙을 쓴다 — 카드·아이콘 배지·
+   요약 4칸의 생김새를 맞춰야 같은 게임의 여러 장면으로 읽힌다.
+   색·서체는 app.css 토큰만 쓴다. */
+
+.sim-history{display:flex;flex-direction:column;gap:14px;word-break:keep-all}
+
+.sim-history .up{color:var(--up-vivid)}
+.sim-history .down{color:var(--down-vivid)}
+.sim-history .flat{color:var(--muted)}
+.sh-dim{color:var(--muted)}
+
+/* ── 머리 ───────────────────────────────────────────── */
+.sh-crumb{display:flex;align-items:center;gap:9px;color:#8a93ad;font-size:13.5px;font-weight:700}
+.sh-crumb a:hover{color:var(--brand)}
+.sh-crumb i{font-style:normal;color:#c2c8da}
+
+.sh-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.sh-head h1{
+  margin:0;color:#0e1330;font-size:26px;font-weight:850;letter-spacing:-.03em;
+}
+.sh-head p{margin:3px 0 0;color:var(--muted);font-size:13.5px;font-weight:700}
+
+.sh-go{
+  display:inline-flex;align-items:center;height:38px;padding:0 16px;
+  border-radius:11px;background:var(--brand);color:#fff;font-size:14px;font-weight:800;
+  transition:background .14s;
+}
+.sh-go:hover{background:var(--brand-ink)}
+
+/* ── 요약 4칸 ───────────────────────────────────────── */
+.sh-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.sh-stat{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:15px 17px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.sh-stat-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sh-stat-label{color:var(--muted);font-size:12.5px;font-weight:700}
+.sh-stat-val{
+  color:#0e1330;font-size:21px;font-weight:850;letter-spacing:-.025em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sh-stat-sub{font-size:12px;font-weight:750;color:var(--muted)}
+.sh-stat-ico{
+  flex:none;display:grid;place-items:center;width:38px;height:38px;
+  border-radius:11px;background:var(--tint);color:var(--tone);
+}
+.sh-stat.t-done{--tone:#16a06a;--tint:#e7f6ef}
+.sh-stat.t-go{--tone:#5457e8;--tint:#ece9fd}
+.sh-stat.t-up{--tone:var(--up-vivid);--tint:#fdeceb}
+.sh-stat.t-down{--tone:var(--down-vivid);--tint:#e9f0fe}
+.sh-stat.t-flat{--tone:#8a93ad;--tint:var(--surface-2)}
+
+/* ── 카드 ───────────────────────────────────────────── */
+.sh-card{
+  padding:16px 18px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);min-width:0;
+}
+.sh-card h2{
+  display:flex;align-items:center;gap:8px;margin:0 0 12px;
+  color:var(--ink);font-size:15px;font-weight:800;letter-spacing:-.02em;
+}
+.sh-card h2 em{
+  margin-left:auto;font-style:normal;color:var(--muted);font-size:12px;font-weight:700;
+}
+.sh-h-ico{
+  flex:none;display:grid;place-items:center;width:26px;height:26px;
+  border-radius:8px;background:var(--tint);color:var(--tone);
+}
+.sh-h-ico.t-done{--tone:#16a06a;--tint:#e7f6ef}
+.sh-h-ico.t-go{--tone:#5457e8;--tint:#ece9fd}
+
+/* 정렬. 마친 시즌이 둘 이상일 때만 낸다 — 하나뿐이면 고를 것이 없다 */
+.sh-sorts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.sh-sorts button{
+  height:32px;padding:0 13px;border:1px solid var(--rule);border-radius:9px;
+  color:var(--muted);font-size:12.5px;font-weight:750;
+  transition:border-color .12s,background .12s,color .12s;
+}
+.sh-sorts button:hover{border-color:var(--brand)}
+.sh-sorts button.on{border-color:var(--brand);background:var(--brand);color:#fff}
+
+/* ── 시즌 한 줄 ─────────────────────────────────────── */
+/* 줄 전체가 링크다. 오른쪽 화살표만 누르게 두면 어디를 눌러야 하는지 찾아야 한다. */
+.sh-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sh-row{
+  display:grid;grid-template-columns:auto minmax(0,1.6fr) minmax(0,1fr) minmax(0,.9fr) 14px;
+  align-items:center;gap:12px;
+  padding:13px 14px;border:1px solid var(--rule);border-radius:12px;
+  transition:border-color .12s,background .12s;
+}
+.sh-row:hover{border-color:var(--brand);background:var(--brand-softer)}
+
+.sh-mode{
+  flex:none;padding:3px 9px;border-radius:999px;
+  background:var(--surface-2);color:var(--muted);font-size:11.5px;font-weight:750;
+}
+.sh-row b{
+  color:var(--ink);font-size:14.5px;font-weight:800;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sh-when{color:var(--muted);font-size:12.5px;font-weight:700;text-align:right}
+.sh-rate{font-size:14.5px;font-weight:850;text-align:right}
+/* 성적표가 없는 회차. 숫자 자리에 글이 오므로 작게 낮춰 값과 구분한다 */
+.sh-rate.flat{font-size:12px;font-weight:700}
+.sh-row > i{
+  justify-self:end;font-style:normal;color:var(--faint);font-size:15px;line-height:1;
+}
+
+/* 진행 중 줄의 진행 막대. 수익률 자리에 들어간다 — 아직 성적이 없다 */
+.sh-bar{
+  position:relative;display:block;height:6px;
+  border-radius:999px;background:var(--surface-2);overflow:hidden;
+}
+.sh-bar i{position:absolute;inset:0 auto 0 0;background:var(--brand);border-radius:999px}
+
+.sh-empty{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  margin:0;padding:30px 20px;text-align:center;
+  color:var(--body);font-size:14px;font-weight:700;
+}
+.sh-empty small{color:var(--muted);font-size:12.5px;font-weight:650;line-height:1.55}
+.sh-empty .sh-go{margin-top:6px}
+
+/* ── 좁은 화면 ──────────────────────────────────────── */
+@media(max-width:1100px){
+  .sh-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  /* 끝낸 날을 접는다 — 제목과 수익률이 먼저다 */
+  .sh-row{grid-template-columns:auto minmax(0,1.6fr) minmax(0,1fr) 14px}
+  .sh-row > .sh-when{display:none}
+  .sh-head h1{font-size:22px}
+}
+@media(max-width:520px){
+  .sh-stats{grid-template-columns:minmax(0,1fr)}
+}
+@media(prefers-reduced-motion:reduce){
+  .sh-go,.sh-row,.sh-sorts button{transition:none}
+}

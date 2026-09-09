@@ -129,6 +129,30 @@
   font-family:var(--mono);font-size:12.5px;
 }
 
+/* ── 초기화 확인 ──────────────────────────────────────── */
+/* 네이티브 dialog. 배경막은 ::backdrop 이 그린다 */
+.sj-dialog{
+  width:min(420px,calc(100vw - 32px));padding:26px 26px 22px;
+  border:1px solid var(--rule);border-radius:18px;
+  background:var(--surface);color:var(--body);box-shadow:var(--shadow);
+}
+.sj-dialog::backdrop{background:rgba(20,20,27,.38)}
+.sj-dialog h2{margin:0 0 10px;color:var(--ink);font-size:18px;font-weight:800;letter-spacing:-.02em}
+.sj-dialog p{margin:0 0 8px;font-size:14.5px;line-height:1.65}
+.sj-dialog small{
+  display:block;color:var(--muted);font-size:12.5px;line-height:1.6;
+  font-variant-numeric:tabular-nums;
+}
+.sj-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.sj-dialog-btn{
+  padding:10px 16px;border:1px solid var(--rule);border-radius:10px;
+  background:var(--surface);color:var(--ink);font-size:14px;font-weight:750;
+}
+.sj-dialog-btn:hover{background:var(--surface-2)}
+.sj-dialog-btn.solid{border-color:var(--tone);background:var(--tone);color:#fff}
+.sj-dialog-btn.solid:hover{background:var(--tone-ink)}
+.sj-dialog-btn:disabled{opacity:.6;cursor:default}
+
 /* ── 좁은 화면 ────────────────────────────────────────── */
 @media(max-width:900px){
   .sj-card{grid-template-columns:minmax(0,1fr);gap:20px}

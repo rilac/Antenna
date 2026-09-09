@@ -101,4 +101,14 @@ public class SeasonResult {
         r.closedAt = Instant.now();
         return r;
     }
+
+    /**
+     * AI 복기를 채운다(ANT-SEASON-09). 종료 시 성적표와 함께 저장되는 것이 보통이고, 키가 없어
+     * 비운 채 끝난 회차는 다음 finish 호출이 채운다. promptVersion 은 문장을 만든 세대 태그다.
+     */
+    public void review(String body, String promptVersion) {
+        this.reviewBody = body;
+        this.reviewedAt = Instant.now();
+        this.promptVersion = promptVersion;
+    }
 }

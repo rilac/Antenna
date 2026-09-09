@@ -9,12 +9,36 @@
    한 번에 날짜가 나온다. 그래도 날짜를 안 받는 이유는 위와 같다. 대회는 진짜로 가린다.
 
    담당 백엔드 티켓
-   - GET /tickers · /prices — 됨(ANT-SEASON-10 · 이번 판)
-   - POST /join — 연습만 됨. 대회는 참가비 소각 서명이 붙어 아직 없다
-   - GET /me · POST /orders · POST /advance — ANT-SEASON-03 · 04, 아직 없다
+   - GET /tickers · /prices — 됨(ANT-SEASON-10)
+   - POST /join(restart 포함) · GET /me · POST /orders · GET /trades — 됨(ANT-SEASON-03, v0.36)
+   - POST /advance · POST /finish · GET /result/me — 됨(ANT-SEASON-04, v0.37~39)
+   - 대회 참가(참가비 소각 서명)는 501 — ANT-SEASON-06
    - GET /news — ANT-SEASON-07, season_news 가 0행이다
-   - GET /indicators — MVP 에서 빼기로 했다. 절대값 하나로 구간이 특정된다 */
+   - GET /indicators — MVP 에서 빼기로 했다. 절대값 하나로 구간이 특정된다
+
+   Idempotency-Key 는 scope 하나에 키 하나가 물려 있다(api/idempotency). 성공한 뒤
+   반납하지 않으면 다음 주문·참가가 같은 키로 나가 서버가 첫 응답을 되돌려 준다 —
+   실제로는 아무것도 처리되지 않는다. 그래서 성공 직후 반납한다. */
 import { api } from './client'
+import { releaseIdempotencyKey } from './idempotency'
+
+/* ── 참가 · POST /seasons/{id}/join ───────────────────────── */
+
+export type JoinResult = { participantId: number; attemptNo: number; currentDay: number }
+
+/**
+ * 연습·시연 참가. restart 면 진행 중 회차를 버리고(ABANDONED) 새 회차로 시작한다 —
+ * 화면의 "초기화하고 다시 시작" 확인 뒤에만 보낸다. 진행 중 회차가 있는데 restart 가
+ * 아니면 409 SEASON_ALREADY_JOINED 다.
+ */
+export const join = (seasonId: number, restart = false) => {
+  const scope = `join:${seasonId}${restart ? ':restart' : ''}`
+  return api
+    .post<JoinResult>(`/seasons/${seasonId}/join`, restart ? { restart: true } : undefined, {
+      idempotencyScope: scope,
+    })
+    .then((r) => { releaseIdempotencyKey(scope); return r })
+}
 
 /* ── 시즌 종목 · GET /seasons/{id}/tickers ────────────────── */
 
@@ -86,26 +110,6 @@ export type MyStatus = {
 export const getMyStatus = (seasonId: number) =>
   api.get<MyStatus>(`/seasons/${seasonId}/me`)
 
-/* ── 참가 · POST /seasons/{id}/join ───────────────────────── */
-
-/** 새 회차가 열린다. 이미 끝낸 회차가 있으면 attemptNo 가 올라간다 */
-export type JoinResult = {
-  participantId: number
-  attemptNo: number
-  currentDay: number
-}
-
-/**
- * 연습·시연은 즉시 201 이다. 대회는 참가비 소각 서명이 붙어 아직 열려 있지 않다
- * (501 SEASON_JOIN_NOT_SUPPORTED).
- *
- * <p>멱등키를 붙인다 — 두 번 눌려 회차가 둘 생기면 어느 쪽이 내 판인지 알 수 없다.
- */
-export const join = (seasonId: number) =>
-  api.post<JoinResult>(`/seasons/${seasonId}/join`, undefined, {
-    idempotencyScope: `join:${seasonId}`,
-  })
-
 /* ── 주문 · POST /seasons/{id}/orders ─────────────────────── */
 
 export type Side = 'BUY' | 'SELL'
@@ -118,12 +122,12 @@ export type OrderResult = {
   gameDay: number
 }
 
-export const order = (seasonId: number, tickerId: number, side: Side, qty: number) =>
-  api.post<OrderResult>(
-    `/seasons/${seasonId}/orders`,
-    { tickerId, side, qty },
-    { idempotencyScope: `order:${seasonId}:${tickerId}:${side}:${qty}` },
-  )
+export const order = (seasonId: number, tickerId: number, side: Side, qty: number) => {
+  const scope = `order:${seasonId}:${tickerId}:${side}:${qty}`
+  return api
+    .post<OrderResult>(`/seasons/${seasonId}/orders`, { tickerId, side, qty }, { idempotencyScope: scope })
+    .then((r) => { releaseIdempotencyKey(scope); return r })
+}
 
 /* ── 게임일 진행 · POST /seasons/{id}/advance ─────────────── */
 
@@ -184,6 +188,22 @@ export type SeasonFinishResult = {
 export const finish = (seasonId: number) =>
   api.post<SeasonFinishResult>(`/seasons/${seasonId}/finish`)
 
+/** season_results 전체 — 성적표 + 점수·등급·AI 복기. 점수·등급은 아직 null 이다 */
+export type SeasonResultData = SeasonFinishResult & {
+  score: number | null
+  grade: string | null
+  /** AI 복기. 잘한 판단 / 아쉬운 판단 / 개선 제안 세 단락. 서버에 키가 없던 회차는 null */
+  review: string | null
+  closedAt: string
+}
+
+/**
+ * 내 마지막 회차의 결과. 끝나지 않았으면 404 SEASON_RESULT_NOT_FOUND —
+ * 결과 화면이 이걸로 "이미 끝난 회차인가" 를 알고, 끝났으면 성적표·복기를 바로 그린다.
+ */
+export const getResult = (seasonId: number) =>
+  api.get<SeasonResultData>(`/seasons/${seasonId}/result/me`)
+
 /* ── 게임일 뉴스 · GET /seasons/{id}/news ─────────────────── */
 
 export type NewsKind = 'NEWS' | 'DISCLOSURE' | 'IR' | 'EVENT'
@@ -216,12 +236,21 @@ export type Trade = {
   realizedPnl: number | null
 }
 
-/** 커서는 체결 id 다. 서버가 숫자로 준다 */
-export const getTrades = (seasonId: number, cursor?: number) =>
-  api.get<{ items: Trade[]; nextCursor: number | null; hasNext: boolean }>(
-    `/seasons/${seasonId}/trades`,
-    { query: { cursor } },
-  )
+export type TradePage = { items: Trade[]; nextCursor: number | null; hasNext: boolean }
+
+/**
+ * 체결 내역. 최근 것이 먼저 온다.
+ *
+ * <p>커서는 체결 id 다(서버가 숫자로 준다). 종목·방향 필터도 서버가 받지만 G-06 은
+ * 쓰지 않는다 — 한 회차 체결이 수십 건이라 전부 받아 두고 화면에서 거르는 쪽이
+ * 필터를 바꿀 때마다 왕복하지 않아 빠르고, 요약 숫자도 정확해진다.
+ * 건수가 커지면 그때 이 인자들을 쓰면 된다.
+ */
+export const getTrades = (
+  seasonId: number,
+  opts: { cursor?: number; size?: number; tickerId?: number; side?: Side } = {},
+) =>
+  api.get<TradePage>(`/seasons/${seasonId}/trades`, { query: { ...opts } })
 
 /* ── 화면이 함께 쓰는 계산 ────────────────────────────────── */
 

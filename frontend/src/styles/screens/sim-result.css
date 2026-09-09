@@ -118,6 +118,15 @@
 /* 버튼도 링크와 같은 모양이라 button 일 때도 같은 규칙을 탄다 */
 .sr-none button.sr-go{border:0;cursor:pointer}
 
+/* 종료 실패 이유 — 버튼 아래 한 줄 */
+.sr-reject{display:block;margin-top:8px;color:var(--down-vivid);font-size:12.5px;font-weight:750}
+
+/* AI 복기 — 세 단락, 줄바꿈 보존 */
+.sr-review{margin-top:18px;padding-top:16px;border-top:1px solid var(--rule)}
+.sr-review h3{margin:0 0 8px;color:var(--ink);font-size:14px;font-weight:800;letter-spacing:-.01em}
+.sr-review p{margin:0;color:var(--body);font-size:14px;line-height:1.75;white-space:pre-wrap}
+.sr-review .sr-review-none{color:var(--muted);font-size:13px;font-weight:650}
+
 /* 아직 서버가 안 주는 것. 목업을 넣지 않는다 — 무엇이 올 자리인지만 적는다 */
 .sr-soon{
   margin:0;padding:22px;border:1px dashed var(--rule);border-radius:12px;

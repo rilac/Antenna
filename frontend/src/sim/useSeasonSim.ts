@@ -82,6 +82,7 @@ export type SimReject =
   | 'ENDED'         // 끝난 회차다
   | 'LAST_DAY'      // 마지막 게임일이라 더 못 넘긴다
   | 'DAY_MISMATCH'  // 보고 있는 게임일이 서버와 다르다
+  | 'REVIEW'        // 종료는 됐어야 하는데 AI 복기를 못 만들어 아무것도 저장되지 않았다
   | 'FAILED'        // 그 밖
 
 /* 서버 코드 → 화면이 아는 이유. 표에 없는 코드는 FAILED 로 모은다 */
@@ -94,6 +95,7 @@ const REJECT_OF: Record<string, SimReject> = {
   SEASON_ATTEMPT_ENDED: 'ENDED',
   SEASON_LAST_DAY: 'LAST_DAY',
   SEASON_NOT_LAST_DAY: 'LAST_DAY',
+  SEASON_REVIEW_FAILED: 'REVIEW',
   DAY_MISMATCH: 'DAY_MISMATCH',
 }
 

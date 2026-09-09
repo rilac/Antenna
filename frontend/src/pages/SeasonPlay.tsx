@@ -35,7 +35,7 @@
    2026-09-08 에 서버로 옮겼다 — 그때 order·advance 를 Promise 로 만들어 둔 덕에
    이 화면은 await 두 줄 말고는 고치지 않았다. */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../api/errors'
 import {
   getPrices, getTickers, maxBuyQty, orderAmount, rate, signOf,
@@ -91,6 +91,7 @@ const REJECT_TEXT: Record<string, string> = {
   NOT_JOINED: '참가하지 않은 시즌입니다',
   ENDED: '이미 끝난 회차입니다',
   LAST_DAY: '마지막 게임일입니다',
+  REVIEW: 'AI 복기를 만들지 못해 종료하지 않았습니다. 다시 시도해 주세요',
   DAY_MISMATCH: '다른 창에서 진행됐습니다. 화면을 새로 맞췄습니다',
   FAILED: '주문을 처리하지 못했습니다. 다시 시도해 주세요',
 }
@@ -124,8 +125,11 @@ function Stat({ tone, label, value, sub, icon }: {
 
 export default function SeasonPlay() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const season = useApiQuery<SeasonHead>(`/seasons/${id}`)
   const seasonId = Number(id)
+  /* 종료 확인창. 결과는 종료한 뒤에만 본다 — 종료가 성적표·복기를 만드는 순간이다 */
+  const finishDialog = useRef<HTMLDialogElement>(null)
 
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [tickerError, setTickerError] = useState<ApiError | null>(null)
@@ -343,6 +347,13 @@ export default function SeasonPlay() {
     }
   }
 
+  /* 종료가 서버에 박힌 뒤에만 결과로 간다. 서버는 finish 에서 성적표와 AI 복기를 같이
+     만들어 저장하고, 실패하면 아무것도 저장하지 않는다 — 그때는 창을 닫고 이유를 보인다. */
+  async function finishAndGo() {
+    if (await sim.finish()) navigate(`/sim/${seasonId}/result`)
+    else finishDialog.current?.close()
+  }
+
   return (
     <main className="main">
       <div className="main-inner sim-play">
@@ -415,6 +426,8 @@ export default function SeasonPlay() {
                 <Ico size={15}><circle cx="12" cy="12" r="8" /><path d="M12 4v8h8" /></Ico>
               </span>
               포트폴리오
+              {/* 도넛은 지금 비중만 말한다. 언제 얼마에 샀는지는 매매일지에 있다 */}
+              <Link className="sp-h-link" to={`/sim/${seasonId}/trades`}>매매일지</Link>
             </h2>
             {/* 보유가 없어도 그린다. 전액 현금이면 회색 원 하나인데, 그것도 "아직
                 아무것도 안 넣었다" 를 말하는 그림이다 — 글자 두 줄만 남기면 카드가
@@ -620,12 +633,18 @@ export default function SeasonPlay() {
 
               {/* 마지막 날에는 버튼이 결과로 바뀐다. 전에는 "마지막 게임일입니다" 라고
                   꺼진 버튼만 남아 흐름이 거기서 끊겼다 — 다 돌린 사람에게 다음 걸음이
-                  없으면 얼마 벌었는지도 못 본다. */}
+                  없으면 얼마 벌었는지도 못 본다.
+                  링크가 아니라 확인창이다(2026-09-09). 결과를 보는 것은 곧 종료이고, 종료가
+                  성적표와 AI 복기를 만들어 저장하는 순간이라 사람이 한 번 확인한다. */}
               {sim.isLastDay ? (
-                <Link className="sp-advance is-done" to={`/sim/${seasonId}/result`}>
+                <button
+                  type="button"
+                  className="sp-advance is-done"
+                  onClick={() => finishDialog.current?.showModal()}
+                >
                   결과 보기
                   <em aria-hidden="true">›</em>
-                </Link>
+                </button>
               ) : (
                 <button
                   type="button"
@@ -642,6 +661,38 @@ export default function SeasonPlay() {
                   ? '마지막 게임일입니다. 진행은 여기까지입니다.'
                   : '주문은 그 게임일 종가로 한 번에 체결됩니다.'}
               </p>
+
+              {/* 종료 확인. 네이티브 dialog — 포커스 가둠·Esc·배경막을 브라우저가 준다.
+                  만드는 동안(pending)은 Esc 로도 못 닫는다 — 닫혀도 서버는 계속 돌아
+                  결과가 화면 없이 굳어 버린다. */}
+              <dialog
+                className="sp-dialog"
+                ref={finishDialog}
+                aria-labelledby="sp-finish-title"
+                onCancel={(e) => { if (sim.pending) e.preventDefault() }}
+              >
+                <h2 id="sp-finish-title">모의투자를 종료하고 결과를 볼까요?</h2>
+                <p>
+                  종료하면 더 이상 주문도 진행도 할 수 없습니다.
+                  <br />
+                  성적표와 AI 복기를 만들어 기록에 저장합니다.
+                </p>
+                <small>AI 복기를 만드는 데 몇십 초가 걸릴 수 있습니다.</small>
+                <div className="sp-dialog-actions">
+                  <button
+                    type="button" className="sp-dialog-btn" disabled={sim.pending}
+                    onClick={() => finishDialog.current?.close()}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button" className="sp-dialog-btn solid" disabled={sim.pending}
+                    onClick={() => { void finishAndGo() }}
+                  >
+                    {sim.pending ? '성적표·복기 만드는 중…' : '종료하고 결과 보기'}
+                  </button>
+                </div>
+              </dialog>
             </section>
           </div>
         </div>

@@ -1,11 +1,13 @@
 package ssafy.a507.backend.domain.season.service;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,10 +27,12 @@ import ssafy.a507.backend.domain.season.dto.SeasonTickerItemResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTickerListResponse;
 import ssafy.a507.backend.domain.season.entity.Season;
 import ssafy.a507.backend.domain.season.entity.SeasonParticipant;
+import ssafy.a507.backend.domain.season.entity.SeasonResult;
 import ssafy.a507.backend.domain.season.entity.SeasonTicker;
 import ssafy.a507.backend.domain.season.repository.SeasonParticipantRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonPriceRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonRepository;
+import ssafy.a507.backend.domain.season.repository.SeasonResultRepository;
 import ssafy.a507.backend.domain.season.repository.SeasonTickerCount;
 import ssafy.a507.backend.domain.season.repository.SeasonTickerRepository;
 
@@ -48,6 +52,7 @@ public class SeasonQueryService {
     private final SeasonTickerRepository seasonTickerRepository;
     private final SeasonPriceRepository seasonPriceRepository;
     private final SeasonParticipantRepository participantRepository;
+    private final SeasonResultRepository resultRepository;
     private final UserRepository userRepository;
 
     /** 일반 사용자가 보는 모드. 시연은 빠진다 — 관리자만 여는 화면이다(설계서 §3 G). */
@@ -118,17 +123,29 @@ public class SeasonQueryService {
      * 회차(ABANDONED)는 목록에 없다.
      */
     public MySeasonListResponse mine(Long userId, MySeasonStatus status) {
-        return new MySeasonListResponse(
-                participantRepository.findByUser_IdOrderByIdDesc(userId).stream()
-                        .filter(p -> p.getStatus() != SeasonParticipant.Status.ABANDONED)
-                        .filter(p -> status == null || status == statusOf(p))
-                        .map(p -> new MySeasonItemResponse(
-                                p.getSeason().getId(),
-                                p.getSeason().getMode(),
-                                p.getCurrentDay(),
-                                p.getSeason().getLengthDays(),
-                                progressOf(p.getCurrentDay(), p.getSeason().getLengthDays())))
-                        .toList());
+        List<SeasonParticipant> rows = participantRepository.findByUser_IdOrderByIdDesc(userId).stream()
+                .filter(p -> p.getStatus() != SeasonParticipant.Status.ABANDONED)
+                .filter(p -> status == null || status == statusOf(p))
+                .toList();
+        // 끝난 회차의 수익률. 행마다 결과를 읽으면 N+1 이라 한 번에 받는다.
+        Map<Long, BigDecimal> returns = resultRepository
+                .findAllById(rows.stream()
+                        .filter(p -> p.getStatus() == SeasonParticipant.Status.DONE)
+                        .map(SeasonParticipant::getId)
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(SeasonResult::getParticipantId, SeasonResult::getReturnRate));
+        return new MySeasonListResponse(rows.stream()
+                .map(p -> new MySeasonItemResponse(
+                        p.getSeason().getId(),
+                        p.getSeason().getMode(),
+                        p.getSeason().getTitle(),
+                        p.getCurrentDay(),
+                        p.getSeason().getLengthDays(),
+                        progressOf(p.getCurrentDay(), p.getSeason().getLengthDays()),
+                        p.getEndedAt(),
+                        returns.get(p.getId())))
+                .toList());
     }
 
     /**

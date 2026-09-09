@@ -1,0 +1,128 @@
+/* M-07 이미지 업로드 모달 — [ANT-FE-UPLOAD]
+   접두어는 iu- 다. 틀(백드롭·모달·헤드·바디)의 치수는 M-01 wallet-link.css · M-03
+   subscribe.css 와 같다 — 세 모달이 같은 앱에서 잇달아 뜰 수 있어 크기가 다르면 화면이 튄다.
+   색·글꼴은 app.css 토큰만 쓴다. */
+
+.iu-backdrop{
+  position:fixed; inset:0; z-index:60;   /* 사이드바(40)·상단바(30) 위 */
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  background:rgba(20,20,27,.44);
+}
+
+.iu-modal{
+  width:100%; max-width:440px;
+  background:var(--surface);
+  border-radius:14px;
+  box-shadow:0 24px 60px -20px rgba(20,20,27,.4);
+  outline:none;
+  max-height:calc(100vh - 40px);
+  display:flex; flex-direction:column;
+}
+
+.iu-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:16px 18px;
+  border-bottom:1px solid var(--rule);
+}
+.iu-head h2{ margin:0; font-size:15px; font-weight:700; color:var(--ink); }
+
+.iu-x{
+  display:grid; place-items:center;
+  width:28px; height:28px; padding:0;
+  border:0; border-radius:8px;
+  background:transparent; color:var(--muted); cursor:pointer;
+}
+.iu-x:hover{ background:var(--surface-2); color:var(--ink); }
+
+.iu-body{ padding:18px; overflow-y:auto; }
+
+/* ── 고르는 자리 ─────────────────────────────────────── */
+.iu-drop{
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+  width:100%; padding:30px 18px;
+  border:1.5px dashed var(--rule); border-radius:12px;
+  background:var(--surface-2);
+  font:inherit; color:var(--muted); text-align:center; cursor:pointer;
+}
+.iu-drop:hover{ border-color:var(--brand-soft); background:var(--brand-softer); }
+/* 끌어다 놓는 중임을 분명히 — 놓아도 되는지 모르면 사용자가 멈칫한다 */
+.iu-drop.is-over{ border-color:var(--brand); background:var(--brand-softer); color:var(--brand-ink); }
+.iu-drop svg{ color:var(--brand); margin-bottom:3px; }
+.iu-drop b{ font-size:13.5px; font-weight:700; color:var(--ink); }
+.iu-drop span{ font-size:12px; }
+/* 비율 제약은 다른 줄보다 눈에 띄어야 한다 — 이걸 놓치면 올린 뒤 거절당한다 */
+.iu-rule{ color:var(--brand-ink) !important; font-weight:600; }
+
+/* ── 미리보기 ───────────────────────────────────────── */
+.iu-preview{ display:flex; flex-direction:column; gap:11px; }
+.iu-preview img{
+  width:100%; max-height:220px;
+  object-fit:contain;                    /* 잘라 보여주면 비율 제약을 눈으로 못 잡는다 */
+  border:1px solid var(--rule); border-radius:10px;
+  background:var(--surface-2);
+}
+
+.iu-facts{ margin:0; display:flex; flex-wrap:wrap; gap:6px 22px; }
+.iu-facts > div{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.iu-facts dt{ font-size:11.5px; color:var(--muted); }
+.iu-facts dd{ margin:0; font-size:13px; font-weight:700; color:var(--ink); }
+/* 파일명이 길어도 모달을 밀지 않는다 */
+.iu-name{ max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* 잘렸다는 알림. 오류가 아니라 알림이라 빨강을 쓰지 않는다 — 사용자는 아무것도 고칠 게 없다 */
+.iu-cropped{
+  margin:0; padding:8px 10px;
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px;
+  border-radius:8px; background:var(--surface-2);
+  font-size:12px; color:var(--ink);
+}
+.iu-cropped span{ color:var(--muted); }
+
+/* ── 진행률 ─────────────────────────────────────────── */
+.iu-progress{ display:flex; align-items:center; gap:11px; margin-top:14px; }
+.iu-bar{
+  flex:1; height:7px; border-radius:999px;
+  background:var(--surface-2); overflow:hidden;
+}
+.iu-bar span{
+  display:block; height:100%;
+  background:var(--brand); border-radius:999px;
+  transition:width .2s ease;
+}
+/* 움직임을 줄이도록 설정했으면 막대가 튀지 않게 한다 */
+@media (prefers-reduced-motion:reduce){ .iu-bar span{ transition:none; } }
+.iu-progress-text{ flex:0 0 auto; font-size:12.5px; font-weight:700; color:var(--body); }
+
+.iu-done{ margin:12px 0 0; font-size:13px; color:var(--body); }
+
+/* ── 오류 ───────────────────────────────────────────── */
+.iu-error{
+  display:flex; flex-direction:column; gap:3px;
+  margin:13px 0 0; padding:10px 12px;
+  border:1px solid #f3c9c9; border-radius:9px; background:#fdf4f4;
+  font-size:12.5px; line-height:1.6; color:var(--danger);
+}
+.iu-error span{ color:var(--body); }
+
+/* ── 버튼 ───────────────────────────────────────────── */
+.iu-actions{
+  display:flex; justify-content:flex-end; gap:8px;
+  padding:14px 18px; border-top:1px solid var(--rule);
+}
+
+.iu-btn{
+  padding:9px 16px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface);
+  font:inherit; font-size:13px; font-weight:700; color:var(--body);
+  cursor:pointer;
+}
+.iu-btn:hover{ border-color:var(--brand-soft); background:var(--brand-softer); color:var(--brand-ink); }
+.iu-btn.solid{ border-color:var(--brand); background:var(--brand); color:#fff; }
+.iu-btn.solid:hover{ background:var(--brand-ink); border-color:var(--brand-ink); color:#fff; }
+
+@media (max-width:520px){
+  .iu-actions{ flex-direction:column-reverse; }
+  .iu-btn{ width:100%; }
+}

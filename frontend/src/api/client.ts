@@ -13,6 +13,20 @@ export function setAccessToken(token: string | null) {
   accessToken = token
 }
 
+/**
+ * 지금 들고 있는 토큰. **이 파일 밖에서 fetch 를 직접 쓸 때만** 쓴다.
+ *
+ * 유일한 사용처는 이미지 업로드(M-07)다 — 아래 request 가 본문을 항상 JSON 으로 굳히므로
+ * multipart 를 보낼 수 없고, 진행률도 fetch 로는 못 읽어(업로드 이벤트가 없다) XHR 을 쓴다.
+ * 화면 코드가 이 값을 직접 헤더에 넣는 일은 없어야 한다.
+ */
+export function getAccessToken() {
+  return accessToken
+}
+
+/** 업로드가 401 을 재발급 후 재시도할 때 필요하다. request 의 재시도 규칙을 그대로 흉내 낸다. */
+export const API_BASE = BASE
+
 /** 401 을 받았을 때 셸이 할 일(M-08 세션 만료)을 꽂아 두는 자리. */
 type UnauthorizedHandler = () => void
 let onUnauthorized: UnauthorizedHandler = () => {}

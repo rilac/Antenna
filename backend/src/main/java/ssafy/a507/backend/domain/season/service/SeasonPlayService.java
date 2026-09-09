@@ -8,9 +8,12 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import ssafy.a507.backend.common.ai.AiException;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.domain.account.entity.User;
@@ -21,6 +24,7 @@ import ssafy.a507.backend.domain.season.dto.SeasonAdvanceResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonFinishResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderRequest;
 import ssafy.a507.backend.domain.season.dto.SeasonOrderResponse;
+import ssafy.a507.backend.domain.season.dto.SeasonResultResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTradeItemResponse;
 import ssafy.a507.backend.domain.season.dto.SeasonTradeListResponse;
 import ssafy.a507.backend.domain.season.entity.Season;
@@ -47,6 +51,7 @@ import ssafy.a507.backend.domain.season.repository.SeasonTradeRepository;
  * <p><b>예수금은 로컬 원장이다.</b> 금융망 출금·입금(ANT-SEASON-06)은 붙이지 않는다.
  * {@code season_participants.cash} 를 바로 더하고 뺀다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SeasonPlayService {
@@ -63,6 +68,9 @@ public class SeasonPlayService {
     private final SeasonTradeRepository tradeRepository;
     private final SeasonResultRepository resultRepository;
     private final UserRepository userRepository;
+    private final SeasonReviewService reviewService;
+    /** finish 가 트랜잭션을 손으로 나누는 데 쓴다 — LLM 호출을 트랜잭션 밖에 두려고. */
+    private final TransactionTemplate tx;
 
     /** 내 현황. 보유 종목은 내 진행일 종가로 평가한다. */
     @Transactional(readOnly = true)
@@ -206,27 +214,92 @@ public class SeasonPlayService {
 
     /**
      * 종료 — 마지막 게임일에서만. 회차를 DONE 으로 굳히고 {@code season_results} 를 1회 만든다.
-     * 이미 끝난 회차면 저장된 결과를 그대로 준다(멱등). 점수·등급·AI 복기는 ANT-SEASON-09 다.
+     * 성적표와 함께 AI 복기(ANT-SEASON-09)를 만들어 같이 저장한다. 이미 끝난 회차면 저장된
+     * 결과를 그대로 준다(멱등) — 단 복기가 비어 있고 키가 있으면 그때 채운다.
+     *
+     * <p>트랜잭션을 셋으로 나눈다. GMS 호출은 길면 수십 초라 그동안 DB 커넥션을 잡고 있으면
+     * 안 된다. ① 읽기 — 상태 검증 · 지표 계산 · 프롬프트 재료 ② 트랜잭션 밖 — GMS ③ 쓰기 —
+     * 잠그고 다시 검증한 뒤 지표를 다시 계산해 복기와 함께 저장. 복기 생성이 실패하면 아무것도
+     * 저장하지 않는다(503 SEASON_REVIEW_FAILED) — 회차는 ONGOING 그대로라 다시 시도할 수 있다.
+     * 지표를 ③에서 다시 계산하는 이유는 ①과 ③ 사이에 주문이 끼어들 수 있어서다.
      */
-    @Transactional
     public SeasonFinishResponse finish(Long userId, Long seasonId) {
+        Prepared p = tx.execute(status -> prepare(userId, seasonId));
+        if (p.done()) {
+            return p.response();
+        }
+        String review;
+        try {
+            review = reviewService.review(p.aiInput());
+        } catch (AiException e) {
+            log.warn("[SEASON-09] 복기 생성 실패 user={} season={} — {}", userId, seasonId, e.getMessage());
+            throw new BusinessException(ErrorCode.SEASON_REVIEW_FAILED);
+        }
+        return tx.execute(status -> commit(userId, seasonId, review));
+    }
+
+    /** ①의 결과. done 이면 더 할 일이 없어 response 를 그대로 준다. 아니면 aiInput 이 있다. */
+    private record Prepared(boolean done, SeasonFinishResponse response, String aiInput) {}
+
+    private Prepared prepare(Long userId, Long seasonId) {
+        SeasonParticipant me = myAttempt(userId, seasonId);
+        Season season = me.getSeason();
+        if (me.getStatus() == SeasonParticipant.Status.DONE) {
+            SeasonResult saved = resultRepository.findById(me.getId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_ATTEMPT_ENDED));
+            if (saved.getReviewBody() != null || !reviewService.hasKey()) {
+                return new Prepared(true, toResponse(saved), null);
+            }
+            // 복기만 비어 있는 끝난 회차 — 저장된 지표로 재료를 만들어 채우러 간다
+            List<SeasonTrade> trades = tradeRepository.findByParticipant_IdOrderByIdAsc(me.getId());
+            return new Prepared(false, null, SeasonReviewService.input(season, trades, toResult(saved)));
+        }
+        if (!me.isOngoing()) {
+            throw new BusinessException(ErrorCode.SEASON_ATTEMPT_ENDED);
+        }
+        if (me.getCurrentDay() < season.getLengthDays()) {
+            throw new BusinessException(ErrorCode.SEASON_NOT_LAST_DAY);
+        }
+        List<SeasonTrade> trades = tradeRepository.findByParticipant_IdOrderByIdAsc(me.getId());
+        return new Prepared(false, null, SeasonReviewService.input(season, trades, compute(season, trades)));
+    }
+
+    private SeasonFinishResponse commit(Long userId, Long seasonId, String review) {
         SeasonParticipant me = participantRepository
                 .lockById(myAttempt(userId, seasonId).getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_NOT_JOINED));
         if (me.getStatus() == SeasonParticipant.Status.DONE) {
-            return resultRepository.findById(me.getId()).map(SeasonPlayService::toResponse)
+            // ①과 ③ 사이에 다른 요청이 먼저 끝냈거나, 복기만 채우러 온 경우
+            SeasonResult saved = resultRepository.findById(me.getId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_ATTEMPT_ENDED));
+            if (saved.getReviewBody() == null && review != null) {
+                saved.review(review, reviewService.promptVersion());
+            }
+            return toResponse(saved);
         }
         if (!me.isOngoing()) {
             throw new BusinessException(ErrorCode.SEASON_ATTEMPT_ENDED);
         }
         Season season = me.getSeason();
-        int lastDay = season.getLengthDays();
-        if (me.getCurrentDay() < lastDay) {
+        if (me.getCurrentDay() < season.getLengthDays()) {
             throw new BusinessException(ErrorCode.SEASON_NOT_LAST_DAY);
         }
-
         List<SeasonTrade> trades = tradeRepository.findByParticipant_IdOrderByIdAsc(me.getId());
+        SeasonResultCalculator.Result r = compute(season, trades);
+
+        me.finish();
+        SeasonResult result = SeasonResult.of(
+                me, r.finalAsset(), r.returnRate(), r.benchmarkReturn(), r.maxDrawdown(),
+                r.winRate(), r.profitFactor(), r.avgHoldingDays());
+        if (review != null) {
+            result.review(review, reviewService.promptVersion());
+        }
+        return toResponse(resultRepository.save(result));
+    }
+
+    /** 성과 지표 — 체결과 거래한 종목의 종가에서 계산한다. */
+    private SeasonResultCalculator.Result compute(Season season, List<SeasonTrade> trades) {
+        int lastDay = season.getLengthDays();
         List<Long> traded = trades.stream().map(tr -> tr.getTicker().getId()).distinct().toList();
         Map<Long, TreeMap<Integer, BigDecimal>> closes = new HashMap<>();
         if (!traded.isEmpty()) {
@@ -236,7 +309,7 @@ public class SeasonPlayService {
                         .put(p.getGameDay(), p.getClose());
             }
         }
-        SeasonResultCalculator.Result r = SeasonResultCalculator.compute(
+        return SeasonResultCalculator.compute(
                 season.getInitialCash(),
                 lastDay,
                 trades,
@@ -250,12 +323,24 @@ public class SeasonPlayService {
                 },
                 closesOf(season.getId(), 1),
                 closesOf(season.getId(), lastDay));
+    }
 
-        me.finish();
-        SeasonResult saved = resultRepository.save(SeasonResult.of(
-                me, r.finalAsset(), r.returnRate(), r.benchmarkReturn(), r.maxDrawdown(),
-                r.winRate(), r.profitFactor(), r.avgHoldingDays()));
-        return toResponse(saved);
+    private static SeasonResultCalculator.Result toResult(SeasonResult s) {
+        return new SeasonResultCalculator.Result(
+                s.getFinalAsset(), s.getReturnRate(), s.getBenchmarkReturn(), s.getMaxDrawdown(),
+                s.getWinRate(), s.getProfitFactor(), s.getAvgHoldingDays());
+    }
+
+    /** 내 마지막 회차의 결과. 끝나지 않았으면 404 — 결과는 finish 가 만든다. */
+    @Transactional(readOnly = true)
+    public SeasonResultResponse result(Long userId, Long seasonId) {
+        SeasonParticipant me = myAttempt(userId, seasonId);
+        SeasonResult r = resultRepository.findById(me.getId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.SEASON_RESULT_NOT_FOUND));
+        return new SeasonResultResponse(
+                r.getParticipantId(), r.getFinalAsset(), r.getReturnRate(), r.getBenchmarkReturn(),
+                r.getMaxDrawdown(), r.getWinRate(), r.getProfitFactor(), r.getAvgHoldingDays(),
+                r.getScore(), r.getGrade(), r.getReviewBody(), r.getClosedAt());
     }
 
     private Map<Long, BigDecimal> closesOf(Long seasonId, int gameDay) {

@@ -13,6 +13,7 @@
    자세한 것은 mock/proof.ts 머리말. */
 import { api } from './client'
 import * as mock from './mock/proof'
+import { commitHash, commitPayload } from './predictions'
 
 const MOCK = true
 
@@ -21,12 +22,13 @@ export const PROOF_ANCHOR_STATUSES = ['WAITING', 'PENDING', 'CONFIRMED', 'FAILED
 export type ProofAnchorStatus = (typeof PROOF_ANCHOR_STATUSES)[number]
 
 /**
- * 커밋 payload 의 구성 필드. ①단계가 이 값들을 조립해 salt 와 함께 해시한다.
+ * 커밋 문자열의 구성 필드. ①단계가 이 값들을 조립해 다시 해시한다.
  *
- * 조립 규격(줄 구분 등, 결정 B2)은 아직 정해지지 않았다 — 서버 ProofService 가
- * "PRED-02 가 정한다" 고 적어 두었고, 백엔드 어디에도 commitHash 를 계산하는 코드가 없다.
- * 그래서 ①단계는 만기 전이라 잠기는 것과 별개로, 지금은 누구도 실행할 수 없다.
- * 규격이 정해지면 여기에 조립 함수를 두고 Verify 화면의 ①을 켠다.
+ * 조립 규격은 ANT-PRED-02 가 정했다(결정 B2) — 규격과 이유는 api/predictions.ts
+ * "커밋 봉인" 절, 조립은 아래 {@link commitPreimage}.
+ *
+ * **salt 는 필요 없다.** 커밋 문자열에 salt 줄이 없고 noteHash 가 그 역할을 겸하므로
+ * (09-09 결정), 여기 다섯 값만으로 ①을 끝까지 계산할 수 있다 — 비구독자도 마찬가지다.
  */
 export type ProofPayload = {
   stockCode: string | null
@@ -34,8 +36,9 @@ export type ProofPayload = {
   targetPrice: number
   /** 5 · 10 · 20 · 60 영업일 */
   horizon: number
-  /** keccak256(note ‖ noteSalt). PRED-02 전까지 null */
+  /** keccak256(note ‖ salt). 커밋 문자열의 마지막 줄이다. 커밋 전이면 null */
   noteHash: string | null
+  /** 표시용. **커밋 문자열에는 들어가지 않는다** — 서버 시각이라 검증자가 재현할 수 없다 */
   createdAt: string
 }
 
@@ -87,10 +90,17 @@ export type Proof = {
   signature: string | null
   signerAddress: string | null
   revealedAt: string | null
-  /** 리빌 뒤 회원 전원에게 온다. 비구독자도 ①을 검산해야 하기 때문 */
+  /**
+   * **근거 salt(= 등록 때 클라이언트가 만든 noteSalt)** 다. 리빌 뒤 작성자·구독자만
+   * 받는다(결정 D6) — 근거 본문이 판정 후에도 구독자 전용인데, noteHash 가 공개된
+   * 마당에 salt 까지 주면 짧은 근거를 후보 해시로 맞춰 볼 수 있어서다.
+   *
+   * ①단계에는 필요 없다(payload.noteHash 로 충분하다). 이 값이 있으면 자기 근거
+   * 본문으로 `keccak256(note ‖ salt) == noteHash` 를 한 겹 더 확인할 수 있는데,
+   * 그 본문은 이 응답에 없다(GET /predictions/{id} 쪽이다) — 그래서 D-03 은 대조를
+   * 사용자 손에 남긴다(③과 같은 이유).
+   */
   salt: string | null
-  /** 리빌 뒤에도 작성자·구독자만. PRED-02 전까지는 항상 null */
-  noteSalt: string | null
   anchor: ProofAnchor | null
   anchorStatus: ProofAnchorStatus
   settle: ProofSettle | null
@@ -100,6 +110,34 @@ export function fetchProof(predictionId: string | number): Promise<Proof> {
   if (MOCK) return mock.proof(predictionId)
   return api.get<Proof>(`/predictions/${predictionId}/proof`)
 }
+
+/* ── ①단계 재료 조립 ──────────────────────────────────────
+   등록 화면(C-01)이 봉인할 때 쓴 함수를 그대로 쓴다(api/predictions.ts). 검산이
+   자기만의 조립 규칙을 따로 가지면, 규격이 바뀔 때 한쪽만 고쳐도 아무도 모르고
+   화면에는 "불일치" 만 뜬다. */
+
+/**
+ * 다시 해시할 커밋 문자열. 재료가 덜 왔으면 null 이다.
+ *
+ * 억지로 빈칸을 채워 해시하면 반드시 불일치가 나오고, 그 붉은 표시는 사용자에게
+ * "네 예측이 조작됐다" 로 읽힌다. 재료가 없으면 "아직 못 한다" 가 정직하다.
+ *
+ * stockCode 가 null 인 것은 종목이 지워진 예측이다 — 커밋에는 코드가 들어 있었지만
+ * 그 값을 지금은 알 수 없으므로 ①은 잠긴다(서버도 같은 판단이라 커밋 자체는 남긴다).
+ */
+export function commitPreimage(payload: ProofPayload): string | null {
+  if (payload.stockCode === null || payload.noteHash === null) return null
+  return commitPayload({
+    stockCode: payload.stockCode,
+    direction: payload.direction,
+    targetPrice: payload.targetPrice,
+    horizon: payload.horizon,
+    noteHash: payload.noteHash,
+  })
+}
+
+/** 브라우저가 직접 계산한 commitHash. 서버 값과의 대조는 화면이 한다 — 여기서 판정하지 않는다. */
+export const recomputeCommitHash = commitHash
 
 export const DIRECTION_LABEL: Record<ProofPayload['direction'], string> = {
   UP: '상승',

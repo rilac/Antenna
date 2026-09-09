@@ -6,26 +6,28 @@
    - "전부 클라이언트 실행 — 서버가 '검증됨'이라 말해주면 증명이 아니다."
      그래서 화면 어디에도 서버가 내린 판정을 그대로 옮겨 적는 자리가 없다.
      ②의 판정은 브라우저가 접은 루트와 체인이 답한 루트를 여기서 직접 비교해 만든다.
-   - "만기 전에는 salt·판정이 null이라 ①③ 잠그고 ②만."
-     잠긴 단계는 실패가 아니라 아직이다 — 붉게 그리지 않는다.
+   - 잠긴 단계는 실패가 아니라 아직이다 — 붉게 그리지 않는다.
 
-   ①이 지금은 만기와 무관하게 잠겨 있는 이유
-   payload 를 어떤 문자열로 조립해 salt 와 붙이는지(결정 B2)가 아직 정해지지 않았다.
-   서버 ProofService 가 "PRED-02 가 정한다" 고 적어 두었고, 실제로 백엔드 어디에도
-   commitHash 를 계산하는 코드가 없다. 규격 없이 아무 순서로나 이어 붙여 해시하면
-   반드시 불일치가 나오고, 그 붉은 표시는 사용자에게 "네 예측이 조작됐다" 로 읽힌다.
-   틀린 고발보다 "아직 못 한다" 가 정직하다. 규격이 서면 api/proof.ts 에 조립 함수를
-   두고 여기 ①의 잠금만 풀면 된다.
+   ①이 이제 만기 전에도 돈다 (ANT-PRED-02)
+   설계서는 "만기 전에는 salt 가 null 이라 ①을 잠근다" 였는데, 09-09 결정으로 커밋 salt
+   자체가 없어졌다. 커밋 문자열은 공개 필드 넷 + payload.noteHash 뿐이고 그 다섯은 커밋이
+   생긴 순간부터 전원에게 온다. 그래서 ①은 만기·구독과 무관하게, 커밋만 있으면 계산된다.
+   잠기는 경우는 하나뿐이다 — 아직 커밋 전이라 재료가 없을 때.
+
+   남은 한 겹(①')은 일부러 사용자 손에 남긴다
+   구독자·작성자는 리빌 뒤 salt 를 받아 keccak256(note ‖ salt) == noteHash 를 더 볼 수
+   있는데, 근거 본문은 이 응답에 없다(GET /predictions/{id} 쪽이다). 우리가 본문을 대신
+   불러다 대조해 "맞습니다" 라고 하면 ③과 똑같이 다시 우리를 믿는 일이 된다.
 
    ②를 자동으로 실행하는 이유
    버튼 뒤에 두면 대부분은 누르지 않고, 그러면 이 화면은 다시 "서버가 준 값을 보여주는
    화면" 이 된다. 검산이 이 화면의 본문이므로 들어오면 바로 돈다. */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { formatConfirmedAt } from '../api/anchors'
 import type { ApiError } from '../api/errors'
 import {
-  DIRECTION_LABEL, SETTLE_LABEL, fetchProof,
+  DIRECTION_LABEL, SETTLE_LABEL, commitPreimage, fetchProof, recomputeCommitHash,
   type Proof, type ProofAnchor,
 } from '../api/proof'
 import { useAsync } from '../api/useAsync'
@@ -99,6 +101,34 @@ function Step({ no, title, formula, verdict, children }: {
   )
 }
 
+/* ── ① 커밋 해시 재계산 ──────────────────────────────────
+   서버가 준 것은 재료(payload)와 주장(commitHash)이다. 둘을 잇는 계산은 여기서 한다.
+   keccak256 이 ethers 동적 import 라 비동기이고, 그래서 상태로 들고 있는다. */
+type Recompute = {
+  /** 다시 조립한 커밋 문자열. 재료가 덜 오면 null — 그때는 계산 자체를 하지 않는다 */
+  preimage: string | null
+  /** 그 문자열의 keccak256. 계산 중이면 null */
+  hash: string | null
+}
+
+function useCommitCheck(payload: Proof['payload'] | null): Recompute {
+  /* 조립은 순수 계산이라 그리는 김에 한다. 상태로 두면 첫 그림에는 없다가 효과가
+     한 번 더 그리게 만든다 — 화면에 남는 것은 같은데 렌더가 늘 뿐이다. */
+  const preimage = useMemo(() => (payload ? commitPreimage(payload) : null), [payload])
+
+  /* 해시만 비동기다(ethers 동적 import). 어느 문자열의 해시인지 함께 들고 있는 이유는
+     PredictTab 미리보기와 같다 — 늦게 온 이전 계산이 지금 문자열의 값처럼 보이면 안 된다. */
+  const [done, setDone] = useState<{ preimage: string; hash: string } | null>(null)
+  useEffect(() => {
+    if (!preimage) return
+    let alive = true
+    void recomputeCommitHash(preimage).then((hash) => { if (alive) setDone({ preimage, hash }) })
+    return () => { alive = false }
+  }, [preimage])
+
+  return { preimage, hash: done?.preimage === preimage ? done.hash : null }
+}
+
 /* ── ② 브라우저 검산 ─────────────────────────────────────
    접기(로컬 계산)와 체인 조회(네트워크)를 나눠 담는다. 체인에 못 붙어도 접기 결과는
    보여줄 수 있고, 서버 응답이 스스로 앞뒤가 맞는지는 그것만으로 확인되기 때문이다. */
@@ -161,6 +191,7 @@ export default function Verify() {
   const { data, loading, error, reload } = useAsync<Proof>(load)
 
   const check = useChainCheck(data?.anchor ?? null, data?.commitHash ?? null)
+  const commit = useCommitCheck(data?.payload ?? null)
 
   /* 커밋 원장에서도, 예측 상세에서도 들어온다 — 어느 쪽으로 돌려보낼지 화면이 정할 수 없다.
      직접 주소로 들어와 돌아갈 곳이 없을 때만 커밋 원장으로 보낸다. */
@@ -218,30 +249,55 @@ export default function Verify() {
             <Step
               no={1}
               title="커밋 해시 대조"
-              formula="keccak256(payload ‖ salt) == commitHash"
-              verdict="locked"
+              formula="keccak256(커밋 문자열) == commitHash"
+              verdict={step1Verdict(data, commit)}
             >
               <p className="vf-lead">
-                등록 당시의 예측 내용에 비공개 난수(salt)를 붙여 해시한 값이 커밋 해시다.
-                두 값이 같으면 등록 뒤 내용이 바뀌지 않았다는 뜻이다.
+                등록 당시의 예측 내용을 정해진 순서로 이어 붙인 것이 커밋 문자열이고,
+                그것을 해시한 값이 커밋 해시다. 브라우저가 아래 문자열을 다시 해시해
+                서버가 말한 커밋 해시와 맞춰 본다 — 같으면 등록 뒤 내용이 바뀌지 않았다는 뜻이다.
               </p>
 
               <ul className="vf-checks">
-                {!data.salt ? (
-                  <CheckLine verdict="locked" label="아직 salt 가 공개되지 않았습니다">
-                    만기·판정 전에는 salt 를 공개하지 않습니다. 미리 공개하면 다른 사람이
-                    같은 내용을 미리 알 수 있습니다.
+                {!data.commitHash ? (
+                  <CheckLine verdict="locked" label="아직 커밋 전입니다">
+                    등록이 원장에 봉인되면 이 자리에서 바로 계산해 보여 드립니다.
                   </CheckLine>
+                ) : !commit.preimage ? (
+                  /* 재료가 덜 왔다. 빈칸을 채워 해시하면 반드시 불일치가 나오고,
+                     그 붉은 표시는 "네 예측이 조작됐다" 로 읽힌다 — 계산하지 않는다. */
+                  <CheckLine verdict="locked" label="커밋 문자열을 다시 만들 재료가 오지 않았습니다">
+                    종목코드와 근거 해시가 있어야 등록 당시의 문자열을 복원할 수 있습니다.
+                  </CheckLine>
+                ) : !commit.hash ? (
+                  <CheckLine verdict="wait" label="브라우저에서 다시 해시하는 중…" />
                 ) : (
-                  /* salt 는 왔지만 조립 규격이 없다. "규격 대기" 를 "불일치" 로 그리면
-                     사용자에게는 조작 고발로 읽힌다 — 우리 일정 문제를 남의 혐의로 만들지 않는다. */
-                  <CheckLine verdict="wait" label="payload 조립 규격 확정 대기">
-                    salt 는 공개됐지만, 예측 내용을 어떤 순서·형식의 문자열로 이어 붙여
-                    해시하는지가 아직 확정되지 않았습니다(결정 B2). 규격이 서면 이 자리에서
-                    바로 계산해 보여 드립니다.
-                  </CheckLine>
+                  <>
+                    <CheckLine
+                      verdict={sameHash(commit.hash, data.commitHash) ? 'pass' : 'fail'}
+                      label={sameHash(commit.hash, data.commitHash)
+                        ? '브라우저가 계산한 해시가 서버가 말한 커밋 해시와 같습니다'
+                        : '브라우저가 계산한 해시가 서버가 말한 커밋 해시와 다릅니다'}
+                    >
+                      <CopyHash value={commit.hash} head={14} tail={10} />
+                    </CheckLine>
+
+                    {/* 한 겹 더는 사용자 몫이다(③과 같은 이유) — 근거 본문이 이 응답에 없다 */}
+                    {data.salt && (
+                      <CheckLine verdict="manual" label="근거 본문 대조는 직접 하실 수 있습니다">
+                        아래 근거 salt 를 자기 근거 본문 뒤에 그대로 붙여 keccak256 하면
+                        위 문자열의 <code>noteHash</code> 가 나와야 합니다.
+                      </CheckLine>
+                    )}
+                  </>
                 )}
               </ul>
+
+              {/* 재계산에 쓴 문자열을 그대로 편다. 이걸 감추면 "우리가 계산해 봤더니
+                  맞더라" 가 되어 이 화면이 없애려던 것으로 되돌아간다. */}
+              {commit.preimage && (
+                <pre className="vf-preimage">{commit.preimage}</pre>
+              )}
 
               <dl className="vf-fields">
                 <div>
@@ -249,12 +305,14 @@ export default function Verify() {
                   <dd>{data.commitHash ? <CopyHash value={data.commitHash} head={14} tail={10} /> : <span className="vf-none">아직 커밋 전</span>}</dd>
                 </div>
                 <div>
-                  <dt>salt</dt>
-                  <dd>{data.salt ? <CopyHash value={data.salt} head={12} tail={8} /> : <span className="vf-none">비공개</span>}</dd>
+                  <dt>근거 salt</dt>
+                  <dd>{data.salt
+                    ? <CopyHash value={data.salt} head={12} tail={8} />
+                    : <span className="vf-none">리빌 전이거나 구독자가 아닙니다</span>}</dd>
                 </div>
                 {data.revealedAt && (
                   <div>
-                    <dt>salt 공개</dt>
+                    <dt>근거 공개</dt>
                     <dd>{formatConfirmedAt(data.revealedAt)}</dd>
                   </div>
                 )}
@@ -470,6 +528,13 @@ export default function Verify() {
 
 /* ── 단계 헤더에 붙일 종합 판정 ────────────────────────────
    한 줄이라도 어긋나면 fail 이다 — 통과한 줄이 더 많다고 통과가 아니다. */
+
+/** ①은 재료가 없으면 잠김, 있으면 계산이 끝나는 대로 통과/불일치다. 중간은 없다. */
+function step1Verdict(data: Proof, commit: Recompute): Verdict {
+  if (!data.commitHash || !commit.preimage) return 'locked'
+  if (!commit.hash) return 'wait'
+  return sameHash(commit.hash, data.commitHash) ? 'pass' : 'fail'
+}
 function step2Verdict(data: Proof, check: Check): Verdict {
   if (!data.anchor) return 'locked'
   if (!check.localRoot) return 'wait'

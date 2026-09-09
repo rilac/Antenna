@@ -17,13 +17,24 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param model 모델 ID · 게이트웨이가 날짜 붙은 실제 버전으로 해석해 응답에 실어 준다
  * @param promptVersion 생성물에 남기는 세대 태그 · 프롬프트를 고치면 이 값을 올리고, 옛 값
  *     행만 골라 다시 생성한다
+ * @param summaryLookbackDays 뉴스 요약이 거슬러 올라갈 구간(일) · 이보다 오래된 기사는 요약이
+ *     비어 있어도 다시 집지 않는다. 배치를 꺼 둔 동안 쌓인 대기 물량이 재개일에 통째로 청구되는
+ *     것을 막는 장치다
  */
 @ConfigurationProperties(prefix = "app.ai")
-public record AiProperties(String apiKey, String baseUrl, String model, String promptVersion) {
+public record AiProperties(
+        String apiKey,
+        String baseUrl,
+        String model,
+        String promptVersion,
+        Integer summaryLookbackDays) {
 
     private static final String DEFAULT_BASE_URL = "https://gms.ssafy.io/gmsapi/api.openai.com/v1";
     private static final String DEFAULT_MODEL = "gpt-5.4-mini";
     private static final String DEFAULT_PROMPT_VERSION = "v1";
+
+    /** 하루 걸러도 다음 회차가 메우도록 이틀. 늘릴수록 재개 첫 회차의 청구가 같이 는다. */
+    private static final int DEFAULT_SUMMARY_LOOKBACK_DAYS = 2;
 
     public AiProperties {
         if (apiKey != null) {
@@ -42,6 +53,10 @@ public record AiProperties(String apiKey, String baseUrl, String model, String p
         }
         if (promptVersion == null || promptVersion.isBlank()) {
             promptVersion = DEFAULT_PROMPT_VERSION;
+        }
+        // 0 이나 음수를 허용하면 대상이 통째로 비어 배치가 조용히 아무것도 안 한다.
+        if (summaryLookbackDays == null || summaryLookbackDays <= 0) {
+            summaryLookbackDays = DEFAULT_SUMMARY_LOOKBACK_DAYS;
         }
     }
 
