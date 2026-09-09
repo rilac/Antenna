@@ -87,6 +87,11 @@ const BY_CODE: Record<string, Text> = {
   [CLIENT_ERROR_CODE.CLIENT_CHAIN_UNREACHABLE]: { title: '체인에서 확인하지 못했습니다', hint: '네트워크 연결을 확인한 뒤 다시 시도해 주세요', retryable: true },
   // 배포 설정 문제라 사용자가 다시 눌러도 풀리지 않는다 — 재시도 버튼을 주지 않는다
   [CLIENT_ERROR_CODE.CLIENT_CHAIN_NOT_CONFIGURED]: { title: '체인 접속 주소가 설정되지 않았습니다', hint: '관리자에게 알려 주세요' },
+  /* 업로드(M-07) — 전송이 끊긴 것과 서버가 규격 위반으로 거절한 것은 사용자가 할 일이 다르다.
+     앞은 같은 파일로 다시, 뒤는 다른 파일로. 그래서 문구를 합치지 않는다. */
+  [CLIENT_ERROR_CODE.CLIENT_UPLOAD_FAILED]: { title: '올리는 중에 연결이 끊겼습니다', hint: '같은 파일로 다시 시도할 수 있습니다', retryable: true },
+  // 사용자가 스스로 멈춘 것이라 화면에 오류로 띄우지 않는다. 호출부가 이 code 를 보고 조용히 넘긴다
+  [CLIENT_ERROR_CODE.CLIENT_UPLOAD_ABORTED]: { title: '업로드를 취소했습니다' },
 }
 
 /* code 를 못 찾으면 status 로 떨어진다. 명세에 없는 사유가 와도 화면이 비지 않게. */
