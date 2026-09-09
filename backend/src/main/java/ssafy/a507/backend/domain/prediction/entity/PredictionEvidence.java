@@ -37,4 +37,11 @@ public class PredictionEvidence {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "point_id", nullable = false)
     private ResearchPoint point;
+
+    public static PredictionEvidence of(Prediction prediction, ResearchPoint point) {
+        PredictionEvidence evidence = new PredictionEvidence();
+        evidence.prediction = prediction;
+        evidence.point = point;
+        return evidence;
+    }
 }

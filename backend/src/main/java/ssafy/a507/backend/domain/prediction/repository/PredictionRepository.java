@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.prediction.repository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Limit;
@@ -29,6 +30,9 @@ public interface PredictionRepository extends JpaRepository<Prediction, Long> {
             @Param("statuses") Collection<Prediction.Status> statuses,
             @Param("cursorId") Long cursorId,
             Limit limit);
+
+    /** 슬롯 계산(ANT-PRED-01) — KST 하루 구간 [from, to) 에 이 사용자가 등록한 수. 트랙 구분 없이 센다(예측은 REAL 전용). */
+    long countByUser_IdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(Long userId, Instant from, Instant to);
 
     /** 상태별 내 예측 수. 목록 위 요약 칩(total·pending·judged·hitRate)의 재료다. */
     @Query("""
