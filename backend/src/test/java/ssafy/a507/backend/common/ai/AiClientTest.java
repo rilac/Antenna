@@ -43,7 +43,7 @@ class AiClientTest {
     }
 
     private AiClient client() {
-        return new AiClient(builder.build(), new AiProperties("gms-key", null, null, "v1"));
+        return new AiClient(builder.build(), new AiProperties("gms-key", null, null, "v1", null));
     }
 
     @Test
