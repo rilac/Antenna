@@ -1,0 +1,85 @@
+/* E-03 내 구독 — [ANT-FE-SUBSCRIPTION-LIST]
+   접두어는 sb- 다. 색·간격은 app.css 토큰만 쓴다. 상태 색은 anchor-badge.css 와
+   같은 값을 쓴다(ACTIVE #15803d · 만료 중립) — 같은 뜻이 화면마다 다른 색이면 안 된다.
+   PENDING 은 AnchorBadge 를 그대로 쓰므로 여기서 색을 만들지 않는다. */
+
+.sb-loading{ margin:24px 0; font-size:13.5px; color:var(--muted); }
+
+.sb-list{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:10px; }
+
+.sb-item{
+  padding:15px 18px;
+  background:var(--surface);
+  border:1px solid var(--rule);
+  border-radius:12px;
+}
+/* 지난 구독은 한 걸음 물러나 보이게 한다 — 지우지는 않는다(이력이라 남긴다) */
+.sb-item.is-expired{ background:var(--surface-2); }
+
+.sb-head{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.sb-channel{
+  font-size:15px; font-weight:800; color:var(--ink);
+  letter-spacing:-.01em; text-decoration:none;
+}
+.sb-channel:hover{ color:var(--brand-ink); text-decoration:underline; }
+
+.sb-badge{ flex:0 0 auto; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:800; }
+.sb-badge.is-active{ background:#e7f5ec; color:#15803d; }
+.sb-badge.is-expired{ background:var(--rule); color:var(--muted); }
+
+.sb-facts{ display:flex; flex-wrap:wrap; gap:6px 26px; margin:11px 0 0; }
+.sb-facts > div{ display:flex; flex-direction:column; gap:2px; }
+.sb-facts dt{ font-size:11.5px; color:var(--muted); }
+.sb-facts dd{ margin:0; font-size:14px; font-weight:700; color:var(--ink); }
+
+.sb-note{ margin:10px 0 0; font-size:12.5px; line-height:1.6; color:var(--muted); }
+
+/* ── 갱신 조작 ───────────────────────────────────────── */
+.sb-renew{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; flex-wrap:wrap;
+  margin-top:11px; padding-top:11px;
+  border-top:1px dashed var(--rule);
+}
+.sb-renew .sb-note{ margin:0; }
+
+.sb-btn{
+  flex:0 0 auto;
+  padding:8px 15px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface);
+  font:inherit; font-size:12.5px; font-weight:700; color:var(--body);
+  cursor:pointer;
+}
+.sb-btn:hover:not(:disabled){ border-color:var(--brand-soft); background:var(--brand-softer); color:var(--brand-ink); }
+.sb-btn:disabled{ opacity:.5; cursor:not-allowed; }
+/* 되돌릴 수 없는 쪽만 붉게 한다. 확인 단계 안에서만 쓴다 */
+.sb-btn.danger{ border-color:#f3c9c9; color:var(--danger); }
+.sb-btn.danger:hover:not(:disabled){ border-color:var(--danger); background:#fdf4f4; color:var(--danger); }
+
+/* ── 확인 단계 ───────────────────────────────────────── */
+.sb-confirm{
+  margin-top:11px; padding:13px 14px;
+  border:1px solid var(--rule); border-radius:10px;
+  background:var(--surface-2);
+}
+.sb-confirm-title{ margin:0; font-size:13.5px; font-weight:800; color:var(--ink); }
+.sb-confirm-body{ margin:6px 0 0; font-size:12.5px; line-height:1.65; color:var(--body); }
+/* 되돌릴 수 없다는 사실은 본문보다 눈에 띄어야 한다 — 다만 경고색은 쓰지 않는다.
+   위험한 일이 아니라 "다시 켤 수 없다" 는 사실을 알리는 것이다. */
+.sb-confirm-warn{ margin:6px 0 0; font-size:12.5px; line-height:1.65; color:var(--brand-ink); font-weight:600; }
+
+.sb-error{
+  margin:9px 0 0; padding:8px 11px;
+  border:1px solid #f3c9c9; border-radius:8px; background:#fdf4f4;
+  font-size:12.5px; color:var(--danger);
+}
+
+.sb-confirm-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+
+@media (max-width:560px){
+  .sb-renew{ flex-direction:column; align-items:stretch; }
+  .sb-renew .sb-btn{ width:100%; }
+  .sb-confirm-actions{ flex-direction:column-reverse; }
+  .sb-confirm-actions .sb-btn{ width:100%; }
+}
