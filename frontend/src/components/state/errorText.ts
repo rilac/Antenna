@@ -42,6 +42,7 @@ const BY_CODE: Record<string, Text> = {
   [ERROR_CODE.SEASON_LAST_DAY]: { title: '마지막 게임일입니다', hint: '종료하고 결과를 확인해 주세요' },
   [ERROR_CODE.SEASON_NOT_LAST_DAY]: { title: '아직 마지막 게임일이 아닙니다' },
   [ERROR_CODE.SEASON_RESULT_NOT_FOUND]: { title: '아직 결과가 없습니다', hint: '마지막 게임일에 종료하면 만들어집니다' },
+  [ERROR_CODE.SEASON_REVIEW_FAILED]: { title: 'AI 복기를 만들지 못했습니다', hint: '아직 종료되지 않았습니다. 잠시 후 다시 시도해 주세요', retryable: true },
 
   // 지갑 · 서명 (M-01) — 사용자가 할 일이 서로 달라 문구를 합치지 않는다
   [ERROR_CODE.INVALID_SIGNATURE]: { title: '서명이 올바르지 않습니다', hint: '지갑에서 다시 서명해 주세요', retryable: true },

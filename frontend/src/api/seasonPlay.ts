@@ -188,6 +188,22 @@ export type SeasonFinishResult = {
 export const finish = (seasonId: number) =>
   api.post<SeasonFinishResult>(`/seasons/${seasonId}/finish`)
 
+/** season_results 전체 — 성적표 + 점수·등급·AI 복기. 점수·등급은 아직 null 이다 */
+export type SeasonResultData = SeasonFinishResult & {
+  score: number | null
+  grade: string | null
+  /** AI 복기. 잘한 판단 / 아쉬운 판단 / 개선 제안 세 단락. 서버에 키가 없던 회차는 null */
+  review: string | null
+  closedAt: string
+}
+
+/**
+ * 내 마지막 회차의 결과. 끝나지 않았으면 404 SEASON_RESULT_NOT_FOUND —
+ * 결과 화면이 이걸로 "이미 끝난 회차인가" 를 알고, 끝났으면 성적표·복기를 바로 그린다.
+ */
+export const getResult = (seasonId: number) =>
+  api.get<SeasonResultData>(`/seasons/${seasonId}/result/me`)
+
 /* ── 게임일 뉴스 · GET /seasons/{id}/news ─────────────────── */
 
 export type NewsKind = 'NEWS' | 'DISCLOSURE' | 'IR' | 'EVENT'

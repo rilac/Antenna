@@ -3,9 +3,16 @@ package ssafy.a507.backend.domain.season.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willReturn;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,6 +38,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
+import ssafy.a507.backend.common.ai.AiClient;
+import ssafy.a507.backend.common.ai.AiException;
+import ssafy.a507.backend.domain.season.service.SeasonReviewService;
 
 /**
  * POST /advance · POST /finish 의 AC 검증(ANT-SEASON-04).
@@ -39,8 +49,11 @@ import org.springframework.transaction.annotation.Transactional;
  * 시나리오 — D+1 A 100주 매수, D+2 50주 매도(+500,000), D+3 50주 매도(−500,000):
  * 자산 곡선 30,000,000 → 31,000,000 → 30,000,000 이라 최대 낙폭 3.226%, 승률 50%, 손익비 1,
  * 평균 보유일 (1 + 2) / 2 = 1.5. 벤치마크(등가중) = (−14.286% + −10%) / 2 = −12.143%.
+ *
+ * <p>AI 복기(ANT-SEASON-09)는 AiClient 를 목으로 둔다. 키를 넣어 두어 finish 가 복기를 부르는
+ * 경로를 탄다 — 키 없는 경로는 {@code SeasonReviewServiceTest} 가 본다.
  */
-@SpringBootTest
+@SpringBootTest(properties = "app.ai.api-key=test-key")
 @AutoConfigureMockMvc
 @Transactional
 class SeasonProgressControllerTest {
@@ -51,7 +64,11 @@ class SeasonProgressControllerTest {
     @Autowired EntityManager em;
 
     @MockitoBean StringRedisTemplate redis;
+    @MockitoBean AiClient aiClient;
     private final Map<String, String> redisStore = new HashMap<>();
+
+    private static final String REVIEW =
+            "잘한 판단: D+2 에 절반을 정리해 이익을 확보했습니다.\n\n아쉬운 판단: D+3 하락에 나머지를 팔았습니다.\n\n개선 제안: 분할 매도 기준을 미리 정해 두세요.";
 
     private String me;
     private Long seasonId;
@@ -61,6 +78,7 @@ class SeasonProgressControllerTest {
     @BeforeEach
     void setUp() {
         stubRedis();
+        given(aiClient.complete(anyString(), anyString())).willReturn(REVIEW);
         me = String.valueOf(insertUser("나", "USER"));
         seasonId = insertSeason("PRACTICE", "급락과 반등", 3);
         insertStock("A00010");
@@ -181,6 +199,55 @@ class SeasonProgressControllerTest {
         assertThat(((Number) em.createNativeQuery(
                         "SELECT COUNT(*) FROM season_results WHERE participant_id = ?")
                 .setParameter(1, participantId).getSingleResult()).longValue()).isEqualTo(1);
+
+        // 복기는 종료와 함께 한 번 만들어져 저장된다 — 재료에 체결과 지표가 들어간다
+        then(aiClient).should(times(1))
+                .complete(eq(SeasonReviewService.INSTRUCTION), contains("D+1 매수 종목A 100주 @70000원"));
+        mockMvc.perform(get(url("/result/me")).with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.review").value(REVIEW));
+        assertThat(em.createNativeQuery(
+                        "SELECT prompt_version FROM season_results WHERE participant_id = ?")
+                .setParameter(1, participantId).getSingleResult()).isEqualTo("v1");
+    }
+
+    @Test
+    @DisplayName("복기 생성이 실패하면 아무것도 저장하지 않는다 — 503 SEASON_REVIEW_FAILED · 회차 ONGOING · 결과 없음")
+    void 복기_실패면_종료도_없다() throws Exception {
+        willThrow(new AiException("GMS 호출 실패")).given(aiClient).complete(anyString(), anyString());
+        setCurrentDay(3);
+
+        mockMvc.perform(post(url("/finish")).with(user(me)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("SEASON_REVIEW_FAILED"));
+
+        assertThat(participantStatus()).isEqualTo("ONGOING");
+        assertThat(((Number) em.createNativeQuery(
+                        "SELECT COUNT(*) FROM season_results WHERE participant_id = ?")
+                .setParameter(1, participantId).getSingleResult()).longValue()).isZero();
+
+        // 다시 시도하면 그때 끝난다
+        willReturn(REVIEW).given(aiClient).complete(anyString(), anyString());
+        mockMvc.perform(post(url("/finish")).with(user(me))).andExpect(status().isOk());
+        assertThat(participantStatus()).isEqualTo("DONE");
+    }
+
+    @Test
+    @DisplayName("복기 없이 끝난 회차(키가 없던 때)는 다음 종료 요청이 복기만 채운다 — 지표는 그대로")
+    void 빈_복기는_다음_종료가_채운다() throws Exception {
+        setCurrentDay(3);
+        mockMvc.perform(post(url("/finish")).with(user(me))).andExpect(status().isOk());
+        em.createNativeQuery("UPDATE season_results SET review_body = NULL, reviewed_at = NULL WHERE participant_id = ?")
+                .setParameter(1, participantId).executeUpdate();
+        em.clear();
+
+        mockMvc.perform(post(url("/finish")).with(user(me)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.finalAsset").value(30000000));
+
+        then(aiClient).should(times(2)).complete(anyString(), anyString());
+        mockMvc.perform(get(url("/result/me")).with(user(me)))
+                .andExpect(jsonPath("$.review").value(REVIEW));
     }
 
     @Test
@@ -208,6 +275,8 @@ class SeasonProgressControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.participantId").value(participantId))
                 .andExpect(jsonPath("$.finalAsset").value(29900000));
+        // 복기가 이미 있으니 GMS 를 다시 부르지 않는다 — 회차당 1회
+        then(aiClient).should(times(1)).complete(anyString(), anyString());
         order("k-2", tickerA, "SELL", 10)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SEASON_ATTEMPT_ENDED"));
@@ -226,7 +295,7 @@ class SeasonProgressControllerTest {
                 .andExpect(jsonPath("$.participantId").value(participantId))
                 .andExpect(jsonPath("$.finalAsset").value(29900000))
                 .andExpect(jsonPath("$.returnRate").value(-0.333))
-                .andExpect(jsonPath("$.review").doesNotExist())
+                .andExpect(jsonPath("$.review").value(REVIEW))
                 .andExpect(jsonPath("$.closedAt").isString());
         mockMvc.perform(get("/api/v1/seasons/me").param("status", "ONGOING").with(user(me)))
                 .andExpect(jsonPath("$.items.length()").value(0));

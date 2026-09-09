@@ -111,6 +111,7 @@ export const ERROR_CODE = {
   SEASON_LAST_DAY: 'SEASON_LAST_DAY',
   SEASON_NOT_LAST_DAY: 'SEASON_NOT_LAST_DAY',
   SEASON_RESULT_NOT_FOUND: 'SEASON_RESULT_NOT_FOUND',
+  SEASON_REVIEW_FAILED: 'SEASON_REVIEW_FAILED',
 } as const
 
 /* 프론트가 자체로 만드는 code. 서버 어휘와 겹치지 않게 접두어를 붙인다. */
