@@ -1,4 +1,4 @@
-/* G-09 기록 · 배지 · /sim/history
+/* G-09 기록 · /sim/history
    담당 스토리 [ANT-FE-SEASON-HISTORY]
    설계서 docs/화면설계서.md §3 · §4 G-09 · API 명세 §모의투자
 
@@ -10,9 +10,10 @@
    GET /seasons/me 하나다. v0.39 에서 제목·종료 시각·최종 수익률이 붙어(대연님)
    목록에 필요한 값이 한 응답에 다 온다 — 시즌마다 상세를 다시 부르지 않는다.
 
-   ── 배지는 아직 없다 ─────────────────────────────────────
-   GET /users/me/badges 가 서버에 없다(2026-09-09 확인). 자리만 잡고 목업을 넣지
-   않는다 — 가짜 배지는 "내가 뭘 땄나" 를 잘못 말한다. */
+   ── 배지는 뺐다 ──────────────────────────────────────────
+   설계서 §G-09 는 "기록·배지" 지만 배지는 MVP 가 아니다(2026-09-09). GET /users/me/badges
+   도 서버에 없다. 자리만 만들어 두면 빈 상자가 화면을 차지하기만 하므로 통째로 뺐다 —
+   배지가 생기면 마친 시즌 아래에 카드 하나를 더하면 된다. */
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError } from '../api/errors'
@@ -257,24 +258,6 @@ export default function SeasonHistory() {
             </ul>
           )}
         </section>
-
-        {/* ── 배지 (자리만) ────────────────────────────── */}
-        <details className="sh-fold">
-          <summary>
-            <span className="sh-h-ico t-badge" aria-hidden="true">
-              <Ico size={15}><circle cx="12" cy="9" r="5" /><path d="m8.5 13.5-1.5 7 5-2.5 5 2.5-1.5-7" /></Ico>
-            </span>
-            배지
-            <em>아직 준비 중입니다</em>
-            <i aria-hidden="true">⌄</i>
-          </summary>
-          <div className="sh-fold-body">
-            <p className="sh-soon">
-              연속 참가 · 목표 수익률 달성 같은 기록이 배지로 남습니다.
-              <small>GET /users/me/badges · ANT-SEASON-09</small>
-            </p>
-          </div>
-        </details>
 
         {loadError && <ErrorState error={loadError} onRetry={() => setLoadError(null)} inline />}
       </div>

@@ -1,4 +1,4 @@
-/* G-09 기록 · 배지 · /sim/history — [ANT-FE-SEASON-HISTORY]
+/* G-09 기록 · /sim/history — [ANT-FE-SEASON-HISTORY]
    G-04 진행 · G-06 매매일지 · G-08 결과와 같은 규칙을 쓴다 — 카드·아이콘 배지·
    요약 4칸의 생김새를 맞춰야 같은 게임의 여러 장면으로 읽힌다.
    색·서체는 app.css 토큰만 쓴다. */
@@ -70,7 +70,6 @@
 }
 .sh-h-ico.t-done{--tone:#16a06a;--tint:#e7f6ef}
 .sh-h-ico.t-go{--tone:#5457e8;--tint:#ece9fd}
-.sh-h-ico.t-badge{--tone:#e8a13c;--tint:#fdf3e3}
 
 /* 정렬. 마친 시즌이 둘 이상일 때만 낸다 — 하나뿐이면 고를 것이 없다 */
 .sh-sorts{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
@@ -124,39 +123,6 @@
 .sh-empty small{color:var(--muted);font-size:12.5px;font-weight:650;line-height:1.55}
 .sh-empty .sh-go{margin-top:6px}
 
-/* ── 배지 (접이식 · 자리만) ─────────────────────────── */
-.sh-fold{
-  border:1px solid var(--rule);border-radius:16px;
-  background:var(--surface);box-shadow:var(--shadow);
-}
-.sh-fold > summary{
-  display:flex;align-items:center;gap:8px;
-  min-height:54px;padding:0 18px;list-style:none;cursor:pointer;border-radius:16px;
-  color:var(--ink);font-size:15px;font-weight:800;letter-spacing:-.02em;
-}
-.sh-fold > summary::-webkit-details-marker{display:none}
-.sh-fold > summary::marker{content:''}
-.sh-fold > summary:hover{background:var(--surface-2)}
-.sh-fold > summary:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
-.sh-fold > summary em{
-  flex:1;min-width:0;font-style:normal;
-  color:var(--faint);font-size:12.5px;font-weight:650;
-}
-.sh-fold > summary i{
-  flex:none;color:var(--muted);font-size:15px;line-height:1;font-style:normal;
-  transition:transform .15s;
-}
-.sh-fold[open] > summary i{transform:rotate(180deg)}
-.sh-fold[open] > summary{border-radius:16px 16px 0 0;border-bottom:1px solid #eef0f6}
-.sh-fold-body{padding:16px 18px 18px}
-
-/* 목업을 넣지 않는다 — 가짜 배지는 "내가 뭘 땄나" 를 잘못 말한다 */
-.sh-soon{
-  margin:0;padding:20px;border:1px dashed var(--rule);border-radius:12px;
-  background:var(--surface-2);color:var(--muted);font-size:13px;line-height:1.6;font-weight:650;
-}
-.sh-soon small{display:block;margin-top:6px;color:#a8afc2;font-family:var(--mono);font-size:11px}
-
 /* ── 좁은 화면 ──────────────────────────────────────── */
 @media(max-width:1100px){
   .sh-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -171,5 +137,5 @@
   .sh-stats{grid-template-columns:minmax(0,1fr)}
 }
 @media(prefers-reduced-motion:reduce){
-  .sh-go,.sh-row,.sh-sorts button,.sh-fold > summary i{transition:none}
+  .sh-go,.sh-row,.sh-sorts button{transition:none}
 }
