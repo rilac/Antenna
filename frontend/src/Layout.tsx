@@ -32,7 +32,7 @@ const MODES = {
     nav: [
       { key: 'home', icon: 'home', text: '홈', href: '/' },
       { key: 'stocks', icon: 'stocks', text: '종목 탐색', href: '/stocks' },
-      { key: 'market', icon: 'market', text: '주가 예측', href: '/rankings' },
+      { key: 'market', icon: 'market', text: '주가 예측 랭킹', href: '/rankings' },
       { key: 'report', icon: 'report', text: '리포트', href: '/reports' },
       { key: 'community', icon: 'community', text: '커뮤니티', href: '/posts' },
       { key: 'portfolio', icon: 'portfolio', text: '예측 포트폴리오', href: '/me/portfolio' },
@@ -45,9 +45,10 @@ const MODES = {
       { key: 'home', icon: 'home', text: '홈', href: '/sim' },
       { key: 'play', icon: 'play', text: '투자하기', href: '/sim/modes' },
       { key: 'portfolio', icon: 'portfolio', text: '투자 포트폴리오', href: '/sim/history' },
-      /* 시즌 리더보드는 /sim/:id/leaderboard 라 시즌 없이 갈 수 없다.
-         G-01 홈에서 진행 중 시즌을 골라 들어가는 게 정본 경로다. */
-      { key: 'ranking', icon: 'trophy', text: '모의투자 랭킹', href: '/rankings' },
+      /* 시즌 리더보드(/sim/:id/leaderboard)와 다른 화면이다. 저쪽은 한 시즌 안의
+         순위이고, 이건 리플레이 트랙 누적 랭킹이다.
+         전에는 /rankings 를 가리켜 누르면 인사이트 모드로 넘어갔다. */
+      { key: 'ranking', icon: 'trophy', text: '모의투자 랭킹', href: '/sim/rankings' },
     ],
   },
 } as const

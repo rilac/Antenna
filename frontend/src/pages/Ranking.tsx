@@ -1,10 +1,20 @@
-/* E-01 예측가 랭킹 · /rankings
+/* E-01 예측가 랭킹 — 트랙마다 화면이 하나씩이다
+     /rankings      주가 예측 랭킹 (REAL) · 인사이트 모드
+     /sim/rankings  모의투자 랭킹 (REPLAY) · 모의 투자 모드
    담당 스토리 [ANT-FE-RANKING]
    설계서 docs/화면설계서.md §3 E · §4 E-01 · §7 · §9.2 · §10
 
+   **설계서와 다르다.** §4 E-01 은 한 화면에 트랙 탭(REAL/REPLAY)을 두는 것으로
+   적고 있는데, 화면을 둘로 갈랐다(2026-09-09 결정, 김경민 님과 합의).
+
+   이유는 셸이다. 사이드바가 인사이트·모의 투자 두 모드로 갈리고 라우트마다
+   mode 가 붙는데, 한 화면이 두 모드에 속할 수 없다. 탭 하나로 두면 모의 투자
+   바에서 "모의투자 랭킹" 을 눌렀을 때 인사이트 모드로 넘어간다 — 실제로 그랬다.
+   트랙을 라우트가 정하므로 탭은 없앴다.
+
    설계 제약
    - 트랙 분리는 타협하지 않는다. REAL 과 REPLAY 지표를 같은 표에 섞지 않는다.
-     탭을 바꾸면 목록·내 순위·필터가 통째로 갈린다.
+     이제 화면부터 갈렸으니 섞일 자리가 없다.
    - tier 는 REPLAY 전용이다. 실전 화면에 노출하지 않는다.
    - 배치 B3 스냅샷이라 computedAt 표시가 필수다(SnapshotStamp). 실시간처럼 보이면 안 된다.
    - score 산식은 미확정이다. 값만 표시하고 산식 설명을 쓰지 않는다.
@@ -20,7 +30,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  PERIODS, PERIOD_LABEL, SECTORS, TIER_LABEL, TRACKS, TRACK_LABEL,
+  PERIODS, PERIOD_LABEL, SECTORS, TIER_LABEL,
   fetchMyRank, fetchRankings, formatComputedAt, metric,
   type MyRank, type Period, type RankingRow, type Sector, type Track,
 } from '../api/rankings'
@@ -30,8 +40,8 @@ import '../styles/screens/ranking.css'
 
 const PAGE = 20
 
-export default function Ranking() {
-  const [track, setTrack] = useState<Track>('REAL')
+/** 트랙만 다르고 나머지는 같다. 두 라우트가 이 하나를 나눠 쓴다. */
+function RankingBoard({ track }: { track: Track }) {
   const [period, setPeriod] = useState<Period>('ALL')
   const [sector, setSector] = useState<Sector | null>(null)
 
@@ -42,9 +52,9 @@ export default function Ranking() {
   /** 마지막 응답이 꽉 찼으면 더 있을 수 있다. 응답에 hasNext 가 없어 이렇게 가른다 */
   const [more, setMore] = useState(false)
 
-  /* 트랙·필터가 바뀌면 목록을 처음부터 다시 읽는다.
-     REAL 과 REPLAY 를 섞지 않기 위해 이어 붙이지 않고 통째로 갈아친다. */
-  /* loading 은 이 effect 가 아니라 아래 changeTrack·changePeriod·changeSector 에서 세운다.
+  /* 필터가 바뀌면 목록을 처음부터 다시 읽는다. 이어 붙이지 않고 통째로 갈아친다.
+     track 은 라우트가 정하는 값이라 이 화면 안에서 바뀌지 않는다. */
+  /* loading 은 이 effect 가 아니라 아래 changePeriod·changeSector 에서 세운다.
      effect 안에서 동기 setState 를 하면 렌더가 한 번 더 돈다 — 첫 진입은 useState(true) 가 덮는다. */
   useEffect(() => {
     let cancelled = false
@@ -68,15 +78,6 @@ export default function Ranking() {
   }, [track, period, sector])
 
   /* 필터를 바꾸는 순간이 곧 다시 읽기 시작하는 순간이다. 여기서 로딩을 세운다. */
-  function changeTrack(next: Track) {
-    if (next === track) return
-    setLoading(true)
-    // 트랙마다 필터 구성이 달라 기간·섹터를 기본값으로 되돌린다
-    setPeriod('ALL')
-    setSector(null)
-    setTrack(next)
-  }
-
   function changePeriod(next: Period) {
     if (next === period) return
     setLoading(true)
@@ -110,22 +111,12 @@ export default function Ranking() {
     <main className="main">
       <div className="main-inner">
         <div className="page-head">
-          <h1>예측가 랭킹</h1>
-          <p>판정이 끝난 예측만 집계합니다</p>
-        </div>
-
-        {/* 트랙 탭 — 두 트랙은 집계가 완전히 분리된다 */}
-        <div className="rk-tracks" role="tablist" aria-label="랭킹 트랙">
-          {TRACKS.map((t) => (
-            <button
-              key={t} type="button" role="tab"
-              aria-selected={track === t}
-              className={track === t ? 'on' : ''}
-              onClick={() => changeTrack(t)}
-            >
-              {TRACK_LABEL[t]}
-            </button>
-          ))}
+          <h1>{track === 'REAL' ? '주가 예측 랭킹' : '모의투자 랭킹'}</h1>
+          <p>
+            {track === 'REAL'
+              ? '판정이 끝난 예측만 집계합니다'
+              : '리플레이 시즌 성적만 집계합니다. 실전 신뢰도에는 반영되지 않습니다.'}
+          </p>
         </div>
 
         {/* 섹터는 REAL 에만 있다(명세 §랭킹).
@@ -246,4 +237,14 @@ export default function Ranking() {
       </div>
     </main>
   )
+}
+
+/* 라우트가 트랙을 정한다. routes.ts 의 element 는 props 를 받지 않으므로
+   화면마다 얇은 컴포넌트를 하나씩 둔다. */
+export default function Ranking() {
+  return <RankingBoard track="REAL" />
+}
+
+export function SimRanking() {
+  return <RankingBoard track="REPLAY" />
 }
