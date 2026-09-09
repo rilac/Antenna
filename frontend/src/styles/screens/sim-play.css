@@ -90,6 +90,12 @@
   border-radius:8px;background:var(--tint);color:var(--tone);
 }
 .sp-h-ico.t-pie{--tone:#16a06a;--tint:#e7f6ef}
+
+/* 카드 제목 오른쪽 끝에 붙는 작은 길 */
+.sp-h-link{
+  margin-left:auto;color:var(--brand-ink);font-size:12.5px;font-weight:750;
+}
+.sp-h-link:hover{text-decoration:underline}
 .sp-h-ico.t-ai{--tone:#5457e8;--tint:#ece9fd}
 .sp-h-ico.t-news{--tone:#2f7bf6;--tint:#e8f1fe}
 

@@ -1,0 +1,157 @@
+/* G-06 매매일지 · /sim/:id/trades — [ANT-FE-SEASON-TRADES]
+   G-04 진행·G-08 결과와 같은 규칙을 쓴다 — 카드·아이콘 배지·요약 4칸의 생김새를
+   맞춰야 같은 게임의 세 장면으로 읽힌다. 색·서체는 app.css 토큰만 쓴다. */
+
+.sim-trades{display:flex;flex-direction:column;gap:14px;word-break:keep-all}
+
+/* 손익 색. 이 화면 안에서만 정한다 — 화면마다 빨강·파랑이 뒤집히지 않게 */
+.sim-trades .up{color:var(--up-vivid)}
+.sim-trades .down{color:var(--down-vivid)}
+.sim-trades .flat{color:var(--muted)}
+.st-dim{color:var(--muted)}
+
+/* ── 머리 ───────────────────────────────────────────── */
+.st-crumb{display:flex;align-items:center;gap:9px;color:#8a93ad;font-size:13.5px;font-weight:700}
+.st-crumb a:hover{color:var(--brand)}
+.st-crumb i{font-style:normal;color:#c2c8da}
+
+.st-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.st-head h1{
+  margin:0;color:#0e1330;font-size:26px;font-weight:850;letter-spacing:-.03em;
+  text-wrap:balance;
+}
+.st-head p{margin:3px 0 0;color:var(--muted);font-size:13.5px;font-weight:700}
+
+.st-acts{display:flex;align-items:center;gap:8px}
+.st-go,.st-back{
+  display:inline-flex;align-items:center;height:38px;padding:0 16px;
+  border-radius:11px;font-size:14px;font-weight:800;
+  transition:background .14s,border-color .14s;
+}
+.st-go{background:var(--brand);color:#fff}
+.st-go:hover{background:var(--brand-ink)}
+.st-back{border:1px solid var(--rule);color:var(--brand-ink)}
+.st-back:hover{border-color:var(--brand);background:var(--brand-softer)}
+
+/* ── 요약 4칸 ───────────────────────────────────────── */
+.st-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.st-stat{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:15px 17px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);
+}
+.st-stat-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.st-stat-label{color:var(--muted);font-size:12.5px;font-weight:700}
+.st-stat-val{
+  color:#0e1330;font-size:21px;font-weight:850;letter-spacing:-.025em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.st-stat-sub{font-size:12px;font-weight:750;color:var(--muted)}
+.st-stat-ico{
+  flex:none;display:grid;place-items:center;width:38px;height:38px;
+  border-radius:11px;background:var(--tint);color:var(--tone);
+}
+.st-stat.t-all{--tone:#5457e8;--tint:#ece9fd}
+.st-stat.t-buy{--tone:var(--up-vivid);--tint:#fdeceb}
+.st-stat.t-sell{--tone:var(--down-vivid);--tint:#e9f0fe}
+.st-stat.t-up{--tone:var(--up-vivid);--tint:#fdeceb}
+.st-stat.t-down{--tone:var(--down-vivid);--tint:#e9f0fe}
+.st-stat.t-flat{--tone:#8a93ad;--tint:var(--surface-2)}
+
+/* ── 목록 카드 ──────────────────────────────────────── */
+.st-card{
+  padding:16px 18px;border:1px solid var(--rule);border-radius:16px;
+  background:var(--surface);box-shadow:var(--shadow);min-width:0;
+}
+
+/* 거르개 한 줄. 매수·매도는 셋뿐이라 버튼으로 펴 두고, 종목은 수가 늘어나므로 접는다 */
+.st-tools{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px;
+}
+.st-sides{display:flex;gap:6px}
+.st-sides button{
+  height:34px;padding:0 15px;border:1px solid var(--rule);border-radius:9px;
+  color:var(--muted);font-size:13px;font-weight:750;
+  transition:border-color .12s,background .12s,color .12s;
+}
+.st-sides button:hover{border-color:var(--brand)}
+.st-sides button.on{border-color:var(--brand);background:var(--brand);color:#fff}
+
+.st-pick{
+  display:inline-flex;align-items:center;gap:8px;
+  height:34px;padding:0 11px;border:1px solid var(--rule);border-radius:9px;
+  color:var(--body);
+}
+.st-pick:focus-within{border-color:var(--brand)}
+.st-pick > span{flex:none;color:var(--muted);font-size:12px;font-weight:700}
+.st-pick select{
+  appearance:none;border:0;background:transparent;outline:none;padding-right:2px;
+  max-width:180px;color:var(--ink);font-size:13px;font-weight:750;
+  font-family:inherit;cursor:pointer;
+}
+.st-pick i{flex:none;color:var(--muted);font-size:13px;line-height:1;font-style:normal}
+
+.st-count{margin:0 0 0 auto;color:var(--muted);font-size:12.5px;font-weight:750}
+
+/* ── 체결 줄 ────────────────────────────────────────── */
+/* 표가 아니라 목록이다. 줄 수가 0 에서 시작해 천천히 늘고, 좁은 화면에서 칸을
+   줄이기도 표보다 쉽다. 칸 폭은 고정 비율이라 숫자 자리가 줄마다 흔들리지 않는다. */
+.st-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.st-row{
+  display:grid;
+  grid-template-columns:74px 52px minmax(0,1.4fr) minmax(0,.8fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1.1fr);
+  align-items:center;gap:12px;
+  padding:11px 13px;border-radius:10px;background:var(--surface-2);
+}
+.st-row > span:not(.st-day):not(.st-side){text-align:right}
+
+.st-row-head{
+  padding:0 13px 2px;background:none;
+}
+.st-row-head span{color:var(--faint);font-size:11.5px;font-weight:750}
+
+.st-day{color:var(--brand-ink);font-size:12.5px;font-weight:800}
+.st-side{
+  justify-self:start;padding:3px 9px;border-radius:6px;
+  background:var(--surface);font-size:11.5px;font-weight:800;
+}
+.st-side.buy{color:var(--up-vivid)}
+.st-side.sell{color:var(--down-vivid)}
+
+.st-list b{
+  color:var(--ink);font-size:13.5px;font-weight:800;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.st-list span{color:var(--muted);font-size:12.5px;font-weight:750}
+.st-amt{color:var(--body);font-weight:800}
+.st-pnl{font-weight:850}
+
+.st-empty{
+  margin:0;padding:40px 20px;text-align:center;
+  color:var(--muted);font-size:13.5px;font-weight:700;
+}
+.st-empty small{display:block;margin-top:6px;color:var(--faint);font-size:12px;font-weight:650}
+
+.st-note{
+  margin:12px 0 0;padding-top:12px;border-top:1px solid #eef0f6;
+  color:var(--muted);font-size:12px;font-weight:650;line-height:1.6;
+}
+
+/* ── 좁은 화면 ──────────────────────────────────────── */
+@media(max-width:1100px){
+  .st-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:900px){
+  /* 체결가와 금액을 접는다 — 수량과 실현 손익이 먼저다 */
+  .st-row{grid-template-columns:70px 50px minmax(0,1.4fr) minmax(0,.9fr) minmax(0,1.2fr)}
+  .st-row > :nth-child(5),
+  .st-row > :nth-child(6){display:none}
+}
+@media(max-width:560px){
+  .st-stats{grid-template-columns:minmax(0,1fr)}
+  .st-head h1{font-size:22px}
+  .st-count{margin-left:0}
+}
+@media(prefers-reduced-motion:reduce){
+  .st-go,.st-back,.st-sides button{transition:none}
+}
