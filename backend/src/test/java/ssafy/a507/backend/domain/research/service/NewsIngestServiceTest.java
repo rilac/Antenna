@@ -108,6 +108,17 @@ class NewsIngestServiceTest {
     }
 
     @Test
+    @DisplayName("스포츠 기사를 가려낸다 — 두산·한화·KT·LG·기아·NC 는 구단 이름이기도 하다")
+    void 스포츠_기사_필터() {
+        assertThat(NewsIngestService.isNoise("두산 선발 최승용, 3이닝 4실점으로 강판", null)).isTrue();
+        assertThat(NewsIngestService.isNoise("한화, 9회말 끝내기", "홈런으로 연승")).isTrue();
+        assertThat(NewsIngestService.isNoise("유안타증권 오픈 골프 개막", "")).isTrue();
+        assertThat(NewsIngestService.isNoise("두산에너빌리티, 원전 수주", "체코 원전 계약")).isFalse();
+        assertThat(NewsIngestService.isNoise("경기 침체 우려에 한화 하락", "안타까운 실적")).isFalse();
+        assertThat(NewsIngestService.isNoise("KT, 2분기 영업이익 증가", null)).isFalse();
+    }
+
+    @Test
     @DisplayName("되돌아보기 구간보다 오래된 기사는 버린다")
     void 오래된_기사() {
         given(newsClient.searchLatest("삼성전자"))

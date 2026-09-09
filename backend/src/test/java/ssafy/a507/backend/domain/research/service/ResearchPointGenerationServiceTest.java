@@ -233,6 +233,21 @@ class ResearchPointGenerationServiceTest {
     }
 
     @Test
+    @DisplayName("스포츠 기사는 재료에서 뺀다 — 야구 기사가 '위험 요인'으로 올라간 적이 있다")
+    void 스포츠_기사_제외() {
+        seedQuotes(3);
+        seedDocument(ResearchDocument.Source.NEWS, "n-ball", "두산 선발 최승용 3이닝 4실점", "강판당했다", TARGET.minusDays(1));
+        seedDocument(ResearchDocument.Source.NEWS, "n-biz", "두산, 협동로봇 수주", "북미 공급 계약", TARGET.minusDays(1));
+        given(aiClient.complete(anyString(), anyString())).willReturn("[]");
+
+        generationService.generate(stockRepository.getReferenceById(SAMSUNG));
+
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(aiClient).complete(anyString(), input.capture());
+        assertThat(input.getValue()).contains("협동로봇 수주").doesNotContain("3이닝");
+    }
+
+    @Test
     @DisplayName("기준일 시세가 없으면 부르지 않는다 — 재료 없이 만들면 지어낸 포인트다")
     void 시세_없음() {
         assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isZero();

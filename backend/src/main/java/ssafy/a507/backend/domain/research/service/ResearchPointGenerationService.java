@@ -79,6 +79,8 @@ public class ResearchPointGenerationService {
             - body 는 한국어 평서문 한 문장, 120자 이내로 쓴다. 이모지·목록 기호를 쓰지 않는다.
             - documentId 는 아래 "문서" 목록에 있는 번호만 쓴다. 목록에 없는 번호를 지어내지 않는다.
               특정 문서가 아니라 시세·재무 수치에서 나온 포인트는 null 로 둔다.
+            - 문서 중 이 회사의 사업과 무관한 것(같은 이름의 스포츠 구단·지역·인물 소식 등)은 근거로
+              쓰지 않는다. 회사 실적·공시·수급·사업에 관한 문서만 쓴다.
             - 주어진 수치와 문서 내용에 있는 사실만 쓴다. 새 수치를 계산하거나 지어내지 않는다.
             - 숫자는 주어진 값을 단위까지 그대로 옮긴다. 억원·%·원 단위를 바꾸거나 환산하지 않는다.
               입력에 없는 숫자가 한 개라도 들어간 원소는 버려진다.
@@ -178,7 +180,11 @@ public class ResearchPointGenerationService {
         for (ResearchDocument.Source source : List.of(ResearchDocument.Source.NEWS, ResearchDocument.Source.DART)) {
             researchDocumentRepository
                     .findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
-                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE))
+                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE * 2))
+                    .stream()
+                    // 수집 필터 전에 쌓인 야구 기사가 DB 에 남아 있다. 재료 선정에서 한 번 더 거른다.
+                    .filter(d -> source == ResearchDocument.Source.DART || !NewsIngestService.isNoise(d.getTitle(), d.getSnippet()))
+                    .limit(DOCS_PER_SOURCE)
                     .forEach(d -> documents.put(d.getId(), d));
         }
         return documents;
