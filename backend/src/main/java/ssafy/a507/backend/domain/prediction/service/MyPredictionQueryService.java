@@ -6,14 +6,19 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ssafy.a507.backend.domain.chain.entity.AnchorBatch;
 import ssafy.a507.backend.domain.prediction.dto.MyPredictionItemResponse;
 import ssafy.a507.backend.domain.prediction.dto.MyPredictionListResponse;
 import ssafy.a507.backend.domain.prediction.entity.Prediction;
+import ssafy.a507.backend.domain.prediction.entity.PredictionCommit;
+import ssafy.a507.backend.domain.prediction.repository.PredictionCommitRepository;
 import ssafy.a507.backend.domain.prediction.repository.PredictionRepository;
 
 /**
@@ -36,6 +41,7 @@ public class MyPredictionQueryService {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final PredictionRepository predictions;
+    private final PredictionCommitRepository commits;
 
     /**
      * status 파라미터 어휘(명세 §예측). 저장된 상태 네 값과 1:1 이 아니라 두 값이 묶음이다 —
@@ -69,8 +75,14 @@ public class MyPredictionQueryService {
         List<Prediction> page = hasNext ? found.subList(0, pageSize) : found;
 
         LocalDate today = LocalDate.now(KST);
+        // 앵커 상태는 한 장 분량의 커밋을 배치까지 한 번에 읽는다 — 항목마다 조회하면 N+1.
+        Map<Long, AnchorBatch> batches = page.isEmpty()
+                ? Map.of()
+                : commits.findWithBatchByPredictionIdIn(page.stream().map(Prediction::getId).toList()).stream()
+                        .filter(c -> c.getAnchorBatch() != null)
+                        .collect(Collectors.toMap(PredictionCommit::getPredictionId, PredictionCommit::getAnchorBatch));
         List<MyPredictionItemResponse> items = page.stream()
-                .map(p -> MyPredictionItemResponse.of(p, today))
+                .map(p -> MyPredictionItemResponse.of(p, today, batches.get(p.getId())))
                 .toList();
         Long nextCursor = hasNext ? page.get(page.size() - 1).getId() : null;
 
