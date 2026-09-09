@@ -1,5 +1,7 @@
 package ssafy.a507.backend.domain.research.service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,10 +70,13 @@ public class DocumentSummaryService {
         }
 
         String promptVersion = aiProperties.promptVersion();
+        // 이 구간보다 오래된 기사는 요약이 비어 있어도 버린다. 배치를 꺼 둔 동안 쌓인 대기
+        // 물량이 재개일에 통째로 청구되던 것을 막는다 — summary 가 NULL 인 채로 남긴다.
+        Instant since = Instant.now().minus(Duration.ofDays(aiProperties.summaryLookbackDays()));
         List<ResearchDocument> pending = researchDocumentRepository.findPendingSummary(
-                ResearchDocument.Source.NEWS, promptVersion, Limit.of(MAX_PER_RUN));
+                ResearchDocument.Source.NEWS, promptVersion, since, Limit.of(MAX_PER_RUN));
         if (pending.isEmpty()) {
-            log.info("[B6] 요약할 뉴스가 없다");
+            log.info("[B6] 요약할 뉴스가 없다 (최근 {}일)", aiProperties.summaryLookbackDays());
             return 0;
         }
 
