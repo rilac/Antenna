@@ -1,0 +1,83 @@
+{
+  "spec": {
+    "hash": "keccak256",
+    "noteHash": "keccak256(utf8(note) ‖ utf8(noteSaltHex)) — 본문 정규화 없음, 구분자 없음",
+    "commitString": "antenna:commit:v1 + 5줄(stockCode·direction·targetPrice·horizon·noteHash), \\n 구분, 끝 개행 없음",
+    "commitHash": "keccak256(utf8(commitString))",
+    "salt": "커밋 salt 줄 없음 — noteHash 가 겸한다. noteSalt 는 클라이언트 32바이트 CSPRNG, 소문자 64 hex, 0x 없음",
+    "targetPrice": "항상 소수 둘째 자리"
+  },
+  "generator": "contracts/scripts/gen-commit-fixture.mjs (ethers v6 기준값)",
+  "cases": [
+    {
+      "name": "기본 — 한 줄 근거",
+      "fields": {
+        "stockCode": "005930",
+        "direction": "UP",
+        "targetPrice": "82000.00",
+        "horizon": 30
+      },
+      "note": "3분기 실적 컨센서스 상회 전망",
+      "noteSalt": "dc7591f85642df187ccd193f6ba8c3f5bfac5de83375d6fb88d712ab489fa491",
+      "noteHash": "0x3e92638c8709ed9b829a1b03eae865452a06c14b240ef57ccc022d6a60d410fe",
+      "commitString": "antenna:commit:v1\nstockCode=005930\ndirection=UP\ntargetPrice=82000.00\nhorizon=30\nnoteHash=0x3e92638c8709ed9b829a1b03eae865452a06c14b240ef57ccc022d6a60d410fe",
+      "commitHash": "0x8774429680d6e886a572372cb9d33ca0d9ad82a579dad01f979d85c8833b3d54"
+    },
+    {
+      "name": "빈 근거 — noteHash 는 keccak(noteSalt) 라 여전히 난수",
+      "fields": {
+        "stockCode": "000660",
+        "direction": "DOWN",
+        "targetPrice": "150000.00",
+        "horizon": 7
+      },
+      "note": "",
+      "noteSalt": "71c45f8f5cb0941192f694d55f243f38db4cf7e99aa5113b5c7469a8664ce575",
+      "noteHash": "0x0ee69406eca8c8a2a1fe3bc2d0e25c4ad962b22a07a88fbe1c5e81bde9105c94",
+      "commitString": "antenna:commit:v1\nstockCode=000660\ndirection=DOWN\ntargetPrice=150000.00\nhorizon=7\nnoteHash=0x0ee69406eca8c8a2a1fe3bc2d0e25c4ad962b22a07a88fbe1c5e81bde9105c94",
+      "commitHash": "0x000e85bc76f3d7c99c238054d8d0247fce09056220b301ab03d45cb5554b5f9f"
+    },
+    {
+      "name": "줄바꿈 보존 — \\r\\n 과 끝 공백을 정규화하지 않는다",
+      "fields": {
+        "stockCode": "035420",
+        "direction": "UP",
+        "targetPrice": "210500.50",
+        "horizon": 90
+      },
+      "note": "첫 줄\r\n둘째 줄  \n\n셋째 줄 ",
+      "noteSalt": "55f8e64845a92c53140a53908dcb69dfaf5fc9a565c1ae4617f68ceb078edfa7",
+      "noteHash": "0xfdd0b75ae222aea4060824eb52fd3e1a57600fbeb99e02f2329fa9db62ca8dff",
+      "commitString": "antenna:commit:v1\nstockCode=035420\ndirection=UP\ntargetPrice=210500.50\nhorizon=90\nnoteHash=0xfdd0b75ae222aea4060824eb52fd3e1a57600fbeb99e02f2329fa9db62ca8dff",
+      "commitHash": "0x4d77e7a57a0e790c97cda87042fe6d475b4cbf4e156a4859e8dddd964c07859a"
+    },
+    {
+      "name": "긴 근거 + 이모지 — UTF-8 다바이트",
+      "fields": {
+        "stockCode": "051910",
+        "direction": "DOWN",
+        "targetPrice": "390000.00",
+        "horizon": 14
+      },
+      "note": "유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. 유가 하락 🛢️ 로 마진 압박. ",
+      "noteSalt": "214077ddf1a784f83855160a5c59bd8d1d26591f2cd853e05333df4bbbce9f74",
+      "noteHash": "0x71c08ebb3e00b4c29296330642dcdf1d9e6203c4b3e7956c12c19b623207d2d2",
+      "commitString": "antenna:commit:v1\nstockCode=051910\ndirection=DOWN\ntargetPrice=390000.00\nhorizon=14\nnoteHash=0x71c08ebb3e00b4c29296330642dcdf1d9e6203c4b3e7956c12c19b623207d2d2",
+      "commitHash": "0xc4bcc9a6a5f96d921c95f2563aa87941c4d0ccab73867287d6efd824f6deb67f"
+    },
+    {
+      "name": "같은 예측·같은 근거, noteSalt 만 다름 — 해시가 전부 달라야 한다",
+      "fields": {
+        "stockCode": "005930",
+        "direction": "UP",
+        "targetPrice": "82000.00",
+        "horizon": 30
+      },
+      "note": "3분기 실적 컨센서스 상회 전망",
+      "noteSalt": "6d6c03ac317222447daf1bd8dbec7d3e2d5f048b891538b4b6283686e23e8fe1",
+      "noteHash": "0xf1df395544c2616e1b8aa4b32261e00b4e28d0586d65c5fd3bba22ab41240149",
+      "commitString": "antenna:commit:v1\nstockCode=005930\ndirection=UP\ntargetPrice=82000.00\nhorizon=30\nnoteHash=0xf1df395544c2616e1b8aa4b32261e00b4e28d0586d65c5fd3bba22ab41240149",
+      "commitHash": "0x49b23a5cfd48ec06e34a3bb0b9eeff6ec1a16726016a66626f9812032ba070f7"
+    }
+  ]
+}
