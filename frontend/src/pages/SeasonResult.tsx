@@ -418,10 +418,10 @@ export default function SeasonResult() {
                 늘이면 빈 막대가 된다. */}
             <div className="sr-row">
             {/* ── 종목별 성적 (접이식) ─────────────────────
-                접어 둔다. 종목이 한둘이면 표가 한 줄이라 늘 펴 둘 값이 아니고,
-                여러 종목이면 길어져 아래 카드를 밀어낸다. 접힌 줄에 종목 수와
-                합계를 적어 두면 펴지 않고도 결론은 읽힌다. */}
-            <details className="sr-fold" open>
+                접힌 채로 시작한다. 위에 성과 4칸 · 자산 곡선 · 손익 · 성적표가
+                이미 결론을 다 말했으므로, 여기부터는 더 볼 사람만 편다.
+                접힌 줄에 종목 수와 합계를 적어 두면 펴지 않고도 결론은 읽힌다. */}
+            <details className="sr-fold">
               <summary>
                 <span className="sr-h-ico t-board" aria-hidden="true">
                   <Ico size={15}><path d="M5 19V11M12 19V5M19 19v-5" /></Ico>
@@ -472,8 +472,9 @@ export default function SeasonResult() {
                 접힌 상태에서 두 칸이 어긋난다.
 
                 접힌 줄에 작은 고리를 넣는다 — 접으면 원이 사라지는 게 이 화면에서
-                제일 아쉬운 부분이었다. 작아도 "거의 다 현금" 같은 덩어리는 읽힌다. */}
-            <details className="sr-fold sr-pie" open>
+                제일 아쉬운 부분이었다. 작아도 "거의 다 현금" 같은 덩어리는 읽힌다.
+                셋 다 접힌 채로 시작하므로 이 고리가 접힌 상태의 유일한 그림이다. */}
+            <details className="sr-fold sr-pie">
               <summary>
                 <span className="sr-h-ico t-pie" aria-hidden="true">
                   <Ico size={15}><circle cx="12" cy="12" r="8" /><path d="M12 4v8h8" /></Ico>
