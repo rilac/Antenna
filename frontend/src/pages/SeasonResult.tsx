@@ -12,10 +12,14 @@
    전부를 받는다 — 중간에 사고팔았다 끝낸 종목도 곡선에는 들어가 있어야 한다.
    보통 몇 개다(200종목을 다 받으면 요청이 200번이라 전부 받지는 않는다).
 
-   ── 아직 서버가 주지 않는 것 ──────────────────────────────
-   AI 복기 리포트 · 배지 · 순위. 자리만 잡고 목업을 넣지 않는다.
-   GET /seasons/{id}/result/me 가 붙으면 이 화면의 숫자를 그 응답으로 갈아끼운다. */
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+   ── 성적표는 서버가 굳힌 값이다 ──────────────────────────
+   시장 대비·최대 낙폭·손익비·평균 보유일과 AI 복기는 POST /finish 가 만들어 저장하고
+   GET /seasons/{id}/result/me 가 그대로 내려준다. 이 화면에서 다시 계산하지 않는다 —
+   나중에 열어도 같은 값이어야 한다. 아직 없는 것은 배지·순위뿐이고 자리도 잡지 않았다.
+
+   ── 접두어가 rs- 인 이유 ──────────────────────────────────
+   sr- 는 검색 화면이 먼저 쓰고 있다. 자세한 사정은 sim-result.css 머리에 적었다. */
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError } from '../api/errors'
 import {
@@ -55,13 +59,13 @@ function Stat({ tone, label, value, sub, icon }: {
   icon: ReactNode
 }) {
   return (
-    <div className={`sr-stat t-${tone}`}>
-      <div className="sr-stat-txt">
-        <span className="sr-stat-label">{label}</span>
-        <b className="sr-stat-val num">{value}</b>
-        {sub && <span className="sr-stat-sub num">{sub}</span>}
+    <div className={`rs-stat t-${tone}`}>
+      <div className="rs-stat-txt">
+        <span className="rs-stat-label">{label}</span>
+        <b className="rs-stat-val num">{value}</b>
+        {sub && <span className="rs-stat-sub num">{sub}</span>}
       </div>
-      <span className="sr-stat-ico" aria-hidden="true">{icon}</span>
+      <span className="rs-stat-ico" aria-hidden="true">{icon}</span>
     </div>
   )
 }
@@ -78,17 +82,35 @@ export default function SeasonResult() {
   const [card, setCard] = useState<SeasonFinishResult | null>(null)
   /** AI 복기. 성적표와 함께 finish 가 만든다. 서버에 키가 없던 회차는 null */
   const [review, setReview] = useState<string | null>(null)
+  /** 성적표가 없다 — 마지막 날이면 자동으로 굳힌다 */
+  const [needsFinish, setNeedsFinish] = useState(false)
+  /** 자동 종료를 이미 한 번 시도했다 */
+  const tried = useRef(false)
 
-  /* 이미 끝난 회차면 성적표·복기를 바로 받는다. 404 는 "아직 안 끝남" 이라 조용히 넘긴다 —
-     그때는 아래 버튼이 종료 길이다. finish 를 여기서 자동으로 부르지 않는 이유는 그대로다. */
+  /* 성적표·복기를 화면에 들어오는 즉시 채운다.
+
+     ① 이미 끝난 회차면 GET /result/me 가 바로 준다.
+     ② 아직 안 끝났는데 마지막 게임일에 닿아 있으면 여기서 POST /finish 를 부른다 —
+        결과를 보러 들어온 사람에게 버튼을 한 번 더 누르게 할 이유가 없다.
+
+     ②가 되돌릴 수 없는 요청인 것은 그대로다. 다만 <b>마지막 게임일에서만</b> 부른다.
+     그 자리에서는 더 넘길 날도 없고, 남은 것은 굳히는 일뿐이다. 진행 중인 회차는
+     ②를 타지 않으므로 결과 화면을 열어 봤다고 판이 끝나지는 않는다.
+     아래 버튼은 ②가 실패했을 때의 길로 남긴다. */
   useEffect(() => {
     if (!seasonId) return
+    let alive = true
     getResult(seasonId)
-      .then((r) => { setCard(r); setReview(r.review) })
+      .then((r) => { if (alive) { setCard(r); setReview(r.review) } })
       .catch((e) => {
-        if (e instanceof ApiError && e.code === 'SEASON_RESULT_NOT_FOUND') return
+        if (!alive) return
+        if (e instanceof ApiError && e.code === 'SEASON_RESULT_NOT_FOUND') {
+          setNeedsFinish(true)
+          return
+        }
         setLoadError(e instanceof ApiError ? e : null)
       })
+    return () => { alive = false }
   }, [seasonId])
 
   /* 버튼으로 끝낸 경우 — 성적표는 finish 응답에 있고 복기는 result/me 로 한 번 더 받는다 */
@@ -114,6 +136,22 @@ export default function SeasonResult() {
     tickers,
     candlesOf: (tickerId) => candles[tickerId],
   })
+
+  /* 마지막 날인데 성적표가 없으면 여기서 굳힌다. sim 이 만들어진 뒤라야 진행일을
+     알 수 있어 효과를 나눴다 — 위 효과는 시즌 번호만 알면 돈다. */
+  useEffect(() => {
+    if (!needsFinish || card !== null || sim.pending) return
+    if (sim.day <= 0 || sim.day < (season.data?.lengthDays ?? 0)) return
+    /* 한 번만 부른다. 되돌릴 수 없는 요청이라 렌더가 겹쳐도 두 번 가면 안 된다 —
+       상태가 아니라 ref 를 쓰는 이유는 이 값이 화면을 다시 그릴 이유가 없어서다. */
+    if (tried.current) return
+    tried.current = true
+    void sim.finish().then((r) => {
+      if (!r) return
+      setCard(r)
+      getResult(seasonId).then((d) => setReview(d.review)).catch(() => {})
+    })
+  }, [needsFinish, card, sim, season.data, seasonId])
 
   /* 자산 곡선에 필요한 종목. 지금 들고 있는 것과 한 번이라도 매매한 것을 합친다 —
      중간에 사고팔았다 끝낸 종목도 그 구간의 곡선에는 들어가 있어야 한다. */
@@ -209,7 +247,7 @@ export default function SeasonResult() {
   return (
     <main className="main">
       <div className="main-inner sim-result">
-        <nav className="sr-crumb" aria-label="위치">
+        <nav className="rs-crumb" aria-label="위치">
           <Link to="/sim">모의투자 홈</Link>
           <i aria-hidden="true">›</i>
           <Link to="/sim/practice">연습</Link>
@@ -217,7 +255,7 @@ export default function SeasonResult() {
           <span>결과</span>
         </nav>
 
-        <header className="sr-head">
+        <header className="rs-head">
           <div>
             <h1>{s.title}</h1>
             <p>
@@ -225,29 +263,29 @@ export default function SeasonResult() {
               <span> · 총 {s.lengthDays}게임일</span>
             </p>
           </div>
-          <div className="sr-acts">
+          <div className="rs-acts">
             {!done && (
-              <Link className="sr-go" to={`/sim/${seasonId}/play`}>이어서 하기</Link>
+              <Link className="rs-go" to={`/sim/${seasonId}/play`}>이어서 하기</Link>
             )}
-            <Link className="sr-back" to={`/sim/${seasonId}/trades`}>매매일지</Link>
-            <Link className="sr-back" to="/sim/practice">다른 연습 고르기</Link>
+            <Link className="rs-back" to={`/sim/${seasonId}/trades`}>매매일지</Link>
+            <Link className="rs-back" to="/sim/practice">다른 연습 고르기</Link>
           </div>
         </header>
 
         {!played ? (
-          <section className="sr-card">
-            <p className="sr-none">
+          <section className="rs-card">
+            <p className="rs-none">
               {sim.joined === false
                 ? '아직 이 연습에 참가하지 않았습니다.'
                 : '이 시즌은 아직 한 판도 하지 않았습니다.'}
               <small>진행 화면에서 주문을 넣고 다음 영업일로 넘기면 여기에 결과가 쌓입니다.</small>
-              <Link className="sr-go" to={`/sim/${seasonId}/play`}>진행하러 가기</Link>
+              <Link className="rs-go" to={`/sim/${seasonId}/play`}>진행하러 가기</Link>
             </p>
           </section>
         ) : (
           <>
             {/* ── 성과 4칸 ─────────────────────────────── */}
-            <section className="sr-stats" aria-label="최종 성과">
+            <section className="rs-stats" aria-label="최종 성과">
               <Stat
                 tone={sim.pnl > 0 ? 'up' : sim.pnl < 0 ? 'down' : 'flat'}
                 label="최종 총자산"
@@ -259,14 +297,14 @@ export default function SeasonResult() {
                 tone={sim.pnl > 0 ? 'up' : sim.pnl < 0 ? 'down' : 'flat'}
                 label="누적 손익"
                 value={`${sim.pnl > 0 ? '+' : ''}${won(sim.pnl)}`}
-                sub={<span className="sr-dim">시작 {won(s.initialCash)}</span>}
+                sub={<span className="rs-dim">시작 {won(s.initialCash)}</span>}
                 icon={<Ico><path d="M12 19V5M12 5l-5 5M12 5l5 5" /></Ico>}
               />
               <Stat
                 tone="trade"
                 label="매매 횟수"
                 value={`${sim.trades.length.toLocaleString('ko-KR')}회`}
-                sub={<span className="sr-dim">매도 {sells.length}회</span>}
+                sub={<span className="rs-dim">매도 {sells.length}회</span>}
                 icon={<Ico><path d="M4 7h13M14 4l3 3-3 3" /><path d="M20 17H7M10 14l-3 3 3 3" /></Ico>}
               />
               {/* "승률" 만 쓰면 무엇 대비인지 알 수 없다. 이 값은 매도 건수 기준이다 —
@@ -276,7 +314,7 @@ export default function SeasonResult() {
                 label="매도 승률"
                 value={winRate === null ? '—' : `${winRate.toFixed(0)}%`}
                 sub={
-                  <span className="sr-dim">
+                  <span className="rs-dim">
                     {sells.length === 0
                       ? '아직 판 적이 없습니다'
                       : `매도 ${sells.length}건 중 ${wins}건 이익`}
@@ -288,11 +326,11 @@ export default function SeasonResult() {
 
             {/* 왼쪽에 곡선, 오른쪽에 손익. 곡선을 넓고 낮게 두어 오르내림의 기울기가
                 과장되지 않게 하고, 그만큼 두 카드의 바닥도 가까워진다. */}
-            <div className="sr-body">
+            <div className="rs-body">
               {/* ── 자산 곡선 ───────────────────────────── */}
-              <section className="sr-card sr-eq">
+              <section className="rs-card rs-eq">
                 <h2>
-                  <span className="sr-h-ico t-eq" aria-hidden="true">
+                  <span className="rs-h-ico t-eq" aria-hidden="true">
                     <Ico size={15}><path d="M4 16.5 9 11l3.5 3.5L20 7" /></Ico>
                   </span>
                   자산 곡선
@@ -303,14 +341,14 @@ export default function SeasonResult() {
                 <EquityChart points={sim.equity} base={s.initialCash} height={165} />
               </section>
 
-              <section className="sr-card sr-split">
+              <section className="rs-card rs-split">
                 <h2>
-                  <span className="sr-h-ico t-split" aria-hidden="true">
+                  <span className="rs-h-ico t-split" aria-hidden="true">
                     <Ico size={15}><path d="M12 4v16M4 8h16M4 16h16" /></Ico>
                   </span>
                   손익 나누기
                 </h2>
-                <dl className="sr-dl">
+                <dl className="rs-dl">
                   <div>
                     <dt>실현 손익<small>판 것에서 확정된 몫</small></dt>
                     <dd className={`num ${signOf(realized)}`}>
@@ -323,60 +361,167 @@ export default function SeasonResult() {
                       {unrealized > 0 ? '+' : ''}{won(unrealized)}
                     </dd>
                   </div>
-                  <div className="sr-total">
+                  <div className="rs-total">
                     <dt>합계</dt>
                     <dd className={`num ${signOf(sim.pnl)}`}>
                       {sim.pnl > 0 ? '+' : ''}{won(sim.pnl)}
                     </dd>
                   </div>
                 </dl>
-                <p className="sr-note">
+                <p className="rs-note">
                   아직 들고 있으면 값이 계속 움직입니다. 실현 손익만 확정된 몫입니다.
                 </p>
               </section>
             </div>
 
-            <section className="sr-card sr-card2">
-              <h2>
-                <span className="sr-h-ico t-card" aria-hidden="true">
+
+            {/* ── 종목별 성적 · 포트폴리오 한 줄 ────────────
+                세로로 쌓으면 성적표가 한 줄일 때 오른쪽이 통째로 빈다. 위 줄과 같은
+                1.4 : 1 리듬으로 두어 카드 경계가 세로로 맞는다.
+                이 줄은 늘이지 않는다(align-items:start) — 접힌 토글을 도넛 높이까지
+                늘이면 빈 막대가 된다. */}
+            <div className="rs-row">
+            {/* ── 종목별 성적 (접이식) ─────────────────────
+                접힌 채로 시작한다. 위에 성과 4칸 · 자산 곡선 · 손익 · 성적표가
+                이미 결론을 다 말했으므로, 여기부터는 더 볼 사람만 편다.
+                접힌 줄에 종목 수와 합계를 적어 두면 펴지 않고도 결론은 읽힌다. */}
+            <details className="rs-fold">
+              <summary>
+                <span className="rs-h-ico t-board" aria-hidden="true">
+                  <Ico size={15}><path d="M5 19V11M12 19V5M19 19v-5" /></Ico>
+                </span>
+                종목별 성적
+                <em>
+                  {byTicker.length}종목 · 합계{' '}
+                  <b className={signOf(sim.pnl)}>
+                    {sim.pnl > 0 ? '+' : ''}{won(sim.pnl)}
+                  </b>
+                </em>
+                <i aria-hidden="true">⌄</i>
+              </summary>
+              <div className="rs-fold-body">
+                {byTicker.length === 0 ? (
+                  <p className="rs-empty">아직 매매한 종목이 없습니다.</p>
+                ) : (
+                  <ul className="rs-board">
+                    <li className="rs-board-head">
+                      <span>종목</span>
+                      <span>매매</span>
+                      <span>실현</span>
+                      <span>미실현</span>
+                      <span>합계</span>
+                    </li>
+                    {byTicker.map((r) => (
+                      <li key={r.tickerId}>
+                        <b>{r.displayName}</b>
+                        <span className="num">{r.count}회</span>
+                        <span className={`num ${signOf(r.realized)}`}>
+                          {r.realized === 0 ? '—' : `${r.realized > 0 ? '+' : ''}${won(r.realized)}`}
+                        </span>
+                        <span className={`num ${signOf(r.unrealized)}`}>
+                          {r.unrealized === 0 ? '—' : `${r.unrealized > 0 ? '+' : ''}${won(r.unrealized)}`}
+                        </span>
+                        <span className={`num rs-sum ${signOf(r.total)}`}>
+                          {r.total > 0 ? '+' : ''}{won(r.total)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </details>
+
+            {/* ── 포트폴리오 (접이식) ───────────────────────
+                옆의 종목별 성적과 같은 토글로 둔다. 하나는 막대고 하나는 큰 카드면
+                접힌 상태에서 두 칸이 어긋난다.
+
+                접힌 줄에 작은 고리를 넣는다 — 접으면 원이 사라지는 게 이 화면에서
+                제일 아쉬운 부분이었다. 작아도 "거의 다 현금" 같은 덩어리는 읽힌다.
+                셋 다 접힌 채로 시작하므로 이 고리가 접힌 상태의 유일한 그림이다. */}
+            <details className="rs-fold rs-pie">
+              <summary>
+                <span className="rs-h-ico t-pie" aria-hidden="true">
+                  <Ico size={15}><circle cx="12" cy="12" r="8" /><path d="M12 4v8h8" /></Ico>
+                </span>
+                포트폴리오
+                <em>현금 {cashWeight.toFixed(0)}%</em>
+                <PortfolioDonut slices={slices} total={sim.totalAsset} mini />
+                <i aria-hidden="true">⌄</i>
+              </summary>
+              <div className="rs-fold-body">
+                {sim.positions.length === 0 ? (
+                  <p className="rs-empty">
+                    끝까지 현금으로 남았습니다.
+                    <small>전액 현금 {won(sim.cash)}</small>
+                  </p>
+                ) : (
+                  <PortfolioDonut slices={slices} total={sim.totalAsset} />
+                )}
+              </div>
+            </details>
+            </div>
+
+            {/* 옆 두 칸(종목별 성적·포트폴리오)과 같은 접이식으로 둔다. 셋이 나란히
+                접혀 있어야 아래쪽이 한 덩어리로 읽힌다.
+
+                접힌 줄에 한 줄 요약을 실어 두므로 펴지 않아도 결론은 보인다 —
+                "몇 종목을 몇 번 매매해 몇 % 로 마쳤나" 가 그 문장이다. */}
+            <details className="rs-fold rs-card2">
+              <summary>
+                <span className="rs-h-ico t-card" aria-hidden="true">
                   <Ico size={15}><path d="M4 6h16v12H4z" /><path d="M8 10h8M8 14h5" /></Ico>
                 </span>
                 성적표
-                {card && <em>서버가 굳힌 값</em>}
-              </h2>
+                <em className="rs-one-sum">{oneLine}</em>
+                <i aria-hidden="true">⌄</i>
+              </summary>
+              <div className="rs-fold-body">
 
-              {/* ── POST /finish ─────────────────────────────
-                  자동으로 부르지 않는다. finish 는 회차를 DONE 으로 만들어 주문도
-                  진행도 막는 되돌릴 수 없는 요청이라, 결과를 보러 들어온 것만으로
-                  판이 끝나면 안 된다. 누르는 것은 사람이어야 한다.
+              {/* 곡선에서 나오는 값은 서버를 기다릴 것이 없다. 끝내기 전에도 보여 준다.
+                  한 줄 요약은 접힌 줄에 있으므로 여기서 되풀이하지 않는다. */}
+              <dl className="rs-facts">
+                <div>
+                  <dt>가장 높았을 때</dt>
+                  <dd className="num">{won(peak)}</dd>
+                </div>
+                <div>
+                  <dt>가장 낮았을 때</dt>
+                  <dd className="num">{won(trough)}</dd>
+                </div>
+                <div>
+                  <dt>최고점 대비 마감</dt>
+                  <dd className={`num ${signOf(fromPeak)}`}>{rate(fromPeak)}</dd>
+                </div>
+                <div>
+                  <dt>끝났을 때 현금 비중</dt>
+                  <dd className="num">{cashWeight.toFixed(1)}%</dd>
+                </div>
+              </dl>
 
-                  보통은 진행 화면(G-04)의 "결과 보기" 확인창에서 끝내고 여기로 온다 —
-                  그러면 위 useEffect 의 GET /result/me 가 성적표·복기를 바로 채운다.
-                  이 버튼은 끝내지 않고 URL 로 들어온 경우의 길이다(2026-09-09). */}
-              <div className="sr-card-block">
+              <div className="rs-card-block">
               {card !== null ? null : !done ? (
-                <p className="sr-wait">
+                <p className="rs-wait">
                   마지막 게임일에 닿으면 성적표를 받을 수 있습니다.
                   <small>시장 대비 · 최대 낙폭 · 손익비 · 평균 보유일</small>
                 </p>
               ) : null}
               {card === null && done ? (
-                <p className="sr-none">
+                <p className="rs-none">
                   이 판을 끝내면 성적표가 나옵니다.
                   <small>
-                    시장 대비 · 최대 낙폭 · 손익비 · 평균 보유일을 서버가 계산해 굳힙니다.
+                    시장 대비 · 최대 낙폭 · 손익비 · 평균 보유일을 서버가 계산해 굳힙니다.{' '}
                     <b>끝내면 되돌릴 수 없습니다</b> — 더 이상 주문도 진행도 할 수 없습니다.
                   </small>
                   <button
                     type="button"
-                    className="sr-go"
+                    className="rs-go"
                     disabled={sim.pending}
                     onClick={finishHere}
                   >
                     {sim.pending ? '성적표·복기 만드는 중…' : '이 판 끝내고 성적표 받기'}
                   </button>
                   {sim.reject && (
-                    <b className="sr-reject" role="alert">
+                    <b className="rs-reject" role="alert">
                       {sim.reject === 'REVIEW'
                         ? 'AI 복기를 만들지 못해 종료하지 않았습니다. 다시 시도해 주세요.'
                         : '종료하지 못했습니다. 다시 시도해 주세요.'}
@@ -386,7 +531,8 @@ export default function SeasonResult() {
               ) : null}
               {card !== null && (
                 <>
-                  <dl className="sr-facts">
+                  <p className="rs-sub">서버가 굳힌 값</p>
+                  <dl className="rs-facts">
                     <div>
                       <dt>시장 대비</dt>
                       <dd className={`num ${
@@ -437,144 +583,21 @@ export default function SeasonResult() {
 
                   {/* AI 복기 — 서버가 finish 때 만들어 저장한 본문(ANT-SEASON-09).
                       세 단락(잘한 판단 / 아쉬운 판단 / 개선 제안)이라 줄바꿈을 그대로 살린다. */}
-                  <div className="sr-review">
+                  <div className="rs-review">
                     <h3>AI 복기</h3>
                     {review ? (
                       <p>{review}</p>
                     ) : (
-                      <p className="sr-review-none">이 회차에는 AI 복기가 없습니다.</p>
+                      <p className="rs-review-none">이 회차에는 AI 복기가 없습니다.</p>
                     )}
                   </div>
-                  <p className="sr-note">
+                  <p className="rs-note">
                     시장 대비는 <b>이 시즌 종목을 똑같이 나눠 사서 끝까지 들고 있었다면</b>과
                     견준 것입니다. 코스피 지수가 아니라 그 시즌 종목으로 만든 기준입니다.
                   </p>
                 </>
               )}
               </div>
-            </section>
-
-            {/* ── 종목별 성적 · 포트폴리오 한 줄 ────────────
-                세로로 쌓으면 성적표가 한 줄일 때 오른쪽이 통째로 빈다. 위 줄과 같은
-                1.4 : 1 리듬으로 두어 카드 경계가 세로로 맞는다.
-                이 줄은 늘이지 않는다(align-items:start) — 접힌 토글을 도넛 높이까지
-                늘이면 빈 막대가 된다. */}
-            <div className="sr-row">
-            {/* ── 종목별 성적 (접이식) ─────────────────────
-                접힌 채로 시작한다. 위에 성과 4칸 · 자산 곡선 · 손익 · 성적표가
-                이미 결론을 다 말했으므로, 여기부터는 더 볼 사람만 편다.
-                접힌 줄에 종목 수와 합계를 적어 두면 펴지 않고도 결론은 읽힌다. */}
-            <details className="sr-fold">
-              <summary>
-                <span className="sr-h-ico t-board" aria-hidden="true">
-                  <Ico size={15}><path d="M5 19V11M12 19V5M19 19v-5" /></Ico>
-                </span>
-                종목별 성적
-                <em>
-                  {byTicker.length}종목 · 합계{' '}
-                  <b className={signOf(sim.pnl)}>
-                    {sim.pnl > 0 ? '+' : ''}{won(sim.pnl)}
-                  </b>
-                </em>
-                <i aria-hidden="true">⌄</i>
-              </summary>
-              <div className="sr-fold-body">
-                {byTicker.length === 0 ? (
-                  <p className="sr-empty">아직 매매한 종목이 없습니다.</p>
-                ) : (
-                  <ul className="sr-board">
-                    <li className="sr-board-head">
-                      <span>종목</span>
-                      <span>매매</span>
-                      <span>실현</span>
-                      <span>미실현</span>
-                      <span>합계</span>
-                    </li>
-                    {byTicker.map((r) => (
-                      <li key={r.tickerId}>
-                        <b>{r.displayName}</b>
-                        <span className="num">{r.count}회</span>
-                        <span className={`num ${signOf(r.realized)}`}>
-                          {r.realized === 0 ? '—' : `${r.realized > 0 ? '+' : ''}${won(r.realized)}`}
-                        </span>
-                        <span className={`num ${signOf(r.unrealized)}`}>
-                          {r.unrealized === 0 ? '—' : `${r.unrealized > 0 ? '+' : ''}${won(r.unrealized)}`}
-                        </span>
-                        <span className={`num sr-sum ${signOf(r.total)}`}>
-                          {r.total > 0 ? '+' : ''}{won(r.total)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </details>
-
-            {/* ── 포트폴리오 (접이식) ───────────────────────
-                옆의 종목별 성적과 같은 토글로 둔다. 하나는 막대고 하나는 큰 카드면
-                접힌 상태에서 두 칸이 어긋난다.
-
-                접힌 줄에 작은 고리를 넣는다 — 접으면 원이 사라지는 게 이 화면에서
-                제일 아쉬운 부분이었다. 작아도 "거의 다 현금" 같은 덩어리는 읽힌다.
-                셋 다 접힌 채로 시작하므로 이 고리가 접힌 상태의 유일한 그림이다. */}
-            <details className="sr-fold sr-pie">
-              <summary>
-                <span className="sr-h-ico t-pie" aria-hidden="true">
-                  <Ico size={15}><circle cx="12" cy="12" r="8" /><path d="M12 4v8h8" /></Ico>
-                </span>
-                포트폴리오
-                <em>현금 {cashWeight.toFixed(0)}%</em>
-                <PortfolioDonut slices={slices} total={sim.totalAsset} mini />
-                <i aria-hidden="true">⌄</i>
-              </summary>
-              <div className="sr-fold-body">
-                {sim.positions.length === 0 ? (
-                  <p className="sr-empty">
-                    끝까지 현금으로 남았습니다.
-                    <small>전액 현금 {won(sim.cash)}</small>
-                  </p>
-                ) : (
-                  <PortfolioDonut slices={slices} total={sim.totalAsset} />
-                )}
-              </div>
-            </details>
-            </div>
-
-            {/* ── 복기 (접이식) ────────────────────────────
-                접힌 줄의 문장은 AI 가 쓴 것이 아니다. 위에서 구한 값으로 만든 사실
-                문장이다 — 없는 리포트를 흉내 내지 않는다. 펴면 곡선에서 뽑은 수치가
-                나오고, 그 아래가 서버 리포트가 들어올 자리다. */}
-            <details className="sr-fold">
-              <summary>
-                <span className="sr-h-ico t-ai" aria-hidden="true">
-                  <Ico size={15}><path d="m12 4 1.6 3.6L17 9.2l-3.4 1.6L12 14.4l-1.6-3.6L7 9.2l3.4-1.6z" /><path d="M18 15.5 18.8 17l1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z" /></Ico>
-                </span>
-                복기
-                <em className="sr-one">{oneLine}</em>
-                <i aria-hidden="true">⌄</i>
-              </summary>
-              <div className="sr-fold-body">
-                <dl className="sr-facts">
-                  <div>
-                    <dt>가장 높았을 때</dt>
-                    <dd className="num">{won(peak)}</dd>
-                  </div>
-                  <div>
-                    <dt>가장 낮았을 때</dt>
-                    <dd className="num">{won(trough)}</dd>
-                  </div>
-                  <div>
-                    <dt>최고점 대비 마감</dt>
-                    <dd className={`num ${signOf(fromPeak)}`}>{rate(fromPeak)}</dd>
-                  </div>
-                  <div>
-                    <dt>끝났을 때 현금 비중</dt>
-                    <dd className="num">{cashWeight.toFixed(1)}%</dd>
-                  </div>
-                </dl>
-                <p className="sr-soon">
-                  어느 판단이 좋았고 어디서 흔들렸는지는 성적표 아래 AI 복기가 짚어 줍니다.
-                </p>
               </div>
             </details>
           </>
