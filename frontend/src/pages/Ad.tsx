@@ -1,15 +1,295 @@
 /* H-04 광고 등록 · /ads/new
    담당 스토리 [ANT-FE-AD]
-   설계서 docs/화면설계서.md §3 · §4 H-04 의 제약을 보고 이 자리를 채운다. */
+   설계서 docs/화면설계서.md §3 H · §4 H-04 · §4 M-02 · §4 M-07
+
+   설계 제약
+   - imageFileId 는 업로드 응답에서 온 값만 받는다. 외부 URL 입력란을 두지 않는다.
+   - linkUrl 은 https 만 허용한다.
+   - 등록은 202 + operationId 다. M-02 처리 대기로 이어진다.
+   - 서명 전 비용을 명확히 보여준다(SignConfirm).
+   - 관리자 사전 승인 화면은 2차 범위다. 승인 대기 상태 화면을 만들지 않는다.
+   - 등록된 배너는 B-01 홈의 /ads/active 로 노출된다.
+
+   시작일을 고르는 칸이 없는 이유
+   요청 본문에 days 만 있고 시작일이 없다. 서버가 startsAt = now 로 잡는다
+   (AdService: "게재 시작을 고를 수 없다"). 그래서 화면도 날짜를 묻지 않고,
+   대신 **확정되는 즉시 시작한다**고 알린다 — 안 적으면 언제 걸리는지 모른다.
+
+   비용을 화면이 계산하는 것에 대해
+   어떤 API 도 단가를 내려주지 않는다(api/ads.ts 아래쪽 주석). 제약이 "비용을 명확히
+   보여준다" 라 비워 둘 수 없어 같은 수를 프론트에 적었다. 서버가 값을 바꾸면 화면이
+   거짓을 말하게 되고, 가격이 서명 문자열에 없어 서명으로도 막히지 않는다.
+   조회 경로가 생기면 그 값으로 바꾼다.
+
+   지갑 게이트는 ANT-FE-WALLET-GATE 판단을 따른다
+   미설치와 미연동을 여기서 가르지 않는다 — M-01 이 네 갈래를 각각 다르게 안내한다. */
+import { useCallback, useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  LINK_MAX, MAX_DAYS, MIN_DAYS, PRICE_PER_DAY_ANT,
+  createAd, adSigningPayload, isValidLink, priceOf, type AdDraft,
+} from '../api/ads'
+import type { ApiError } from '../api/errors'
+import { useOperation } from '../api/operations'
+import { requestNonce } from '../api/wallet'
+import { useAuth } from '../auth/context'
+import { connectAddress, hasWallet, personalSign } from '../wallet/provider'
+import ImageUploadModal from '../components/upload/ImageUploadModal'
+import WalletLinkModal from '../components/wallet/WalletLinkModal'
+import ErrorState from '../components/state/ErrorState'
+import type { UploadedImage } from '../api/uploads'
+import { errorText } from '../components/state/errorText'
+import '../styles/screens/ad-new.css'
+
+/* form     내용을 채우는 중
+   signing  nonce 발급 → 지갑 서명 → 202 수신
+   waiting  M-02 — 체인 확정 대기
+   done     SUCCEEDED */
+type Step = 'form' | 'signing' | 'waiting' | 'done'
+
 export default function Ad() {
+  const { user } = useAuth()
+
+  const [banner, setBanner] = useState<UploadedImage | null>(null)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [days, setDays] = useState(7)
+
+  const [step, setStep] = useState<Step>('form')
+  const [error, setError] = useState<ApiError | null>(null)
+  const [operationId, setOperationId] = useState<string | null>(null)
+
+  const [uploading, setUploading] = useState(false)
+  const [linking, setLinking] = useState(false)
+
+  const op = useOperation(operationId)
+  const status = op.operation?.status
+
+  /* 성공은 폴링 결과에서 바로 읽는다 — setStep 으로 옮겨 적으면 같은 사실이 두 곳에 남고
+     effect 안 setState 가 된다(M-03 과 같은 판단). */
+  const view: Step = status === 'SUCCEEDED' ? 'done' : step
+
+  const linkOk = isValidLink(linkUrl)
+  const ready = banner !== null && linkOk && days >= MIN_DAYS && days <= MAX_DAYS
+  const price = priceOf(days)
+
+  const onUploaded = useCallback((image: UploadedImage) => {
+    setBanner(image)
+    setError(null)
+  }, [])
+
+  async function submit() {
+    if (!ready || !banner) return
+
+    /* 미설치와 미연동을 가르지 않는다 — M-01 이 네 갈래를 각각 다르게 안내하고,
+       늦게 주입되는 확장까지 기다려 준다(ANT-FE-WALLET-GATE). */
+    if (!hasWallet() || !user?.walletLinked) {
+      setLinking(true)
+      return
+    }
+
+    setError(null)
+    setStep('signing')
+    try {
+      const draft: AdDraft = { imageFileId: banner.fileId, linkUrl, days }
+      const address = await connectAddress()
+      const nonce = await requestNonce('AD')
+      /* 지갑 연동용 signingPayload 가 아니다. 신청 내용이 통째로 들어간다 —
+         days 가 빠지면 3일치 서명으로 30일치를 등록할 수 있다(서버 주석). */
+      const signature = await personalSign(adSigningPayload(draft, nonce), address)
+
+      const accepted = await createAd(draft, signature)
+      setOperationId(accepted.operationId)
+      setStep('waiting')
+    } catch (e) {
+      setError(e as ApiError)
+      /* 폼으로 돌린다. 멱등 키는 신청 내용에서 나오므로 같은 내용으로 재시도하면 같은 키가
+         나가 게재료가 두 번 나가지 않는다(api/ads.ts adScope). */
+      setStep('form')
+    }
+  }
+
+  const text = error ? errorText(error) : null
+
   return (
     <main className="main">
-      <div className="main-inner">
+      <div className="main-inner ad">
         <div className="page-head">
           <h1>광고 등록</h1>
-          <p>{'H-04 · /ads/new'}</p>
+          <p>홈 상단 배너 자리에 노출됩니다</p>
         </div>
-        <div className="placeholder tall">{'[ANT-FE-AD] 에서 구현합니다'}</div>
+
+        {view === 'form' && (
+          <>
+            {/* ── 배너 ─────────────────────────────────── */}
+            <section className="ad-card">
+              <h2>배너 이미지</h2>
+              <p className="ad-hint">
+                {`가로세로 4:1 비율, 5MB 이하의 PNG · JPG · WebP 를 올려 주세요.`}
+              </p>
+
+              {banner ? (
+                <div className="ad-banner">
+                  <img src={banner.url} alt="" />
+                  <div className="ad-banner-foot">
+                    <span className="num">{`${banner.width} × ${banner.height}`}</span>
+                    <button type="button" className="ad-btn" onClick={() => setUploading(true)}>
+                      바꾸기
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="ad-pick" onClick={() => setUploading(true)}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 16V4" /><path d="m7 9 5-5 5 5" />
+                    <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                  </svg>
+                  배너 올리기
+                </button>
+              )}
+            </section>
+
+            {/* ── 링크 ─────────────────────────────────── */}
+            <section className="ad-card">
+              <h2>이동할 주소</h2>
+              <input
+                type="url" className="ad-input"
+                value={linkUrl} maxLength={LINK_MAX}
+                placeholder="https://"
+                onChange={(e) => setLinkUrl(e.target.value)}
+                aria-invalid={linkUrl !== '' && !linkOk}
+              />
+              {/* https 제약은 입력 전에 알린다 — 다 쓰고 나서 거절하면 다시 써야 한다 */}
+              <p className={`ad-hint ${linkUrl !== '' && !linkOk ? 'is-bad' : ''}`}>
+                {linkUrl !== '' && !linkOk
+                  ? 'https 로 시작하는 주소만 등록할 수 있습니다'
+                  : 'https 주소만 등록할 수 있습니다'}
+              </p>
+            </section>
+
+            {/* ── 기간 ─────────────────────────────────── */}
+            <section className="ad-card">
+              <h2>노출 기간</h2>
+              <div className="ad-days">
+                <input
+                  type="number" className="ad-input is-num"
+                  value={days} min={MIN_DAYS} max={MAX_DAYS}
+                  onChange={(e) => setDays(Number(e.target.value))}
+                />
+                <span>일</span>
+              </div>
+              {/* 시작일 칸이 없는 이유를 적는다. 안 적으면 언제 걸리는지 모른다 */}
+              <p className="ad-hint">
+                {`${MIN_DAYS}~${MAX_DAYS}일. 시작일은 고를 수 없고, 결제가 확정되는 즉시 시작합니다.`}
+              </p>
+            </section>
+
+            {/* ── 비용 (SignConfirm) ───────────────────── */}
+            <section className="ad-cost">
+              <div className="ad-cost-line">
+                <span>{`${PRICE_PER_DAY_ANT} ANT × ${days}일`}</span>
+                <b className="num">{`${price} ANT`}</b>
+              </div>
+              {/* 소각이라 되돌릴 수 없다. 서명 전에 분명히 말한다 */}
+              <p className="ad-cost-note">
+                등록하면 <b>{`${price} ANT 가 소각`}</b>됩니다. 되돌릴 수 없습니다.
+                자리가 하나뿐이라 이미 게재 중인 광고가 있으면 등록되지 않습니다.
+              </p>
+            </section>
+
+            {text && (
+              <p className="ad-error" role="alert">
+                <b>{text.title}</b>
+                {text.hint && <span>{text.hint}</span>}
+              </p>
+            )}
+
+            <div className="ad-actions">
+              <button
+                type="button" className="ad-btn solid"
+                disabled={!ready}
+                onClick={() => void submit()}
+              >
+                서명하고 등록하기
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── 서명 · 대기 · 완료 ─────────────────────────── */}
+        {view === 'signing' && (
+          <section className="ad-progress" aria-live="polite">
+            <span className="ad-spinner" aria-hidden="true" />
+            <p className="ad-progress-title">지갑에서 서명을 기다리고 있습니다</p>
+            <p className="ad-sub">지갑 창이 뜨지 않으면 확장 아이콘을 눌러 확인해 주세요.</p>
+          </section>
+        )}
+
+        {view === 'waiting' && (
+          <section className="ad-progress" aria-live="polite">
+            {status === 'FAILED' ? (
+              <>
+                <p className="ad-progress-title is-failed">등록이 체인에서 실패했습니다</p>
+                {/* 사유 문자열은 인덱서가 만든 것이라 옮기지 않는다 — 옮기면 검색이 안 된다 */}
+                {op.operation?.error && <code className="ad-code">{op.operation.error.code}</code>}
+                <p className="ad-sub">토큰은 소각되지 않았습니다. 잠시 후 다시 시도해 주세요.</p>
+              </>
+            ) : op.timedOut ? (
+              <>
+                {/* 실패로 단정하지 않는다. 성공한 등록을 실패로 알리는 쪽이 더 나쁘다 */}
+                <p className="ad-progress-title">확인이 늦어지고 있습니다</p>
+                <p className="ad-sub">등록이 취소된 것은 아닙니다. 체인이 붐비면 몇 분 더 걸릴 수 있습니다.</p>
+                <button type="button" className="ad-btn" onClick={op.recheck}>다시 확인</button>
+              </>
+            ) : (
+              <>
+                <span className="ad-spinner" aria-hidden="true" />
+                <p className="ad-progress-title">등록을 체인에서 확인하고 있습니다</p>
+                <p className="ad-sub">이 화면을 떠나도 등록은 계속됩니다.</p>
+              </>
+            )}
+
+            {op.error && (
+              <p className="ad-error" role="alert">
+                <b>{errorText(op.error).title}</b>
+                <button type="button" className="ad-btn" onClick={op.recheck}>다시 확인</button>
+              </p>
+            )}
+          </section>
+        )}
+
+        {view === 'done' && (
+          <section className="ad-progress" aria-live="polite">
+            <span className="ad-check" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m5 12.5 4.5 4.5L19 7.5" />
+              </svg>
+            </span>
+            <p className="ad-progress-title">{`배너가 ${days}일간 노출됩니다`}</p>
+            <p className="ad-sub">지금부터 홈 상단에서 볼 수 있습니다.</p>
+            {/* 승인 대기 화면은 2차 범위라 만들지 않는다(설계 제약). 노출을 바로 확인하게 한다 */}
+            <Link className="ad-btn solid" to="/">홈에서 보기</Link>
+          </section>
+        )}
+
+        {/* M-07 · M-01 은 라우트가 없는 모달이라 이 화면이 열고 닫는다 */}
+        {uploading && (
+          <ImageUploadModal
+            purpose="AD"
+            onClose={() => setUploading(false)}
+            onUploaded={onUploaded}
+          />
+        )}
+
+        {linking && (
+          <WalletLinkModal
+            onClose={() => setLinking(false)}
+            // 연동이 끝나면 하려던 일로 되돌린다 — 다시 찾아 누르게 하지 않는다
+            onLinked={() => { setLinking(false); void submit() }}
+          />
+        )}
+
+        {/* 폼 밖에서 난 오류(폴링 조회 실패 등)는 여기 */}
+        {view !== 'form' && error && <ErrorState error={error} />}
       </div>
     </main>
   )

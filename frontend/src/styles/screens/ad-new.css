@@ -1,0 +1,125 @@
+/* H-04 광고 등록 — [ANT-FE-AD]
+   접두어는 ad- 다. 색·간격은 app.css 토큰만 쓴다. 진행·완료 표시는 M-03 subscribe.css 와
+   같은 모양을 쓴다 — 같은 202 폴링을 기다리는 자리라 다르게 보일 이유가 없다. */
+
+.ad-card{
+  padding:16px 18px; margin-bottom:12px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:12px;
+}
+.ad-card h2{ margin:0 0 4px; font-size:14px; font-weight:800; color:var(--ink); letter-spacing:-.01em; }
+
+.ad-hint{ margin:4px 0 0; font-size:12px; line-height:1.6; color:var(--muted); }
+.ad-hint.is-bad{ color:var(--danger); }
+
+/* ── 배너 ────────────────────────────────────────────── */
+.ad-pick{
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; margin-top:10px; padding:26px 18px;
+  border:1.5px dashed var(--rule); border-radius:11px;
+  background:var(--surface-2);
+  font:inherit; font-size:13.5px; font-weight:700; color:var(--body); cursor:pointer;
+}
+.ad-pick:hover{ border-color:var(--brand-soft); background:var(--brand-softer); color:var(--brand-ink); }
+.ad-pick svg{ color:var(--brand); }
+
+.ad-banner{ margin-top:10px; }
+.ad-banner img{
+  display:block; width:100%;
+  /* 4:1 자리에 그대로 들어갈 그림이라 잘라 보여주지 않는다 — 실제 노출 모양을 보여야 한다 */
+  aspect-ratio:4 / 1; object-fit:cover;
+  border:1px solid var(--rule); border-radius:10px; background:var(--surface-2);
+}
+.ad-banner-foot{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; margin-top:8px;
+  font-size:12px; color:var(--muted);
+}
+
+/* ── 입력 ────────────────────────────────────────────── */
+.ad-input{
+  width:100%; margin-top:9px; padding:9px 12px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface);
+  font:inherit; font-size:13.5px; color:var(--ink);
+}
+.ad-input:focus{ outline:2px solid var(--brand-soft); outline-offset:-1px; border-color:var(--brand); }
+.ad-input[aria-invalid="true"]{ border-color:var(--danger); }
+.ad-input.is-num{ width:100px; text-align:right; font-variant-numeric:tabular-nums; }
+
+.ad-days{ display:flex; align-items:baseline; gap:7px; }
+.ad-days span{ font-size:13px; color:var(--body); }
+
+/* ── 비용 (SignConfirm) ──────────────────────────────── */
+.ad-cost{
+  padding:15px 18px; margin-bottom:14px;
+  border:1px solid var(--brand-soft); border-radius:12px;
+  background:var(--brand-softer);
+}
+.ad-cost-line{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+  font-size:13px; color:var(--body);
+}
+/* 이 화면에서 가장 중요한 숫자다 — 서명 전에 눈에 들어와야 한다 */
+.ad-cost-line b{ font-size:21px; font-weight:800; color:var(--ink); letter-spacing:-.02em; }
+.ad-cost-note{ margin:9px 0 0; font-size:12.5px; line-height:1.65; color:var(--body); }
+
+/* ── 진행 · 완료 ─────────────────────────────────────── */
+.ad-progress{
+  display:flex; flex-direction:column; align-items:center; gap:9px;
+  padding:44px 20px; text-align:center;
+  background:var(--surface); border:1px solid var(--rule); border-radius:12px;
+}
+.ad-progress-title{ margin:0; font-size:15px; font-weight:800; color:var(--ink); }
+.ad-progress-title.is-failed{ color:var(--danger); }
+.ad-sub{ margin:0; font-size:12.5px; line-height:1.6; color:var(--muted); max-width:340px; }
+
+.ad-spinner{
+  width:26px; height:26px; margin-bottom:2px;
+  border:2.5px solid var(--brand-soft); border-top-color:var(--brand);
+  border-radius:999px;
+  animation:ad-spin .8s linear infinite;
+}
+@keyframes ad-spin{ to{ transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce){ .ad-spinner{ animation:none; } }
+
+.ad-check{
+  display:grid; place-items:center;
+  width:42px; height:42px; border-radius:999px;
+  background:#e7f5ec; color:#15803d;
+}
+
+.ad-code{
+  font-family:var(--mono); font-size:11.5px;
+  padding:3px 8px; border-radius:6px;
+  background:var(--surface-2); color:var(--danger);
+}
+
+/* ── 오류 · 버튼 ─────────────────────────────────────── */
+.ad-error{
+  display:flex; flex-direction:column; align-items:flex-start; gap:4px;
+  margin:0 0 12px; padding:10px 12px;
+  border:1px solid #f3c9c9; border-radius:9px; background:#fdf4f4;
+  font-size:12.5px; line-height:1.6; color:var(--danger);
+}
+.ad-error span{ color:var(--body); }
+
+.ad-actions{ display:flex; justify-content:flex-end; }
+
+.ad-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 18px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface);
+  font:inherit; font-size:13px; font-weight:700; color:var(--body);
+  text-decoration:none; cursor:pointer;
+}
+.ad-btn:hover:not(:disabled){ border-color:var(--brand-soft); background:var(--brand-softer); color:var(--brand-ink); }
+/* 무엇이 덜 됐는지는 각 칸의 안내가 말한다. 버튼은 잠기기만 한다 */
+.ad-btn:disabled{ opacity:.45; cursor:not-allowed; }
+.ad-btn.solid{ border-color:var(--brand); background:var(--brand); color:#fff; }
+.ad-btn.solid:hover:not(:disabled){ background:var(--brand-ink); border-color:var(--brand-ink); color:#fff; }
+
+@media (max-width:560px){
+  .ad-actions{ justify-content:stretch; }
+  .ad-actions .ad-btn{ width:100%; }
+}
