@@ -133,6 +133,22 @@ class MyPredictionControllerTest {
     }
 
     @Test
+    @DisplayName("anchorStatus — 커밋이 없으면 WAITING, 확정 배치에 속하면 CONFIRMED (프론트 요청 09-09, 행마다 proof 를 부르지 않게)")
+    void 앵커_상태() throws Exception {
+        Long waiting = insertPrediction(userId, "BASE", null, null);
+        Long confirmed = insertPrediction(userId, "OPEN", LocalDate.now().plusDays(7), null);
+        Long batchId = insertConfirmedBatch();
+        insertCommit(confirmed, batchId);
+
+        mockMvc.perform(get(URL).with(user(String.valueOf(userId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].id").value(confirmed))
+                .andExpect(jsonPath("$.items[0].anchorStatus").value("CONFIRMED"))
+                .andExpect(jsonPath("$.items[1].id").value(waiting))
+                .andExpect(jsonPath("$.items[1].anchorStatus").value("WAITING"));
+    }
+
+    @Test
     @DisplayName("어휘 밖 status 는 400")
     void 잘못된_상태값() throws Exception {
         mockMvc.perform(get(URL).param("status", "WAITING").with(user(String.valueOf(userId))))
@@ -160,6 +176,33 @@ class MyPredictionControllerTest {
                 .executeUpdate();
         return ((Number) em.createNativeQuery("SELECT max(id) FROM predictions").getSingleResult())
                 .longValue();
+    }
+
+    private Long insertConfirmedBatch() {
+        em.createNativeQuery("""
+                        INSERT INTO anchor_batches
+                          (business_date, merkle_root, commit_count, status, contract_address, chain_id,
+                           tx_hash, block_number, confirmed_at, attempts, created_at)
+                        VALUES (CURRENT_DATE, ?, 1, 'CONFIRMED', ?, 31337, ?, 11187694, CURRENT_TIMESTAMP, 1,
+                                CURRENT_TIMESTAMP)
+                        """)
+                .setParameter(1, "0x" + "aa".repeat(32))
+                .setParameter(2, "0x07f8cfe2bc6174d62be8226e5e8699ffbf0d6d6a")
+                .setParameter(3, "0x" + "cd".repeat(32))
+                .executeUpdate();
+        return ((Number) em.createNativeQuery("SELECT max(id) FROM anchor_batches").getSingleResult()).longValue();
+    }
+
+    private void insertCommit(Long predictionId, Long batchId) {
+        em.createNativeQuery("""
+                        INSERT INTO prediction_commits (prediction_id, commit_hash, salt, anchor_batch_id)
+                        VALUES (?, ?, ?, ?)
+                        """)
+                .setParameter(1, predictionId)
+                .setParameter(2, "0x" + "bb".repeat(32))
+                .setParameter(3, "0123456789abcdef".repeat(4))
+                .setParameter(4, batchId)
+                .executeUpdate();
     }
 
     private void insertStock(String code, String name) {
