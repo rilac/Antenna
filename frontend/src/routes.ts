@@ -20,7 +20,7 @@ import Portfolio from './pages/Portfolio'
 import LedgerList from './pages/LedgerList'
 import Anchor from './pages/Anchor'
 import Verify from './pages/Verify'
-import Ranking from './pages/Ranking'
+import Ranking, { SimRanking } from './pages/Ranking'
 import ChannelProfile from './pages/ChannelProfile'
 import SubscriptionList from './pages/SubscriptionList'
 import ChannelFee from './pages/ChannelFee'
@@ -103,7 +103,11 @@ export const ROUTES: PageMeta[] = [
   { screen: 'D-03', element: Verify, path: '/ledger/verify/:predictionId', title: '3단계 검산', access: 'user', mode: 'insight', nav: 'portfolio', story: 'ANT-FE-VERIFY' },
 
   // ── E. 채널 · 구독 ───────────────────────────────────
-  { screen: 'E-01', element: Ranking, path: '/rankings', title: '예측가 랭킹', access: 'user', mode: 'insight', nav: 'market', bodyClass: 'predictor-market-page', story: 'ANT-FE-RANKING' },
+  { screen: 'E-01', element: Ranking, path: '/rankings', title: '주가 예측 랭킹', access: 'user', mode: 'insight', nav: 'market', bodyClass: 'predictor-market-page', story: 'ANT-FE-RANKING' },
+  /* 같은 랭킹 화면이지만 트랙과 셸 모드가 다르다. 한 라우트를 두 모드가 나눠 쓸 수
+     없어(mode 가 라우트마다 붙는다) 화면을 갈랐다 — 전에는 모의 투자 바에서 눌러도
+     인사이트 모드로 넘어갔다. */
+  { screen: 'E-01', element: SimRanking, path: '/sim/rankings', title: '모의투자 랭킹', access: 'user', mode: 'sim', nav: 'ranking', bodyClass: 'predictor-market-page', story: 'ANT-FE-RANKING' },
   { screen: 'E-02', element: ChannelProfile, path: '/channels/:userId', title: '채널 프로필', access: 'user', mode: 'insight', nav: 'market', story: 'ANT-FE-CHANNEL-PROFILE' },
   { screen: 'E-03', element: SubscriptionList, path: '/me/subscriptions', title: '내 구독', access: 'user', mode: 'insight', nav: 'portfolio', story: 'ANT-FE-SUBSCRIPTION-LIST' },
   { screen: 'E-04', element: ChannelFee, path: '/me/channel', title: '내 채널 설정', access: 'user', mode: 'insight', nav: 'portfolio', story: 'ANT-FE-CHANNEL-FEE' },

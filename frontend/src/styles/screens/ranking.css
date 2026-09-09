@@ -1,17 +1,9 @@
 /* E-01 예측가 랭킹 — [ANT-FE-RANKING]
-   색·간격은 app.css 의 토큰만 쓴다. */
+   /rankings(주가 예측 · REAL) 과 /sim/rankings(모의투자 · REPLAY) 가 함께 쓴다.
+   색·간격은 app.css 의 토큰만 쓴다.
 
-/* ── 트랙 탭 ─────────────────────────────────── */
-.rk-tracks{ display:flex; gap:2px; margin-bottom:14px; border-bottom:1px solid var(--rule); }
-.rk-tracks button{
-  padding:9px 16px;
-  border:0; border-bottom:2px solid transparent; margin-bottom:-1px;
-  background:transparent; color:var(--muted);
-  font-family:inherit; font-size:14px; font-weight:600;
-  cursor:pointer;
-}
-.rk-tracks button:hover{ color:var(--ink); }
-.rk-tracks button.on{ color:var(--brand-ink); border-bottom-color:var(--brand); }
+   트랙 탭(.rk-tracks)은 지웠다 — 트랙을 라우트가 정하므로 화면 안에 고를 것이 없다
+   (2026-09-09, 화면 분리). */
 
 /* ── 필터 ──────────────────────────────────────
    기간과 섹터는 성격이 다르다. 기간은 두 값 중 하나(배타), 섹터는 목록에서 하나 고르기다.
