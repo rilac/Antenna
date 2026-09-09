@@ -229,13 +229,16 @@ export default function SeasonTrades() {
               ))}
             </div>
 
+            {/* 라벨을 상자 안에 또 넣지 않는다. "종목 전체 (4)" 처럼 두 겹으로 적히면
+                무엇이 이름이고 무엇이 고른 값인지 흐려진다 — 기본 항목 글자가 라벨을
+                겸한다. */}
             <label className="st-pick">
-              <span>종목</span>
               <select
+                aria-label="종목 거르기"
                 value={ticker === 'ALL' ? 'ALL' : String(ticker)}
                 onChange={(e) => setTicker(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
               >
-                <option value="ALL">전체 ({tickerOptions.length})</option>
+                <option value="ALL">종목 전체</option>
                 {tickerOptions.map(([tid, name]) => (
                   <option key={tid} value={tid}>{name}</option>
                 ))}
@@ -243,7 +246,10 @@ export default function SeasonTrades() {
               <i aria-hidden="true">⌄</i>
             </label>
 
-            <p className="st-count num">{rows.length}건</p>
+            <p className="st-count num">
+              {rows.length}건
+              {rows.length !== all.length && <span> / {all.length}건</span>}
+            </p>
           </div>
 
           {rows.length === 0 ? (
