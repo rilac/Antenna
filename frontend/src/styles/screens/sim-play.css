@@ -93,7 +93,11 @@
 .sp-h-ico.t-ai{--tone:#5457e8;--tint:#ece9fd}
 .sp-h-ico.t-news{--tone:#2f7bf6;--tint:#e8f1fe}
 
+/* 세 칸이 같은 바닥에서 끝나야 한다. 차트만 제 내용 높이에 머물면, 옆 칸이
+   길어졌을 때 가운데만 짧게 끝나 층이 진다. 늘려 두면 남는 높이는 차트 아래
+   여백이 되는데 그게 어긋난 바닥보다 낫다. */
 .sp-chart-card{
+  align-self:stretch;
   padding:14px 18px 8px;border:1px solid var(--rule);border-radius:16px;
   background:var(--surface);box-shadow:var(--shadow);
   min-width:0;

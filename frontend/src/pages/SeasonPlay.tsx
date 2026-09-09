@@ -154,8 +154,9 @@ export default function SeasonPlay() {
       .catch((e) => setTickerError(e instanceof ApiError ? e : null))
   }, [seasonId])
 
-  /* 고른 종목의 봉을 받는다. 이미 있으면 다시 부르지 않는다.
-     uptoDay 를 넘기지 않는다 — 서버가 내 진행일까지만 준다(커닝 차단). */
+  /* 고른 종목의 봉을 받는다. 이미 있으면 다시 부르지 않는다 —
+     진행일이 바뀌면 위에서 통째로 버리므로 그때 다시 받는다.
+     uptoDay 를 넘기지 않는다. 서버가 내 진행일까지만 준다(커닝 차단). */
   useEffect(() => {
     if (!seasonId || selected === null || candles[selected]) return
     getPrices(seasonId, selected)
@@ -188,6 +189,21 @@ export default function SeasonPlay() {
     tickers,
     candlesOf,
   })
+
+  /* 진행일이 바뀌면 받아 둔 봉을 버린다.
+
+     서버는 내 진행일까지만 봉을 준다(커닝 차단). 그래서 DAY 8 에 받아 둔 배열에는
+     DAY 9 부터의 봉이 없다 — 다음 영업일로 넘겨도 캐시가 그대로면 차트가 어제에
+     멈추고, 오늘 종가가 없어 <b>매수 가능이 0주가 되어 주문이 막힌다</b>.
+     하루에 요청 한 번이면 되는 값이라 통째로 버리고 다시 받는다.
+
+     렌더 중에 갈아끼운다(리액트가 권하는 방식이다. 효과로 하면 한 프레임 동안
+     옛 봉이 그려진다). */
+  const [barsDay, setBarsDay] = useState(sim.day)
+  if (barsDay !== sim.day) {
+    setBarsDay(sim.day)
+    setCandles({})
+  }
 
   const heldQty = useMemo(
     () => Object.fromEntries(sim.positions.map((p) => [p.tickerId, p.qty])),
@@ -403,7 +419,14 @@ export default function SeasonPlay() {
             {/* 보유가 없어도 그린다. 전액 현금이면 회색 원 하나인데, 그것도 "아직
                 아무것도 안 넣었다" 를 말하는 그림이다 — 글자 두 줄만 남기면 카드가
                 비어 보이고, 사고 나서야 원이 생기면 화면이 튄다. */}
-            <PortfolioDonut slices={slices} total={sim.totalAsset} onPick={setSelected} />
+            {/* 좁은 칸이라 셋까지만 펴 둔다. 더 있으면 "더 보기" 로 넘긴다 —
+                목록이 길어지면 이 카드가 줄 높이를 정해 버려 차트 아래가 빈다. */}
+            <PortfolioDonut
+              slices={slices}
+              total={sim.totalAsset}
+              onPick={setSelected}
+              maxRows={3}
+            />
             {sim.positions.length === 0 && (
               <p className="sp-empty">
                 아직 보유한 종목이 없습니다.
