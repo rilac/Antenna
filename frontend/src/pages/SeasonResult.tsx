@@ -206,6 +206,7 @@ export default function SeasonResult() {
             {!done && (
               <Link className="sr-go" to={`/sim/${seasonId}/play`}>이어서 하기</Link>
             )}
+            <Link className="sr-back" to={`/sim/${seasonId}/trades`}>매매일지</Link>
             <Link className="sr-back" to="/sim/practice">다른 연습 고르기</Link>
           </div>
         </header>

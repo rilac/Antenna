@@ -415,6 +415,8 @@ export default function SeasonPlay() {
                 <Ico size={15}><circle cx="12" cy="12" r="8" /><path d="M12 4v8h8" /></Ico>
               </span>
               포트폴리오
+              {/* 도넛은 지금 비중만 말한다. 언제 얼마에 샀는지는 매매일지에 있다 */}
+              <Link className="sp-h-link" to={`/sim/${seasonId}/trades`}>매매일지</Link>
             </h2>
             {/* 보유가 없어도 그린다. 전액 현금이면 회색 원 하나인데, 그것도 "아직
                 아무것도 안 넣었다" 를 말하는 그림이다 — 글자 두 줄만 남기면 카드가

@@ -220,12 +220,21 @@ export type Trade = {
   realizedPnl: number | null
 }
 
-/** 커서는 체결 id 다. 서버가 숫자로 준다 */
-export const getTrades = (seasonId: number, cursor?: number) =>
-  api.get<{ items: Trade[]; nextCursor: number | null; hasNext: boolean }>(
-    `/seasons/${seasonId}/trades`,
-    { query: { cursor } },
-  )
+export type TradePage = { items: Trade[]; nextCursor: number | null; hasNext: boolean }
+
+/**
+ * 체결 내역. 최근 것이 먼저 온다.
+ *
+ * <p>커서는 체결 id 다(서버가 숫자로 준다). 종목·방향 필터도 서버가 받지만 G-06 은
+ * 쓰지 않는다 — 한 회차 체결이 수십 건이라 전부 받아 두고 화면에서 거르는 쪽이
+ * 필터를 바꿀 때마다 왕복하지 않아 빠르고, 요약 숫자도 정확해진다.
+ * 건수가 커지면 그때 이 인자들을 쓰면 된다.
+ */
+export const getTrades = (
+  seasonId: number,
+  opts: { cursor?: number; size?: number; tickerId?: number; side?: Side } = {},
+) =>
+  api.get<TradePage>(`/seasons/${seasonId}/trades`, { query: { ...opts } })
 
 /* ── 화면이 함께 쓰는 계산 ────────────────────────────────── */
 
