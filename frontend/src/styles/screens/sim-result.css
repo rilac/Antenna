@@ -63,7 +63,9 @@
 /* ── 카드 ───────────────────────────────────────────── */
 /* 왼쪽이 자산 곡선, 오른쪽이 손익 나누기다. 오른쪽을 왼쪽 높이에 맞춰 늘이고
    합계 줄을 바닥에 붙인다 — 카드 아래가 비어 층이 진 것처럼 보이지 않게. */
-.sr-body{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px;align-items:stretch}
+/* 곡선에 폭을 더 준다. 넓고 낮은 꺾은선이 오르내림을 과장하지 않고, 오른쪽
+   손익 카드와 바닥도 가까워진다. */
+.sr-body{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:14px;align-items:stretch}
 .sr-body > .sr-card{display:flex;flex-direction:column}
 
 /* 같은 리듬인데 늘이지 않는 줄. 접힌 토글이 옆 카드 높이까지 늘어나면
@@ -90,12 +92,14 @@
   border-radius:8px;background:var(--tint);color:var(--tone);
 }
 .sr-h-ico.t-eq{--tone:#16a06a;--tint:#e7f6ef}
-.sr-h-ico.t-split{--tone:#e8a13c;--tint:#fdf3e3}
 .sr-h-ico.t-board{--tone:#2f7bf6;--tint:#e8f1fe}
 .sr-h-ico.t-pie{--tone:#16a06a;--tint:#e7f6ef}
 .sr-h-ico.t-ai{--tone:#5457e8;--tint:#ece9fd}
+.sr-h-ico.t-card{--tone:#c9518f;--tint:#fbeaf2}
+.sr-h-ico.t-split{--tone:#e8a13c;--tint:#fdf3e3}
 
 .sr-note{margin:10px 0 0;color:var(--muted);font-size:12px;font-weight:650;line-height:1.55}
+.sr-note b{color:var(--body);font-weight:800}
 .sr-empty{margin:0;color:var(--muted);font-size:13px;font-weight:650}
 .sr-empty small{display:block;margin-top:5px;color:var(--faint);font-size:12px;font-weight:700}
 
@@ -105,8 +109,14 @@
   margin:0;padding:34px 20px;text-align:center;
   color:var(--body);font-size:14.5px;font-weight:700;
 }
-.sr-none small{color:var(--muted);font-size:12.5px;font-weight:650;line-height:1.55}
+.sr-none small{
+  max-width:520px;color:var(--muted);font-size:12.5px;font-weight:650;line-height:1.6;
+}
+.sr-none small b{color:var(--down-vivid);font-weight:800}
 .sr-none .sr-go{margin-top:6px}
+.sr-none .sr-go:disabled{opacity:.5;cursor:default}
+/* 버튼도 링크와 같은 모양이라 button 일 때도 같은 규칙을 탄다 */
+.sr-none button.sr-go{border:0;cursor:pointer}
 
 /* 아직 서버가 안 주는 것. 목업을 넣지 않는다 — 무엇이 올 자리인지만 적는다 */
 .sr-soon{
@@ -121,12 +131,28 @@
 .sr-dl dt{color:var(--body);font-size:13.5px;font-weight:750}
 .sr-dl dt small{display:block;margin-top:2px;color:var(--faint);font-size:11.5px;font-weight:650}
 .sr-dl dd{margin:0;color:var(--ink);font-size:15.5px;font-weight:800;text-align:right;white-space:nowrap}
-/* 합계가 결론이다 — 위 두 줄과 선으로 갈라 크게. 남는 높이를 여기서 먹어
-   바닥에 붙는다. */
+/* 합계가 결론이다 — 위 두 줄과 선으로 갈라 크게.
+   남는 높이를 여기서 먹어 옆 곡선과 바닥이 맞는다. 곡선을 낮춰 둔 덕에
+   그 사이가 벌어져 봐야 한 뼘이라 구멍처럼 보이지 않는다. */
 .sr-dl{flex:1}
 .sr-dl .sr-total{margin-top:auto;padding-top:11px;border-top:1px dashed var(--rule)}
 .sr-dl .sr-total dt{font-size:14px;font-weight:800}
 .sr-dl .sr-total dd{font-size:19px;font-weight:850;letter-spacing:-.02em}
+
+/* ── 성적표 (전체 폭) ───────────────────────────────── */
+/* 네 칸을 한 줄로 늘어놓는다. 좁은 칸에서 2×2 로 접히면 마지막 칸만 아래에
+   혼자 남아 어긋나 보였다. */
+.sr-card2 .sr-facts{grid-template-columns:repeat(4,minmax(0,1fr))}
+.sr-card-block .sr-facts{margin:0}
+.sr-card-block .sr-none{padding:6px 4px}
+.sr-card-block .sr-note{margin-top:12px}
+
+/* 아직 마지막 날이 아닐 때 */
+.sr-wait{
+  margin:0;padding:6px 4px;text-align:center;
+  color:var(--muted);font-size:12.5px;font-weight:700;
+}
+.sr-wait small{display:block;margin-top:5px;color:var(--faint);font-size:11.5px;font-weight:650}
 
 /* ── 자산 곡선 (EquityChart) ────────────────────────── */
 .eq{display:block}
@@ -208,10 +234,10 @@
 .sr-fold[open] > summary{border-radius:16px 16px 0 0;border-bottom:1px solid #eef0f6}
 .sr-fold-body{padding:16px 18px 18px}
 
-/* 복기 안의 수치. 네 칸을 한 줄로 */
+/* 네 칸을 한 줄로. 복기 안의 수치와 성적표가 같이 쓴다 */
 .sr-facts{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:12px;margin:0 0 14px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;margin:0 0 14px;
 }
 .sr-facts > div{
   display:flex;flex-direction:column;gap:3px;
@@ -219,6 +245,8 @@
 }
 .sr-facts dt{color:var(--muted);font-size:12px;font-weight:700}
 .sr-facts dd{margin:0;color:var(--ink);font-size:16px;font-weight:850;letter-spacing:-.02em}
+/* 값 아래 한 마디. 손익비 2.0 이 좋은 건지 나쁜 건지는 적어 줘야 안다 */
+.sr-facts small{color:var(--faint);font-size:11px;font-weight:650;line-height:1.45}
 
 /* ── 종목별 성적 ────────────────────────────────────── */
 /* 표가 아니라 목록이다. 줄 수가 0 에서 시작해 천천히 늘고, 좁은 화면에서
@@ -244,6 +272,7 @@
 @media(max-width:1100px){
   .sr-body,.sr-row{grid-template-columns:minmax(0,1fr);align-items:start}
   .sr-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sr-card2 .sr-facts{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:760px){
   /* 도넛과 목록을 나란히 둘 폭이 안 된다 — 쌓는다 */

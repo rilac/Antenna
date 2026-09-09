@@ -15,6 +15,7 @@
    ── 값의 출처 ─────────────────────────────────────────────
    예수금·총자산·평가금액·손익·포지션   GET /seasons/{id}/me
    체결 내역                          GET /seasons/{id}/trades
+   성적표(끝낸 뒤)                     POST /seasons/{id}/finish
    자산 곡선                          체결 내역 + 봉으로 다시 만든다(아래)
 
    ── 자산 곡선은 왜 다시 만드는가 ──────────────────────────
@@ -29,12 +30,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiError } from '../api/errors'
 import {
   advance as advanceApi,
+  finish as finishApi,
   getMyStatus,
   getTrades,
   join as joinApi,
   order as orderApi,
   type Candle,
   type MyStatus,
+  type SeasonFinishResult,
   type Side,
   type Ticker,
   type Trade,
@@ -297,6 +300,18 @@ export function useSeasonSim({
     await run(() => joinApi(seasonId))
   }, [run, seasonId])
 
+  /**
+   * 회차를 끝내고 성적표를 받는다. <b>되돌릴 수 없다</b> — 부르면 주문도 진행도 막힌다.
+   * 부르는 쪽이 반드시 확인을 받고 불러야 한다.
+   *
+   * <p>이미 끝난 회차면 서버가 저장해 둔 같은 결과를 다시 준다. 그래서 다시 눌러도
+   * 값이 바뀌지 않는다.
+   */
+  const finish = useCallback(
+    async (): Promise<SeasonFinishResult | null> => run(() => finishApi(seasonId)),
+    [run, seasonId],
+  )
+
   return {
     day,
     isLastDay,
@@ -320,6 +335,7 @@ export function useSeasonSim({
     order,
     advance,
     join,
+    finish,
     reload,
   }
 }

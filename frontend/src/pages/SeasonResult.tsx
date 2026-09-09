@@ -18,7 +18,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError } from '../api/errors'
-import { getPrices, getTickers, rate, signOf, type Candle, type Ticker } from '../api/seasonPlay'
+import {
+  getPrices, getTickers, rate, signOf,
+  type Candle, type SeasonFinishResult, type Ticker,
+} from '../api/seasonPlay'
 import { useApiQuery } from '../api/useApiQuery'
 import EquityChart from '../components/sim/EquityChart'
 import PortfolioDonut, { type DonutSlice } from '../components/sim/PortfolioDonut'
@@ -71,6 +74,8 @@ export default function SeasonResult() {
   const [tickers, setTickers] = useState<Ticker[]>([])
   const [candles, setCandles] = useState<Record<number, Candle[]>>({})
   const [loadError, setLoadError] = useState<ApiError | null>(null)
+  /** 서버 성적표. 회차를 끝내야 나온다 */
+  const [card, setCard] = useState<SeasonFinishResult | null>(null)
 
   useEffect(() => {
     if (!seasonId) return
@@ -257,6 +262,8 @@ export default function SeasonResult() {
               />
             </section>
 
+            {/* 왼쪽에 곡선, 오른쪽에 손익. 곡선을 넓고 낮게 두어 오르내림의 기울기가
+                과장되지 않게 하고, 그만큼 두 카드의 바닥도 가까워진다. */}
             <div className="sr-body">
               {/* ── 자산 곡선 ───────────────────────────── */}
               <section className="sr-card sr-eq">
@@ -265,15 +272,13 @@ export default function SeasonResult() {
                     <Ico size={15}><path d="M4 16.5 9 11l3.5 3.5L20 7" /></Ico>
                   </span>
                   자산 곡선
-                  <em>게임일마다의 총자산</em>
+                  <em>가로선이 시작 예수금 {won(s.initialCash)} · 그 위면 번 것</em>
                 </h2>
-                <EquityChart points={sim.equity} base={s.initialCash} />
-                <p className="sr-note">
-                  가로선이 시작 예수금 {won(s.initialCash)} 입니다. 그 위면 번 것입니다.
-                </p>
+                {/* 폭이 넓어졌으니 높이를 줄인다. 꺾은선은 넓고 낮아야 오르내림의
+                    기울기가 과장되지 않는다 — 좁고 높으면 작은 흔들림도 절벽처럼 보인다. */}
+                <EquityChart points={sim.equity} base={s.initialCash} height={165} />
               </section>
 
-              {/* ── 손익 나누기 ─────────────────────────── */}
               <section className="sr-card sr-split">
                 <h2>
                   <span className="sr-h-ico t-split" aria-hidden="true">
@@ -306,6 +311,105 @@ export default function SeasonResult() {
                 </p>
               </section>
             </div>
+
+            <section className="sr-card sr-card2">
+              <h2>
+                <span className="sr-h-ico t-card" aria-hidden="true">
+                  <Ico size={15}><path d="M4 6h16v12H4z" /><path d="M8 10h8M8 14h5" /></Ico>
+                </span>
+                성적표
+                {card && <em>서버가 굳힌 값</em>}
+              </h2>
+
+              {/* ── POST /finish ─────────────────────────────
+                  자동으로 부르지 않는다. finish 는 회차를 DONE 으로 만들어 주문도
+                  진행도 막는 되돌릴 수 없는 요청이라, 결과를 보러 들어온 것만으로
+                  판이 끝나면 안 된다. 누르는 것은 사람이어야 한다.
+
+                  (GET /me 가 회차 status 를 주면 이미 끝난 회차인지 알 수 있어
+                   그때는 물어보지 않고 바로 받아 올 수 있다 — 서버에 요청해 둘 것.) */}
+              <div className="sr-card-block">
+              {card !== null ? null : !done ? (
+                <p className="sr-wait">
+                  마지막 게임일에 닿으면 성적표를 받을 수 있습니다.
+                  <small>시장 대비 · 최대 낙폭 · 손익비 · 평균 보유일</small>
+                </p>
+              ) : null}
+              {card === null && done ? (
+                <p className="sr-none">
+                  이 판을 끝내면 성적표가 나옵니다.
+                  <small>
+                    시장 대비 · 최대 낙폭 · 손익비 · 평균 보유일을 서버가 계산해 굳힙니다.
+                    <b>끝내면 되돌릴 수 없습니다</b> — 더 이상 주문도 진행도 할 수 없습니다.
+                  </small>
+                  <button
+                    type="button"
+                    className="sr-go"
+                    disabled={sim.pending}
+                    onClick={() => { void sim.finish().then((r) => { if (r) setCard(r) }) }}
+                  >
+                    {sim.pending ? '끝내는 중…' : '이 판 끝내고 성적표 받기'}
+                  </button>
+                </p>
+              ) : null}
+              {card !== null && (
+                <>
+                  <dl className="sr-facts">
+                    <div>
+                      <dt>시장 대비</dt>
+                      <dd className={`num ${
+                        card.benchmarkReturn === null
+                          ? 'flat'
+                          : signOf(card.returnRate - card.benchmarkReturn)}`}
+                      >
+                        {card.benchmarkReturn === null
+                          ? '—'
+                          : rate(card.returnRate - card.benchmarkReturn)}
+                      </dd>
+                      <small>
+                        {card.benchmarkReturn === null
+                          ? '견줄 값이 없습니다'
+                          : `시장 ${rate(card.benchmarkReturn)} · 나 ${rate(card.returnRate)}`}
+                      </small>
+                    </div>
+                    <div>
+                      <dt>최대 낙폭</dt>
+                      <dd className="num down">-{card.maxDrawdown.toFixed(2)}%</dd>
+                      <small>최고점에서 가장 깊게 파인 곳</small>
+                    </div>
+                    <div>
+                      <dt>손익비</dt>
+                      <dd className={`num ${
+                        card.profitFactor === null
+                          ? 'flat'
+                          : card.profitFactor >= 1 ? 'up' : 'down'}`}
+                      >
+                        {card.profitFactor === null ? '—' : card.profitFactor.toFixed(2)}
+                      </dd>
+                      <small>
+                        {card.profitFactor === null
+                          ? '손해 본 매도가 없습니다'
+                          : '번 돈 ÷ 잃은 돈. 1 미만이면 잃은 것'}
+                      </small>
+                    </div>
+                    <div>
+                      <dt>평균 보유일</dt>
+                      <dd className="num">
+                        {card.avgHoldingDays === null ? '—' : `${card.avgHoldingDays.toFixed(1)}일`}
+                      </dd>
+                      <small>
+                        {card.avgHoldingDays === null ? '아직 판 적이 없습니다' : '사서 팔 때까지'}
+                      </small>
+                    </div>
+                  </dl>
+                  <p className="sr-note">
+                    시장 대비는 <b>이 시즌 종목을 똑같이 나눠 사서 끝까지 들고 있었다면</b>과
+                    견준 것입니다. 코스피 지수가 아니라 그 시즌 종목으로 만든 기준입니다.
+                  </p>
+                </>
+              )}
+              </div>
+            </section>
 
             {/* ── 종목별 성적 · 포트폴리오 한 줄 ────────────
                 세로로 쌓으면 성적표가 한 줄일 때 오른쪽이 통째로 빈다. 위 줄과 같은
