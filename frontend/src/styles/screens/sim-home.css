@@ -78,7 +78,7 @@
 .sh-btn.ghost:hover{background:#fff;border-color:var(--brand)}
 
 /* ── 하단 3분할 ─────────────────────────────────────── */
-.sh-panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;align-items:start}
+.sh-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
 .sh-panel{
   display:flex;flex-direction:column;padding:22px 24px;
   background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow);
@@ -100,10 +100,9 @@
 /* 로딩·빈 상태 한 줄. 오류는 공용 ErrorState(state.css)가 그린다. */
 .sh-state{margin:0;padding:18px 0;color:var(--faint);font-size:14px;font-weight:650;text-align:center}
 
-/* 상태 배지 — 최근 목록과 참가 가능 목록이 함께 쓴다 */
+/* 상태 배지 — 최근 목록 */
 .sh-state-tag{padding:4px 10px;border-radius:7px;font-size:12px;font-weight:750;white-space:nowrap}
 .sh-state-tag.live{background:var(--brand-soft);color:var(--brand)}
-.sh-state-tag.soon{background:#fdf2e3;color:#b0762a}
 .sh-state-tag.done{background:var(--surface-2);color:#7b8298}
 
 /* ── 최근 모의투자 ──────────────────────────────────── */
@@ -124,25 +123,6 @@
   color:var(--brand);font-size:13.5px;font-weight:750;white-space:nowrap;
 }
 .sh-replay:hover{background:var(--brand-softer);border-color:var(--brand)}
-
-/* ── 참가 가능한 모의투자 ───────────────────────────── */
-/* 프로토타입의 시나리오 썸네일(.sh-thumb) 자리를 모드 아이콘이 받는다.
-   그림으로 시대를 알려주지 않으려는 것이라 색만 모드별로 다르다. */
-.sh-opens{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
-.sh-open{display:flex;align-items:center;gap:13px}
-.sh-open-ic{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:13px}
-.sh-open-ic.m-practice{background:#e6f7ef;color:#16a06a}
-.sh-open-ic.m-competition{background:var(--brand-soft);color:var(--brand)}
-.sh-open-ic.m-demo{background:#e7f0fd;color:#2f6fd0}
-.sh-open-main{flex:1;min-width:0}
-.sh-open-name{display:flex;align-items:center;gap:8px;margin:0 0 5px}
-.sh-open-name b{color:#1b2245;font-size:15px;font-weight:800;line-height:1.4}
-.sh-open-meta{
-  margin:0;overflow:hidden;color:#8a90ab;font-size:12.5px;font-weight:650;
-  text-overflow:ellipsis;white-space:nowrap;
-}
-.sh-pick{flex:none;padding:7px 14px;border-radius:9px;background:#f0effc;color:var(--brand);font-size:13px;font-weight:750}
-.sh-pick:hover{background:var(--brand-soft)}
 
 /* ── 보상 ───────────────────────────────────────────── */
 /* 금액을 쓰지 않는다(§1 규칙 3) — 오른쪽은 규모가 아니라 조건 설명이다. */

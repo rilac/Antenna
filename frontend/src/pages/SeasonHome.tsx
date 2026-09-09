@@ -14,7 +14,8 @@
       애초에 /seasons · /seasons/me 응답에 이름 필드가 없어 그릴 값도 없다.
    2. KPI 4종(최근 수, 평균·최고 수익률, 승률)과 인기/추천 시즌은 §9.2 가
       G-01 에서 제외한 항목이다 — /seasons/history/me 는 목록만이라 집계 근거가 없다.
-      그 자리는 설계서가 G-01 의 API 로 지정한 GET /seasons(시즌 목록)로 채운다.
+      그 자리에 GET /seasons(참가 가능한 목록)를 뒀다가 뺐다(2026-09-09) — 같은 목록을
+      연습하기(G-02a)의 연습 주제에서 고르므로 홈에 한 번 더 둘 이유가 없다.
    3. 보상 금액(+50 ANT · +100 ANT)을 지웠다. §1 규칙 3 — 금액 상수는 서버 상수이고
       API 에 노출되지 않으므로 보상 규모는 정적 문구로만 쓴다.
    4. "남은 기간 20일 14시간" 을 뺐다. 연습은 사용자가 직접 진행해 남은 시간이라는
@@ -23,14 +24,10 @@
    ── 서버에서 받는 것 ────────────────────────────────────
      GET /seasons/me?status=ONGOING → { items: [{ seasonId, mode, currentDay, lengthDays, progress }] }
      GET /seasons/me?status=DONE    → 같은 스키마
-     GET /seasons                   → { items: [{ id, mode, lengthDays, initialCash, entryFee, status }] }
-   셋 다 커서 페이징이 없는 목록이라(§1 규칙 6 의 예외) useCursorList 를 쓰지 않는다. */
+   둘 다 커서 페이징이 없는 목록이라(§1 규칙 6 의 예외) useCursorList 를 쓰지 않는다. */
 import { Link } from 'react-router-dom'
 import type { ApiError } from '../api/errors'
-import {
-  ant, getMyRuns, getOpenRuns, isJoinable, joinableFirst, MODE_LABEL, progressOf, recentFirst, won,
-  type MyRun, type SeasonMode,
-} from '../api/seasons'
+import { getMyRuns, MODE_LABEL, progressOf, recentFirst, type MyRun } from '../api/seasons'
 import { useAsync } from '../api/useAsync'
 import { useAuth } from '../auth/context'
 import ErrorState from '../components/state/ErrorState'
@@ -38,7 +35,6 @@ import '../styles/screens/sim-home.css'
 
 /* 홈은 요약이라 몇 줄만 보여준다. 전체는 G-09 기록에서 본다. */
 const RECENT_ROWS = 4
-const OPEN_ROWS = 3
 
 /* 401 을 그대로 보여준다.
    전에는 빈 상태로 뭉갰다 — 이 화면이 부르는 /seasons·/seasons/me 가 없던 때라 401 이
@@ -74,14 +70,6 @@ const GiftIcon = () => (
     <path d="M12 8S9.5 3 7.5 4.2 10 8 12 8zM12 8s2.5-5 4.5-3.8S14 8 12 8z" />
   </Ico>
 )
-
-/* 모드 배지에 쓰는 도형. 모드마다 달라야 목록에서 구분이 되는데, 시나리오 썸네일은
-   그림 자체가 시대를 알려주므로(프로토타입의 야경·유전 일러스트) 쓰지 않는다. */
-const MODE_ICON: Record<SeasonMode, React.ReactNode> = {
-  PRACTICE: <><path d="M22 9 12 4 2 9l10 5z" /><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5" /></>,
-  COMPETITION: <><path d="M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5a3.5 3.5 0 0 1-3.5 3.5" /><path d="M10 19h4M12 14v5M8.5 21h7" /></>,
-  DEMO: <><rect x="2.5" y="4" width="19" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></>,
-}
 
 /* ── 히어로 ───────────────────────────────────────────────
    진행 중인 것이 있으면 이어하기, 없으면 시작을 권한다.
@@ -235,68 +223,6 @@ function RecentRuns({ ongoing, done, loading, error, onRetry }: {
   )
 }
 
-/* ── 참가 가능한 모의투자 ───────────────────────────────────
-   프로토타입의 "인기 시즌 / 추천"이 있던 자리다. 인기·추천은 집계 API 가 없어
-   §9.2 가 뺐고, 시나리오 이름·썸네일은 시대를 알려주므로 쓰지 않는다.
-   대신 설계서가 G-01 의 API 로 지정한 GET /seasons 를 그대로 보여준다. */
-function OpenRuns() {
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'ADMIN'
-  const { data, loading, error, reload } = useAsync(getOpenRuns)
-
-  /* 시연은 관리자에게만 보인다 — 일반 사용자 노출 대상이 아니다. */
-  const rows = (data?.items ?? [])
-    .filter(isJoinable)
-    .filter((s) => s.mode !== 'DEMO' || isAdmin)
-    .sort(joinableFirst)
-    .slice(0, OPEN_ROWS)
-  const failure = shown(error)
-
-  return (
-    <article className="sh-panel">
-      <div className="sh-panel-head">
-        <h2>참가 가능한 모의투자</h2>
-        <Link to="/sim/modes">모드 선택 ›</Link>
-      </div>
-
-      {loading && <p className="sh-state">불러오는 중…</p>}
-      {failure && <ErrorState error={failure} onRetry={reload} inline />}
-      {!loading && !failure && rows.length === 0 && (
-        <p className="sh-state">지금 참가할 수 있는 모의투자가 없습니다.</p>
-      )}
-
-      {rows.length > 0 && (
-        <ul className="sh-opens">
-          {rows.map((s) => (
-            <li className="sh-open" key={s.id}>
-              <span className={`sh-open-ic m-${s.mode.toLowerCase()}`}>
-                <Ico size={22}>{MODE_ICON[s.mode]}</Ico>
-              </span>
-              <div className="sh-open-main">
-                <p className="sh-open-name">
-                  <b>{MODE_LABEL[s.mode]} 모의투자</b>
-                  <span className={`sh-state-tag ${s.status === 'RUNNING' ? 'live' : 'soon'}`}>
-                    {s.status === 'RUNNING' ? '진행 중' : '시작 전'}
-                  </span>
-                </p>
-                {/* 두 금액의 단위가 다르다 — 예수금은 금융망 원화(§5.2),
-                    참가비는 참가 시 소각하는 ANT 다(§4 G-03). 섞으면 안 된다. */}
-                <p className="sh-open-meta num">
-                  {`${s.lengthDays}게임일 · 예수금 ${won(s.initialCash)}`}
-                  {s.entryFee ? ` · 참가비 ${ant(s.entryFee)}` : ''}
-                </p>
-              </div>
-              <Link className="sh-pick" to={`/sim/seasons/${s.id}`}>참가</Link>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <Link className="sh-panel-foot" to="/sim/modes">모드부터 고르기 ›</Link>
-    </article>
-  )
-}
-
 /* ── 보상 ─────────────────────────────────────────────────
    §1 규칙 3 — 금액 상수(참가·보너스·보상표)는 서버 상수이고 API 에 노출되지 않는다.
    그래서 프로토타입의 "+50 ANT · +100 ANT" 를 지우고 정적 문구만 남긴다.
@@ -358,7 +284,6 @@ export default function SeasonHome() {
 
         <section className="sh-panels" aria-label="내 모의투자 요약">
           <RecentRuns ongoing={ongoing} done={done} loading={loading} error={error} onRetry={reload} />
-          <OpenRuns />
           <Rewards />
         </section>
       </div>
