@@ -37,6 +37,18 @@ public class NewsIngestScheduler {
     /**
      * 배치 B6 — 매일 20:30. 뉴스 요약 → AI 브리핑(ANT-RESEARCH-03) → 투자 포인트(-04) 순으로 잇는다.
      *
+     * <p><b>★ 2026-09-09 현재 이 회차는 꺼져 있다 (김성령/KSR).</b> {@code app.ai.news-summary-cron}
+     * 이 {@code "-"}(Spring 의 cron 비활성 표시)라 아래 코드는 호출되지 않는다. GMS 과금 때문이다 —
+     * 한 회차가 요약 최대 1000콜 + 브리핑(1 + 종목 수 ≈300) + 포인트(종목 수 ≈300)로 하루 1500콜
+     * 근처를 쓰고, 종목이 늘면 상한 없이 같이 는다.
+     *
+     * <p><b>되살리기 전에 모델을 다시 고른다.</b> cron 만 되돌리면 같은 청구서가 그대로 돌아온다.
+     * 모델({@code app.ai.model})·회차당 호출 수(요약은 {@code DocumentSummaryService.MAX_PER_RUN},
+     * 브리핑·포인트는 대상 종목 범위) 중 무엇을 줄일지 정하는 게 먼저다. 재개 절차와 밀린 요약
+     * 대기 물량 주의사항은 {@code application.yaml} 의 KILL SWITCH 주석에 적어 뒀다.
+     *
+     * <p>아래는 배치가 살아 있을 때의 설계 근거다 — 끄면서 지우지 않았다. 재개할 때 그대로 쓴다.
+     *
      * <p>한 메서드로 묶은 이유 — 브리핑이 그날 요약을 재료로 쓰므로 순서가 구조로 보장돼야
      * 한다. cron 두 개로 시각을 벌려 두면 스레드 풀 크기(지금 1)에 기대는 암묵적 순서가 되고,
      * 요약 시간이 늘 때마다 뒤 cron 을 다시 맞춰야 한다. 셋 다 같은 GMS 키라 "한쪽 키만 있는
@@ -50,7 +62,11 @@ public class NewsIngestScheduler {
      * 기준일 조회·대상 종목 선정은 밖에 있다. 거기서 한 번 터지면 뒤 단계가 통째로 밀리는데,
      * 포인트는 기준일 하루만 노리고 백필이 없어 그날 종목은 영영 포인트가 없다.
      */
-    @Scheduled(cron = "${app.ai.news-summary-cron:0 30 20 * * *}", zone = "Asia/Seoul")
+    // "${...:-}" 는 빈 값이 아니라 기본값이 "-" 라는 뜻이다(구분자는 첫 ":", 그 뒤가 통째로
+    // 기본값). 속성이 없는 환경에서도 켜지지 않도록 어노테이션 기본값까지 막았다. 원래 기본값은
+    // "0 30 20 * * *" 였다 — 이 자리에 살아 있는 cron 을 남겨 두면 설정 한 줄이 빠진 환경이
+    // 조용히 과금을 다시 시작한다.
+    @Scheduled(cron = "${app.ai.news-summary-cron:-}", zone = "Asia/Seoul")
     public void summarizeNews() {
         try {
             documentSummaryService.summarizeNews();
