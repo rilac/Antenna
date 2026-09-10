@@ -134,7 +134,7 @@ public class Operation {
         this.settledAt = Instant.now();
     }
 
-    /** 인덱서 전용. code 어휘는 인덱서가 정한다. */
+    /** 인덱서, 또는 tx 전송에 실패한 전송 주체({@code TokenOperationService}, ANT-CHAIN-10)가 부른다. code 어휘는 부르는 쪽이 정한다. */
     public void markFailed(String errorCode, String errorMessage) {
         this.status = Status.FAILED;
         this.errorCode = errorCode;
