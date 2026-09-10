@@ -37,6 +37,7 @@ import { connectAddress, hasWallet, personalSign } from '../wallet/provider'
 import ImageUploadModal from '../components/upload/ImageUploadModal'
 import WalletLinkModal from '../components/wallet/WalletLinkModal'
 import ErrorState from '../components/state/ErrorState'
+import OperationProgress from '../components/operation/OperationProgress'
 import type { UploadedImage } from '../api/uploads'
 import { errorText } from '../components/state/errorText'
 import '../styles/screens/ad-new.css'
@@ -225,36 +226,11 @@ export default function Ad() {
           </section>
         )}
 
+        {/* 대기·실패 갈래는 M-02 공유 본문이 그린다([ANT-FE-OPERATION]).
+            네 흐름이 같은 상황을 제각기 말하지 않게 하는 것이 그 티켓의 요지다 */}
         {view === 'waiting' && (
-          <section className="ad-progress" aria-live="polite">
-            {status === 'FAILED' ? (
-              <>
-                <p className="ad-progress-title is-failed">등록이 체인에서 실패했습니다</p>
-                {/* 사유 문자열은 인덱서가 만든 것이라 옮기지 않는다 — 옮기면 검색이 안 된다 */}
-                {op.operation?.error && <code className="ad-code">{op.operation.error.code}</code>}
-                <p className="ad-sub">토큰은 소각되지 않았습니다. 잠시 후 다시 시도해 주세요.</p>
-              </>
-            ) : op.timedOut ? (
-              <>
-                {/* 실패로 단정하지 않는다. 성공한 등록을 실패로 알리는 쪽이 더 나쁘다 */}
-                <p className="ad-progress-title">확인이 늦어지고 있습니다</p>
-                <p className="ad-sub">등록이 취소된 것은 아닙니다. 체인이 붐비면 몇 분 더 걸릴 수 있습니다.</p>
-                <button type="button" className="ad-btn" onClick={op.recheck}>다시 확인</button>
-              </>
-            ) : (
-              <>
-                <span className="ad-spinner" aria-hidden="true" />
-                <p className="ad-progress-title">등록을 체인에서 확인하고 있습니다</p>
-                <p className="ad-sub">이 화면을 떠나도 등록은 계속됩니다.</p>
-              </>
-            )}
-
-            {op.error && (
-              <p className="ad-error" role="alert">
-                <b>{errorText(op.error).title}</b>
-                <button type="button" className="ad-btn" onClick={op.recheck}>다시 확인</button>
-              </p>
-            )}
+          <section className="ad-op">
+            <OperationProgress op={op} kind="AD" />
           </section>
         )}
 

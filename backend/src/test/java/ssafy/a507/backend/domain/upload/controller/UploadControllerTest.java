@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import ssafy.a507.backend.domain.account.entity.User;
+import ssafy.a507.backend.domain.upload.entity.UploadFile;
 import ssafy.a507.backend.support.TestImages;
 
 /**
@@ -72,6 +73,22 @@ class UploadControllerTest {
                 .andExpect(jsonPath("$.width").value(400))
                 .andExpect(jsonPath("$.height").value(100))
                 .andExpect(jsonPath("$.url").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("행이 실제로 INSERT 된다 — url 을 나중에 채우면 여기서 NOT NULL 에 걸린다")
+    void 실제_INSERT_까지_확인() throws Exception {
+        String fileId =
+                jsonValue(
+                        mockMvc.perform(upload(TestImages.png(400, 100), "AD", "key-flush"))
+                                .andReturn(),
+                        "fileId");
+
+        // 롤백으로 끝나는 테스트는 flush 가 없으면 INSERT 자체를 보지 않는다. 여기서 강제한다.
+        em.flush();
+        em.clear();
+
+        assertThat(em.find(UploadFile.class, fileId).getUrl()).isNotBlank();
     }
 
     @Test

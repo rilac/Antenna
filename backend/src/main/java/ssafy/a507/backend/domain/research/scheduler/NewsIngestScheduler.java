@@ -5,6 +5,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import ssafy.a507.backend.domain.research.service.BriefingGenerationService;
 import ssafy.a507.backend.domain.research.service.NewsIngestService;
+import ssafy.a507.backend.domain.research.service.NewsRelevanceService;
 
 /**
  * 뉴스 수집과 시장 브리핑 생성(배치 B6)의 시각을 정한다 (ANT-RESEARCH-02/03).
@@ -23,6 +24,7 @@ public class NewsIngestScheduler {
 
     private final NewsIngestService newsIngestService;
     private final BriefingGenerationService briefingGenerationService;
+    private final NewsRelevanceService newsRelevanceService;
 
     /** 뉴스 수집 — 매일 20:00. 장 마감 뒤 마감 기사까지 담기도록 저녁에 돈다. */
     @Scheduled(cron = "${app.naver-news.cron:0 0 20 * * *}", zone = "Asia/Seoul")
@@ -41,5 +43,17 @@ public class NewsIngestScheduler {
     @Scheduled(cron = "${app.ai.generation-cron:-}", zone = "Asia/Seoul")
     public void generate() {
         briefingGenerationService.generate();
+    }
+
+    /**
+     * 뉴스 관련도 판정 — 매일 21:00, 수집 한 시간 뒤. 자체 서빙(GPU) 으로만 돈다.
+     *
+     * <p>수집과 나눈 이유는 위와 같다 — 판정이 안 되는 환경에서도 수집은 그대로 돌아야 한다.
+     * 기사당 한 콜이라 하루 1,000콜을 넘겨 상용 무료 티어로는 못 돌린다. {@code app.ai.gpu} 설정이
+     * 비어 있으면 회차가 로그 한 줄만 남기고 건너뛰고, 재료 선정은 정규식으로 떨어진다.
+     */
+    @Scheduled(cron = "${app.ai.gpu.relevance-cron:-}", zone = "Asia/Seoul")
+    public void judgeNewsRelevance() {
+        newsRelevanceService.judgeRecent();
     }
 }

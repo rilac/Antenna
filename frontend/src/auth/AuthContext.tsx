@@ -1,9 +1,12 @@
 /* 셸이 쓰는 최소 인증 상태.
    실제 토큰 발급·갱신은 [ANT-FE-LOGIN] · [ANT-FE-SESSION] 에서 붙인다.
    여기서는 셸이 로그인/비로그인 두 모습을 그릴 수 있을 만큼만 들고 있는다. */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { setAccessToken, setUnauthorizedHandler } from '../api/client'
+import SessionExpiredModal from '../components/session/SessionExpiredModal'
 import { endSession, restoreSession } from './session'
+import { rememberReturnTo } from './returnTo'
 import { AuthCtx, type AuthState, type AuthUser, type Role } from './context'
 
 /* 프로토타입이 쓰던 임시 플래그. [ANT-FE-LOGIN] 이 실제 토큰으로 갈아끼운다.
@@ -43,6 +46,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return role ? demoUser(role) : null
   })
   const [booting, setBooting] = useState(true)
+  /** M-08. 재발급까지 실패한 401 하나당 한 번 선다 */
+  const [expired, setExpired] = useState(false)
+
+  const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => { writeStub(user?.role ?? null) }, [user])
 
@@ -59,15 +67,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true }
   }, [])
 
-  /* 401 UNAUTHENTICATED 는 API 클라이언트가 전역으로 넘겨준다.
-     재발급까지 실패한 경우만 오므로 여기서는 로그아웃 처리만 한다.
-     M-08 모달은 [ANT-FE-SESSION] 이 이 자리에 붙인다. */
+  /* 401 UNAUTHENTICATED 는 API 클라이언트가 전역으로 넘겨준다(M-08).
+     재발급까지 실패한 경우만 오고, SIGNER_MISMATCH 같은 다른 401 은 여기 오지 않는다
+     — client.ts 가 code 로 먼저 가른다.
+
+     여기서 user 를 바로 비우지 않는다. 비우면 RequireAccess 가 곧장 로그인으로 튕겨
+     사용자가 보던 화면과 쓰던 글이 눈앞에서 사라진다(설계 제약: "사용자가 보던 화면과
+     입력값을 잃지 않는다"). 창을 띄워 알리고, 비우는 것은 사용자가 "다시 로그인" 을
+     눌렀을 때 한다. accessToken 은 client.ts 가 이미 비웠으므로 이 상태로 나가는 요청은
+     인증 없이 나가고, 그 401 은 hadToken=false 라 이 자리를 다시 부르지 않는다
+     — 창이 여러 번 뜨지 않는 것도 그 덕이다. */
   useEffect(() => {
-    setUnauthorizedHandler(() => {
-      setAccessToken(null)
-      setUser(null)
-    })
+    setUnauthorizedHandler(() => setExpired(true))
   }, [])
+
+  /** "다시 로그인". 돌아올 자리를 남기고 나서 비운다 */
+  const relogin = useCallback(() => {
+    rememberReturnTo(location.pathname + location.search)
+    setExpired(false)
+    setAccessToken(null)
+    setUser(null)
+    navigate('/login')
+  }, [location.pathname, location.search, navigate])
 
   const value = useMemo<AuthState>(() => ({
     user,
@@ -86,5 +107,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser((prev) => (prev ? { ...prev, walletLinked: linked } : prev)),
   }), [user, booting])
 
-  return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>
+  /* 창은 여기 하나뿐이다. 화면마다 두면 동시에 401 을 받은 요청 수만큼 겹쳐 뜬다
+     (설계 제약: "동시에 여러 요청이 401을 받아도 모달은 하나여야 하고"). */
+  return (
+    <AuthCtx.Provider value={value}>
+      {children}
+      {expired && (
+        <SessionExpiredModal onRelogin={relogin} onDismiss={() => setExpired(false)} />
+      )}
+    </AuthCtx.Provider>
+  )
 }

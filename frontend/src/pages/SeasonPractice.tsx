@@ -226,12 +226,17 @@ function Done({ runs, loading, failure, onRetry }: {
   const rows = [...runs].sort(recentFirst).slice(0, DONE_ROWS)
 
   return (
-    <section className="pr-card pr-panel">
-      <div className="pr-panel-head">
+    /* ② 연습 주제와 같은 접이식이다. 펴 두면 왼쪽 열만 길어져 오른쪽 AI 가이드
+       아래가 비었다 — 기본은 접힘, 개수는 접힌 줄에 남긴다. */
+    <details className="pr-card pr-panel pr-fold">
+      <summary className="pr-panel-head">
         <span className="pr-num num">3</span>
         <h2>최근 완료한 연습</h2>
-        <Link className="pr-more" to="/sim/history">기록 ›</Link>
-      </div>
+        <span className="pr-count num">{loading ? '불러오는 중' : `${runs.length}회`}</span>
+        <i className="pr-chev" aria-hidden="true">
+          <Ico size={18}><path d="m6 9 6 6 6-6" /></Ico>
+        </i>
+      </summary>
 
       {loading && <p className="pr-state">불러오는 중…</p>}
       {failure && <ErrorState error={failure} onRetry={onRetry} inline />}
@@ -259,7 +264,14 @@ function Done({ runs, loading, failure, onRetry }: {
           ))}
         </ul>
       )}
-    </section>
+
+      {/* "기록 ›" 은 헤더에서 내렸다 — summary 안의 링크는 눌러도 접힘이 함께 토글된다. */}
+      {rows.length > 0 && (
+        <div className="pr-donefoot">
+          <Link className="pr-more" to="/sim/history">기록 ›</Link>
+        </div>
+      )}
+    </details>
   )
 }
 
@@ -278,6 +290,10 @@ export default function SeasonPractice() {
      주제로 시즌을 고르는 길은 아직 서버에 없어 주제 카드도 같은 곳을 가리킨다. */
   const first = open[0]
   const startAt = first ? `/sim/seasons/${first.id}` : '/sim/modes'
+
+  /* AI 가이드의 복기 버튼이 가리킬 판. 복기는 결과 화면(G-08)에만 있고
+     기록 목록(G-09)에는 없다 — 가장 최근에 끝낸 판으로 곧장 보낸다. */
+  const lastDone = [...done].sort(recentFirst)[0]
   const topicsFailure = shown(openList.error)
 
   return (
@@ -310,7 +326,7 @@ export default function SeasonPractice() {
           <div className="pr-col">
             {/* 접이식이다. 기본은 접힌 상태 — 주제 목록이 열려 있으면 AI 가이드가
                 화면 아래로 밀린다. 펼침·접힘은 브라우저 details 가 맡으므로 상태를 두지 않는다. */}
-            <details className="pr-card pr-panel pr-topics">
+            <details className="pr-card pr-panel pr-fold">
               <summary className="pr-panel-head">
                 <span className="pr-num num">2</span>
                 <h2>연습 주제</h2>
@@ -370,7 +386,13 @@ export default function SeasonPractice() {
                   <br />
                   연습 종료 후 자동으로 만들어집니다.
                 </p>
-                <Link className="pr-hint" to="/sim/history">지난 연습 복기 보기</Link>
+                {/* 끝낸 판이 없으면 볼 복기도 없다 — 버튼을 빼고 안내만 남긴다.
+                    윗 문장이 "연습이 끝나면" 이라 버튼이 없는 편이 말이 맞는다. */}
+                {lastDone && (
+                  <Link className="pr-hint" to={`/sim/${lastDone.seasonId}/result`}>
+                    가장 최근 복기 보기
+                  </Link>
+                )}
               </div>
               {/* 모의투자 캐릭터는 검정 개미다. 더듬이가 이미지 맨 위에 붙어 있어
                   위가 잘리면 바로 티가 난다 — 아래쪽에 붙여 놓는다. */}

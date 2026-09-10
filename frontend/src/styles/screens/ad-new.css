@@ -70,7 +70,6 @@
   background:var(--surface); border:1px solid var(--rule); border-radius:12px;
 }
 .ad-progress-title{ margin:0; font-size:15px; font-weight:800; color:var(--ink); }
-.ad-progress-title.is-failed{ color:var(--danger); }
 .ad-sub{ margin:0; font-size:12.5px; line-height:1.6; color:var(--muted); max-width:340px; }
 
 .ad-spinner{
@@ -86,12 +85,6 @@
   display:grid; place-items:center;
   width:42px; height:42px; border-radius:999px;
   background:#e7f5ec; color:#15803d;
-}
-
-.ad-code{
-  font-family:var(--mono); font-size:11.5px;
-  padding:3px 8px; border-radius:6px;
-  background:var(--surface-2); color:var(--danger);
 }
 
 /* ── 오류 · 버튼 ─────────────────────────────────────── */
@@ -122,4 +115,9 @@
 @media (max-width:560px){
   .ad-actions{ justify-content:stretch; }
   .ad-actions .ad-btn{ width:100%; }
+}
+
+/* M-02 공유 본문(.op)을 끼우는 카드. 안쪽 여백은 .op 가 이미 갖고 있어 테두리만 준다 */
+.ad-op{
+  background:var(--surface); border:1px solid var(--rule); border-radius:12px;
 }

@@ -88,8 +88,9 @@ public class PredictionRegisterService {
             SignatureGuard signatureGuard,
             PredictionCommitFactory commitFactory,
             @Value("${app.prediction.slot.free-per-day:3}") int freePerDay,
-            // 잠정 2,000 ANT(10^18 단위). 금액표는 ANT-TOKEN-08 이 확정한다 — 값만 바꾸면 된다.
-            @Value("${app.prediction.slot.over-cost-wei:2000000000000000000000}") String overCostWei) {
+            // 잠정 2,000 ANT. ANT 는 decimals 0 이라(ANT-CHAIN-03) 정수 그대로가 최소 단위다 — 10^18 을 곱하지 않는다.
+            // 키 이름의 -wei 는 옛 표기. 금액표를 app.token.* 로 모을 때(ANT-TOKEN-08) 이름을 같이 바꾼다.
+            @Value("${app.prediction.slot.over-cost-wei:2000}") String overCostWei) {
         this.em = em;
         this.predictions = predictions;
         this.notes = notes;

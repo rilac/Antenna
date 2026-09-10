@@ -18,6 +18,7 @@ import ssafy.a507.backend.domain.chain.service.OperationService;
 import ssafy.a507.backend.domain.monetize.dto.AdActiveResponse;
 import ssafy.a507.backend.domain.monetize.dto.AdCreateRequest;
 import ssafy.a507.backend.domain.monetize.dto.AdCreateResponse;
+import ssafy.a507.backend.domain.monetize.dto.AdPricingResponse;
 import ssafy.a507.backend.domain.monetize.entity.AdBanner;
 import ssafy.a507.backend.domain.monetize.repository.AdBannerRepository;
 import ssafy.a507.backend.domain.upload.entity.UploadFile;
@@ -28,6 +29,13 @@ import ssafy.a507.backend.domain.upload.repository.UploadFileRepository;
 @RequiredArgsConstructor
 @EnableConfigurationProperties(AdProperties.class)
 public class AdService {
+
+    /**
+     * 최소 게재 기간. {@link AdProperties} 에 두지 않은 것은 하루 미만을 막는 곳이
+     * {@link AdCreateRequest} 의 {@code @Min(1)} 이고, 애노테이션 인자는 컴파일 상수라
+     * 설정으로 뺄 수 없기 때문이다. 그 1 과 같은 값을 조건 조회에서 내린다.
+     */
+    private static final int MIN_DAYS = 1;
 
     private final AdBannerRepository adBannerRepository;
     private final UploadFileRepository uploadFileRepository;
@@ -109,6 +117,18 @@ public class AdService {
                         advertiser, Operation.Kind.AD, Operation.ResourceType.AD, banner.getId());
 
         return new AdCreateResponse(operation.getId(), banner.getId(), operation.getStatus());
+    }
+
+    /**
+     * 게재 조건. 설정값을 그대로 내리고 상태는 읽지 않는다 — 화면이 서명 전에 비용을 계산할
+     * 근거이고, 이 값이 없으면 프론트가 단가를 복제해 두는 수밖에 없다.
+     */
+    public AdPricingResponse pricing() {
+        return new AdPricingResponse(
+                properties.pricePerDayWei().toString(),
+                MIN_DAYS,
+                properties.maxDays(),
+                properties.slotCount());
     }
 
     /** 메인 노출용. 상태와 기간을 함께 보므로 만료 배치가 없어도 끝난 광고는 빠진다. */

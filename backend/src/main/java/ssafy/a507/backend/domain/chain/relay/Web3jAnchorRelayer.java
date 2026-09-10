@@ -24,9 +24,7 @@ import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.protocol.core.methods.response.EthEstimateGas;
-import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
-import org.web3j.tx.RawTransactionManager;
 import org.web3j.utils.Numeric;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
@@ -71,13 +69,16 @@ public class Web3jAnchorRelayer implements AnchorRelayer {
     private final ChainProperties props;
     private final CommitAnchorProperties contract;
     private final ChainConnection connection;
+    /** 전송은 토큰 릴레이어와 같은 키를 쓰므로 {@link TxSender} 의 락을 거친다(ANT-CHAIN-10). nonce 가 겹치지 않게. */
+    private final TxSender txSender;
     private final Credentials credentials;
 
     public Web3jAnchorRelayer(
-            ChainProperties props, CommitAnchorProperties contract, ChainConnection connection) {
+            ChainProperties props, CommitAnchorProperties contract, ChainConnection connection, TxSender txSender) {
         this.props = props;
         this.contract = contract;
         this.connection = connection;
+        this.txSender = txSender;
         // 키가 없으면 null — isEnabled() 가 false 라 여기까지 오는 호출이 없다.
         this.credentials =
                 props.relayerEnabled() ? Credentials.create(props.relayer().privateKey()) : null;
@@ -163,21 +164,10 @@ public class Web3jAnchorRelayer implements AnchorRelayer {
     }
 
     private String send(String data) throws IOException {
-        Web3j web3j = connection.web3j();
-        RawTransactionManager txm = new RawTransactionManager(web3j, credentials, props.chainId());
-        EthSendTransaction sent =
-                txm.sendTransaction(
-                        BigInteger.ZERO, // gasPrice — 이 체인의 규칙. 넣지 않으면 EIP-1559 필드로 어긋난다
-                        gasLimit(data),
-                        contract.normalizedAddress(),
-                        data,
-                        BigInteger.ZERO);
-        if (sent.hasError()) {
-            log.warn("앵커 tx 전송 거부: {}", sent.getError().getMessage());
-            throw new BusinessException(ErrorCode.CHAIN_UNAVAILABLE);
-        }
-        log.info("앵커 tx 전송: {}", sent.getTransactionHash());
-        return sent.getTransactionHash();
+        // nonce 조회 → 서명(gasPrice 0) → 전송은 TxSender 의 키 락 안에서. receipt 대기는 락 밖(아래 waitForReceipt).
+        String txHash = txSender.send(contract.normalizedAddress(), data, gasLimit(data));
+        log.info("앵커 tx 전송: {}", txHash);
+        return txHash;
     }
 
     private BigInteger gasLimit(String data) throws IOException {

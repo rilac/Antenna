@@ -160,7 +160,7 @@ class CorpInfoServiceTest {
     class Valuation {
 
         @Test
-        @DisplayName("ROE·부채비율은 최신 연간 재무 · 소수 1자리 · PER·PBR 은 null + 사유")
+        @DisplayName("ROE·부채비율은 최신 연간 재무 · 소수 1자리 · 상장주식수가 없으면 PER·PBR 만 null + 사유")
         void 정상() {
             seedFinancial(SAMSUNG, 2024, "CFS", 300, 32, 34, 112, 402);
             seedFinancial(SAMSUNG, 2025, "CFS", 320, 40, 36, 120, 400);
@@ -176,6 +176,80 @@ class CorpInfoServiceTest {
             assertThat(response.basedOn().fiscal()).isEqualTo(2025);
             assertThat(response.basedOn().fsDiv()).isEqualTo("CFS");
             assertThat(response.basedOn().note()).isEqualTo(CorpInfoService.PER_PBR_NOTE);
+        }
+
+        @Test
+        @DisplayName("상장주식수가 있으면 시가총액 지표를 계산한다 — 탐색 목록과 같은 식이다")
+        void 시가총액_지표() {
+            seedShares(SAMSUNG, 10);
+            seedFinancial(SAMSUNG, 2025, "CFS", 1_000_000, 400_000, 350_000, 140_000, 700_000);
+
+            ValuationResponse response = corpInfoService.valuation(SAMSUNG);
+
+            // 종가 70000 × 10주 = 700000. 순이익 350000 → PER 2.00, 자본총계 700000 → PBR 1.00
+            assertThat(response.per()).isEqualByComparingTo("2.00");
+            assertThat(response.pbr()).isEqualByComparingTo("1.00");
+            assertThat(response.roe()).isEqualByComparingTo("50.0");
+            assertThat(response.basedOn().note()).as("값이 다 있으면 사유를 남기지 않는다").isNull();
+        }
+
+        @Test
+        @DisplayName("기준일은 전역 최신이 아니라 그 종목의 마지막 거래일이다 — 종가·PER 이 같은 날에서 나온다")
+        void 기준일은_종목의_마지막_거래일() {
+            seedShares(HALTED, 10);
+            seedFinancial(HALTED, 2025, "CFS", 20_000, 8_000, 5_000, 4_000, 10_000);
+
+            ValuationResponse response = corpInfoService.valuation(HALTED);
+
+            // 다른 종목은 BASE 시세가 있지만 이 종목의 마지막 거래일은 BASE-1 이다.
+            assertThat(response.basedOn().priceDate()).isEqualTo(BASE.minusDays(1));
+            assertThat(response.basedOn().prevClose()).isEqualByComparingTo("1000");
+            // 종가 1000 × 10주 = 10000. 순이익 5000 → PER 2.00, 자본총계 10000 → PBR 1.00
+            assertThat(response.per()).isEqualByComparingTo("2.00");
+            assertThat(response.pbr()).isEqualByComparingTo("1.00");
+        }
+
+        @Test
+        @DisplayName("적자면 PER 만 null — 음수 PER 은 '싸다' 로 읽힌다")
+        void 적자() {
+            seedShares(SAMSUNG, 10);
+            seedFinancial(SAMSUNG, 2025, "CFS", 1_000_000, -50_000, -70_000, 140_000, 700_000);
+
+            ValuationResponse response = corpInfoService.valuation(SAMSUNG);
+
+            assertThat(response.per()).isNull();
+            assertThat(response.pbr()).isEqualByComparingTo("1.00");
+            assertThat(response.basedOn().note()).isNotBlank();
+        }
+
+        @Test
+        @DisplayName("원화가 아닌 재무로는 시가총액 지표를 내지 않는다 — 원화 종가를 달러로 나눌 수 없다")
+        void 통화_불일치() {
+            seedShares(SAMSUNG, 10);
+            seedFinancialInCurrency(SAMSUNG, 2025, "USD", 350_000, 140_000, 700_000);
+
+            ValuationResponse response = corpInfoService.valuation(SAMSUNG);
+
+            assertThat(response.per()).isNull();
+            assertThat(response.pbr()).isNull();
+            assertThat(response.roe()).as("비율은 통화와 무관하다 — 같은 통화끼리 나눈다").isEqualByComparingTo("50.0");
+            assertThat(response.basedOn().note()).isNotBlank();
+        }
+
+        @Test
+        @DisplayName("시세가 한 건도 없으면 기준일·종가가 null 이다")
+        void 시세_없음() {
+            seedStock("000009", "신규상장", SECTOR);
+            seedShares("000009", 10);
+            seedFinancial("000009", 2025, "CFS", 1_000_000, 400_000, 350_000, 140_000, 700_000);
+
+            ValuationResponse response = corpInfoService.valuation("000009");
+
+            assertThat(response.basedOn().priceDate()).isNull();
+            assertThat(response.basedOn().prevClose()).isNull();
+            assertThat(response.per()).isNull();
+            assertThat(response.pbr()).isNull();
+            assertThat(response.roe()).isEqualByComparingTo("50.0");
         }
 
         @Test
@@ -209,14 +283,16 @@ class CorpInfoServiceTest {
         }
 
         @Test
-        @DisplayName("재무 미수집이면 비율 null, 종가 기준일은 그대로 · 기준일 거래정지면 종가만 null")
+        @DisplayName("재무 미수집이면 비율은 null, 종가와 기준일은 그 종목의 마지막 거래일로 함께 온다")
         void 미수집() {
             ValuationResponse response = corpInfoService.valuation(HALTED);
 
             assertThat(response.roe()).isNull();
-            assertThat(response.basedOn().priceDate()).isEqualTo(BASE);
-            assertThat(response.basedOn().prevClose()).isNull();
             assertThat(response.basedOn().fiscal()).isNull();
+            // 예전에는 전역 최신 거래일(BASE)을 기준일이라 말하면서 그날 종가가 없어 null 을 함께
+            // 내려보냈다 — 화면 머리에 "날짜는 있고 가격은 없는" 상태가 됐다.
+            assertThat(response.basedOn().priceDate()).isEqualTo(BASE.minusDays(1));
+            assertThat(response.basedOn().prevClose()).isEqualByComparingTo("1000");
         }
     }
 
@@ -279,6 +355,32 @@ class CorpInfoServiceTest {
                 .setParameter(3, BigDecimal.valueOf(close))
                 .setParameter(4, Instant.now())
                 .executeUpdate();
+    }
+
+    private void seedShares(String code, long shares) {
+        em.createNativeQuery("UPDATE stocks SET listed_shares = ? WHERE code = ?")
+                .setParameter(1, shares)
+                .setParameter(2, code)
+                .executeUpdate();
+        em.flush();
+    }
+
+    /** 통화가 원화가 아닌 연간 재무. 시가총액 지표만 못 내고 비율은 그대로 낸다. */
+    private void seedFinancialInCurrency(
+            String code, int year, String currency, long net, long liabilities, long equity) {
+        em.createNativeQuery(
+                        "INSERT INTO corp_financials (stock_code, fiscal_year, quarter, fs_div, currency,"
+                                + " net_income, total_liabilities, total_equity, updated_at)"
+                                + " VALUES (?, ?, 4, 'CFS', ?, ?, ?, ?, ?)")
+                .setParameter(1, code)
+                .setParameter(2, year)
+                .setParameter(3, currency)
+                .setParameter(4, net)
+                .setParameter(5, liabilities)
+                .setParameter(6, equity)
+                .setParameter(7, Instant.now())
+                .executeUpdate();
+        em.flush();
     }
 
     private void seedFinancial(

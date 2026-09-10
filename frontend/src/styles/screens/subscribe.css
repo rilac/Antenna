@@ -69,7 +69,6 @@
 /* ── 진행 · 결과 ─────────────────────────────────────── */
 .sub-progress{ display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; padding:26px 18px; }
 .sub-progress-title{ margin:0; font-size:14.5px; font-weight:700; color:var(--ink); }
-.sub-progress-title.is-failed{ color:var(--danger); }
 .sub-sub{ margin:0; font-size:12.5px; line-height:1.6; color:var(--muted); max-width:320px; }
 
 .sub-spinner{
@@ -86,12 +85,6 @@
   display:grid; place-items:center;
   width:42px; height:42px; border-radius:999px;
   background:#e7f5ec; color:#15803d;
-}
-
-.sub-code{
-  font-family:var(--mono); font-size:11.5px;
-  padding:3px 8px; border-radius:6px;
-  background:var(--surface-2); color:var(--danger);
 }
 
 .sub-error{

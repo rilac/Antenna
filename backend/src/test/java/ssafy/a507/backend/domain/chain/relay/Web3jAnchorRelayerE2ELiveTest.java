@@ -41,7 +41,8 @@ class Web3jAnchorRelayerE2ELiveTest {
                                 "-", 60, new ChainProperties.Anchor.Retry(3, 10)),
                         new ChainProperties.Indexer("-", 0, 10_000));
         CommitAnchorProperties contract = new CommitAnchorProperties(System.getenv("CONTRACT_COMMIT_ANCHOR"));
-        return new Web3jAnchorRelayer(props, contract, new ChainConnection(props));
+        ChainConnection connection = new ChainConnection(props);
+        return new Web3jAnchorRelayer(props, contract, connection, new TxSender(props, connection));
     }
 
     @Test

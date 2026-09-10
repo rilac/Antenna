@@ -104,7 +104,9 @@ app:
   # 광고 게재(ANT-COMMUNITY-05). 경매가 아니라 고정 단가 × 기간제 선착순이다.
   ads:
     # 1 ANT/일. 금액표(D4)가 확정되면 이 값을 바꾼다.
-    price-per-day-wei: ${AD_PRICE_PER_DAY_WEI:1000000000000000000}
+    # ANT 는 decimals 0 이라(ANT-CHAIN-03) 정수 그대로가 최소 단위다 — 10^18 을 곱하지 않는다.
+    # 이름의 wei 는 금액 필드 형식 통일에서 온 것이고 단위가 wei 라는 뜻이 아니다.
+    price-per-day-wei: ${AD_PRICE_PER_DAY_WEI:1}
     # 메인 배너 자리가 하나다. 자리를 늘리면 이 값만 올린다.
     slot-count: 1
     max-days: 30
@@ -125,6 +127,9 @@ app:
       # 비어 있어도 앱이 뜬다 — 컨트랙트를 배포하지 않은 팀원의 로컬을 죽이지 않는다.
       # 실제 tx 전송은 릴레이어(ANT-CHAIN-05)가 CommitAnchorProperties.isDeployed() 로 막는다.
       address: ${CONTRACT_COMMIT_ANCHOR:}
+    predict-token:
+      # ANT 토큰(ANT-CHAIN-03). 비워 두면 토큰 기능만 꺼지고 서버는 정상 부팅한다.
+      address: ${CONTRACT_PREDICT_TOKEN:}
     # 앵커 배치(ANT-CHAIN-02). 매일 00:05 KST, 주말 포함 — 앵커는 시세가 필요 없고 주말 등록분을
     # 월요일까지 무보호로 두면 안 된다. 실행 시각에 anchor_batch_id 가 NULL 인 커밋 전부가 한 배치다.
     anchor:
@@ -242,7 +247,7 @@ app:
     model: ${AI_MODEL:gpt-5.4-mini}
     # 생성물에 남기는 세대 태그. 프롬프트를 고치면 이 값을 올린다 — 옛 값 행만 골라
     # 다시 생성된다. 값을 그대로 두고 프롬프트만 고치면 이미 만들어진 문장이 갱신되지 않는다.
-    prompt-version: v1
+    prompt-version: v2
     #
     # ── 배치 B6 (2026-09-09 개편) ──────────────────────────────────────────────
     # 배치가 부르는 LLM 은 시장 브리핑 하루 1콜뿐이다. 종목 브리핑(≈300콜/일)은 없앴고, 투자
@@ -253,3 +258,25 @@ app:
     # "-" 는 Spring 의 cron 비활성 표시(Scheduled.CRON_DISABLED) — 사고 직후 껐다(김성령/KSR).
     # 켜려면 "0 30 20 * * *" (뉴스 수집 20:00 의 30분 뒤). 하루 1콜이라 다시 켜도 된다.
     generation-cron: "-"
+    #
+    # ── 자체 서빙(교내 GPU) ────────────────────────────────────────────────────
+    # 위 app.ai 와 나눈 이유는 품질과 한도가 반대라서다. 문장을 만드는 일(포인트·브리핑·복기)은
+    # 상용 모델이 낫고 호출이 적다. 뉴스 관련도 판정은 기사 한 건에 한 콜이라 하루 1,000콜을
+    # 넘겨 무료 티어 한도를 넘는데, 짧은 이진 답이라 자체 서빙 모델로 충분하다.
+    #
+    # 교내 GPU 는 vLLM 이 OpenAI Chat Completions 를 그대로 낸다 — 서버에 우리 코드는 없다.
+    #   vllm serve Qwen/Qwen2.5-32B-Instruct-AWQ --port 8100 --api-key <키> \
+    #     --served-model-name antenna --max-model-len 8192 --gpu-memory-utilization 0.85
+    # EC2 에서 교내망으로 들어갈 수 없어 GPU 쪽에서 ssh 역터널을 건다(.env.example 의 GPU 절).
+    #
+    # 키·주소가 비어 있으면 판정 배치를 아예 돌리지 않는다. 그 환경에서는 재료 선정이
+    # NewsIngestService.isNoise 정규식으로 떨어진다 — 거친 규칙이지만 야구 기사는 막는다.
+    gpu:
+      api-key: ${AI_GPU_API_KEY:}
+      base-url: ${AI_GPU_BASE_URL:}
+      # vLLM --served-model-name 값. 모델을 바꿔도 이 이름을 고정하면 설정이 안 바뀐다.
+      model: ${AI_GPU_MODEL:antenna}
+      # 판정에 남기는 세대 태그. 지시문을 고치면 올린다 — 옛 값 행만 다시 판정된다.
+      prompt-version: ${AI_GPU_PROMPT_VERSION:v1}
+      # 뉴스 수집(20:00) 한 시간 뒤. 터널을 세우고 나서 "0 0 21 * * *" 로 켠다.
+      relevance-cron: ${AI_GPU_RELEVANCE_CRON:-}
