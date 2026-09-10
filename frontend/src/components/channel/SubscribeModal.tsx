@@ -32,6 +32,7 @@ import { requestNonce, signingPayload } from '../../api/wallet'
 import { connectAddress, hasWallet, personalSign } from '../../wallet/provider'
 import { useAuth } from '../../auth/context'
 import { errorText } from '../state/errorText'
+import OperationProgress from '../operation/OperationProgress'
 import '../../styles/screens/subscribe.css'
 
 /* confirm  가격·기간·위임을 펼쳐 놓고 동의를 기다린다 (SignConfirm)
@@ -196,41 +197,11 @@ export default function SubscribeModal({ channel, onClose, onSubscribed, onNeedW
           </div>
         )}
 
+        {/* 대기·실패 갈래는 M-02 공유 본문이 그린다([ANT-FE-OPERATION]).
+            여기서 따로 쓰면 같은 상황을 네 흐름이 제각기 말하게 된다 */}
         {view === 'waiting' && (
-          <div className="sub-body sub-progress" aria-live="polite">
-            {status === 'FAILED' ? (
-              <>
-                <p className="sub-progress-title is-failed">결제가 체인에서 실패했습니다</p>
-                {/* 사유 문자열은 인덱서가 만든 것이라 옮기지 않는다 — 옮기면 검색이 안 된다 */}
-                {op.operation?.error && <code className="sub-code">{op.operation.error.code}</code>}
-                <p className="sub-sub">토큰은 차감되지 않았습니다. 잠시 후 다시 시도해 주세요.</p>
-              </>
-            ) : op.timedOut ? (
-              <>
-                {/* 실패로 단정하지 않는다. 성공한 결제를 실패로 알리는 쪽이 더 나쁘다 */}
-                <p className="sub-progress-title">확인이 늦어지고 있습니다</p>
-                <p className="sub-sub">
-                  결제가 취소된 것은 아닙니다. 체인이 붐비면 몇 분 더 걸릴 수 있습니다.
-                </p>
-                <button type="button" className="sub-btn" onClick={op.recheck}>다시 확인</button>
-              </>
-            ) : (
-              <>
-                <span className="sub-spinner" aria-hidden="true" />
-                <p className="sub-progress-title">결제를 체인에서 확인하고 있습니다</p>
-                <p className="sub-sub">
-                  이 창을 닫아도 결제는 계속됩니다. 완료되면 알림으로 알려 드립니다.
-                </p>
-              </>
-            )}
-
-            {op.error && (
-              <p className="sub-error" role="alert">
-                <b>{errorText(op.error).title}</b>
-                <button type="button" className="sub-btn" onClick={op.recheck}>다시 확인</button>
-              </p>
-            )}
-
+          <div className="sub-body">
+            <OperationProgress op={op} kind="SUBSCRIBE" />
             <div className="sub-actions">
               <button type="button" className="sub-btn" onClick={close}>닫기</button>
             </div>

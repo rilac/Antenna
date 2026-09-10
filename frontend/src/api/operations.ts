@@ -12,7 +12,7 @@
    그래서 결과를 알 방법이 조회뿐이다. */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './client'
-import type { ApiError } from './errors'
+import { ERROR_CODE, type ApiError } from './errors'
 
 /** 202 를 쓰는 네 곳. POST /wallet/nonce 의 scope 어휘와 같다(WALLET_LINK 만 빠진다) */
 export const OPERATION_KINDS = ['PREDICTION_BURN', 'SUBSCRIBE', 'AD', 'SEASON_JOIN'] as const
@@ -60,10 +60,27 @@ export type OperationState = {
   polling: boolean
   /** 상한을 넘겨 그만 물었다. 실패가 아니라 판정 보류다 */
   timedOut: boolean
+  /**
+   * 404. **오류가 아니다.**
+   *
+   * 종료된 작업은 24시간 뒤 정리되어 사라진다(명세 §1-4). 그 뒤에 링크를 다시 열거나
+   * 탭을 하루 열어 둔 채 새로고침하면 여기로 온다. "찾을 수 없습니다" 를 오류로 띄우면
+   * 사용자는 결제가 잘못된 줄 아는데, 실제로는 **이미 끝난 지 오래인 작업**이다.
+   */
+  expired: boolean
+  /**
+   * 403. 남의 작업을 조회했다.
+   *
+   * 이 모달이 403 을 실제로 만나는 유일한 화면이다(티켓). operationId 가 UUID 라 우연히
+   * 마주치지 않고, 링크를 받아 열었을 때만 생긴다 — 재시도로 풀릴 일이 아니라 그만 묻는다.
+   */
+  forbidden: boolean
   error: ApiError | null
 }
 
-const IDLE: OperationState = { operation: null, polling: false, timedOut: false, error: null }
+const IDLE: OperationState = {
+  operation: null, polling: false, timedOut: false, expired: false, forbidden: false, error: null,
+}
 
 /**
  * operationId 가 들어오면 확정될 때까지 묻는다. null 이면 아무것도 하지 않는다.
@@ -95,20 +112,35 @@ export function useOperation(operationId: string | null) {
         if (operation.status === 'PENDING') {
           attempts += 1
           if (attempts >= MAX_ATTEMPTS) {
-            setState({ operation, polling: false, timedOut: true, error: null })
+            setState({ ...IDLE, operation, timedOut: true })
             return
           }
-          setState({ operation, polling: true, timedOut: false, error: null })
+          setState({ ...IDLE, operation, polling: true })
           timer = setTimeout(() => { void ask(id) }, INTERVAL_MS)
           return
         }
         // SUCCEEDED · FAILED 는 종착이다. 더 묻지 않는다.
-        setState({ operation, polling: false, timedOut: false, error: null })
+        setState({ ...IDLE, operation })
       } catch (e) {
         if (stopped || mine !== gen.current) return
-        /* 조회가 실패했다고 결제가 실패한 것은 아니다. 그래서 status 를 건드리지 않고
+        const err = e as ApiError
+
+        /* 404·403 은 "조회가 잠깐 실패" 가 아니라 종착이다. 다시 물어도 같은 답이 오므로
+           폴링을 멈추고, 화면이 오류가 아닌 제 문구를 쓰도록 따로 표시한다.
+           code 를 먼저 보고 status 로 받치는 것은 오류 계약을 못 지키는 응답(본문 없는
+           404 등)이 섞여 들어와도 뜻을 잃지 않게 하려는 것이다. */
+        if (err.code === ERROR_CODE.OPERATION_NOT_FOUND || err.status === 404) {
+          setState({ ...IDLE, expired: true })
+          return
+        }
+        if (err.code === ERROR_CODE.OPERATION_FORBIDDEN || err.status === 403) {
+          setState({ ...IDLE, forbidden: true })
+          return
+        }
+
+        /* 그 밖의 조회 실패는 결제가 실패한 것이 아니다. 그래서 status 를 건드리지 않고
            오류만 얹는다 — 화면이 "다시 확인" 을 줄 수 있게. */
-        setState((s) => ({ ...s, polling: false, error: e as ApiError }))
+        setState((s) => ({ ...s, polling: false, error: err }))
       }
     }
 
