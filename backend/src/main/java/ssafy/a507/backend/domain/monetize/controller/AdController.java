@@ -16,6 +16,7 @@ import ssafy.a507.backend.domain.chain.entity.Operation;
 import ssafy.a507.backend.domain.monetize.dto.AdActiveResponse;
 import ssafy.a507.backend.domain.monetize.dto.AdCreateRequest;
 import ssafy.a507.backend.domain.monetize.dto.AdCreateResponse;
+import ssafy.a507.backend.domain.monetize.dto.AdPricingResponse;
 import ssafy.a507.backend.domain.monetize.service.AdService;
 
 /** 스폰서드 광고 — ANT-COMMUNITY-05. */
@@ -66,5 +67,15 @@ public class AdController {
     @GetMapping("/active")
     public AdActiveResponse active() {
         return adService.active();
+    }
+
+    /**
+     * 게재 조건 — ANT-COMMUNITY-08. 등록 화면이 서명 전에 보여줄 금액의 출처다.
+     *
+     * <p>인증만 요구한다. 광고 등록 화면 자체가 로그인 뒤에 열리고, 단가는 숨기는 값이 아니다.
+     */
+    @GetMapping("/pricing")
+    public AdPricingResponse pricing() {
+        return adService.pricing();
     }
 }
