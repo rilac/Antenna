@@ -13,11 +13,14 @@ import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.methods.request.EthFilter;
 import org.web3j.protocol.core.methods.response.EthBlock;
 import org.web3j.protocol.core.methods.response.EthBlockNumber;
+import org.web3j.protocol.core.methods.response.EthGetTransactionReceipt;
 import org.web3j.protocol.core.methods.response.EthLog;
 import org.web3j.protocol.core.methods.response.Log;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.domain.chain.config.CommitAnchorProperties;
+import ssafy.a507.backend.domain.chain.config.PredictTokenProperties;
 import ssafy.a507.backend.domain.chain.relay.ChainConnection;
 
 /**
@@ -33,10 +36,14 @@ public class Web3jChainLogSource implements ChainLogSource {
 
     private final ChainConnection connection;
     private final CommitAnchorProperties contract;
+    /** 토큰 인덱서 ②(ANT-CHAIN-11)가 읽는 PredictToken. 비어 있으면 {@link #tokenLogs} 는 빈 목록이다. */
+    private final PredictTokenProperties token;
 
-    public Web3jChainLogSource(ChainConnection connection, CommitAnchorProperties contract) {
+    public Web3jChainLogSource(
+            ChainConnection connection, CommitAnchorProperties contract, PredictTokenProperties token) {
         this.connection = connection;
         this.contract = contract;
+        this.token = token;
     }
 
     @Override
@@ -99,6 +106,48 @@ public class Web3jChainLogSource implements ChainLogSource {
                         return Optional.empty();
                     }
                     return Optional.of(block.getHash().toLowerCase(Locale.ROOT));
+                });
+    }
+
+    @Override
+    public List<TokenLog> tokenLogs(long fromBlock, long toBlock) {
+        if (!token.isDeployed()) {
+            return List.of();
+        }
+        return withReconnect(
+                () -> {
+                    EthFilter filter =
+                            new EthFilter(
+                                    DefaultBlockParameter.valueOf(BigInteger.valueOf(fromBlock)),
+                                    DefaultBlockParameter.valueOf(BigInteger.valueOf(toBlock)),
+                                    token.normalizedAddress());
+                    // topic0 ∈ {Minted, Burned, Subscribed}. ERC-20 Transfer·RoleGranted 는 노드가 걸러 준다.
+                    filter.addOptionalTopics(TokenLogDecoder.TOPICS.toArray(new String[0]));
+                    EthLog res = connection.web3j().ethGetLogs(filter).send();
+                    if (res.hasError()) {
+                        log.warn("eth_getLogs(token) [{}, {}] 실패: {}", fromBlock, toBlock, res.getError().getMessage());
+                        throw new BusinessException(ErrorCode.CHAIN_UNAVAILABLE);
+                    }
+                    List<TokenLog> out = new ArrayList<>();
+                    for (EthLog.LogResult<?> r : res.getLogs()) {
+                        if (r.get() instanceof Log l) {
+                            TokenLogDecoder.decode(l).ifPresent(out::add);
+                        }
+                    }
+                    out.sort(Comparator.comparingLong(TokenLog::blockNumber).thenComparingInt(TokenLog::logIndex));
+                    return out;
+                });
+    }
+
+    @Override
+    public Optional<Boolean> receiptStatus(String txHash) {
+        return withReconnect(
+                () -> {
+                    EthGetTransactionReceipt res = connection.web3j().ethGetTransactionReceipt(txHash).send();
+                    if (res.hasError()) {
+                        throw new BusinessException(ErrorCode.CHAIN_UNAVAILABLE);
+                    }
+                    return res.getTransactionReceipt().map(TransactionReceipt::isStatusOK);
                 });
     }
 

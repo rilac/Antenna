@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import ssafy.a507.backend.domain.chain.config.ChainProperties;
 import ssafy.a507.backend.domain.chain.config.CommitAnchorProperties;
+import ssafy.a507.backend.domain.chain.config.PredictTokenProperties;
 import ssafy.a507.backend.domain.chain.relay.ChainConnection;
 
 /**
@@ -38,7 +39,7 @@ class AnchorIndexerE2ELiveTest {
                         new ChainProperties.Anchor("-", 60, new ChainProperties.Anchor.Retry(3, 10)),
                         new ChainProperties.Indexer("-", DEPLOY_BLOCK, 10_000));
         CommitAnchorProperties contract = new CommitAnchorProperties(System.getenv("CONTRACT_COMMIT_ANCHOR"));
-        return new Web3jChainLogSource(new ChainConnection(props), contract);
+        return new Web3jChainLogSource(new ChainConnection(props), contract, new PredictTokenProperties(null));
     }
 
     @Test

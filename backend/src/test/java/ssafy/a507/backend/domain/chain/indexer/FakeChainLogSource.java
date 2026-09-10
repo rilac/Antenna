@@ -31,19 +31,72 @@ public class FakeChainLogSource implements ChainLogSource {
     public record Range(long from, long to) {}
 
     private final List<AnchoredLog> logs = new ArrayList<>();
+    /** 토큰 인덱서 ②(ANT-CHAIN-11) 용. 앵커 로그와 별도 목록 — 컨트랙트가 다르다. */
+    private final List<TokenLog> tokenLogs = new ArrayList<>();
+    /** tx 해시 → receipt status. 없으면 "아직 채굴 안 됨". */
+    private final Map<String, Boolean> receipts = new HashMap<>();
     private final Map<Long, String> blockHashOverrides = new HashMap<>();
     private final List<Range> ranges = new ArrayList<>();
+    private final List<Range> tokenRanges = new ArrayList<>();
     private long head = 0;
     private boolean unavailable = false;
     private int latestBlockCalls = 0;
+    private int receiptCalls = 0;
 
     public void reset() {
         logs.clear();
+        tokenLogs.clear();
+        receipts.clear();
         blockHashOverrides.clear();
         ranges.clear();
+        tokenRanges.clear();
         head = 0;
         unavailable = false;
         latestBlockCalls = 0;
+        receiptCalls = 0;
+    }
+
+    public FakeChainLogSource add(TokenLog log) {
+        tokenLogs.add(log);
+        if (log.blockNumber() > head) {
+            head = log.blockNumber();
+        }
+        return this;
+    }
+
+    /** receipt 를 심는다. true = 성공, false = revert. 안 심으면 "아직 채굴 안 됨". */
+    public FakeChainLogSource receipt(String txHash, boolean ok) {
+        receipts.put(txHash, ok);
+        return this;
+    }
+
+    public List<Range> tokenRanges() {
+        return tokenRanges;
+    }
+
+    public int receiptCalls() {
+        return receiptCalls;
+    }
+
+    @Override
+    public List<TokenLog> tokenLogs(long fromBlock, long toBlock) {
+        failIfUnavailable();
+        tokenRanges.add(new Range(fromBlock, toBlock));
+        List<TokenLog> out = new ArrayList<>();
+        for (TokenLog l : tokenLogs) {
+            if (l.blockNumber() >= fromBlock && l.blockNumber() <= toBlock) {
+                out.add(l);
+            }
+        }
+        out.sort(java.util.Comparator.comparingLong(TokenLog::blockNumber).thenComparingInt(TokenLog::logIndex));
+        return out;
+    }
+
+    @Override
+    public Optional<Boolean> receiptStatus(String txHash) {
+        failIfUnavailable();
+        receiptCalls++;
+        return Optional.ofNullable(receipts.get(txHash));
     }
 
     public FakeChainLogSource head(long head) {
@@ -106,6 +159,11 @@ public class FakeChainLogSource implements ChainLogSource {
             return Optional.ofNullable(blockHashOverrides.get(blockNumber));
         }
         for (AnchoredLog l : logs) {
+            if (l.blockNumber() == blockNumber) {
+                return Optional.of(l.blockHash());
+            }
+        }
+        for (TokenLog l : tokenLogs) {
             if (l.blockNumber() == blockNumber) {
                 return Optional.of(l.blockHash());
             }
