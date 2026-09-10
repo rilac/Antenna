@@ -51,4 +51,20 @@ public class TokenLedger {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    /**
+     * 인덱서 ②(ANT-CHAIN-11)가 체인 이벤트 하나를 원장 한 행으로 옮긴다. 원장은 이벤트로만 쓴다 — 서버가 잔액을
+     * 직접 더하거나 빼는 길은 없다. 그래서 {@code chainEvent} 가 필수다(컬럼은 nullable 이지만 이 팩터리는 항상 채운다).
+     *
+     * @param delta  부호 있는 정수 ANT(decimals 0). mint·수입은 +, burn·구독료는 −
+     * @param reason {@code TokenReason} 이름, 또는 enum 에 없는 이벤트 값의 ASCII 원문(이관·수동 tx)
+     */
+    public static TokenLedger record(User user, BigInteger delta, String reason, ChainEvent chainEvent) {
+        TokenLedger l = new TokenLedger();
+        l.user = user;
+        l.delta = delta;
+        l.reason = reason;
+        l.chainEvent = chainEvent;
+        return l;
+    }
 }
