@@ -66,6 +66,11 @@ app:
   cors:
     allowed-origins: http://localhost:5173
 
+  # 판정 배치(ANT-PRED-03·04). "-" 는 스프링의 스케줄 비활성 표시다 — 등록은 검증되고 실행만 빠진다.
+  # 켜 두면 테스트 중에 배치가 H2 의 픽스처를 전이시켜 다른 테스트가 흔들린다.
+  prediction:
+    settle-cron: "-"
+
   # 주소·RPC·키 미설정 상태가 곧 검증 대상이다 — 배포 전에도 컨텍스트가 떠야 한다.
   # 앵커 배치 테스트는 FakeAnchorRelayer(@Primary)를 쓰고 스케줄은 "-" 로 끈다.
   chain:
