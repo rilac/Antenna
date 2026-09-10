@@ -29,9 +29,8 @@
                                401 서명 주소 불일치 · 409 잔액 부족
 
        noteSalt 와 서명 문자열 규격은 ANT-PRED-02 가 정했다 — 아래 "커밋 봉인" 절.
-       **scope 만 아직 PREDICTION_BURN 이다.** 규격은 PREDICTION 으로 바뀔 예정인데
-       (결정 B4) 서버 SignatureScope 에 그 값이 아직 없어, 지금 바꾸면 nonce 발급이
-       400 으로 막힌다. PRED-01 이 열릴 때 PredictTab 의 scope 한 곳만 바꾼다.
+       scope 는 PREDICTION 이다(결정 B4). 서버 PredictionCreateRequest.scope() 와 같은
+       값이라야 nonce 칸 sig:nonce:{userId}:prediction 이 맞는다 — PredictTab 참고.
 
      GET /predictions/me?status=JUDGED
        HIT·MISS 를 묶는 어휘 한 개. 지금 어휘로는 "판정 완료" 를 한 번에 받을 수
