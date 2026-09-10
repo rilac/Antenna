@@ -1,0 +1,122 @@
+/* M-02 온체인 처리 대기 — [ANT-FE-OPERATION]
+   설계서 §3 M · §7 OperationPoller
+
+   두 가지로 쓰인다.
+   - .op 본문만: E-02 구독 모달 · H-04 광고 화면 안에 끼워 넣는다
+   - .op-backdrop~.op-modal: C-01 · G-03 이 창째로 띄운다
+
+   그래서 .op 는 자기 배경·테두리를 갖지 않는다. 감싸는 쪽 카드가 이미 갖고 있고,
+   여기서 또 그리면 화면 안에 상자가 두 겹으로 보인다. */
+
+/* ── 본문 ────────────────────────────────────────────── */
+.op{
+  display:flex; flex-direction:column; align-items:center; gap:9px;
+  padding:40px 20px; text-align:center;
+}
+.op-title{ margin:0; font-size:15px; font-weight:800; color:var(--ink); }
+.op-title.is-failed{ color:var(--danger); }
+.op-sub{ margin:0; font-size:12.5px; line-height:1.6; color:var(--muted); max-width:340px; }
+
+.op-spinner{
+  width:26px; height:26px; margin-bottom:2px;
+  border:2.5px solid var(--brand-soft); border-top-color:var(--brand);
+  border-radius:999px;
+  animation:op-spin .8s linear infinite;
+}
+@keyframes op-spin{ to{ transform:rotate(360deg); } }
+/* 계속 도는 것이라 멀미를 부른다. 끄면 정지한 고리가 남아 자리는 그대로다 */
+@media (prefers-reduced-motion:reduce){ .op-spinner{ animation:none; } }
+
+.op-check{
+  display:grid; place-items:center;
+  width:42px; height:42px; border-radius:999px;
+  background:#e7f5ec; color:#15803d;
+}
+
+/* 인덱서가 만든 코드를 그대로 보인다 — 옮겨 적으면 검색이 안 된다 */
+.op-code{
+  font-family:var(--mono); font-size:11.5px;
+  padding:3px 8px; border-radius:6px;
+  background:var(--surface-2); color:var(--danger);
+}
+
+/* 체인 장애는 이 안에서만 표현한다(티켓 제약). 전역 배너 자리를 쓰지 않는다 */
+/* 색은 .ad-error · .sub-error 와 같은 값이다 — 같은 뜻의 상자가 화면마다 달라 보이면 안 된다 */
+.op-error{
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  margin:6px 0 0; padding:10px 12px;
+  border:1px solid #f3c9c9; border-radius:9px; background:#fdf4f4;
+  font-size:12.5px; line-height:1.6; color:var(--danger);
+}
+.op-error b{ font-weight:700; }
+
+/* ── 버튼 ────────────────────────────────────────────── */
+.op-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  height:34px; padding:0 14px;
+  border:1px solid var(--rule); border-radius:9px;
+  background:var(--surface); color:var(--ink);
+  font-size:13px; font-weight:700; text-decoration:none;
+  cursor:pointer;
+}
+.op-btn:hover{ background:var(--surface-2); }
+.op-btn.solid{
+  border-color:transparent; background:var(--brand); color:#fff;
+}
+.op-btn.solid:hover{ filter:brightness(.96); }
+
+/* ── 창 (C-01 · G-03) ────────────────────────────────── */
+.op-backdrop{
+  position:fixed; inset:0; z-index:60;   /* 사이드바(40)·상단바(30) 위 */
+  display:flex; align-items:center; justify-content:center;
+  padding:20px;
+  background:rgba(20,20,27,.44);
+}
+
+/* 치수는 M-01 wallet-link · M-03 subscribe 와 같다 — 셋이 잇달아 뜰 수 있어
+   크기가 다르면 화면이 튄다 */
+.op-modal{
+  width:100%; max-width:440px;
+  background:var(--surface);
+  border-radius:14px;
+  box-shadow:0 24px 60px -20px rgba(20,20,27,.4);
+  outline:none;
+  max-height:calc(100vh - 40px);
+  display:flex; flex-direction:column;
+}
+
+.op-head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:15px 16px 13px;
+  border-bottom:1px solid var(--rule);
+}
+.op-head h2{ margin:0; font-size:15px; font-weight:800; color:var(--ink); }
+
+.op-x{
+  display:grid; place-items:center;
+  width:28px; height:28px; flex:none;
+  border:0; border-radius:8px; background:transparent;
+  color:var(--muted); cursor:pointer;
+}
+.op-x:hover{ background:var(--surface-2); color:var(--ink); }
+
+.op-body{ padding:0 16px; overflow:auto; }
+
+.op-actions{
+  display:flex; justify-content:flex-end; gap:8px;
+  padding:13px 16px;
+  border-top:1px solid var(--rule);
+}
+
+/* 닫기가 취소가 아니라는 안내. 조용히, 그러나 창 안에 */
+.op-foot{
+  margin:0; padding:0 16px 14px;
+  font-size:11.5px; line-height:1.55; color:var(--muted); text-align:right;
+}
+
+@media (max-width:560px){
+  .op{ padding:32px 12px; }
+  .op-actions{ flex-direction:column-reverse; }
+  .op-actions .op-btn{ width:100%; }
+  .op-foot{ text-align:center; }
+}
