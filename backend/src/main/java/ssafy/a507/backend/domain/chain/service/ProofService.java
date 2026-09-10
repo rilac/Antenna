@@ -1,6 +1,7 @@
 package ssafy.a507.backend.domain.chain.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -141,10 +142,19 @@ public class ProofService {
                 batch.getChainId());
     }
 
+    /**
+     * ③단계(판정 종가 ↔ 공공데이터 원본 대조) 재료.
+     *
+     * <p>{@code sourceUrl} 의 날짜는 <b>실제로 판정에 쓴 거래일</b>({@code settled_on})이다. 만기일이 아니다 —
+     * 만기일이 휴장이면 판정 배치가 그 이후 첫 거래일 종가를 쓰는데(ANT-PRED-04), 만기일로 포털을 열면 빈 응답이 와서
+     * 사용자가 우리 종가를 대조할 방법이 없어진다. horizon 30 은 기준일이 목·금이면 만기가 주말이라 드문 일이 아니다.
+     * 판정 전 데이터(settled_on 이 비어 있는 옛 행)는 만기일로 물러선다.
+     */
     private static ProofResponse.Settle settleOf(Prediction p) {
         String sourceUrl = null;
-        if (p.getSettleDate() != null && p.getStock() != null) {
-            sourceUrl = PUBLIC_DATA_PRICE_URL.formatted(BAS_DT.format(p.getSettleDate()), p.getStock().getCode());
+        LocalDate pricedOn = p.getSettledOn() != null ? p.getSettledOn() : p.getSettleDate();
+        if (pricedOn != null && p.getStock() != null) {
+            sourceUrl = PUBLIC_DATA_PRICE_URL.formatted(BAS_DT.format(pricedOn), p.getStock().getCode());
         }
         return new ProofResponse.Settle(
                 p.getStatus(), p.getSettleDate(), p.getSettlePrice(), p.getBasePrice(), p.getErrorRate(), sourceUrl);
