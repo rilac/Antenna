@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
@@ -23,8 +24,10 @@ import ssafy.a507.backend.common.ai.AiException;
 import ssafy.a507.backend.common.ai.AiProperties;
 import ssafy.a507.backend.domain.market.entity.Stock;
 import ssafy.a507.backend.domain.market.repository.DailyQuoteRepository;
+import ssafy.a507.backend.domain.research.entity.NewsSignal;
 import ssafy.a507.backend.domain.research.entity.ResearchDocument;
 import ssafy.a507.backend.domain.research.entity.ResearchPoint;
+import ssafy.a507.backend.domain.research.repository.NewsSignalRepository;
 import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
 import ssafy.a507.backend.domain.research.repository.ResearchPointRepository;
 
@@ -108,6 +111,7 @@ public class ResearchPointGenerationService {
     private final StockMaterials stockMaterials;
     private final ResearchPointRepository researchPointRepository;
     private final ResearchDocumentRepository researchDocumentRepository;
+    private final NewsSignalRepository newsSignalRepository;
     private final DailyQuoteRepository dailyQuoteRepository;
 
     /**
@@ -178,16 +182,47 @@ public class ResearchPointGenerationService {
         Instant endOfTarget = targetDate.plusDays(1).atStartOfDay(KST).toInstant();
         Map<Long, ResearchDocument> documents = new LinkedHashMap<>();
         for (ResearchDocument.Source source : List.of(ResearchDocument.Source.NEWS, ResearchDocument.Source.DART)) {
-            researchDocumentRepository
-                    .findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
-                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE * 2))
-                    .stream()
-                    // 수집 필터 전에 쌓인 야구 기사가 DB 에 남아 있다. 재료 선정에서 한 번 더 거른다.
-                    .filter(d -> source == ResearchDocument.Source.DART || !NewsIngestService.isNoise(d.getTitle(), d.getSnippet()))
+            // 무관 기사가 섞여 있으므로 쓸 개수의 두 배를 뽑아 거른 뒤 자른다.
+            List<ResearchDocument> candidates =
+                    researchDocumentRepository.findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
+                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE * 2));
+            if (source == ResearchDocument.Source.DART) {
+                // 공시는 회사가 스스로 낸 것이라 무관할 수 없다.
+                candidates.stream().limit(DOCS_PER_SOURCE).forEach(d -> documents.put(d.getId(), d));
+                continue;
+            }
+            Map<Long, Boolean> signals = signals(candidates);
+            candidates.stream()
+                    .filter(d -> isMaterial(d, signals))
                     .limit(DOCS_PER_SOURCE)
                     .forEach(d -> documents.put(d.getId(), d));
         }
         return documents;
+    }
+
+    /** 후보 문서들의 관련도 판정. 없는 문서는 지도에 들어가지 않는다. */
+    private Map<Long, Boolean> signals(List<ResearchDocument> candidates) {
+        if (candidates.isEmpty()) {
+            return Map.of();
+        }
+        return newsSignalRepository
+                .findByDocument_IdIn(candidates.stream().map(ResearchDocument::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(s -> s.getDocument().getId(), NewsSignal::isRelevant));
+    }
+
+    /**
+     * 이 기사를 재료로 쓸지. GPU 판정이 있으면 그것을 따른다.
+     *
+     * <p>판정이 없으면 스포츠 어휘 정규식으로 떨어진다 — 판정 배치가 아직 안 돌았거나
+     * {@code app.ai.gpu} 설정이 없는 환경이다. 정규식은 사업 기사도 함께 버리는 거친 규칙이지만,
+     * 판정이 없는 날 야구 기사가 위험 요인으로 올라가는 쪽보다는 낫다.
+     */
+    private static boolean isMaterial(ResearchDocument document, Map<Long, Boolean> signals) {
+        Boolean relevant = signals.get(document.getId());
+        return relevant != null
+                ? relevant
+                : !NewsIngestService.isNoise(document.getTitle(), document.getSnippet());
     }
 
     private static String documentBlock(Map<Long, ResearchDocument> documents) {
