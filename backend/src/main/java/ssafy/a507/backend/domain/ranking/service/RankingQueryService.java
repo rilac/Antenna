@@ -22,8 +22,9 @@ import ssafy.a507.backend.domain.ranking.repository.RankingRepository;
  * 이 클래스는 필터를 키로 바꿔 한 장을 떠올 뿐이다. 요청 시점 재계산은 명세가 금지한다 —
  * 같은 시각에 두 사람이 본 순위가 달라지면 안 된다.
  *
- * <p>ponytail: Redis 캐시를 건너뛰고 rankings 를 직접 읽는다. 캐시를 채우는 쪽이 아직 없어서다(ANT-RANK-01).
- * 배치가 생기면 이 메서드 안에서만 캐시를 먼저 보게 바꾸면 되고, 컨트롤러·응답 계약은 그대로다.
+ * <p>ponytail: Redis 캐시를 건너뛰고 rankings 를 직접 읽는다. AC 의 "Redis 스냅샷" 과 다른 결정이고
+ * 명세 v0.31 에서 확정했다 — 요청 시 재계산을 막는 일은 이 표가 이미 하고 있다. 조회가 느리다는
+ * 측정이 나오면 이 메서드 안에서만 캐시를 먼저 보게 바꾸면 되고, 컨트롤러·응답 계약은 그대로다.
  */
 @Service
 @RequiredArgsConstructor
