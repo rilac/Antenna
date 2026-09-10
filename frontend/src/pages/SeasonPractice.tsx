@@ -57,21 +57,29 @@ const Ico = ({ size = 24, children }: { size?: number; children: React.ReactNode
   </svg>
 )
 
-/* ── 연습 주제 아이콘 ───────────────────────────────────────
+/* ── 연습 주제 아이콘 ───────────────────────────
    주제 이름과 설명은 서버가 준다(seasons.title·note · API 명세 v0.24) — 화면에
    하드코딩하지 않는다(설계서 §4 G-02a). 여기 남은 것은 theme 별 도형뿐이다.
 
-   그림으로 시대를 알려주지 않으려고 프로토타입의 시나리오 일러스트 대신
-   도형만 쓴다. 모르는 theme 은 기본 도형으로 떨어진다. */
-const THEME_ICON: Record<string, React.ReactNode> = {
-  IT: <><rect x="7" y="7" width="10" height="10" rx="1.5" /><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4" /></>,
-  FINANCE: <><circle cx="7.5" cy="7.5" r="2.5" /><circle cx="16.5" cy="16.5" r="2.5" /><path d="M19 5 5 19" /></>,
-  AUTO: <><path d="M4 15h16l-1.6-5.2A2 2 0 0 0 16.5 8h-9a2 2 0 0 0-1.9 1.8z" /><path d="M4 15v3h3M20 15v3h-3" /><circle cx="7.5" cy="18" r="1.6" /><circle cx="16.5" cy="18" r="1.6" /></>,
+   도형은 업종이 아니라 그 구간의 지수 모양이다. 업종을 그리면 "반도체가 오른
+   구간" 이 되어 시기가 좁혀진다 — 숨기려는 것을 그림이 말해 버린다. */
+const SHAPE = {
+  FALL_REBOUND:  <path d="M4 7 L10 19 L20 11" />,
+  PEAK_PULLBACK: <path d="M4 18 L13 6 L20 11" />,
+  SLOW_RISE:     <path d="M4 16 L9 14.5 L14 12 L20 9" />,
+  FLAT:          <path d="M3 12 L8 12 L10 9.5 L12 14 L14 10.5 L16 12 L21 12" />,
+  DECLINE:       <path d="M4 6 L9 6 L9 12 L14 12 L14 17.5 L20 17.5" />,
 }
 
-const DEFAULT_ICON = (
-  <><path d="M3 20h18" /><path d="M6 20v-7M11 20v-11M16 20v-5" /></>
-)
+const THEME_ICON: Record<string, React.ReactNode> = {
+  ...SHAPE,
+  // 서버가 아직 업종명을 보낸다. theme 이 모양 코드로 바뀌면 이 세 줄을 지운다.
+  '운송장비·부품': SHAPE.FALL_REBOUND,
+  '전기·전자': SHAPE.PEAK_PULLBACK,
+  '화학': SHAPE.SLOW_RISE,
+}
+
+const DEFAULT_ICON = <path d="M4 15 L10 11 L14 14 L20 8" />
 
 const themeIcon = (theme?: string) =>
   (theme && THEME_ICON[theme]) ?? DEFAULT_ICON
