@@ -278,6 +278,10 @@ export default function SeasonPractice() {
      주제로 시즌을 고르는 길은 아직 서버에 없어 주제 카드도 같은 곳을 가리킨다. */
   const first = open[0]
   const startAt = first ? `/sim/seasons/${first.id}` : '/sim/modes'
+
+  /* AI 가이드의 복기 버튼이 가리킬 판. 복기는 결과 화면(G-08)에만 있고
+     기록 목록(G-09)에는 없다 — 가장 최근에 끝낸 판으로 곧장 보낸다. */
+  const lastDone = [...done].sort(recentFirst)[0]
   const topicsFailure = shown(openList.error)
 
   return (
@@ -370,7 +374,13 @@ export default function SeasonPractice() {
                   <br />
                   연습 종료 후 자동으로 만들어집니다.
                 </p>
-                <Link className="pr-hint" to="/sim/history">지난 연습 복기 보기</Link>
+                {/* 끝낸 판이 없으면 볼 복기도 없다 — 버튼을 빼고 안내만 남긴다.
+                    윗 문장이 "연습이 끝나면" 이라 버튼이 없는 편이 말이 맞는다. */}
+                {lastDone && (
+                  <Link className="pr-hint" to={`/sim/${lastDone.seasonId}/result`}>
+                    가장 최근 복기 보기
+                  </Link>
+                )}
               </div>
               {/* 모의투자 캐릭터는 검정 개미다. 더듬이가 이미지 맨 위에 붙어 있어
                   위가 잘리면 바로 티가 난다 — 아래쪽에 붙여 놓는다. */}
