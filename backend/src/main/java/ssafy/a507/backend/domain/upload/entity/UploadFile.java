@@ -91,7 +91,10 @@ public class UploadFile {
         return file;
     }
 
-    /** 저장이 끝난 뒤 실제 위치를 채운다. id 가 저장 경로에 쓰이므로 순서가 뒤집힐 수 없다. */
+    /**
+     * 파일 쓰기가 끝난 뒤 실제 위치를 채운다. {@code url} 이 NOT NULL 이라 행을 저장하기
+     * 전에 불려야 한다.
+     */
     public void locateAt(String url) {
         this.url = url;
     }

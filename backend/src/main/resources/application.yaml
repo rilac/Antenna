@@ -104,7 +104,9 @@ app:
   # 광고 게재(ANT-COMMUNITY-05). 경매가 아니라 고정 단가 × 기간제 선착순이다.
   ads:
     # 1 ANT/일. 금액표(D4)가 확정되면 이 값을 바꾼다.
-    price-per-day-wei: ${AD_PRICE_PER_DAY_WEI:1000000000000000000}
+    # ANT 는 decimals 0 이라(ANT-CHAIN-03) 정수 그대로가 최소 단위다 — 10^18 을 곱하지 않는다.
+    # 이름의 wei 는 금액 필드 형식 통일에서 온 것이고 단위가 wei 라는 뜻이 아니다.
+    price-per-day-wei: ${AD_PRICE_PER_DAY_WEI:1}
     # 메인 배너 자리가 하나다. 자리를 늘리면 이 값만 올린다.
     slot-count: 1
     max-days: 30
