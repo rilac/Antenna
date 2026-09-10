@@ -29,8 +29,9 @@ public class UploadService {
      *
      * <p>검증 순서가 용량 → 형식 → 용도별 규격인 것은 싼 판정을 먼저 돌리기 위해서다.
      *
-     * <p>파일은 행을 먼저 만든 뒤에 쓴다. id 가 저장 경로이자 조회 URL 이라 순서를 뒤집을 수
-     * 없고, 쓰기가 실패하면 트랜잭션이 되돌아 행도 남지 않는다.
+     * <p>파일을 먼저 쓰고 행을 저장한다. id 는 {@code create()} 가 이미 만들어 두므로 저장
+     * 경로를 알기 위해 행이 필요하지 않다. 반대 순서로 두면 {@code url} 이 NOT NULL 인데
+     * {@code save()} 이후의 변경이 INSERT 에 실리지 않아 항상 실패한다(S15P21A507-221).
      *
      * <p>ponytail: 반대 방향의 고아(행은 롤백됐는데 파일은 남는 경우)는 정리하지 않는다.
      * 커밋 실패에서만 생기고 UUID 이름이라 충돌하지 않으며, 실제로 쌓이면 참조 없는 파일을
@@ -52,17 +53,16 @@ public class UploadService {
                         .findById(userId)
                         .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
 
-        UploadFile saved =
-                uploadFileRepository.save(
-                        UploadFile.create(
-                                user,
-                                purpose,
-                                image.mime(),
-                                image.width(),
-                                image.height(),
-                                content.length));
-        saved.locateAt(storage.store(saved.getId(), content));
-        return UploadResponse.from(saved);
+        UploadFile file =
+                UploadFile.create(
+                        user,
+                        purpose,
+                        image.mime(),
+                        image.width(),
+                        image.height(),
+                        content.length);
+        file.locateAt(storage.store(file.getId(), content));
+        return UploadResponse.from(uploadFileRepository.save(file));
     }
 
     /**
