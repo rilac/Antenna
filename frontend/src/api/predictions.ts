@@ -157,10 +157,23 @@ export function getSlots() {
   return api.get<SlotStatus>('/predictions/slots')
 }
 
-/* ── 이 종목에 걸린 남의 예측 ─────────────────────────────
-   §5 게이팅이 타입에 드러나야 한다. 잠긴 예측의 direction·targetPrice 를
-   null 로 두면, 화면이 실수로 잠긴 값을 그리려 해도 타입에서 먼저 막힌다.
-   404 로 감추지 않는 것이 규칙이다 — 없는 것처럼 보이면 구독 유인이 사라진다. */
+/* ── 공개 규칙 (§5 개정, 2026-09-10) ──────────────────────
+   판정 전후로 갈리고, 근거만 끝까지 잠긴다.
+
+     필드          판정 전(BASE·OPEN)   판정 후(HIT·MISS)
+     ─────────────────────────────────────────────────────
+     어느 종목      전체 공개            전체 공개
+     방향          구독자만             전체 공개
+     목표가         구독자만             전체 공개
+     근거 본문      구독자만             구독자만
+
+   판정 후 방향을 가리지 않는 이유 — 목표가가 공개되면 기준가와 비교해 방향이
+   그대로 드러난다. 가려도 가려지지 않으므로 잠그는 시늉만 남는다.
+
+   근거가 판정 후에도 잠기는 것은 서버 결정 D6 과 같다(PredictionCommit 주석).
+
+   타입에 null 을 그대로 적는다 — 화면이 잠긴 값을 그리려 하면 tsc 가 먼저 막는다.
+   404 로 감추지 않는 것도 그대로다. 없는 것처럼 보이면 구독 유인이 사라진다. */
 
 /** 상태 전이는 BASE → OPEN → HIT/MISS 다(서버 Prediction.Status). */
 export const PREDICTION_STATUSES = ['BASE', 'OPEN', 'HIT', 'MISS'] as const
@@ -178,37 +191,6 @@ export const PHASE_LABEL: Record<PredictionPhase, string> = {
 
 export const phaseOf = (s: PredictionStatus): PredictionPhase =>
   (s === 'HIT' || s === 'MISS' ? 'JUDGED' : 'PENDING')
-
-export type StockPrediction = {
-  id: string
-  author: { userId: string; nickname: string }
-  /** 작성자 적중률 %. 판정 이력이 없으면 null — 0% 로 그리지 않는다 */
-  accuracy: number | null
-  status: PredictionStatus
-  horizon: Horizon
-  createdAt: string
-  /** 만기 영업일 YYYY-MM-DD */
-  dueDate: string
-  /**
-   * 근거 본문을 볼 권한이 없으면 true. **다른 값은 그대로 온다**
-   * (2026-09-08 결정 — 전에는 목표가까지 비웠다).
-   */
-  locked: boolean
-  /* 방향은 잠긴 예측에서도 온다. 서버 PredictionCardResponse 가 정한 규칙으로
-     (Jira S15P21A507-70), 잠글 때 종목·방향까지는 남기고 targetPrice 만 null 로
-     뺀다. 방향까지 가리면 "누가 무엇을 걸었는지" 가 통째로 사라져 목록이 빈다. */
-  direction: Direction
-  /** 잠기면 null. 판정 완료는 항상 채워진다 */
-  targetPrice: number | null
-  /** 배치 B2 가 확정한 기준가. 등록 직후에는 비어 있다 */
-  basePrice: number | null
-  /** 판정 완료만 채워진다 */
-  closePrice: number | null
-  /** 목표가 대비 오차 %. 판정 완료만 */
-  errorRate: number | null
-  /** 잠금을 푸는 채널. 구독 CTA 가 여기로 간다 */
-  channelId: string | null
-}
 
 /* ── 내 예측 (C-02) ───────────────────────────────────────
    서버 MyPredictionItemResponse 와 짝을 이룬다(ANT-PRED-06). 명세가 못 박은
@@ -388,27 +370,90 @@ export function targetProgress(d: PredictionDetail): number | null {
   return Math.round(((lastClose.close - basePrice) / span) * 1000) / 10
 }
 
-/* 목록 전체에 한 번만 해당하는 값. useCursorList 의 meta 로 온다.
-   불러온 페이지로 세면 "더 보기" 를 누를 때마다 숫자가 바뀌므로 서버가 준다. */
-export type StockPredictionMeta = {
-  pendingCount: number
-  judgedCount: number
-  /** 판정 완료 중 적중 비율 %. 판정 건이 없으면 null — 0% 로 그리지 않는다 */
-  hitRate: number | null
+/* ── 이 종목의 예측 분포 (호가창) ────────────────────────
+   설계 변경 2026-09-10. 종목 상세는 **누가 걸었는지를 보여주지 않는다** —
+   목표가를 구간으로 잘라 각 구간에 몇 명이 걸었는지만 낸다. 개인은 작성자
+   채널에서만 본다.
+
+   그래서 이 응답에는 예측 id·작성자·목표가 원본이 없다. 있으면 구간을 되짚어
+   개인을 복원할 수 있고, 그건 이 화면을 만든 이유를 무너뜨린다.
+
+   구간은 **전일 종가 대비 %** 로 자른다. 주식 호가창과 달리 상·하한이 없어
+   절대가로는 자를 수 없고, 비율이면 1,000원 종목과 100만원 종목이 같은 개수의
+   구간으로 나뉜다. 기준가는 전일 종가다 — 실전 시세는 그것뿐이다(§7 legal). */
+
+/** 한 구간. 아래에서 위로(싼 가격 → 비싼 가격) 온다 */
+export type PredictionBucket = {
+  /** 전일 종가 대비 하한 %(포함). 맨 아래 구간은 null — "그 이하 전부" */
+  fromPct: number | null
+  /** 상한 %(미포함). 맨 위 구간은 null — "그 이상 전부" */
+  toPct: number | null
+  /** 구간 경계의 실제 가격. 화면이 다시 계산하지 않게 서버가 함께 준다 */
+  fromPrice: number | null
+  toPrice: number | null
+  /** 이 구간에 걸린 예측 수 */
+  count: number
 }
 
-export type StockPredictionList = CursorList<StockPrediction> & StockPredictionMeta
+export type PredictionDistribution = {
+  stockCode: string
+  /** 구간을 나눈 기준. 전일 종가다 — "현재가"가 아니다(§7 legal) */
+  basePrice: number
+  /** 그 종가의 날짜 */
+  asOf: string
+  /** 구간 폭 % */
+  stepPct: number
+  /** 아래(싼 쪽)에서 위(비싼 쪽) 순서 */
+  buckets: PredictionBucket[]
+  /** 구간 합계. 화면이 더해서 쓰지 않는다 — 서버가 센 값과 어긋날 수 있다 */
+  total: number
+}
 
-/** 한 화면에 담는 줄 수 */
-export const STOCK_PREDICTION_PAGE_SIZE = 8
+/* ── 오늘 판정된 예측 (B-03 헤더) ─────────────────────────
+   판정 배치 B2 가 13:30 에 돌면서 그날 만기가 온 예측을 HIT/MISS 로 확정한다.
+   그 결과만 종목 머리에 띄운다 — "이 종목에 걸었던 사람들이 오늘 어떻게 됐나".
 
-/** useCursorList 가 커서를 관리하므로 함수를 넘긴다 */
-export function fetchStockPredictions(code: string, phase: PredictionPhase) {
-  return (query: Record<string, string | number | boolean | undefined>) => {
-    const q = { phase, size: STOCK_PREDICTION_PAGE_SIZE, ...query }
-    if (MOCK) return mock.stockPredictions(code, q)
-    return api.get<StockPredictionList>(`/stocks/${code}/predictions`, { query: q })
-  }
+   판정 완료는 전체 공개다(§5 개정). 작성자·적중 여부·오차율에 잠금이 없어
+   locked 같은 칸이 필요 없다. */
+export type SettledPrediction = {
+  id: string
+  author: { userId: string; nickname: string; avatarUrl: string | null }
+  /** 판정 후라 방향·목표가에 잠금이 없다(§5 개정) */
+  direction: Direction
+  targetPrice: number
+  /** 판정된 것만 오므로 BASE·OPEN 은 없다 */
+  status: 'HIT' | 'MISS'
+  /** 목표가 대비 오차 %. 판정 완료라 항상 채워진다 */
+  errorRate: number
+}
+
+/**
+ * 오늘 판정된 이 종목의 예측.
+ *
+ * 없으면 빈 목록이다 — 화면은 그때 아무것도 그리지 않는다. 장이 쉬는 날이나
+ * 배치 전에는 늘 비어 있으므로, 빈 상태를 "없습니다" 로 알릴 일이 아니다.
+ */
+export function getSettledToday(code: string) {
+  if (MOCK) return mock.settledToday(code)
+  return api.get<{ items: SettledPrediction[] }>(`/stocks/${code}/predictions/settled-today`)
+}
+
+/** 목업이 기준가를 지어내지 않도록 화면이 건네는 값. 서버가 붙으면 무시된다 */
+export type DistributionBase = { basePrice: number | null; asOf: string | null }
+
+/**
+ * 판정 대기 중인 예측의 분포.
+ *
+ * 판정이 끝난 예측은 세지 않는다 — 호가창은 지금 걸려 있는 물량을 보는 것이고,
+ * 끝난 예측은 기록이다. 둘을 한 그림에 더하면 어느 쪽도 읽을 수 없다.
+ *
+ * `base` 는 **목업 전용**이다. 목업이 기준가를 난수로 지어내면 같은 화면 머리의
+ * 전일 종가와 다른 값이 호가창 아래에 뜬다 — 실제로 269,500원과 205,000원이
+ * 나란히 보였다. 서버가 붙으면 응답의 basePrice 를 쓰므로 이 인자는 버려진다.
+ */
+export function getPredictionDistribution(code: string, base?: DistributionBase) {
+  if (MOCK) return mock.distribution(code, base)
+  return api.get<PredictionDistribution>(`/stocks/${code}/predictions/distribution`)
 }
 
 /**

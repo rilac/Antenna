@@ -6,13 +6,21 @@
    그쪽으로 들어와도 이 탭이 열린다.
 
    설계 제약(§4 C-01)
-   - direction 은 UP/DOWN 둘뿐이고 horizon 은 5·10·20·60 고정이다. 임의 마감일이 없다.
+   - direction 은 UP/DOWN 둘뿐이고 horizon 은 **7·14·30·90 캘린더일** 고정이다(결정 B5).
+     임의 마감일이 없다. 화면설계서는 아직 5·10·20·60 거래일로 적혀 있는데, DB CHECK·ERD·
+     API 명세 v0.38 이 모두 앞의 값이라 그쪽이 낡았다.
    - targetPrice 는 등록 후 불변이다. 그래서 등록 전에 "수정·삭제 불가" 를 반드시 고지한다.
-   - note 는 5000자 이하이며 구독자 전용이다. 커밋 문자열에는 noteHash 만 들어간다.
+   - note 는 **필수**이고 5000자 이하이며 구독자 전용이다(서버 @NotBlank).
+     커밋 문자열에는 noteHash 만 들어간다.
    - evidencePointIds 는 B-03 투자 포인트에서 인계받은 것만 쓴다. 리포트·재무지표는 근거가 못 된다.
-   - 기준가는 배치 B2 가 다음 영업일 종가로 확정한다. 등록 직후 basePrice 가 비어 있고,
+   - 기준가는 배치 B2 가 기준일 종가로 확정한다. 등록 직후 basePrice 가 비어 있고,
      빈 값을 0 으로 그리지 않는다.
-   - 응답 네 갈래: 201 슬롯 내 · 202 슬롯 초과(소각) → M-02 · 401 서명 불일치 · 409 잔액 부족.
+   - 응답: 201 슬롯 내 · 401 서명 불일치 · 409 오늘 슬롯 소진.
+     202 소각 경로는 소각할 토큰(ANT-CHAIN-03)이 아직 없어 서버에 없다(명세 v0.41).
+
+   왼쪽 패널 (설계 변경 2026-09-10)
+   - 개별 예측 목록이 아니라 **구간별 인원(호가창)** 이다. 누가 걸었는지는 이 화면에서
+     보여주지 않고, 개인은 작성자 채널(E-02)에서만 본다. PredictionDepth 참고.
 
    커밋 규격이 정해진 뒤 바뀐 것 (ANT-PRED-02)
    - commitHash 를 **이 화면이 직접 계산한다.** 커밋 salt 가 없어지고(09-09) 유일한 난수인
@@ -23,10 +31,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Panel } from './Block'
-import PredictionList from './PredictionList'
+import PredictionDepth from './PredictionDepth'
 import { useBlock } from '../../api/useBlock'
 import WalletLinkModal from '../wallet/WalletLinkModal'
 import CommitProgressModal, { type CommitPhase } from '../prediction/CommitProgressModal'
+import SlideToSign from '../prediction/SlideToSign'
 import ErrorState from '../state/ErrorState'
 import { ApiError } from '../../api/errors'
 import { POINT_KINDS, POINT_LABEL, getPoints } from '../../api/stockDetail'
@@ -45,6 +54,10 @@ import { connectAddress, hasWallet, personalSign } from '../../wallet/provider'
 import { useAuth } from '../../auth/context'
 
 const DIRECTION_LABEL: Record<Direction, string> = { UP: '오른다', DOWN: '내린다' }
+
+/* 등락률 고르개에 놓을 값. 왼쪽 분포표가 5% 폭이라 같은 눈금을 쓴다 — 두 곳의
+   눈금이 다르면 "+10% 에 열네 명" 을 보고 +10% 를 골랐는데 다른 칸에 떨어진다. */
+const PCT_CHOICES = [20, 15, 10, 5, -5, -10, -15, -20] as const
 
 /* 커밋 문자열과 서명 문자열이 같은 다섯 값을 쓴다. 한 자리에서 꺼내야 둘이 갈리지 않는다.
    draft 를 그대로 펼치지 않는 이유 — note·noteSalt·evidencePointIds 는 등록 본문에만
@@ -151,6 +164,26 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
       note, noteSalt: form.noteSalt, evidencePointIds: picked,
     }
   }, [code, direction, horizon, validTarget, targetPrice, note, form.noteSalt, picked])
+
+  /* 못 채운 항목을 발판 위에 나열하던 줄은 뺐다(2026-09-10). 단계마다 "필수" 를
+     붙였으므로 같은 말이 두 곳에 있었고, 발판 바로 위에서 문구가 나타났다 사라지며
+     그때마다 발판이 아래위로 움직였다. */
+
+  /* 등락률 고르개. 목표가를 직접 치는 사람도 있어 기본은 닫혀 있다 */
+  const [pctOpen, setPctOpen] = useState(false)
+  const horizonIdx = horizon === null ? 0 : HORIZONS.indexOf(horizon)
+
+  /* 고른 비율로 목표가를 채운다. 원 단위로 반올림한다 — 소수 셋째 자리가 남으면
+     서버가 400 으로 거절하고(numeric(14,2)), 호가 단위가 아닌 값도 사람이 읽기 어렵다. */
+  const applyPct = (pct: number) => {
+    const bases = summary?.prevClose
+    if (!bases) return
+    setTarget(String(Math.round(bases * (1 + pct / 100))))
+    /* 비율로 골랐으면 방향도 그 비율이 정한다. 직접 고른 방향이 있어도 덮는다 —
+       +5% 를 누른 순간 사용자의 뜻은 상승이다. */
+    onForm((f) => ({ ...f, direction: pct > 0 ? 'UP' : 'DOWN', directionTouched: true }))
+    setPctOpen(false)
+  }
 
   /* 미리보기 세 값(noteHash → 커밋 문자열 → commitHash)은 비동기라 상태로 들고 있는다.
      ethers 를 동적 import 하기 때문인데, 그 대신 이 화면에 들어오기 전에는 받지 않는다.
@@ -312,7 +345,11 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
      먼저 확인하고 내 판단을 적는 흐름이라 둘을 나란히 둔다. */
   return (
     <div className="sd-grid">
-      <PredictionList code={code} span={6} />
+      <PredictionDepth
+        code={code}
+        base={{ basePrice: summary?.prevClose ?? null, asOf: summary?.asOf ?? null }}
+        span={6}
+      />
 
       <Panel
         title="예측 등록하기"
@@ -329,59 +366,84 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
         )}
 
         <ol className="pf-steps">
-          {/* ① 방향 — 아이콘과 한 줄 설명을 붙여 무엇을 고르는지 눈으로 읽게 한다 */}
+          {/* ① 목표가 — 방향과 한 걸음으로 합쳤다(2026-09-10).
+              방향은 목표가가 전일 종가의 어느 쪽인지로 정해진다. 따로 묻던 시절에는
+              "오른다" 를 고르고 낮은 목표가를 넣는 모순이 잦았다. 버튼은 남겨 둔다 —
+              값을 넣기 전에 어느 쪽을 보는지 먼저 정하는 사람이 있다. */}
           <li className="pf-step">
-            <h3><i className="pf-no">1</i>예측 방향</h3>
-            <div className="pf-dirs">
-              {DIRECTIONS.map((d) => (
+            <h3><i className="pf-no">1</i>목표가 <span className="pf-req">필수</span></h3>
+            <div className="pf-price-row">
+              <div className="sd-target">
+                {/* 등락률로 목표가를 채운다. 전일 종가가 없으면(거래정지) 계산할 수
+                    없으므로 잠근다 — 누르면 아무 일도 안 나는 버튼을 두지 않는다. */}
                 <button
-                  key={d}
                   type="button"
-                  className={`pf-dir is-${d.toLowerCase()} ${direction === d ? 'is-on' : ''}`}
-                  aria-pressed={direction === d}
-                  onClick={() => setDirection(d)}
+                  className={`pf-pct-btn${pctOpen ? ' is-open' : ''}`}
+                  disabled={!summary?.prevClose}
+                  aria-expanded={pctOpen}
+                  aria-haspopup="true"
+                  onClick={() => setPctOpen((v) => !v)}
                 >
-                  <span className="pf-dir-ic" aria-hidden="true">
-                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                         strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                      {d === 'UP'
-                        ? <><path d="M6 17 12 8l6 9" /><path d="M12 8v9" /></>
-                        : <><path d="M6 8l6 9 6-9" /><path d="M12 17V8" /></>}
-                    </svg>
-                  </span>
-                  <span className="pf-dir-txt">
-                    <b>{d === 'UP' ? '상승' : '하락'}</b>
-                    <span>{d === 'UP' ? '종가가 오를 것으로 본다' : '종가가 내릴 것으로 본다'}</span>
-                  </span>
+                  <b className={gap === null ? '' : `num ${gap >= 0 ? 'up' : 'down'}`}>
+                    {gap === null ? '등락률(%)' : `${gap > 0 ? '+' : ''}${gap.toFixed(2)}%`}
+                  </b>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
                 </button>
-              ))}
-            </div>
-          </li>
 
-          {/* ② 목표가 */}
-          <li className="pf-step">
-            <h3><i className="pf-no">2</i>목표가</h3>
-            <div className="sd-target">
-              <input
-                type="text"
-                inputMode="numeric"
-                className="num"
-                value={target}
-                placeholder={summary?.prevClose ? String(summary.prevClose) : '0'}
-                aria-label="목표가"
-                aria-describedby="pf-target-help"
-                onChange={(e) => setTarget(e.target.value)}
-              />
-              <span className="sd-unit">원</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  className="num"
+                  value={target}
+                  placeholder={summary?.prevClose ? String(summary.prevClose) : '0'}
+                  aria-label="목표가"
+                  aria-describedby="pf-target-help"
+                  onChange={(e) => setTarget(e.target.value)}
+                />
+                <span className="sd-unit">원</span>
+
+                {pctOpen && (
+                  <div className="pf-pct-menu" role="menu" aria-label="등락률로 목표가 채우기">
+                    {PCT_CHOICES.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        role="menuitem"
+                        className={`pf-pct-item is-${p > 0 ? 'up' : 'down'}`}
+                        onClick={() => applyPct(p)}
+                      >
+                        {`${p > 0 ? '+' : ''}${p}%`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 방향은 가격 **오른쪽**이다. 목표가를 넣으면 이쪽이 저절로 정해지므로,
+                  읽는 순서(값 → 결과)와 놓인 순서가 같아야 한다. */}
+              <div className="pf-dirs">
+                {DIRECTIONS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={`pf-dir is-${d.toLowerCase()} ${direction === d ? 'is-on' : ''}`}
+                    aria-pressed={direction === d}
+                    onClick={() => setDirection(d)}
+                  >
+                    {d === 'UP' ? '상승' : '하락'}
+                  </button>
+                ))}
+              </div>
             </div>
             {/* 실전 시세는 전일 종가뿐이다 — "현재가" 라는 말을 만들지 않는다(§7 legal) */}
+            {/* 비율은 등락률 버튼이 이미 보여 준다(`+10.00%`). 여기에 또 적으면 같은
+                값이 한 줄 안에 두 번 나온다. 이 줄이 할 일은 0% 가 무엇인지 밝히는 것뿐. */}
             <p id="pf-target-help" className="sd-help">
               {summary?.prevClose
-                ? <>전일 종가 <b className="num">{summary.prevClose.toLocaleString('ko-KR')}원</b>
-                  {gap !== null && (
-                    <> · 목표가는 <b className={`num ${gap >= 0 ? 'up' : 'down'}`}>
-                      {`${gap > 0 ? '+' : ''}${gap.toFixed(2)}%`}</b></>
-                  )}</>
+                ? <>전일 종가 기준 <b className="num">{summary.prevClose.toLocaleString('ko-KR')}원</b></>
                 : '이 종목은 전일 종가가 없어 대비 비율을 계산할 수 없습니다.'}
             </p>
             {/* 자릿수는 방향 어긋남보다 먼저 알린다 — 이건 고치지 않으면 등록 자체가 막힌다 */}
@@ -398,30 +460,50 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
             )}
           </li>
 
-          {/* ③ 기간 — 5·10·20·60 4지 고정이다. 임의 마감일(직접 입력)을 두지 않는다(§4 C-01).
-              버튼에 만기일을 함께 적어 "20거래일" 이 언제까지인지 세지 않아도 되게 한다. */}
+          {/* ② 기간 — 네 값 고정이다. 임의 마감일(직접 입력)을 두지 않는다(§4 C-01).
+              수직선(number line)으로 바꿨다(2026-09-10). 값이 네 개뿐이라 range 입력을
+              **눈금 번호**로 쓴다 — 1·7·30·90 을 값 그대로 쓰면 90 쪽이 화면을 다
+              먹어 앞쪽 셋이 붙어 버린다.
+              native range 를 쓰는 이유는 접근성이다. 직접 만든 끌개는 키보드·스크린리더가
+              못 쓰는데, range 는 화살표키·Home/End 가 그냥 된다. */}
           <li className="pf-step">
-            <h3><i className="pf-no">3</i>예측 기간</h3>
-            <div className="pf-horizons">
-              {HORIZONS.map((h) => (
-                <button
-                  key={h}
-                  type="button"
-                  className={`pf-hz ${horizon === h ? 'is-on' : ''}`}
-                  aria-pressed={horizon === h}
-                  onClick={() => setHorizon(h)}
-                >
-                  <b>{HORIZON_LABEL[h]}</b>
-                  <span className="num">{`~ ${dueLabel(h)}`}</span>
-                </button>
-              ))}
+            <h3><i className="pf-no">2</i>예측 기간 <span className="pf-req">필수</span></h3>
+            <div className={`pf-line${horizon === null ? ' is-unset' : ''}`}>
+              <input
+                type="range"
+                className="pf-line-input"
+                min={0}
+                max={HORIZONS.length - 1}
+                step={1}
+                value={horizonIdx}
+                aria-label="예측 기간"
+                aria-valuetext={horizon === null ? '고르지 않음' : `${HORIZON_LABEL[horizon]} · ${dueLabel(horizon)} 만기`}
+                onChange={(e) => setHorizon(HORIZONS[Number(e.target.value)])}
+              />
+              <div className="pf-line-ticks" aria-hidden="true">
+                {HORIZONS.map((h, i) => (
+                  <span
+                    key={h}
+                    className={`pf-tick${horizon === h ? ' is-on' : ''}`}
+                    style={{ left: `${(i / (HORIZONS.length - 1)) * 100}%` }}
+                  >
+                    <i />
+                    <b>{HORIZON_LABEL[h]}</b>
+                  </span>
+                ))}
+              </div>
             </div>
-            <p className="sd-help">기준일(다음 평일)부터 캘린더일로 셉니다. 기준가는 기준일 종가로 확정됩니다.</p>
+            <p className="sd-help">
+              {horizon === null
+                ? '손잡이를 옮겨 기간을 고르세요.'
+                : <>만기 <b className="num">{dueLabel(horizon)}</b> · 기준일(다음 평일)부터 캘린더일로 셉니다. 기준가는 기준일 종가로 확정됩니다.</>}
+            </p>
           </li>
 
-          {/* ④ 근거 포인트 — B-03 종목 정보에서 인계받는다 */}
+          {/* ③ 근거 포인트 — B-03 종목 정보에서 인계받는다. 근거 본문과 같이
+              구독자 전용이다(§5 개정 2026-09-10). */}
           <li className="pf-step">
-            <h3><i className="pf-no">4</i>근거 포인트 <span className="pf-opt">선택</span></h3>
+            <h3><i className="pf-no">3</i>근거 포인트 <span className="pf-opt">선택 · 구독자 전용</span></h3>
             {points.error ? (
               <ErrorState error={points.error} onRetry={points.retry} inline />
             ) : picked.length === 0 ? (
@@ -453,15 +535,18 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
             )}
           </li>
 
-          {/* ⑤ 내 판단 — 평문이다. payload 에는 noteHash 만 들어가므로 서식을 넣지 않는다 */}
+          {/* ④ 내 판단 — 평문이다. payload 에는 noteHash 만 들어가므로 서식을 넣지 않는다.
+
+              **선택으로 바꾸지 않았다.** 서버 PredictionCreateRequest 가 @NotBlank 로
+              받고(명세도 note *), 비우고 부르면 400 "근거를 입력해주세요." 가 온다 —
+              실제로 눌러 확인했다. 서버가 풀어 주면 그때 pf-opt 로 바꾼다. */}
           <li className="pf-step">
-            {/* 필수다 — 서버 @NotBlank. 근거가 곧 커밋의 noteHash 라 비울 수 없다 */}
-            <h3><i className="pf-no">5</i>내 판단 <span className="pf-req">필수 · 구독자 전용</span></h3>
+            <h3><i className="pf-no">4</i>내 판단 <span className="pf-req">필수 · 구독자 전용</span></h3>
             <textarea
               className="sd-note"
               value={note}
               maxLength={NOTE_MAX}
-              rows={5}
+              rows={3}
               placeholder="왜 이렇게 보는지 적어 두면, 만기 뒤에 스스로 판단을 되짚을 수 있습니다."
               onChange={(e) => setNote(e.target.value)}
             />
@@ -493,31 +578,32 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
 
               {/* 되돌릴 수 없는 동작이라 반드시 고지한다 */}
               <p className="sd-irreversible">
-                등록한 예측은 <b>수정하거나 삭제할 수 없습니다.</b> 목표가와 기간을 다시 확인해 주세요.
+                등록한 예측은 수정하거나 삭제할 수 없습니다. 목표가와 기간을 다시 확인해 주세요.
               </p>
 
-              <button type="button" className="sd-submit" disabled={submitting} onClick={submit}>
-                {submitting
-                  ? '서명을 기다리는 중…'
-                  : overSlot ? '토큰을 소각하고 등록' : '서명하고 등록'}
-              </button>
-
-              {/* 누른 뒤에 생기는 것이라 버튼 **아래** 에 둔다. 위에 두면 눌렀을
-                  때 시선이 버튼에 있어 문구가 나타난 줄 모르고, 스크롤 위치에
-                  따라 화면 밖에 있기도 하다 — 실제로 "눌러도 아무 일이 없다" 는
-                  보고가 그래서 나왔다.
-                  role=alert 로 읽어 주는 순서도 맞춘다. */}
-              {(failure || localMsg) && (
-                <div className="sd-submit-msg" role="alert">
-                  {failure && <ErrorState error={failure} inline />}
-                  {localMsg && <p className="sd-warn">{localMsg}</p>}
-                </div>
-              )}
             </>
-          ) : (
-            /* 근거도 draft 의 조건이라 여기 함께 적는다 — 빼면 다 채웠는데 서명 칸이
-               안 열리는 이유를 화면 어디에서도 알 수 없다 */
-            <p className="pf-none">방향 · 목표가 · 기간 · 내 판단을 모두 채우면 서명 단계로 넘어갑니다.</p>
+          ) : null}
+
+          {/* 발판은 **늘 보인다**(2026-09-10). 조건이 안 찼을 때 아예 숨기면 다 채운
+              뒤에야 발판이 나타나 화면이 아래로 밀리고, 그전까지는 이 카드가 어떻게
+              끝나는지 알 수 없다. 못 누르는 상태로 자리를 지키게 한다. */}
+          <SlideToSign
+            onConfirm={submit}
+            disabled={!draft}
+            busy={submitting}
+            label={overSlot ? '슬롯을 다 썼습니다' : '밀어서 등록하기'}
+            busyLabel="서명중입니다…"
+          />
+
+          {/* 누른 뒤에 생기는 것이라 발판 **아래** 에 둔다. 위에 두면 눌렀을 때
+              시선이 발판에 있어 문구가 나타난 줄 모르고, 스크롤 위치에 따라 화면
+              밖에 있기도 하다 — 실제로 "눌러도 아무 일이 없다" 는 보고가 그래서
+              나왔다. role=alert 로 읽어 주는 순서도 맞춘다. */}
+          {(failure || localMsg) && (
+            <div className="sd-submit-msg" role="alert">
+              {failure && <ErrorState error={failure} inline />}
+              {localMsg && <p className="sd-warn">{localMsg}</p>}
+            </div>
           )}
         </div>
       </Panel>
