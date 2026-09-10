@@ -191,8 +191,11 @@ CommitAnchor 는 재배포가 공짜였다(과거 앵커는 옛 주소에 남는
 |---|---|---|---|---|
 | 11233493 | `mint 1000` | `0x9795…9dC0` (일회용 테스트 지갑) | `SIGNUP_BONUS` | `0x663377b8…` |
 | 11233494 | `burn 1000` | 같은 지갑 → 잔액 0, totalSupply 0 | `SLOT_OVER` | `0x7f930bd5…` |
+| 11234142 | `mint 1` · `mint 1` (한 블록, nonce 6·7 — 서버 릴레이어 `TxSender` 락 실증, ANT-CHAIN-10) | `0xa1f5…0e62` (일회용) | `SIGNUP_BONUS` | `0x9b3d0b18…` · `0x8c328912…` |
+| 11234143 | `burn 2` → 잔액 0, totalSupply 0 | 같은 지갑 | `SLOT_OVER` | `0x37440460…` |
 
 그 사이에 그 지갑으로 `transfer`·`approve` 를 시도해 둘 다 `TransferDisabled()` 로 revert 하는 것을 확인했다(eth_call).
+11234142 행은 서버 코드(`Web3jTokenRelayerE2ELiveTest`)가 남긴 것이다 — 다시 돌리면 같은 모양의 행이 셋 더 생긴다. 돌렸으면 여기 적어라.
 
 ## 설계 요약
 
