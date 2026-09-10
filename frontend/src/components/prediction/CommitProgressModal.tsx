@@ -22,6 +22,7 @@ import { Link } from 'react-router-dom'
 import { PROOF_STATUS_LABEL, fetchAnchorStatus, isAnchorSettling } from '../../api/proof'
 import type { ProofAnchorStatus } from '../../api/proof'
 import type { CreateResult } from '../../api/predictions'
+import BlockchainScene from './BlockchainScene'
 import '../../styles/screens/commit-progress.css'
 
 /** signing 지갑 승인 대기 · committing 서버 응답 대기 · settled 응답 받음 */
@@ -157,30 +158,11 @@ export default function CommitProgressModal({ phase, result, onClose }: Props) {
           </button>
         </div>
 
-        <h2 id="cp-title" className="cp-title">개미들이 예측을 물고 블록으로 들어갑니다</h2>
+        <h2 id="cp-title" className="cp-title">예측을 블록에 담아 봉인하고 있어요</h2>
 
-        {/* 개미가 블록으로 줄지어 들어간다. 장식이라 읽어 줄 필요가 없다 */}
-        <div className="cp-scene" aria-hidden="true">
-          <div className="cp-ants">
-            {[0, 1, 2, 3].map((i) => (
-              <img
-                key={i}
-                className="cp-ant"
-                style={{ animationDelay: `${i * 0.32}s` }}
-                src="/assets/character/black_ant/antena-character-black-run.png"
-                alt=""
-              />
-            ))}
-          </div>
-          <div className="cp-block">
-            <svg width="76" height="84" viewBox="0 0 52 58" fill="none" aria-hidden="true">
-              <path d="M26 2 50 15v28L26 56 2 43V15z" stroke="currentColor" strokeWidth="2"
-                    strokeLinejoin="round" />
-              <path d="M2 15l24 13 24-13M26 28v28" stroke="currentColor" strokeWidth="1.4"
-                    strokeLinejoin="round" opacity=".55" />
-            </svg>
-          </div>
-        </div>
+        {/* 장면은 phase 와 anchor 만 따라간다. 시간이 지났다고 다음 단계로
+            넘어가지 않는다 — 서버가 말한 것만 그린다 */}
+        <BlockchainScene phase={phase} anchor={anchor} />
 
         <ol className="cp-steps">
           {steps.map((s) => (
