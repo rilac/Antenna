@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ssafy.a507.backend.common.ai.AiClient;
 import ssafy.a507.backend.common.ai.AiException;
 import ssafy.a507.backend.domain.market.repository.StockRepository;
+import ssafy.a507.backend.domain.research.entity.NewsSignal;
 import ssafy.a507.backend.domain.research.entity.ResearchDocument;
 import ssafy.a507.backend.domain.research.entity.ResearchPoint;
 import ssafy.a507.backend.domain.research.repository.ResearchPointRepository;
@@ -115,7 +116,7 @@ class ResearchPointGenerationServiceTest {
     }
 
     @Test
-    @DisplayName("규칙을 어긴 건만 버리고 나머지는 저장한다 — kind 오류·빈 body·300자 초과·D16·목록 밖 documentId")
+    @DisplayName("규칙을 어긴 건만 버리고 나머지는 저장한다 — kind 오류·빈 body·300자 초과·D16·목록 밖 documentId·입력에 없는 숫자")
     void 건별_버리기() {
         seedQuotes(3);
         Long newsId = seedDocument(ResearchDocument.Source.NEWS, "n-1", "제목", "요약.", TARGET.minusDays(1));
@@ -126,7 +127,8 @@ class ResearchPointGenerationServiceTest {
                   {"kind": "RISK", "body": "%s", "documentId": null},
                   {"kind": "RISK", "body": "단기 하락 68%% 전망이다.", "documentId": null},
                   {"kind": "CHECK", "body": "없는 문서를 지목했다.", "documentId": 999999},
-                  {"kind": "POSITIVE", "body": "살아남는 유일한 건이다.", "documentId": %d}
+                  {"kind": "CHECK", "body": "순이익이 999억원이다.", "documentId": null},
+                  {"kind": "POSITIVE", "body": "종가 70,200원으로 살아남는 유일한 건이다.", "documentId": %d}
                 ]
                 """.formatted("가".repeat(301), newsId));
 
@@ -135,7 +137,7 @@ class ResearchPointGenerationServiceTest {
 
         assertThat(researchPointRepository.findAll()).singleElement().satisfies(p -> {
             assertThat(p.getKind()).isEqualTo(ResearchPoint.Kind.POSITIVE);
-            assertThat(p.getBody()).isEqualTo("살아남는 유일한 건이다.");
+            assertThat(p.getBody()).as("쉼표 붙은 숫자도 입력의 70200 과 같은 값으로 본다").isEqualTo("종가 70,200원으로 살아남는 유일한 건이다.");
             assertThat(p.getDocument().getId()).isEqualTo(newsId);
         });
     }
@@ -232,6 +234,58 @@ class ResearchPointGenerationServiceTest {
     }
 
     @Test
+    @DisplayName("스포츠 기사는 재료에서 뺀다 — 야구 기사가 '위험 요인'으로 올라간 적이 있다")
+    void 스포츠_기사_제외() {
+        seedQuotes(3);
+        seedDocument(ResearchDocument.Source.NEWS, "n-ball", "두산 선발 최승용 3이닝 4실점", "강판당했다", TARGET.minusDays(1));
+        seedDocument(ResearchDocument.Source.NEWS, "n-biz", "두산, 협동로봇 수주", "북미 공급 계약", TARGET.minusDays(1));
+        given(aiClient.complete(anyString(), anyString())).willReturn("[]");
+
+        generationService.generate(stockRepository.getReferenceById(SAMSUNG));
+
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(aiClient).complete(anyString(), input.capture());
+        assertThat(input.getValue()).contains("협동로봇 수주").doesNotContain("3이닝");
+    }
+
+    @Test
+    @DisplayName("관련도 판정이 정규식을 이긴다 — 스포츠가 소재여도 회사의 사업 결정이면 재료다")
+    void 판정_우선() {
+        seedQuotes(3);
+        // 정규식만 보면 "프로야구" 때문에 버려진다. 판정이 관련이라고 하면 쓴다.
+        Long biz = seedDocument(
+                ResearchDocument.Source.NEWS, "n-rights", "CJ ENM, 프로야구 중계권 확보", "3년 계약", TARGET.minusDays(1));
+        seedSignal(biz, true);
+        given(aiClient.complete(anyString(), anyString())).willReturn("[]");
+
+        generationService.generate(stockRepository.getReferenceById(SAMSUNG));
+
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(aiClient).complete(anyString(), input.capture());
+        assertThat(input.getValue()).contains("중계권 확보");
+    }
+
+    @Test
+    @DisplayName("무관 판정을 받은 기사는 정규식이 놓쳐도 뺀다")
+    void 판정_제외() {
+        seedQuotes(3);
+        // 어휘로는 사업 기사와 구별되지 않는다 — 판정이 없으면 그대로 재료가 됐다.
+        Long noise = seedDocument(
+                ResearchDocument.Source.NEWS, "n-town", "충북도, 알츠하이머 검진 협약", "도민 대상", TARGET.minusDays(1));
+        seedSignal(noise, false);
+        Long biz = seedDocument(
+                ResearchDocument.Source.NEWS, "n-biz", "삼성전자, 신제품 양산", "가동 시작", TARGET.minusDays(1));
+        seedSignal(biz, true);
+        given(aiClient.complete(anyString(), anyString())).willReturn("[]");
+
+        generationService.generate(stockRepository.getReferenceById(SAMSUNG));
+
+        ArgumentCaptor<String> input = ArgumentCaptor.forClass(String.class);
+        verify(aiClient).complete(anyString(), input.capture());
+        assertThat(input.getValue()).contains("신제품 양산").doesNotContain("알츠하이머");
+    }
+
+    @Test
     @DisplayName("기준일 시세가 없으면 부르지 않는다 — 재료 없이 만들면 지어낸 포인트다")
     void 시세_없음() {
         assertThat(generationService.generate(stockRepository.getReferenceById(SAMSUNG))).isZero();
@@ -264,6 +318,12 @@ class ResearchPointGenerationServiceTest {
                     .setParameter(5, Instant.now())
                     .executeUpdate();
         }
+        em.flush();
+    }
+
+    /** 관련도 판정 한 줄. GPU 배치가 남긴 것과 같은 모양이다. */
+    private void seedSignal(Long documentId, boolean relevant) {
+        em.persist(NewsSignal.judged(em.getReference(ResearchDocument.class, documentId), relevant, "antenna", "v1"));
         em.flush();
     }
 

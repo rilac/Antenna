@@ -12,6 +12,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
@@ -21,8 +24,10 @@ import ssafy.a507.backend.common.ai.AiException;
 import ssafy.a507.backend.common.ai.AiProperties;
 import ssafy.a507.backend.domain.market.entity.Stock;
 import ssafy.a507.backend.domain.market.repository.DailyQuoteRepository;
+import ssafy.a507.backend.domain.research.entity.NewsSignal;
 import ssafy.a507.backend.domain.research.entity.ResearchDocument;
 import ssafy.a507.backend.domain.research.entity.ResearchPoint;
+import ssafy.a507.backend.domain.research.repository.NewsSignalRepository;
 import ssafy.a507.backend.domain.research.repository.ResearchDocumentRepository;
 import ssafy.a507.backend.domain.research.repository.ResearchPointRepository;
 
@@ -77,18 +82,36 @@ public class ResearchPointGenerationService {
             - body 는 한국어 평서문 한 문장, 120자 이내로 쓴다. 이모지·목록 기호를 쓰지 않는다.
             - documentId 는 아래 "문서" 목록에 있는 번호만 쓴다. 목록에 없는 번호를 지어내지 않는다.
               특정 문서가 아니라 시세·재무 수치에서 나온 포인트는 null 로 둔다.
+            - 문서 중 이 회사의 사업과 무관한 것(같은 이름의 스포츠 구단·지역·인물 소식 등)은 근거로
+              쓰지 않는다. 회사 실적·공시·수급·사업에 관한 문서만 쓴다.
             - 주어진 수치와 문서 내용에 있는 사실만 쓴다. 새 수치를 계산하거나 지어내지 않는다.
+            - 숫자는 주어진 값을 단위까지 그대로 옮긴다. 억원·%·원 단위를 바꾸거나 환산하지 않는다.
+              입력에 없는 숫자가 한 개라도 들어간 원소는 버려진다.
+            - 평가·전망 어휘를 쓰지 않는다 — "높다", "낮다", "양호", "부담", "기대된다", "우려된다",
+              "상회", "하회", "시장 기대치" 를 쓰지 않는다. 수치와 사실만 적고 판단은 kind 로만 나타낸다.
             - 매수·매도 권유, 목표주가, 주가 방향 예측을 쓰지 않는다.
             - 상승·하락의 확률이나 가능성을 수치로 쓰지 않는다. "확률"이라는 단어를 쓰지 않는다.
             - 등락률을 인용할 때는 "3.2% 상승했다"처럼 수치를 앞에 쓴다. "상승 3.2%" 처럼 방향을
               앞세우지 않는다.
+
+            예시 — 입력(일부):
+            종가 31000원 · 1영업일 -1.90% · 20영업일 +9.73%
+            부채비율 1084.2% · ROE 11.8% (2025년 기준)
+            문서(번호 · 날짜 · 원천 · 내용):
+            - [7] 2026-09-03 · 뉴스 · 금융지주와 은행주에 매수세가 몰리며 JB금융지주는 5% 넘게 올랐다.
+            예시 — 출력:
+            [{"kind":"POSITIVE","body":"2026-09-03 금융지주와 은행주에 매수세가 몰리며 JB금융지주가 5% 넘게 올랐다.","documentId":7},{"kind":"RISK","body":"2025년 부채비율이 1084.2%다.","documentId":null},{"kind":"CHECK","body":"기준일 종가가 1영업일 전보다 1.90% 하락했고 20영업일 기준으로는 9.73% 올랐다.","documentId":null}]
             """;
+
+    /** 본문에서 숫자를 뽑는다 — 쉼표 천 단위, 소수점 포함. */
+    private static final Pattern NUMBER = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
 
     private final AiClient aiClient;
     private final AiProperties aiProperties;
     private final StockMaterials stockMaterials;
     private final ResearchPointRepository researchPointRepository;
     private final ResearchDocumentRepository researchDocumentRepository;
+    private final NewsSignalRepository newsSignalRepository;
     private final DailyQuoteRepository dailyQuoteRepository;
 
     /**
@@ -137,7 +160,7 @@ public class ResearchPointGenerationService {
         Map<Long, ResearchDocument> documents = documents(stock.getCode(), targetDate);
         String input = facts + documentBlock(documents);
 
-        List<ResearchPoint> points = parse(aiClient.complete(INSTRUCTION, input), stock, targetDate, documents);
+        List<ResearchPoint> points = parse(aiClient.complete(INSTRUCTION, input), input, stock, targetDate, documents);
         if (points.isEmpty()) {
             // 전부 버려졌으면 저장하지 않는다 — 빈 채로 두면 다음 요청이 다시 만들어 본다.
             log.warn("[POINT] 쓸 수 있는 포인트가 없어 저장하지 않는다 stock={}", stock.getCode());
@@ -159,12 +182,47 @@ public class ResearchPointGenerationService {
         Instant endOfTarget = targetDate.plusDays(1).atStartOfDay(KST).toInstant();
         Map<Long, ResearchDocument> documents = new LinkedHashMap<>();
         for (ResearchDocument.Source source : List.of(ResearchDocument.Source.NEWS, ResearchDocument.Source.DART)) {
-            researchDocumentRepository
-                    .findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
-                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE))
+            // 무관 기사가 섞여 있으므로 쓸 개수의 두 배를 뽑아 거른 뒤 자른다.
+            List<ResearchDocument> candidates =
+                    researchDocumentRepository.findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
+                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE * 2));
+            if (source == ResearchDocument.Source.DART) {
+                // 공시는 회사가 스스로 낸 것이라 무관할 수 없다.
+                candidates.stream().limit(DOCS_PER_SOURCE).forEach(d -> documents.put(d.getId(), d));
+                continue;
+            }
+            Map<Long, Boolean> signals = signals(candidates);
+            candidates.stream()
+                    .filter(d -> isMaterial(d, signals))
+                    .limit(DOCS_PER_SOURCE)
                     .forEach(d -> documents.put(d.getId(), d));
         }
         return documents;
+    }
+
+    /** 후보 문서들의 관련도 판정. 없는 문서는 지도에 들어가지 않는다. */
+    private Map<Long, Boolean> signals(List<ResearchDocument> candidates) {
+        if (candidates.isEmpty()) {
+            return Map.of();
+        }
+        return newsSignalRepository
+                .findByDocument_IdIn(candidates.stream().map(ResearchDocument::getId).toList())
+                .stream()
+                .collect(Collectors.toMap(s -> s.getDocument().getId(), NewsSignal::isRelevant));
+    }
+
+    /**
+     * 이 기사를 재료로 쓸지. GPU 판정이 있으면 그것을 따른다.
+     *
+     * <p>판정이 없으면 스포츠 어휘 정규식으로 떨어진다 — 판정 배치가 아직 안 돌았거나
+     * {@code app.ai.gpu} 설정이 없는 환경이다. 정규식은 사업 기사도 함께 버리는 거친 규칙이지만,
+     * 판정이 없는 날 야구 기사가 위험 요인으로 올라가는 쪽보다는 낫다.
+     */
+    private static boolean isMaterial(ResearchDocument document, Map<Long, Boolean> signals) {
+        Boolean relevant = signals.get(document.getId());
+        return relevant != null
+                ? relevant
+                : !NewsIngestService.isNoise(document.getTitle(), document.getSnippet());
     }
 
     private static String documentBlock(Map<Long, ResearchDocument> documents) {
@@ -184,7 +242,7 @@ public class ResearchPointGenerationService {
 
     /** 배열 밖의 군말은 무시하고, 규칙을 어긴 원소는 그 건만 버린다. */
     private List<ResearchPoint> parse(
-            String text, Stock stock, LocalDate targetDate, Map<Long, ResearchDocument> documents) {
+            String text, String input, Stock stock, LocalDate targetDate, Map<Long, ResearchDocument> documents) {
         JsonNode array = array(text, stock.getCode());
         if (array == null) {
             return List.of();
@@ -202,6 +260,10 @@ public class ResearchPointGenerationService {
                 log.warn("[POINT] D16 위반 문구가 있어 포인트 한 건을 버린다 stock={}", stock.getCode());
                 continue;
             }
+            if (!numbersGrounded(body, input)) {
+                log.warn("[POINT] 입력에 없는 숫자가 있어 포인트 한 건을 버린다 stock={} body={}", stock.getCode(), body);
+                continue;
+            }
             Long documentId = documentId(node.path("documentId"));
             ResearchDocument document = documentId == null ? null : documents.get(documentId);
             if (documentId != null && document == null) {
@@ -216,6 +278,22 @@ public class ResearchPointGenerationService {
             points.add(ResearchPoint.of(stock, targetDate, kind, body, document));
         }
         return points;
+    }
+
+    /**
+     * 본문의 모든 숫자가 입력에 있는지. 양자화된 자체 서빙 모델이 "340000억원"을 "340억원"으로 옮기거나
+     * 없는 "시장 기대치 9%"를 붙이는 것을 막는다 — 규칙이 "새 수치를 만들지 않는다"라 숫자가 입력
+     * 밖이면 그 건은 지어낸 것이다. 쉼표는 양쪽에서 지우고 부분 문자열로 본다.
+     */
+    static boolean numbersGrounded(String body, String input) {
+        String haystack = input.replace(",", "");
+        Matcher m = NUMBER.matcher(body);
+        while (m.find()) {
+            if (!haystack.contains(m.group().replace(",", ""))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** 코드펜스나 인사말이 붙어 와도 첫 {@code [} 부터 마지막 {@code ]} 까지를 배열로 읽는다. */

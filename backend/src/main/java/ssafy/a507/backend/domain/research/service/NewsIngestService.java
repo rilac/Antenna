@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -154,6 +155,33 @@ public class NewsIngestService {
             return false;
         }
         return title.replace(" ", "").contains(stockName.replace(" ", ""));
+    }
+
+    /**
+     * 스포츠 기사 어휘. 두산·한화·KT·LG·기아·NC·롯데·SK·삼성·키움은 KBO 구단 이름이기도 해서
+     * 제목 필터를 통과한다 — 2026-09-09 "두산 선발 3이닝 4실점" 이 두산 위험 요인으로 올라갔다.
+     *
+     * <p>넣지 않은 단어 — "경기"(경기 침체·경기도), "감독"(금융감독원), "리그"(게임사 e스포츠는
+     * 사업 기사), "시즌"(실적 시즌). 안타는 "안타깝다"를 피한다.
+     *
+     * <p>ponytail: 정규식 사전이다. 2차는 GPU 에서 기사마다 관련도 점수를 매기는 것 — 그때 이 규칙은
+     * 그 앞단의 값싼 거름망으로 남는다.
+     */
+    private static final Pattern SPORTS = Pattern.compile(
+            "이닝|실점|투수|타자|홈런|볼넷|안타(?![까깝])|삼진|타점|득점|KBO|프로야구|야구|구단|끝내기|연승|연패"
+                    + "|골프|언더파|버디|축구|농구|배구|경기장|올스타|스프링캠프|MVP",
+            Pattern.CASE_INSENSITIVE);
+
+    /**
+     * 제목·발췌에 스포츠 어휘가 있으면 무관 기사로 본다. 포인트 재료를 고를 때만 쓴다.
+     *
+     * <p>수집에서는 거르지 않는다 — 여기서 버리면 DB 에 남지 않아 되돌릴 수 없는데, 이 정규식은
+     * 사업 기사도 함께 버린다("엔씨소프트, NC다이노스 매각 검토", "CJ ENM 프로야구 중계권"). 같은
+     * 단어가 스포츠 기사에도 사업 기사에도 나오므로 어휘로는 갈라지지 않는다. 원문은 남겨 두고
+     * 재료 선정에서만 뺀다.
+     */
+    public static boolean isNoise(String title, String snippet) {
+        return SPORTS.matcher((title == null ? "" : title) + " " + (snippet == null ? "" : snippet)).find();
     }
 
     /**
