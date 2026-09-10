@@ -169,7 +169,10 @@ export type Valuation = {
   pbr: number | null
   roe: number | null
   debtRatio: number | null
-  /** 어느 날 종가·어느 연도 재무로 계산했는지. note 는 값이 빈 이유를 적는다 */
+  /* 어느 날 종가·어느 연도 재무로 계산했는지. priceDate 는 **그 종목의 마지막 거래일**이라
+     전역 최신 거래일과 다를 수 있다 — 수집 대상이 KOSPI 상위 300 이라 나머지 종목과 거래정지
+     종목은 며칠 전이 마지막이다. prevClose·per·pbr 이 모두 그 날짜 한 행에서 나오므로,
+     헤더의 "N일 종가" 가 곧 PER·PBR 의 기준일이다. note 는 값이 빈 이유를 적는다 */
   basedOn: {
     priceDate: string | null
     prevClose: number | null
@@ -212,9 +215,9 @@ export type Peer = {
  * (DART 에 매칭이 안 된 우선주는 서버가 KRX 이름으로 되돌려 주므로 그쪽은 맞는다.)
  *
  * **market 은 어느 응답에도 없어 null 이다** — 헤더가 그 칩만 그리지 않는다.
- * per·pbr 도 서버가 항상 null 을 준다(상장주식수를 안 쓴다고 basedOn.note 에
- * 적어 둔다). predictionCount 는 원천이 예측 심리뿐인데 그게 목업이라 0 으로
- * 둔다 — 실제 값 옆에 목업 숫자를 배지로 붙이지 않는다.
+ * per·pbr 은 상장주식수가 있는 종목에서 값이 온다(없으면 basedOn.note 에 사유).
+ * predictionCount 는 원천이 예측 심리뿐인데 그게 목업이라 0 으로 둔다 — 실제 값
+ * 옆에 목업 숫자를 배지로 붙이지 않는다.
  *
  * 셋 중 하나만 실패해도 헤더를 못 그리므로 Promise.all 로 함께 기다린다.
  * 없는 종목이면 셋 다 404 STOCK_NOT_FOUND 라 그대로 위로 올라간다.
