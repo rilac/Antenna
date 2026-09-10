@@ -105,12 +105,16 @@ public class NewsRelevanceService {
 
     private void save(ResearchDocument document, boolean relevant, String promptVersion) {
         String model = gpuAiClient.model();
-        newsSignalRepository
+        // 다시 저장하는 것이 요점이다. 배치에는 트랜잭션이 없어 조회한 엔티티가 곧 분리된다 —
+        // 값만 바꾸면 더티 체킹이 없어 변경이 사라진다(세대를 올려도 옛 판정이 그대로 남는다).
+        NewsSignal signal = newsSignalRepository
                 .findByDocument_Id(document.getId())
-                .ifPresentOrElse(
-                        s -> s.rejudge(relevant, model, promptVersion),
-                        () -> newsSignalRepository.save(
-                                NewsSignal.judged(document, relevant, model, promptVersion)));
+                .map(s -> {
+                    s.rejudge(relevant, model, promptVersion);
+                    return s;
+                })
+                .orElseGet(() -> NewsSignal.judged(document, relevant, model, promptVersion));
+        newsSignalRepository.save(signal);
     }
 
     /**

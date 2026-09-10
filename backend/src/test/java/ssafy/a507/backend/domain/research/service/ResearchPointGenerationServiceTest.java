@@ -234,6 +234,34 @@ class ResearchPointGenerationServiceTest {
     }
 
     @Test
+    @DisplayName("숫자 가드는 단위를 바꿔 쓴 것도 잡는다 — 340000 이 입력에 있다고 340 이 통과하면 안 된다")
+    void 숫자_가드() {
+        String input = "연간 재무(CFS, 억원): 2025년 매출 3000000 영업이익 320000 순이익 340000\n"
+                + "종가 70200원 · 1영업일 -1.90% · 20영업일 +9.73%\n부채비율 28.0% · 기준일: 2026-09-04";
+
+        // 단위 오독 — 이 가드를 만든 계기다. 부분 문자열로 보면 340000 안의 340 이 통과한다.
+        assertThat(ResearchPointGenerationService.numbersGrounded("순이익이 340억원이다.", input)).isFalse();
+        assertThat(ResearchPointGenerationService.numbersGrounded("순이익이 34억원이다.", input)).isFalse();
+        // 아예 없는 수치
+        assertThat(ResearchPointGenerationService.numbersGrounded("순이익이 999억원이다.", input)).isFalse();
+        // 반올림 — 9.73 을 9.7 로 줄이면 다른 값이다
+        assertThat(ResearchPointGenerationService.numbersGrounded("20영업일 9.7% 올랐다.", input)).isFalse();
+
+        // 그대로 옮긴 값은 통과한다
+        assertThat(ResearchPointGenerationService.numbersGrounded("순이익이 340000억원이다.", input)).isTrue();
+        assertThat(ResearchPointGenerationService.numbersGrounded("종가 70,200원이다.", input)).isTrue();
+        assertThat(ResearchPointGenerationService.numbersGrounded("1영업일 1.90% 하락했다.", input)).isTrue();
+        // 꼬리 0 은 값이 같다 — 1.90 과 1.9
+        assertThat(ResearchPointGenerationService.numbersGrounded("1영업일 1.9% 하락했다.", input)).isTrue();
+        // 소수점 표기 차이는 같은 값이다 — 28.0 과 28
+        assertThat(ResearchPointGenerationService.numbersGrounded("부채비율이 28%다.", input)).isTrue();
+        // 날짜를 우리말로 옮겨도 같은 값이다 — 2026-09-04 와 9월 4일
+        assertThat(ResearchPointGenerationService.numbersGrounded("2026년 9월 4일 기준이다.", input)).isTrue();
+        // 숫자가 없는 문장
+        assertThat(ResearchPointGenerationService.numbersGrounded("원전 수주 소식이 있었다.", input)).isTrue();
+    }
+
+    @Test
     @DisplayName("스포츠 기사는 재료에서 뺀다 — 야구 기사가 '위험 요인'으로 올라간 적이 있다")
     void 스포츠_기사_제외() {
         seedQuotes(3);

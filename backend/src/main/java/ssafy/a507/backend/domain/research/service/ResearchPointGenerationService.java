@@ -3,14 +3,17 @@ package ssafy.a507.backend.domain.research.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -283,17 +286,42 @@ public class ResearchPointGenerationService {
     /**
      * 본문의 모든 숫자가 입력에 있는지. 양자화된 자체 서빙 모델이 "340000억원"을 "340억원"으로 옮기거나
      * 없는 "시장 기대치 9%"를 붙이는 것을 막는다 — 규칙이 "새 수치를 만들지 않는다"라 숫자가 입력
-     * 밖이면 그 건은 지어낸 것이다. 쉼표는 양쪽에서 지우고 부분 문자열로 본다.
+     * 밖이면 그 건은 지어낸 것이다.
+     *
+     * <p><b>부분 문자열이 아니라 값으로 견준다.</b> 부분 문자열로 보면 입력의 "340000" 안에 "340" 이
+     * 들어 있어 단위 오독이 통과한다 — 이 가드를 만든 계기를 정작 못 잡는다.
+     *
+     * <p>값으로 견주면 표기 차이는 저절로 같아진다 — "28" 과 "28.0", "9" 와 "09"(날짜를 우리말로
+     * 옮긴 경우). 반올림("1.9" 와 "1.90")은 다른 값이라 걸린다. 지시문이 반올림을 금지한다.
      */
     static boolean numbersGrounded(String body, String input) {
-        String haystack = input.replace(",", "");
-        Matcher m = NUMBER.matcher(body);
-        while (m.find()) {
-            if (!haystack.contains(m.group().replace(",", ""))) {
+        Set<String> allowed = numbers(input);
+        for (String number : numbers(body)) {
+            if (!allowed.contains(number)) {
                 return false;
             }
         }
         return true;
+    }
+
+    private static Set<String> numbers(String text) {
+        Set<String> numbers = new HashSet<>();
+        Matcher matcher = NUMBER.matcher(text);
+        while (matcher.find()) {
+            numbers.add(canonical(matcher.group()));
+        }
+        return numbers;
+    }
+
+    /** 표기가 달라도 같은 값이면 같은 문자열이 되게 한다 — 쉼표를 지우고 꼬리 0 을 떼어 낸다. */
+    private static String canonical(String token) {
+        String digits = token.replace(",", "");
+        try {
+            return new BigDecimal(digits).stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException e) {
+            // 정규식이 "1,,2" 같은 것도 집을 수 있다. 값으로 못 읽으면 글자 그대로 견준다.
+            return digits;
+        }
     }
 
     /** 코드펜스나 인사말이 붙어 와도 첫 {@code [} 부터 마지막 {@code ]} 까지를 배열로 읽는다. */
