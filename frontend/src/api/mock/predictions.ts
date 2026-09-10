@@ -1,76 +1,22 @@
-/* C-01 예측 등록 목업. 백엔드에 predictions 표와 엔드포인트가 붙으면 지운다.
+/* 예측 목업. **서버에 아직 API 가 없는 것만 남았다.**
 
-   응답 분기를 실제로 재현한다. 화면이 네 갈래를 모두 그리는지 확인하려는 것이다
-   (§4 C-01): 201 슬롯 내 · 202 슬롯 초과(소각) → M-02 · 401 서명 불일치 · 409 잔액 부족.
+   등록(POST /predictions)과 슬롯(GET /predictions/slots)은 ANT-PRED-01 이 들어와
+   실제 호출로 넘어갔고, 그 목업은 지웠다. 남은 둘은 명세에 엔드포인트가 없다:
 
-   슬롯은 모듈 변수로 들고 있어 한 세션 안에서 실제로 줄어든다. 새로고침하면
-   초기값으로 돌아간다 — 진짜 저장은 백엔드가 할 일이다. */
+     GET /predictions/{id}                         예측 상세 (C-03)
+     GET /stocks/{code}/predictions?phase=&cursor=  종목별 예측 목록
+
+   둘 다 §5 게이팅을 재현한다 — 판정 완료는 전부 공개하고, 미판정은 근거만 잠근다.
+   화면이 잠금 카드와 구독 CTA 를 제대로 그리는지 눈으로 확인하려는 것이다. */
 import { phaseOf } from '../predictions'
 import type {
-  CreateResult, Direction, Horizon, PredictionDetail,
-  PredictionDraft, PredictionStatus, SlotStatus, StockPrediction, StockPredictionList,
+  Direction, Horizon, PredictionDetail,
+  PredictionStatus, StockPrediction, StockPredictionList,
 } from '../predictions'
 
 const delay = <T,>(value: T, ms: number) =>
   new Promise<T>((resolve) => setTimeout(() => resolve(value), ms))
 
-const WEEKLY_LIMIT = 3
-let used = 1
-
-/** 다음 주 월요일 09:00 에 다시 찬다 */
-function nextReset() {
-  const d = new Date()
-  d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7))
-  d.setHours(9, 0, 0, 0)
-  return d.toISOString()
-}
-
-export function slots(): Promise<SlotStatus> {
-  return delay({
-    weeklyLimit: WEEKLY_LIMIT,
-    used,
-    remaining: Math.max(0, WEEKLY_LIMIT - used),
-    resetsAt: nextReset(),
-  }, 240)
-}
-
-/* 잔액 부족을 한 번은 보여 주기 위한 장치. 목표가 끝자리가 9 면 409 를 낸다 —
-   화면이 409 를 어떻게 그리는지 매번 확인할 수 있어야 해서 남겨 둔다. */
-const wouldFailBalance = (draft: PredictionDraft) =>
-  Math.round(draft.targetPrice) % 10 === 9
-
-export function create(draft: PredictionDraft): Promise<CreateResult> {
-  if (wouldFailBalance(draft)) {
-    return Promise.reject(Object.assign(new Error('INSUFFICIENT_BALANCE'), {
-      status: 409, code: 'INSUFFICIENT_BALANCE',
-      message: '소각에 필요한 토큰이 부족합니다.',
-    }))
-  }
-
-  const overSlot = used >= WEEKLY_LIMIT
-  used += 1
-
-  /* 슬롯을 넘기면 소각 거래라 온체인 확정을 기다린다 — 202 + operationId.
-     여기서 predictionId 를 같이 주면 화면이 M-02 를 건너뛰게 되므로 주지 않는다. */
-  if (overSlot) {
-    return delay<CreateResult>({
-      kind: 'queued',
-      data: { operationId: `op_${Date.now().toString(36)}` },
-    }, 900)
-  }
-
-  /* commitHash 는 서버가 salt 를 섞어 만든다. 목업도 클라이언트가 계산할 수 없는
-     값이라는 걸 드러내려고 draft 와 무관한 난수로 만든다. */
-  const hash = `0x${Array.from({ length: 64 }, () => '0123456789abcdef'[Math.floor(Math.random() * 16)]).join('')}`
-
-  return delay<CreateResult>({
-    kind: 'created',
-    /* 서버 predictionId 는 long 이다. 문자열 id 를 주면 그걸 받은 화면이
-       /predictions/{id}/proof 같은 실제 경로를 부를 때 400 이 난다 — 모양을
-       맞춰 둔다. 값 자체는 서버에 없는 번호라 조회는 못 찾는다. */
-    data: { predictionId: String(Date.now() % 100000), status: 'BASE', commitHash: hash },
-  }, 900)
-}
 
 /* ── 이 종목에 걸린 남의 예측 ─────────────────────────────
    §5 게이팅을 실제로 재현한다. 판정 완료는 전부 공개하고, 미판정은 잠가서
@@ -101,7 +47,7 @@ export const AUTHORS = [
   { userId: '110', nickname: '공시읽는남자', accuracy: 55.8, subscribed: false },
 ]
 
-const HORIZONS: Horizon[] = [5, 10, 20, 60]
+const HORIZONS: Horizon[] = [7, 14, 30, 90]
 const STATUSES: PredictionStatus[] = ['HIT', 'BASE', 'MISS', 'OPEN', 'HIT', 'OPEN', 'MISS', 'BASE', 'HIT', 'OPEN']
 
 /** 종목코드를 씨앗으로 쓰는 결정적 난수. 새로고침해도 같은 목록이 나온다 */
@@ -126,7 +72,7 @@ function buildRows(code: string): StockPrediction[] {
     const close = judged ? Math.round(base * (0.9 + rnd() * 0.2) / 100) * 100 : null
 
     const d = new Date('2026-08-31T00:00:00Z')
-    d.setUTCDate(d.getUTCDate() + HORIZONS[i % 4] * 1.4)
+    d.setUTCDate(d.getUTCDate() + HORIZONS[i % 4])
 
     return {
       id: `${code}-pr${i + 1}`,
@@ -204,21 +150,21 @@ type DetailSeed = {
 }
 
 const SEEDS: DetailSeed[] = [
-  { id: 'p1', stockCode: '005930', stockName: '삼성전자', direction: 'UP', targetPrice: 78000, horizon: 20, status: 'BASE', dday: null, errorRate: null, settleDate: '2026-09-28' },
-  { id: 'p2', stockCode: '000660', stockName: 'SK하이닉스', direction: 'UP', targetPrice: 215000, horizon: 10, status: 'OPEN', dday: 7, errorRate: null, settleDate: '2026-09-14' },
-  { id: 'p3', stockCode: '035420', stockName: 'NAVER', direction: 'DOWN', targetPrice: 165000, horizon: 5, status: 'OPEN', dday: 2, errorRate: null, settleDate: '2026-09-07' },
-  { id: 'p4', stockCode: '373220', stockName: 'LG에너지솔루션', direction: 'UP', targetPrice: 380000, horizon: 60, status: 'OPEN', dday: 58, errorRate: null, settleDate: '2026-11-23' },
-  { id: 'p5', stockCode: '005380', stockName: '현대차', direction: 'UP', targetPrice: 260000, horizon: 20, status: 'HIT', dday: null, errorRate: 1.2, settleDate: '2026-08-24' },
-  { id: 'p6', stockCode: '068270', stockName: '셀트리온', direction: 'DOWN', targetPrice: 180000, horizon: 10, status: 'HIT', dday: null, errorRate: -2.4, settleDate: '2026-08-17' },
-  { id: 'p7', stockCode: '051910', stockName: 'LG화학', direction: 'UP', targetPrice: 420000, horizon: 20, status: 'MISS', dday: null, errorRate: -11.6, settleDate: '2026-08-10' },
-  { id: 'p8', stockCode: '105560', stockName: 'KB금융', direction: 'DOWN', targetPrice: 80000, horizon: 5, status: 'MISS', dday: null, errorRate: 9.3, settleDate: '2026-08-03' },
-  { id: 'p9', stockCode: '000270', stockName: '기아', direction: 'UP', targetPrice: 108000, horizon: 10, status: 'HIT', dday: null, errorRate: 0.4, settleDate: '2026-07-27' },
-  { id: 'p10', stockCode: '006400', stockName: '삼성SDI', direction: 'DOWN', targetPrice: 300000, horizon: 20, status: 'MISS', dday: null, errorRate: 6.8, settleDate: '2026-07-20' },
-  { id: 'p11', stockCode: '247540', stockName: '에코프로비엠', direction: 'DOWN', targetPrice: 150000, horizon: 60, status: 'HIT', dday: null, errorRate: -1.9, settleDate: '2026-07-13' },
-  { id: 'p12', stockCode: '055550', stockName: '신한지주', direction: 'UP', targetPrice: 52000, horizon: 5, status: 'HIT', dday: null, errorRate: 2.1, settleDate: '2026-07-06' },
-  { id: 'p13', stockCode: '207940', stockName: '삼성바이오로직스', direction: 'UP', targetPrice: 1020000, horizon: 20, status: 'MISS', dday: null, errorRate: -8.2, settleDate: '2026-06-29' },
+  { id: 'p1', stockCode: '005930', stockName: '삼성전자', direction: 'UP', targetPrice: 78000, horizon: 30, status: 'BASE', dday: null, errorRate: null, settleDate: '2026-09-28' },
+  { id: 'p2', stockCode: '000660', stockName: 'SK하이닉스', direction: 'UP', targetPrice: 215000, horizon: 14, status: 'OPEN', dday: 7, errorRate: null, settleDate: '2026-09-14' },
+  { id: 'p3', stockCode: '035420', stockName: 'NAVER', direction: 'DOWN', targetPrice: 165000, horizon: 7, status: 'OPEN', dday: 2, errorRate: null, settleDate: '2026-09-07' },
+  { id: 'p4', stockCode: '373220', stockName: 'LG에너지솔루션', direction: 'UP', targetPrice: 380000, horizon: 90, status: 'OPEN', dday: 58, errorRate: null, settleDate: '2026-11-23' },
+  { id: 'p5', stockCode: '005380', stockName: '현대차', direction: 'UP', targetPrice: 260000, horizon: 30, status: 'HIT', dday: null, errorRate: 1.2, settleDate: '2026-08-24' },
+  { id: 'p6', stockCode: '068270', stockName: '셀트리온', direction: 'DOWN', targetPrice: 180000, horizon: 14, status: 'HIT', dday: null, errorRate: -2.4, settleDate: '2026-08-17' },
+  { id: 'p7', stockCode: '051910', stockName: 'LG화학', direction: 'UP', targetPrice: 420000, horizon: 30, status: 'MISS', dday: null, errorRate: -11.6, settleDate: '2026-08-10' },
+  { id: 'p8', stockCode: '105560', stockName: 'KB금융', direction: 'DOWN', targetPrice: 80000, horizon: 7, status: 'MISS', dday: null, errorRate: 9.3, settleDate: '2026-08-03' },
+  { id: 'p9', stockCode: '000270', stockName: '기아', direction: 'UP', targetPrice: 108000, horizon: 14, status: 'HIT', dday: null, errorRate: 0.4, settleDate: '2026-07-27' },
+  { id: 'p10', stockCode: '006400', stockName: '삼성SDI', direction: 'DOWN', targetPrice: 300000, horizon: 30, status: 'MISS', dday: null, errorRate: 6.8, settleDate: '2026-07-20' },
+  { id: 'p11', stockCode: '247540', stockName: '에코프로비엠', direction: 'DOWN', targetPrice: 150000, horizon: 90, status: 'HIT', dday: null, errorRate: -1.9, settleDate: '2026-07-13' },
+  { id: 'p12', stockCode: '055550', stockName: '신한지주', direction: 'UP', targetPrice: 52000, horizon: 7, status: 'HIT', dday: null, errorRate: 2.1, settleDate: '2026-07-06' },
+  { id: 'p13', stockCode: '207940', stockName: '삼성바이오로직스', direction: 'UP', targetPrice: 1020000, horizon: 30, status: 'MISS', dday: null, errorRate: -8.2, settleDate: '2026-06-29' },
   /* 이름이 아직 안 오는 갈래 — 화면이 종목코드로 대체하는지 본다 */
-  { id: 'p14', stockCode: '005490', stockName: null, direction: 'DOWN', targetPrice: 390000, horizon: 10, status: 'HIT', dday: null, errorRate: -0.7, settleDate: '2026-06-22' },
+  { id: 'p14', stockCode: '005490', stockName: null, direction: 'DOWN', targetPrice: 390000, horizon: 14, status: 'HIT', dday: null, errorRate: -0.7, settleDate: '2026-06-22' },
 ]
 
 /* ── 예측 상세 (C-03) ─────────────────────────────────────
@@ -255,7 +201,7 @@ const DETAILS: Record<string, PredictionDetail> = {
   p2: {
     id: 'p2', stockCode: '000660', stockName: 'SK하이닉스',
     author: { userId: 'me', nickname: '레드와이어사지마라했다' },
-    status: 'OPEN', horizon: 10, createdAt: '2026-08-28T09:31:00+09:00',
+    status: 'OPEN', horizon: 14, createdAt: '2026-08-28T09:31:00+09:00',
     settleDate: '2026-09-14', dday: 7,
     locked: false, direction: 'UP', targetPrice: 215000,
     basePrice: 188700, settlePrice: null, errorRate: null,
@@ -272,7 +218,7 @@ const DETAILS: Record<string, PredictionDetail> = {
   p5: {
     id: 'p5', stockCode: '005380', stockName: '현대차',
     author: { userId: 'me', nickname: '레드와이어사지마라했다' },
-    status: 'HIT', horizon: 20, createdAt: '2026-07-24T10:02:00+09:00',
+    status: 'HIT', horizon: 30, createdAt: '2026-07-24T10:02:00+09:00',
     settleDate: '2026-08-24', dday: null,
     locked: false, direction: 'UP', targetPrice: 260000,
     basePrice: 238500, settlePrice: 263100, errorRate: 1.2,
@@ -290,7 +236,7 @@ const DETAILS: Record<string, PredictionDetail> = {
   'o-open': {
     id: 'o-open', stockCode: '005930', stockName: '삼성전자',
     author: { userId: '102', nickname: '반도체존버' },
-    status: 'OPEN', horizon: 20, createdAt: '2026-08-20T11:40:00+09:00',
+    status: 'OPEN', horizon: 30, createdAt: '2026-08-20T11:40:00+09:00',
     settleDate: '2026-09-18', dday: 11,
     /* 남의 미판정 예측이지만 **내용은 열려 있다**(2026-09-08 결정).
        잠기는 것은 근거 본문뿐이라 noteLocked 만 참이다. */
@@ -307,7 +253,7 @@ const DETAILS: Record<string, PredictionDetail> = {
   'o-hit': {
     id: 'o-hit', stockCode: '035420', stockName: 'NAVER',
     author: { userId: '101', nickname: '데이터로보는사람' },
-    status: 'HIT', horizon: 10, createdAt: '2026-07-30T09:12:00+09:00',
+    status: 'HIT', horizon: 14, createdAt: '2026-07-30T09:12:00+09:00',
     settleDate: '2026-08-13', dday: null,
     locked: false, direction: 'DOWN', targetPrice: 165000,
     basePrice: 178200, settlePrice: 163900, errorRate: -0.7,

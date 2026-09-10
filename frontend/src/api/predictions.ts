@@ -57,38 +57,59 @@
        누를 때마다 숫자가 바뀐다.
    ─────────────────────────────────────────────────────── */
 import { api } from './client'
+import { releaseIdempotencyKey } from './idempotency'
 import * as mock from './mock/predictions'
 import { keccak256Utf8 } from '../chain/keccak'
 import type { Anchor } from './anchors'
+import type { ProofAnchorStatus } from './proof'
 import type { ClosePrice, CursorList, OperationRef } from './types'
 import type { WalletNonce } from './wallet'
 
+/**
+ * 남은 목업은 **서버에 그 API 가 없는 것들뿐**이다 — 예측 상세와 종목별 예측 목록.
+ * 등록(POST /predictions)과 슬롯(GET /predictions/slots)은 ANT-PRED-01 이 들어와
+ * 실제 호출로 넘어갔다. 위 "백엔드가 붙으면 지울 것" 목록의 남은 두 줄이 채워지면
+ * 이 상수도 함께 사라진다.
+ */
 const MOCK = true
 
 /** UP/DOWN 둘뿐이다. "보합" 을 두지 않는다(§4 C-01). */
 export const DIRECTIONS = ['UP', 'DOWN'] as const
 export type Direction = (typeof DIRECTIONS)[number]
 
-/** 5·10·20·60 4지 고정. 임의 마감일을 받지 않는다(§4 C-01). */
-export const HORIZONS = [5, 10, 20, 60] as const
+/**
+ * 7·14·30·90 4지 고정. 임의 마감일을 받지 않는다(§4 C-01).
+ *
+ * **거래일이 아니라 캘린더일이다**(결정 B5, 명세 v0.38). 만기일 = 기준일 + horizon 일로
+ * 등록 즉시 확정된다 — 휴장일을 세지 않으므로 클라이언트가 그대로 계산할 수 있다.
+ * DB CHECK(DB-01)·ERD·서버 HORIZONS 가 모두 이 네 값이라, 다른 값을 보내면
+ * 400 INVALID_REQUEST(horizon) 이다.
+ */
+export const HORIZONS = [7, 14, 30, 90] as const
 export type Horizon = (typeof HORIZONS)[number]
 
 export const HORIZON_LABEL: Record<Horizon, string> = {
-  5: '5거래일',
-  10: '10거래일',
-  20: '20거래일',
-  60: '60거래일',
+  7: '7일',
+  14: '14일',
+  30: '30일',
+  90: '90일',
 }
 
 /** 근거 본문 상한. 구독자 전용이며 만기 리빌 후에도 공개되지 않는다. */
 export const NOTE_MAX = 5000
 
+/** 슬롯은 **하루** 단위다(서버 app.prediction.slot.free-per-day). 주 단위가 아니다. */
 export type SlotStatus = {
-  weeklyLimit: number
+  /** 이 셈이 걸린 날(KST). 자정에 넘어간다 */
+  date: string
+  freeLimit: number
   used: number
   remaining: number
-  /** 슬롯이 다시 차는 시각 */
-  resetsAt: string
+  /**
+   * 슬롯을 넘겨 등록할 때 소각할 금액(wei 문자열). 10²¹ 이 JS number 정밀도를 넘어
+   * 문자열이다 — 숫자로 바꾸지 않는다. ANT-TOKEN-08 확정 전 잠정값이다.
+   */
+  overCost: string
 }
 
 export type PredictionDraft = {
@@ -108,12 +129,24 @@ export type PredictionDraft = {
 
 /** 201 응답. basePrice 는 배치 B2 가 다음 영업일 종가로 채운다 — 비어 있다. */
 export type PredictionCreated = {
-  predictionId: string
-  status: 'BASE'
+  id: number
   commitHash: string
+  /** 등록 직후에는 항상 WAITING. 배치 B2 가 묶으면 넘어간다 */
+  anchorStatus: ProofAnchorStatus
+  status: 'BASE'
+  /** 등록 시점의 다음 평일. 기준가는 이 날 종가로 배치가 채운다 */
+  baseDate: string
+  /** baseDate + horizon 캘린더일 — 등록 즉시 확정된다 */
+  settleDate: string
 }
 
-/** 슬롯을 넘겨 소각으로 넘어간 경우. M-02 가 operationId 를 폴링한다. */
+/**
+ * 슬롯을 넘겨 소각으로 넘어간 경우. M-02 가 operationId 를 폴링한다.
+ *
+ * **서버가 아직 이 응답을 내지 않는다.** 소각할 토큰(ANT-CHAIN-03)이 없어 슬롯 초과는
+ * 409 PREDICTION_SLOT_EXCEEDED 로 끝난다(명세 v0.41). 규격에는 남아 있어 타입도 남기되,
+ * 지금 이 갈래로 오는 응답은 없다.
+ */
 export type PredictionQueued = OperationRef
 
 export type CreateResult =
@@ -121,7 +154,6 @@ export type CreateResult =
   | { kind: 'queued'; data: PredictionQueued }
 
 export function getSlots() {
-  if (MOCK) return mock.slots()
   return api.get<SlotStatus>('/predictions/slots')
 }
 
@@ -379,15 +411,33 @@ export function fetchStockPredictions(code: string, phase: PredictionPhase) {
   }
 }
 
+/**
+ * 멱등 키 scope. 서버가 `Idempotency-Key` 를 **필수**로 받는다(없으면 400
+ * IDEMPOTENCY_KEY_REQUIRED) — 예측에는 삭제 API 가 없고 슬롯도 되돌아오지 않아,
+ * 타임아웃 뒤 한 번의 재시도가 예측 둘을 만들면 복구할 길이 없다.
+ *
+ * 봉인 재료가 바뀌면 다른 요청이므로 키도 갈라야 한다. noteSalt 가 등록마다 새로
+ * 뽑히므로 그것만으로도 갈리지만, 무엇에 서명했는지가 키에 드러나도록 함께 적는다.
+ */
+export const createScope = (d: PredictionDraft) =>
+  `prediction:${d.stockCode}:${d.noteSalt}`
+
 /* 201 과 202 를 응답 본문 모양으로 가른다. api.post 는 상태 코드를 돌려주지 않는데,
    그것 하나 때문에 공용 client 를 고치면 다른 화면까지 영향이 간다. 두 응답은
-   키가 겹치지 않아(operationId ↔ predictionId) 모양만으로 확실히 갈린다. */
+   키가 겹치지 않아(operationId ↔ id) 모양만으로 확실히 갈린다.
+
+   지금 서버는 202 를 내지 않는다 — 슬롯 초과는 409 다(위 PredictionQueued 주석). */
 export function createPrediction(draft: PredictionDraft, signature: string) {
-  if (MOCK) return mock.create(draft)
-  return api.post<PredictionCreated | PredictionQueued>('/predictions', { ...draft, signature })
+  const scope = createScope(draft)
+  return api.post<PredictionCreated | PredictionQueued>(
+    '/predictions', { ...draft, signature }, { idempotencyScope: scope },
+  )
     .then((body): CreateResult => ('operationId' in body
       ? { kind: 'queued', data: body }
       : { kind: 'created', data: body }))
+    /* 확정된 뒤에야 키를 버린다. 실패한 재시도는 같은 키로 가야 서버가 중복으로
+       세지 않는다 — 성공 응답을 받은 다음 요청만 새 키를 받는다. */
+    .then((r) => { releaseIdempotencyKey(scope); return r })
 }
 
 /* ── 커밋 봉인 (ANT-PRED-02) ──────────────────────────────

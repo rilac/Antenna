@@ -57,17 +57,16 @@ const commitFields = (d: PredictionDraft, hash: string): CommitFields => ({
   noteHash: hash,
 })
 
-/* 기간 버튼에 붙일 만기일. horizon 은 거래일 수라 주말을 건너뛰며 센다.
-   휴장일은 클라이언트가 알 수 없어 하루 이틀 어긋날 수 있다 — 그래서 버튼 아래에
-   "서버가 확정한다" 를 함께 적어 둔다. 기준가도 다음 영업일 종가라 하루 뒤부터 센다. */
+/* 기간 버튼에 붙일 만기일.
+
+   horizon 은 **캘린더일**이다(결정 B5). 서버가 만기일 = 기준일 + horizon 일로 잡고,
+   기준일은 등록 시점의 "다음 평일" 이다. 휴장일을 세지 않으므로 클라이언트가 서버와
+   똑같이 계산할 수 있다 — 예전처럼 어긋나지 않는다. */
 function dueLabel(horizon: Horizon) {
   const d = new Date()
-  let left = horizon + 1
-  while (left > 0) {
-    d.setDate(d.getDate() + 1)
-    const day = d.getDay()
-    if (day !== 0 && day !== 6) left -= 1
-  }
+  // 기준일 = 다음 평일. 토·일에 등록하면 월요일이 기준일이다
+  do { d.setDate(d.getDate() + 1) } while (d.getDay() === 0 || d.getDay() === 6)
+  d.setDate(d.getDate() + horizon)
   return `${d.getMonth() + 1}.${d.getDate()}`
 }
 
@@ -143,8 +142,10 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
     direction !== null && gap !== null &&
     ((direction === 'UP' && gap < 0) || (direction === 'DOWN' && gap > 0))
 
+  /* 근거(note)도 필수다 — 서버가 @NotBlank 로 받아 비우면 400 이다(명세: note *).
+     커밋의 noteHash 가 봉인의 핵심이라, 근거 없는 예측은 규격상 만들 수 없다. */
   const draft: PredictionDraft | null = useMemo(() => {
-    if (!direction || !horizon || !validTarget) return null
+    if (!direction || !horizon || !validTarget || !note.trim()) return null
     return {
       stockCode: code, direction, targetPrice, horizon,
       note, noteSalt: form.noteSalt, evidencePointIds: picked,
@@ -315,12 +316,15 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
 
       <Panel
         title="예측 등록하기"
-        note={slots.data ? `이번 주 ${remaining}/${slots.data.weeklyLimit}회` : undefined}
+        note={slots.data ? `오늘 ${remaining}/${slots.data.freeLimit}회` : undefined}
         span={6}
       >
         {overSlot && (
+          /* 소각 경로(202)는 아직 서버에 없다 — 슬롯을 다 쓰면 409 로 끝난다(명세 v0.41).
+             "지금 등록하면 소각된다" 고 적으면 누를 수 있는 것처럼 보이는데, 실제로는
+             막힌다. 소각이 붙으면 그때 문구를 되돌린다. */
           <p className="sd-slot-warn">
-            이번 주 슬롯을 모두 썼습니다. 지금 등록하면 <b>토큰이 소각</b>되며, 블록이 확정될 때까지 기다립니다.
+            오늘 무료 슬롯을 모두 썼습니다. <b>내일 다시 채워집니다.</b>
           </p>
         )}
 
@@ -412,7 +416,7 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
                 </button>
               ))}
             </div>
-            <p className="sd-help">만기는 휴장일에 따라 하루 이틀 달라질 수 있어, 서버가 확정합니다.</p>
+            <p className="sd-help">기준일(다음 평일)부터 캘린더일로 셉니다. 기준가는 기준일 종가로 확정됩니다.</p>
           </li>
 
           {/* ④ 근거 포인트 — B-03 종목 정보에서 인계받는다 */}
@@ -451,7 +455,8 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
 
           {/* ⑤ 내 판단 — 평문이다. payload 에는 noteHash 만 들어가므로 서식을 넣지 않는다 */}
           <li className="pf-step">
-            <h3><i className="pf-no">5</i>내 판단 <span className="pf-opt">선택 · 구독자 전용</span></h3>
+            {/* 필수다 — 서버 @NotBlank. 근거가 곧 커밋의 noteHash 라 비울 수 없다 */}
+            <h3><i className="pf-no">5</i>내 판단 <span className="pf-req">필수 · 구독자 전용</span></h3>
             <textarea
               className="sd-note"
               value={note}
@@ -510,7 +515,9 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
               )}
             </>
           ) : (
-            <p className="pf-none">방향 · 목표가 · 기간을 모두 고르면 서명 단계로 넘어갑니다.</p>
+            /* 근거도 draft 의 조건이라 여기 함께 적는다 — 빼면 다 채웠는데 서명 칸이
+               안 열리는 이유를 화면 어디에서도 알 수 없다 */
+            <p className="pf-none">방향 · 목표가 · 기간 · 내 판단을 모두 채우면 서명 단계로 넘어갑니다.</p>
           )}
         </div>
       </Panel>
