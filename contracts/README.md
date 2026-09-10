@@ -116,3 +116,90 @@ Java 테스트와 Solidity 테스트가 같이 읽으므로 CI 에서 먼저 잡
 - `isIncluded(batchId, commitHash, proof[])` — 누구나. 검증 API·FE 가 `eth_call` 로 쓴다.
 - `Anchored(batchId indexed, merkleRoot, commitHashes[])` — 인덱서 구독 이벤트. 순서 = 리프 순서.
 - batchId 는 서버가 정한다 = 온체인 멱등키. 업그레이더블 프록시 안 씀. 리프는 storage 에 안 둔다.
+
+---
+
+# PredictToken — ANT 서비스 토큰 (ANT-CHAIN-03)
+
+앤테나의 토큰. **전송 불가**이고, 잔액을 움직이는 길은 서버 오퍼레이터의 `mint / burn / subscribe` 와
+보유자 자가 소각 `burnSelf`, 그리고 위성 컨트랙트용 `operatorTransfer`(MOVER_ROLE) 뿐이다.
+설계 근거: `.claude/docs-personal/impl/ANT-CHAIN-03/plan.md`.
+
+**SSAFY 배포본 (2026-09-10)** — `deployments/ssafy.PredictToken.json`
+
+| 항목 | 값 |
+|---|---|
+| 주소 | `0xe11d728b157240DCf4a8c831176D248BAFD33077` |
+| 배포 블록 | `11233486` → 토큰 인덱서(ANT-CHAIN-11) 시작 블록 |
+| 이름 / 심볼 / decimals | `Antenna` / `ANT` / **0** |
+| 관리자 | `0x22B5…DEA1` (CommitAnchor 와 같은 키, `ANCHOR_ADMIN_PRIVATE_KEY`) |
+| 오퍼레이터 | `0xb7f2…2a47` (CommitAnchor 릴레이어와 같은 키, `RELAYER_PRIVATE_KEY`) |
+| 수납(treasury) | `0x893D…7fb3` (`TOKEN_TREASURY_PRIVATE_KEY`, 서버는 안 읽음) |
+| 플랫폼 몫 | 30% 상수 (`PLATFORM_SHARE_BPS = 3000`), 잔돈은 예측가에게 |
+
+## 명령
+
+```bash
+npm test                                   # CommitAnchor 41 + PredictToken 46
+npm run keygen treasury                    # 수납 주소 키 (출력만 한다)
+ANCHOR_ADMIN_PRIVATE_KEY=0x… TOKEN_OPERATOR=0x… TOKEN_TREASURY=0x… npm run deploy:token:ssafy
+```
+
+배포하면 `deployments/ssafy.PredictToken.json` 과 `backend/src/main/resources/abi/PredictToken.json` 이 갱신된다.
+주소는 `backend/.env` 의 `CONTRACT_PREDICT_TOKEN` 에 넣는다.
+
+## 단위 — decimals 0, 1 ANT = 1 원 상당
+
+`2000` 이 곧 2,000 ANT 다. 10¹⁸ 을 곱하지 않는다. DB `numeric(30,0)` 과 API 문자열에 이 정수가 그대로 들어간다.
+지갑(MetaMask 등)에 토큰을 추가하면 `1000 ANT` 로 보인다. 원화 스테이블코인을 나중에 붙여도 정수 1:1 매핑이다.
+
+## 역할 셋
+
+| 역할 | 누가 | 할 수 있는 것 |
+|---|---|---|
+| `DEFAULT_ADMIN_ROLE` | 관리자 키 | 역할 주고 뺏기 · `setTreasury`. **잔액은 못 건드린다** |
+| `OPERATOR_ROLE` | 서버 릴레이어 키 | `mint(to, amount, reason)` · `burn(from, amount, reason)` · `subscribe(subscriber, creator, amount)` |
+| `MOVER_ROLE` | **위성 컨트랙트 주소만** (배포 시 0명) | `operatorTransfer(from, to, amount)` |
+
+- **서버는 사용자 토큰을 승인 없이 태울 수 있다.** 사용자 동의는 서버가 EIP-191 서명으로 검증하고 체인은 서명을 모른다
+  (CommitAnchor 와 같은 구조). 팀이 알아야 하는 사실이라 여기 적는다.
+- 서버 키에는 MOVER 를 주지 않는다. 그래서 "서버도 마음대로 이체 못 한다" 가 유지되고, 이체할 수 있는 건 코드가 공개된 컨트랙트뿐이다.
+- 키 유출 대응은 CommitAnchor 와 같다 — 관리자 키로 `revokeRole` + `grantRole`. 재배포 없음.
+
+## 함정 5 — 이 컨트랙트는 재배포하지 않는다. 잔액이 여기 산다
+
+CommitAnchor 는 재배포가 공짜였다(과거 앵커는 옛 주소에 남는다). 토큰은 다르다 — **재배포하면 모든 잔액이 새 주소에 없다.**
+
+| 바꾸는 것 | 길 |
+|---|---|
+| 금액표 · reason 어휘 · 정책 | 서버만 고친다. 컨트랙트는 정책을 모른다 |
+| 새 잔액 이동 패턴(상금 분배·경매·수익 재분배·스테이블코인 교환) | **위성 컨트랙트**를 배포하고 관리자가 그 주소에 `MOVER_ROLE` 을 준다. 토큰은 안 바뀐다 |
+| 토큰 규칙 자체(decimals·이름·전송 규칙·70:30) | **v2 이관**: v1 `Transfer` 로그로 잔액 스냅샷 → v2 에 `mint(…, "MIGRATION")` 일괄 → v1 OPERATOR·MOVER 회수(동결) → `.env`·인덱서 시작 블록·지갑 재등록. 가스 0·사용자 수백 명이라 몇 분짜리다. 스크립트는 필요해질 때 만든다 |
+
+`.env` 의 `CONTRACT_PREDICT_TOKEN` 을 바꾸는 순간 서버가 보는 잔액 원천이 바뀐다. 이관 없이 바꾸지 마라.
+
+## 함정 6 — `burn` 은 오버로드가 아니다
+
+보유자 자가 소각은 `burnSelf(amount, reason)` 다. `burn` 과 같은 이름으로 두면 ethers 가 `token['burn(uint256,bytes32)']` 처럼
+시그니처 문자열로만 부를 수 있어 프론트·스크립트 호출이 전부 그 꼴이 된다. web3j 도 같은 이름이면 인코딩 시 헷갈린다.
+
+## 팀 공용 배포본에 남긴 흔적 — 여기에 계속 적는다
+
+가스가 0 이라 tx 는 공짜지만 이벤트는 영원히 남는다. 인덱서 ② 가 붙으면 아래 행이 `token_ledger` 후보로 올라온다(DB 에 없는 지갑이라 경고로 남는 게 정상).
+
+| 블록 | 무엇 | 누구에게 | reason | tx |
+|---|---|---|---|---|
+| 11233493 | `mint 1000` | `0x9795…9dC0` (일회용 테스트 지갑) | `SIGNUP_BONUS` | `0x663377b8…` |
+| 11233494 | `burn 1000` | 같은 지갑 → 잔액 0, totalSupply 0 | `SLOT_OVER` | `0x7f930bd5…` |
+
+그 사이에 그 지갑으로 `transfer`·`approve` 를 시도해 둘 다 `TransferDisabled()` 로 revert 하는 것을 확인했다(eth_call).
+
+## 설계 요약
+
+- `decimals() = 0`. `transfer / transferFrom / approve` → `TransferDisabled()`. `allowance` 는 항상 0.
+- `subscribe` 는 한 tx 안에서 예측가 몫·플랫폼 몫 두 번 `_transfer`. 어느 쪽에서 막혀도 전체 되감김.
+  `platformShare = amount × 3000 / 10000` (내림), `creatorShare = amount − platformShare`.
+- 이벤트 `Minted(to, amount, reason)` · `Burned(from, amount, reason)` · `Subscribed(subscriber, creator, amount, creatorShare, platformShare)` —
+  인덱서는 이 셋만 읽는다. `reason` 은 `bytes32 indexed`(ASCII 왼쪽 정렬, `token_ledger.reason` varchar(32) 와 길이가 같다).
+  ERC-20 표준 `Transfer` 는 지갑 표시용이다. `operatorTransfer` 는 사유 이벤트를 내지 않는다 — 사유는 위성 컨트랙트가 자기 이벤트로 남긴다.
+- 커스텀 에러: `TransferDisabled · SelfSubscribe · ZeroAmount · ZeroAddress · SameAddress` + OZ `ERC20InsufficientBalance · AccessControlUnauthorizedAccount`.

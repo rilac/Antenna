@@ -10,6 +10,7 @@
     "keygen": "node scripts/keygen.mjs",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:ssafy": "node scripts/deploy-ssafy.mjs",
+    "deploy:token:ssafy": "node scripts/deploy-token-ssafy.mjs",
     "rebuild": "node scripts/rebuild-from-chain.mjs",
     "demo:recovery": "node scripts/demo-recovery.mjs"
   },
