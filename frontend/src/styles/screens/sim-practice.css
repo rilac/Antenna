@@ -78,14 +78,14 @@
 
 /* ── ② 연습 주제 ────────────────────────────────────── */
 /* 접이식 주제 상자. summary 가 패널 머리 역할을 그대로 하고, 접혔을 때는 머리만 남는다 */
-.pr-topics summary{cursor:pointer;margin:0;list-style:none;user-select:none}
-.pr-topics summary::-webkit-details-marker{display:none}
-.pr-topics summary:focus-visible{outline:2px solid var(--brand);outline-offset:4px;border-radius:8px}
-.pr-topics[open] summary{margin-bottom:18px}
+.pr-fold summary{cursor:pointer;margin:0;list-style:none;user-select:none}
+.pr-fold summary::-webkit-details-marker{display:none}
+.pr-fold summary:focus-visible{outline:2px solid var(--brand);outline-offset:4px;border-radius:8px}
+.pr-fold[open] summary{margin-bottom:18px}
 .pr-count{margin-left:auto;color:#8a93ad;font-size:13.5px;font-weight:700;white-space:nowrap}
 .pr-chev{display:grid;place-items:center;color:#8a93ad;transition:transform .15s}
-.pr-topics[open] .pr-chev{transform:rotate(180deg)}
-.pr-topics summary:hover .pr-count,.pr-topics summary:hover .pr-chev{color:var(--brand)}
+.pr-fold[open] .pr-chev{transform:rotate(180deg)}
+.pr-fold summary:hover .pr-count,.pr-fold summary:hover .pr-chev{color:var(--brand)}
 
 .pr-scenarios{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
 .pr-scenario{display:flex;align-items:center;gap:16px;padding:18px 20px;border:1px solid var(--rule);border-radius:16px;transition:border-color .14s,background .14s}
@@ -98,6 +98,7 @@
 .pr-scenario:hover em{color:var(--brand)}
 
 /* ── ③ 최근 완료한 연습 ─────────────────────────────── */
+.pr-donefoot{display:flex;margin-top:14px}
 .pr-dones{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
 .pr-done{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--rule);border-radius:14px}
 .pr-done > i{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:12px;background:var(--surface-2);color:#7b8298}
