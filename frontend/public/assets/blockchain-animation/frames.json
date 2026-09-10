@@ -1,0 +1,76 @@
+{
+ "canvas": {
+  "w": 339,
+  "h": 373
+ },
+ "baseline": {
+  "x": 147,
+  "y": 365
+ },
+ "files": {
+  "run-empty": [
+   "mascot/run-empty-1.webp",
+   "mascot/run-empty-2.webp",
+   "mascot/run-empty-3.webp",
+   "mascot/run-empty-4.webp",
+   "mascot/run-empty-5.webp",
+   "mascot/run-empty-6.webp",
+   "mascot/run-empty-7.webp",
+   "mascot/run-empty-8.webp"
+  ],
+  "run-carry": [
+   "mascot/run-carry-1.webp",
+   "mascot/run-carry-2.webp",
+   "mascot/run-carry-3.webp",
+   "mascot/run-carry-4.webp",
+   "mascot/run-carry-5.webp",
+   "mascot/run-carry-6.webp",
+   "mascot/run-carry-7.webp",
+   "mascot/run-carry-8.webp"
+  ],
+  "pickup": [
+   "mascot/pickup-1.webp",
+   "mascot/pickup-2.webp",
+   "mascot/pickup-3.webp",
+   "mascot/pickup-4.webp"
+  ],
+  "place": [
+   "mascot/place-1.webp",
+   "mascot/place-2.webp",
+   "mascot/place-3.webp",
+   "mascot/place-4.webp"
+  ],
+  "idle": [
+   "mascot/idle-1.webp",
+   "mascot/idle-2.webp"
+  ],
+  "stand": [
+   "mascot/stand.webp"
+  ],
+  "cheer": [
+   "mascot/cheer.webp"
+  ],
+  "stride": [
+   "mascot/stride.webp"
+  ],
+  "cube": [
+   "cube/cube-draft.webp",
+   "cube/cube-sealed.webp",
+   "cube/cube-anchored.webp",
+   "cube/slot-empty.webp"
+  ],
+  "effect": [
+   "effect/spark-small.webp",
+   "effect/spark-big.webp",
+   "effect/ring-idle.webp",
+   "effect/ring-active.webp",
+   "effect/chain-idle.webp",
+   "effect/chain-active.webp"
+  ],
+  "docked": [
+   "cube/docked-sealed.webp",
+   "cube/docked-anchored.webp",
+   "cube/docked-failed.webp"
+  ]
+ }
+}
