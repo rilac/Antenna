@@ -222,10 +222,10 @@ export default function PredictTab({ code, summary, picked, onPick, onGoInfo, fo
       const hash = await noteHash(draft.note, draft.noteSalt)
 
       const address = await connectAddress()
-      /* scope 는 아직 PREDICTION_BURN 이다. 규격상 PREDICTION 이 되지만(결정 B4) 서버
-         SignatureScope 에 그 값이 없어 지금 바꾸면 nonce 발급이 400 이다 — PRED-01 과 함께 바꾼다.
-         서명 문자열 자체는 scope 를 쓰지 않으므로 지금도 규격대로다. */
-      const nonce = await requestNonce('PREDICTION_BURN')
+      /* scope 는 PREDICTION 이다(결정 B4). 이 값이 서버 nonce 칸 sig:nonce:{userId}:prediction
+         을 정하고, PredictionCreateRequest.scope() 도 같은 값을 돌려준다. 소각(PREDICTION_BURN)
+         은 슬롯을 넘겼을 때 M-02 가 쓰는 다른 칸이라 여기서 쓰면 서버가 못 찾는다. */
+      const nonce = await requestNonce('PREDICTION')
       const payload = predictionSigningPayload(commitFields(draft, hash), nonce)
       const signature = await personalSign(payload, address)
       // 지갑 승인이 끝났다. 여기서부터가 사용자가 기다리는 구간이다

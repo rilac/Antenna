@@ -93,6 +93,7 @@ export function formatDateTime(iso: string) {
 /** 서명이 붙는 요청의 종류. payload 첫 줄의 용도 태그와 서버 nonce 칸을 동시에 정한다. */
 export const SIGNATURE_SCOPES = {
   WALLET_LINK: 'wallet-link',
+  PREDICTION: 'prediction',
   PREDICTION_BURN: 'prediction-burn',
   SUBSCRIBE: 'subscribe',
   AD: 'ad',
