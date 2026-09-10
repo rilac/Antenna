@@ -87,4 +87,21 @@ public class Subscription {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    /** 구독 기간. 명세 §4 "인덱서 확정 시 ACTIVE, expires_at = 개시 +30일". */
+    private static final int PERIOD_DAYS = 30;
+
+    /**
+     * 인덱서 ②(ANT-CHAIN-11)가 {@code Subscribed} 이벤트를 보고 부른다. PENDING → ACTIVE, 개시는 확정 시각.
+     * 이미 ACTIVE 면 그대로 둔다 — 재훑기·수동 재처리에서 개시 시각이 뒤로 밀리면 안 된다.
+     */
+    public void activate(String txHash, Instant now) {
+        if (this.status == Status.ACTIVE) {
+            return;
+        }
+        this.status = Status.ACTIVE;
+        this.txHash = txHash;
+        this.startedAt = now;
+        this.expiresAt = now.plus(PERIOD_DAYS, java.time.temporal.ChronoUnit.DAYS);
+    }
 }
