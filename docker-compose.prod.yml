@@ -13,6 +13,12 @@ services:
     # CI 가 생성한 .env 를 그대로 컨테이너 환경변수로 넣는다.
     # 이 파일에서는 DB_HOST=postgres, REDIS_HOST=redis 여야 한다(컨테이너 이름 기준).
     env_file: .env
+    # 뉴스 관련도 판정(ANT-RESEARCH-02)이 쓰는 자체 서빙 LLM 은 EC2 호스트에 선 ssh 역터널
+    # 반대편(교내 GPU)에 있다. 컨테이너에서 호스트를 부를 이름이 필요하다 —
+    # AI_GPU_BASE_URL=http://host.docker.internal:8100/v1. 리눅스 도커에는 이 이름이 기본으로
+    # 없어서 직접 넣는다. 터널이 없으면 그 배치만 건너뛰므로 다른 것에는 영향이 없다.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       # nginx 가 127.0.0.1:8080 으로 프록시한다. 외부에 직접 노출하지 않는다.
       - "127.0.0.1:8080:8080"

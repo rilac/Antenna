@@ -4,6 +4,7 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,7 +52,20 @@ public class CorpInfoService {
      */
     static final int ACTIVE_WINDOW_DAYS = 7;
 
-    static final String PER_PBR_NOTE = "상장주식수를 수집하지 않아 시가총액 기반 지표(PER·PBR)는 계산하지 않는다";
+    static final String PER_PBR_NOTE = "상장주식수를 아직 받지 못해 시가총액 지표(PER·PBR)를 계산하지 않는다";
+
+    static final String NO_PRICE_NOTE = "이 종목의 시세가 없어 시가총액 지표(PER·PBR)를 계산하지 않는다";
+
+    static final String NO_FINANCIAL_NOTE = "최신 연간 재무가 없어 시가총액 지표(PER·PBR)를 계산하지 않는다";
+
+    static final String CURRENCY_NOTE = "최신 연간 재무가 원화가 아니라 시가총액 지표(PER·PBR)를 계산하지 않는다";
+
+    static final String LOSS_NOTE = "최신 연간 순이익이 적자라 PER 을 계산하지 않는다";
+
+    static final String IMPAIRED_NOTE = "자본총계가 0 이하라 PBR 을 계산하지 않는다";
+
+    /** 시가총액 지표의 소수 자리. 탐색 목록의 파생 컬럼과 같다. */
+    private static final int RATIO_SCALE = 2;
 
     private final StockRepository stockRepository;
     private final DailyQuoteRepository dailyQuoteRepository;
@@ -80,27 +94,82 @@ public class CorpInfoService {
      * 이하(완전자본잠식)면 비율이 뒤집혀 의미가 없어 둘 다 null 이다.
      */
     public ValuationResponse valuation(String code) {
-        requireStock(code);
-        LocalDate priceDate = dailyQuoteRepository.findLatestTradeDate().orElse(null);
-        BigDecimal prevClose = priceDate == null
-                ? null
-                : dailyQuoteRepository.findByStock_CodeAndTradeDate(code, priceDate)
-                        .map(DailyQuote::getClose)
-                        .orElse(null);
+        Stock stock = stock(code);
+        // 종가와 그 종가의 날짜를 한 행에서 함께 꺼낸다. 전역 최신 거래일을 쓰면 수집 대상 밖 종목과
+        // 거래정지 종목에서 "그날 종가가 없는 날짜"를 기준일이라 말하게 된다 — 화면 머리의 "N일
+        // 종가" 와 PER 의 기준이 어긋난다.
+        DailyQuote quote = dailyQuoteRepository.findTopByStock_CodeOrderByTradeDateDesc(code).orElse(null);
+        LocalDate priceDate = quote == null ? null : quote.getTradeDate();
+        BigDecimal prevClose = quote == null ? null : quote.getClose();
+
         CorpFinancial latest = annual(code).stream().findFirst().orElse(null);
         if (latest == null) {
             return new ValuationResponse(
                     null, null, null, null,
-                    new ValuationResponse.BasedOn(priceDate, prevClose, null, null, PER_PBR_NOTE));
+                    new ValuationResponse.BasedOn(priceDate, prevClose, null, null, NO_FINANCIAL_NOTE));
         }
+
         BigInteger equity = latest.getTotalEquity();
+        BigDecimal marketCap = marketCap(stock, prevClose);
         return new ValuationResponse(
-                null,
-                null,
+                perShareRatio(marketCap, latest, latest.getNetIncome()),
+                perShareRatio(marketCap, latest, equity),
                 StockMaterials.ratio(latest.getNetIncome(), equity),
                 StockMaterials.ratio(latest.getTotalLiabilities(), equity),
                 new ValuationResponse.BasedOn(
-                        priceDate, prevClose, latest.getFiscalYear(), latest.getFsDiv(), PER_PBR_NOTE));
+                        priceDate,
+                        prevClose,
+                        latest.getFiscalYear(),
+                        latest.getFsDiv(),
+                        note(stock, latest, prevClose)));
+    }
+
+    /** 종가 × 상장주식수. 둘 중 하나라도 없으면 null 이다. */
+    private static BigDecimal marketCap(Stock stock, BigDecimal close) {
+        if (close == null || stock.getListedShares() == null) {
+            return null;
+        }
+        return close.multiply(BigDecimal.valueOf(stock.getListedShares()));
+    }
+
+    /**
+     * 시가총액 / 분모. 탐색 목록의 파생 컬럼({@code MarketUpsertRepository.refreshValuations})과 같은
+     * 식·같은 자리수라 두 화면이 같은 숫자를 보여 준다.
+     *
+     * <p>분모가 0 이하면 null 이다 — 음수 PER 은 "싸다" 로 읽혀 더 해롭다. 원화 종가를 달러 재무로
+     * 나눌 수 없으므로 통화가 원화가 아닌 재무도 없는 것으로 본다.
+     */
+    private static BigDecimal perShareRatio(BigDecimal marketCap, CorpFinancial financial, BigInteger denominator) {
+        if (marketCap == null || !isKrw(financial) || denominator == null || denominator.signum() <= 0) {
+            return null;
+        }
+        return marketCap.divide(new BigDecimal(denominator), RATIO_SCALE, RoundingMode.HALF_UP);
+    }
+
+    private static boolean isKrw(CorpFinancial financial) {
+        return financial.getCurrency() == null || "KRW".equals(financial.getCurrency());
+    }
+
+    /** 시가총액 지표가 빈 이유. 다 있으면 null — 화면이 사유 줄을 그리지 않는다. */
+    private static String note(Stock stock, CorpFinancial latest, BigDecimal close) {
+        if (close == null) {
+            return NO_PRICE_NOTE;
+        }
+        if (stock.getListedShares() == null) {
+            return PER_PBR_NOTE;
+        }
+        if (!isKrw(latest)) {
+            return CURRENCY_NOTE;
+        }
+        boolean loss = latest.getNetIncome() == null || latest.getNetIncome().signum() <= 0;
+        boolean impaired = latest.getTotalEquity() == null || latest.getTotalEquity().signum() <= 0;
+        if (loss && impaired) {
+            return LOSS_NOTE + " · " + IMPAIRED_NOTE;
+        }
+        if (loss) {
+            return LOSS_NOTE;
+        }
+        return impaired ? IMPAIRED_NOTE : null;
     }
 
     /**

@@ -2,7 +2,7 @@
 
    accessToken 은 메모리에만 둔다. refresh 는 httpOnly 쿠키라 클라이언트가
    저장하거나 읽지 않는다(설계서 §4 A-01). */
-import { ApiError, CLIENT_ERROR_CODE, toApiError } from './errors'
+import { ApiError, CLIENT_ERROR_CODE, isUnauthenticated, toApiError } from './errors'
 import { idempotencyKey } from './idempotency'
 
 const BASE = '/api/v1'
@@ -110,10 +110,25 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   /* access 가 만료됐을 뿐이면 사용자 눈에 띄지 않게 되살린다.
      재발급 자체(/auth/refresh)가 401 이면 쿠키가 죽은 것이라 재시도하지 않는다. */
   if (res.status === 401 && path !== REFRESH_PATH) {
+    /* 본문을 여기서 한 번 읽어 둔다. 아래에서 재시도하면 res 가 갈리므로
+       원래 401 이 무엇이었는지는 지금이 아니면 알 수 없다. */
+    const unauthorized = toApiError(401, await res.json().catch(() => null))
+
+    /* ── 401 이라고 다 세션 만료가 아니다 (설계 제약) ──────────────
+       서명한 지갑이 다르면 서버는 SIGNER_MISMATCH 로 401 을 준다(ErrorCode). 세션은
+       멀쩡하니 재발급은 성공하고, 그러면 **같은 요청이 한 번 더 나간다.** 그런데
+       SignatureGuard 는 검증보다 먼저 nonce 를 태우므로(recover 주석: "실패해도 nonce는
+       이미 소비된 상태다") 두 번째 요청은 NONCE_NOT_FOUND 로 끝난다.
+
+       결과적으로 화면은 "서명한 지갑이 다릅니다" 대신 "인증 요청이 만료되었습니다" 를
+       말하게 된다 — 원인을 가리키지 못하는 데다, 사용자는 지갑을 바꿀 생각을 못 하고
+       처음부터 다시 시도하다 같은 자리에서 또 막힌다.
+
+       그래서 재발급으로 풀릴 수 있는 401(UNAUTHENTICATED)만 아래로 보낸다. */
+    if (!isUnauthenticated(unauthorized)) throw unauthorized
+
     if (await refreshAccessToken()) {
-      /* 쿠키가 살아 있으니 세션은 유효하다. 재시도하고, 그래도 401 이면
-         만료가 아니라 권한·서명 문제이므로 로그아웃시키지 않고 화면에 넘긴다
-         — 명세상 UNAUTHENTICATED 하나가 두 경우를 덮는다(errors.ts 주석). */
+      // 쿠키가 살아 있으니 세션은 유효하다. 원래 하려던 요청을 그대로 잇는다.
       res = await send()
     } else {
       /* 토큰을 쥔 적이 없으면 이 401 은 세션 만료가 아니다 — Authorization 헤더를
@@ -124,7 +139,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       const hadToken = accessToken !== null
       setAccessToken(null)
       if (hadToken) onUnauthorized()
-      throw toApiError(401, await res.json().catch(() => null))
+      throw unauthorized
     }
   }
 
@@ -143,8 +158,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const payload = await res.json().catch(() => null)
 
   if (!res.ok) {
-    /* 401 은 위에서 이미 갈랐다 — 재발급이 실패한 경우만 onUnauthorized 로 넘어갔고,
-       여기 남는 401 은 세션이 살아 있는데도 거부된 것이라 화면이 처리한다. */
+    /* 여기 남는 401 은 **재발급에 성공한 뒤 다시 받은** 것이다. 세션은 살아 있는데도
+       거부됐다는 뜻이라 로그아웃 대상이 아니고 화면이 처리한다. */
     throw toApiError(res.status, payload)
   }
 

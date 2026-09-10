@@ -148,9 +148,13 @@ public class AiClient {
 
     private String requestBody(String instruction, String input) {
         try {
+            // 사실 서술만 시키는 용도라 표집을 끈다. 기본값(모델마다 0.7 안팎)으로 뽑으면 자체 서빙
+            // 양자화 모델이 숫자를 바꿔 쓰거나 없는 사실을 덧붙이는 빈도가 눈에 띄게 는다.
             return objectMapper.writeValueAsString(Map.of(
                     "model",
                     properties.model(),
+                    "temperature",
+                    0,
                     "messages",
                     List.of(
                             Map.of("role", ROLE_SYSTEM, "content", instruction),

@@ -3,15 +3,20 @@ package ssafy.a507.backend.domain.research.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
@@ -77,18 +82,36 @@ public class ResearchPointGenerationService {
             - body 는 한국어 평서문 한 문장, 120자 이내로 쓴다. 이모지·목록 기호를 쓰지 않는다.
             - documentId 는 아래 "문서" 목록에 있는 번호만 쓴다. 목록에 없는 번호를 지어내지 않는다.
               특정 문서가 아니라 시세·재무 수치에서 나온 포인트는 null 로 둔다.
+            - 문서 중 이 회사의 사업과 무관한 것(같은 이름의 스포츠 구단·지역·인물 소식 등)은 근거로
+              쓰지 않는다. 회사 실적·공시·수급·사업에 관한 문서만 쓴다.
             - 주어진 수치와 문서 내용에 있는 사실만 쓴다. 새 수치를 계산하거나 지어내지 않는다.
+            - 숫자는 주어진 값을 단위까지 그대로 옮긴다. 억원·%·원 단위를 바꾸거나 환산하지 않는다.
+              입력에 없는 숫자가 한 개라도 들어간 원소는 버려진다.
+            - 평가·전망 어휘를 쓰지 않는다 — "높다", "낮다", "양호", "부담", "기대된다", "우려된다",
+              "상회", "하회", "시장 기대치" 를 쓰지 않는다. 수치와 사실만 적고 판단은 kind 로만 나타낸다.
             - 매수·매도 권유, 목표주가, 주가 방향 예측을 쓰지 않는다.
             - 상승·하락의 확률이나 가능성을 수치로 쓰지 않는다. "확률"이라는 단어를 쓰지 않는다.
             - 등락률을 인용할 때는 "3.2% 상승했다"처럼 수치를 앞에 쓴다. "상승 3.2%" 처럼 방향을
               앞세우지 않는다.
+
+            예시 — 입력(일부):
+            종가 31000원 · 1영업일 -1.90% · 20영업일 +9.73%
+            부채비율 1084.2% · ROE 11.8% (2025년 기준)
+            문서(번호 · 날짜 · 원천 · 내용):
+            - [7] 2026-09-03 · 뉴스 · 금융지주와 은행주에 매수세가 몰리며 JB금융지주는 5% 넘게 올랐다.
+            예시 — 출력:
+            [{"kind":"POSITIVE","body":"2026-09-03 금융지주와 은행주에 매수세가 몰리며 JB금융지주가 5% 넘게 올랐다.","documentId":7},{"kind":"RISK","body":"2025년 부채비율이 1084.2%다.","documentId":null},{"kind":"CHECK","body":"기준일 종가가 1영업일 전보다 1.90% 하락했고 20영업일 기준으로는 9.73% 올랐다.","documentId":null}]
             """;
+
+    /** 본문에서 숫자를 뽑는다 — 쉼표 천 단위, 소수점 포함. */
+    private static final Pattern NUMBER = Pattern.compile("\\d[\\d,]*(?:\\.\\d+)?");
 
     private final AiClient aiClient;
     private final AiProperties aiProperties;
     private final StockMaterials stockMaterials;
     private final ResearchPointRepository researchPointRepository;
     private final ResearchDocumentRepository researchDocumentRepository;
+    private final NewsRelevanceFilter newsRelevanceFilter;
     private final DailyQuoteRepository dailyQuoteRepository;
 
     /**
@@ -137,7 +160,7 @@ public class ResearchPointGenerationService {
         Map<Long, ResearchDocument> documents = documents(stock.getCode(), targetDate);
         String input = facts + documentBlock(documents);
 
-        List<ResearchPoint> points = parse(aiClient.complete(INSTRUCTION, input), stock, targetDate, documents);
+        List<ResearchPoint> points = parse(aiClient.complete(INSTRUCTION, input), input, stock, targetDate, documents);
         if (points.isEmpty()) {
             // 전부 버려졌으면 저장하지 않는다 — 빈 채로 두면 다음 요청이 다시 만들어 본다.
             log.warn("[POINT] 쓸 수 있는 포인트가 없어 저장하지 않는다 stock={}", stock.getCode());
@@ -159,9 +182,12 @@ public class ResearchPointGenerationService {
         Instant endOfTarget = targetDate.plusDays(1).atStartOfDay(KST).toInstant();
         Map<Long, ResearchDocument> documents = new LinkedHashMap<>();
         for (ResearchDocument.Source source : List.of(ResearchDocument.Source.NEWS, ResearchDocument.Source.DART)) {
-            researchDocumentRepository
-                    .findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
-                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE))
+            // 무관 기사가 섞여 있으므로 쓸 개수의 두 배를 뽑아 거른 뒤 자른다.
+            List<ResearchDocument> candidates =
+                    researchDocumentRepository.findByStock_CodeAndSourceAndPublishedAtBeforeOrderByPublishedAtDesc(
+                            stockCode, source, endOfTarget, Limit.of(DOCS_PER_SOURCE * 2));
+            newsRelevanceFilter.keepRelevant(candidates).stream()
+                    .limit(DOCS_PER_SOURCE)
                     .forEach(d -> documents.put(d.getId(), d));
         }
         return documents;
@@ -184,7 +210,7 @@ public class ResearchPointGenerationService {
 
     /** 배열 밖의 군말은 무시하고, 규칙을 어긴 원소는 그 건만 버린다. */
     private List<ResearchPoint> parse(
-            String text, Stock stock, LocalDate targetDate, Map<Long, ResearchDocument> documents) {
+            String text, String input, Stock stock, LocalDate targetDate, Map<Long, ResearchDocument> documents) {
         JsonNode array = array(text, stock.getCode());
         if (array == null) {
             return List.of();
@@ -202,6 +228,10 @@ public class ResearchPointGenerationService {
                 log.warn("[POINT] D16 위반 문구가 있어 포인트 한 건을 버린다 stock={}", stock.getCode());
                 continue;
             }
+            if (!numbersGrounded(body, input)) {
+                log.warn("[POINT] 입력에 없는 숫자가 있어 포인트 한 건을 버린다 stock={} body={}", stock.getCode(), body);
+                continue;
+            }
             Long documentId = documentId(node.path("documentId"));
             ResearchDocument document = documentId == null ? null : documents.get(documentId);
             if (documentId != null && document == null) {
@@ -216,6 +246,47 @@ public class ResearchPointGenerationService {
             points.add(ResearchPoint.of(stock, targetDate, kind, body, document));
         }
         return points;
+    }
+
+    /**
+     * 본문의 모든 숫자가 입력에 있는지. 양자화된 자체 서빙 모델이 "340000억원"을 "340억원"으로 옮기거나
+     * 없는 "시장 기대치 9%"를 붙이는 것을 막는다 — 규칙이 "새 수치를 만들지 않는다"라 숫자가 입력
+     * 밖이면 그 건은 지어낸 것이다.
+     *
+     * <p><b>부분 문자열이 아니라 값으로 견준다.</b> 부분 문자열로 보면 입력의 "340000" 안에 "340" 이
+     * 들어 있어 단위 오독이 통과한다 — 이 가드를 만든 계기를 정작 못 잡는다.
+     *
+     * <p>값으로 견주면 표기 차이는 저절로 같아진다 — "28" 과 "28.0", "9" 와 "09"(날짜를 우리말로
+     * 옮긴 경우). 반올림("1.9" 와 "1.90")은 다른 값이라 걸린다. 지시문이 반올림을 금지한다.
+     */
+    static boolean numbersGrounded(String body, String input) {
+        Set<String> allowed = numbers(input);
+        for (String number : numbers(body)) {
+            if (!allowed.contains(number)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Set<String> numbers(String text) {
+        Set<String> numbers = new HashSet<>();
+        Matcher matcher = NUMBER.matcher(text);
+        while (matcher.find()) {
+            numbers.add(canonical(matcher.group()));
+        }
+        return numbers;
+    }
+
+    /** 표기가 달라도 같은 값이면 같은 문자열이 되게 한다 — 쉼표를 지우고 꼬리 0 을 떼어 낸다. */
+    private static String canonical(String token) {
+        String digits = token.replace(",", "");
+        try {
+            return new BigDecimal(digits).stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException e) {
+            // 정규식이 "1,,2" 같은 것도 집을 수 있다. 값으로 못 읽으면 글자 그대로 견준다.
+            return digits;
+        }
     }
 
     /** 코드펜스나 인사말이 붙어 와도 첫 {@code [} 부터 마지막 {@code ]} 까지를 배열로 읽는다. */

@@ -61,8 +61,8 @@ class AdControllerTest {
     private static final String PRIVATE_KEY =
             "0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
     private static final String DUMMY_SIGNATURE = "0x" + "0".repeat(130);
-    /** 기본 단가가 1 ANT/일이라 30일치를 덮고도 남는 잔액. */
-    private static final BigInteger RICH = BigInteger.TEN.pow(20);
+    /** 기본 단가가 1 ANT/일이라 30일치를 덮고도 남는 잔액. ANT 는 decimals 0 이다. */
+    private static final BigInteger RICH = BigInteger.valueOf(1_000);
 
     @Autowired MockMvc mockMvc;
     @Autowired EntityManager em;
@@ -167,7 +167,7 @@ class AdControllerTest {
         em.clear();
 
         AdBanner saved = em.find(AdBanner.class, Long.valueOf(adId));
-        assertThat(saved.getPriceWei()).isEqualTo(BigInteger.TEN.pow(18).multiply(BigInteger.valueOf(7)));
+        assertThat(saved.getPriceWei()).isEqualTo(BigInteger.valueOf(7));
     }
 
     @Test
@@ -279,6 +279,26 @@ class AdControllerTest {
     }
 
     @Test
+    @DisplayName("게재 조건은 app.ads 설정값을 그대로 내린다 — wei 는 문자열이다")
+    void 게재_조건() throws Exception {
+        mockMvc.perform(get(URL + "/pricing").with(user(String.valueOf(advertiser.getId()))))
+                .andExpect(status().isOk())
+                // 설정을 넣지 않았으므로 AdProperties 의 기본값 1 ANT/일이다. ANT 는 decimals 0
+                // 이라 10^18 을 곱하지 않고, 금액 필드라 문자열로 내린다.
+                .andExpect(jsonPath("$.pricePerDayWei").value("1"))
+                // AdCreateRequest 의 @Min(1) 과 같은 값이어야 한다.
+                .andExpect(jsonPath("$.minDays").value(1))
+                .andExpect(jsonPath("$.maxDays").value(30))
+                .andExpect(jsonPath("$.slotCount").value(1));
+    }
+
+    @Test
+    @DisplayName("게재 조건도 로그인해야 받는다 — 401")
+    void 게재_조건_미인증은_401() throws Exception {
+        mockMvc.perform(get(URL + "/pricing")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("로그인하지 않으면 401")
     void 미인증은_401() throws Exception {
         mockMvc.perform(get(URL + "/active")).andExpect(status().isUnauthorized());
@@ -344,7 +364,7 @@ class AdControllerTest {
                         "https://ad.example.com",
                         startsAt,
                         endsAt,
-                        BigInteger.TEN.pow(18));
+                        BigInteger.valueOf(7));
         if (status == AdBanner.Status.ACTIVE) {
             banner.activate("0x" + "1".repeat(64));
         }

@@ -19,6 +19,15 @@ public interface DailyQuoteRepository extends JpaRepository<DailyQuote, Long> {
     Optional<DailyQuote> findByStock_CodeAndTradeDate(String stockCode, LocalDate tradeDate);
 
     /**
+     * 그 종목의 마지막 시세 한 행 (ANT-RESEARCH-05).
+     *
+     * <p>전역 최신 거래일과 다를 수 있다 — 수집 대상이 KOSPI 상위 300 이라 나머지 종목은 마지막
+     * 시세가 며칠 전이고, 거래정지 종목도 그렇다. 종가와 그 종가의 날짜를 <b>한 행에서</b> 함께
+     * 꺼내야 화면이 "어느 날 종가로 계산했는지" 를 정확히 말할 수 있다.
+     */
+    Optional<DailyQuote> findTopByStock_CodeOrderByTradeDateDesc(String stockCode);
+
+    /**
      * 수집된 마지막 영업일. 목록 응답의 "전일 종가"가 어느 날짜 기준인지를 이 값 하나로 정한다.
      * 행마다 제각각 최신 날짜를 찾으면 화면이 한 날짜를 표기할 수 없다.
      */
