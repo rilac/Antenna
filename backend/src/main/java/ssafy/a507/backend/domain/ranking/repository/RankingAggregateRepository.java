@@ -44,6 +44,12 @@ public class RankingAggregateRepository {
      * <p>닉네임이 NULL 인 계정은 뺀다 — {@code AuthService} 가 닉네임 없이 가입시키고 온보딩에서
      * 확정하므로, 넣으면 랭킹과 홈 위젯에 이름 빈 줄이 뜬다.
      *
+     * <p><b>오차는 절대값으로 평균낸다</b>({@code AVG(ABS(error_rate))}). ERD·명세 어디에도
+     * {@code predictions.error_rate} 의 부호 규칙이 없고 판정 배치(ANT-PRED-04)가 아직 없어,
+     * 목표가를 밑돈 예측이 음수로 들어올 수 있다. 부호를 그대로 평균내면 +5% 와 −5% 가 상쇄돼
+     * 평균 0 — 크게 빗나간 사람이 목표가 정확도 만점을 받는다. 점수 계산 뒤에 절대값을 씌우는
+     * 것으로는 못 막는다(이미 상쇄된 뒤다). 화면의 "평균 오차" 도 절대오차 평균이 맞는 값이다.
+     *
      * @param sector KRX 업종명. null 이면 업종을 가리지 않는다
      * @param settledFrom 이 날짜 이후 판정분만. null 이면 전체 기간
      * @param seasonId 리플레이 시즌. null 이면 시즌을 가리지 않는다. 시즌마다 종목도 기간도 다르므로
@@ -57,7 +63,7 @@ public class RankingAggregateRepository {
                 SELECT p.user_id,
                        COUNT(*)                                        AS done_count,
                        SUM(CASE WHEN p.status = 'HIT' THEN 1 ELSE 0 END) AS hit_count,
-                       AVG(p.error_rate)                               AS avg_error
+                       AVG(ABS(p.error_rate))                          AS avg_error
                   FROM predictions p
                   JOIN users u ON u.id = p.user_id
                  WHERE p.track = ?

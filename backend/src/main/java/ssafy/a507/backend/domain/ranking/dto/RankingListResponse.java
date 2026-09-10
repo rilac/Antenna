@@ -12,8 +12,8 @@ import java.util.List;
  * <p><b>nextCursor 가 없다.</b> 순위는 필터 조합마다 1부터 빈틈 없이 이어지는 정수라, 다음 장의 커서는
  * 받은 마지막 {@code rank + 1} 로 프론트가 그냥 만든다. 스냅샷이라 중간 삽입이 없어 안전하다(명세 §1 페이징 예외).
  *
- * <p>랭킹 배치(ANT-RANK-01)가 아직 없어 지금은 {@code computedAt: null · items: []} 가 정상 응답이다.
- * 빈 목록은 404 가 아니다.
+ * <p>판정(HIT/MISS)이 하나도 없으면 배치가 쓸 행이 없어 {@code computedAt: null · items: []} 가
+ * 정상 응답이다. 빈 목록은 404 가 아니다.
  */
 public record RankingListResponse(Instant computedAt, List<RankingItemResponse> items) {
 

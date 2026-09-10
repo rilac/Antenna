@@ -113,6 +113,21 @@ class RankingSnapshotServiceTest {
     }
 
     @Test
+    @DisplayName("오차는 절대값으로 평균낸다 — +5%와 −5%가 상쇄돼 만점이 되면 안 된다")
+    void 오차_부호_상쇄() {
+        Long swinger = insertUser("위아래로빗나간사람");
+        Long precise = insertUser("목표가맞춘사람");
+        // 같은 건수·같은 적중이라 오차만으로 갈린다. 부호를 그대로 평균내면 둘 다 오차 0 이다.
+        insertJudged(swinger, "REAL", 2, 2, "-5.000");
+        insertJudged(swinger, "REAL", 2, 2, "5.000");
+        insertJudged(precise, "REAL", 4, 4, "0.000");
+
+        snapshots.runOnce();
+
+        assertThat(userIdsOf("REAL", "ALL")).containsExactly(precise, swinger);
+    }
+
+    @Test
     @DisplayName("닉네임이 NULL 인 계정은 집계에서 뺀다")
     void 닉네임_없는_계정() {
         Long named = insertUser("이름있음");
