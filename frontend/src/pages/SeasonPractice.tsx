@@ -226,12 +226,17 @@ function Done({ runs, loading, failure, onRetry }: {
   const rows = [...runs].sort(recentFirst).slice(0, DONE_ROWS)
 
   return (
-    <section className="pr-card pr-panel">
-      <div className="pr-panel-head">
+    /* ② 연습 주제와 같은 접이식이다. 펴 두면 왼쪽 열만 길어져 오른쪽 AI 가이드
+       아래가 비었다 — 기본은 접힘, 개수는 접힌 줄에 남긴다. */
+    <details className="pr-card pr-panel pr-fold">
+      <summary className="pr-panel-head">
         <span className="pr-num num">3</span>
         <h2>최근 완료한 연습</h2>
-        <Link className="pr-more" to="/sim/history">기록 ›</Link>
-      </div>
+        <span className="pr-count num">{loading ? '불러오는 중' : `${runs.length}회`}</span>
+        <i className="pr-chev" aria-hidden="true">
+          <Ico size={18}><path d="m6 9 6 6 6-6" /></Ico>
+        </i>
+      </summary>
 
       {loading && <p className="pr-state">불러오는 중…</p>}
       {failure && <ErrorState error={failure} onRetry={onRetry} inline />}
@@ -259,7 +264,14 @@ function Done({ runs, loading, failure, onRetry }: {
           ))}
         </ul>
       )}
-    </section>
+
+      {/* "기록 ›" 은 헤더에서 내렸다 — summary 안의 링크는 눌러도 접힘이 함께 토글된다. */}
+      {rows.length > 0 && (
+        <div className="pr-donefoot">
+          <Link className="pr-more" to="/sim/history">기록 ›</Link>
+        </div>
+      )}
+    </details>
   )
 }
 
@@ -314,7 +326,7 @@ export default function SeasonPractice() {
           <div className="pr-col">
             {/* 접이식이다. 기본은 접힌 상태 — 주제 목록이 열려 있으면 AI 가이드가
                 화면 아래로 밀린다. 펼침·접힘은 브라우저 details 가 맡으므로 상태를 두지 않는다. */}
-            <details className="pr-card pr-panel pr-topics">
+            <details className="pr-card pr-panel pr-fold">
               <summary className="pr-panel-head">
                 <span className="pr-num num">2</span>
                 <h2>연습 주제</h2>
