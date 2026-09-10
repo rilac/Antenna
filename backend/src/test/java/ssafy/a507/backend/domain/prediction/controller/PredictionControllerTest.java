@@ -171,7 +171,7 @@ class PredictionControllerTest {
                 .andExpect(jsonPath("$.freeLimit").value(3))
                 .andExpect(jsonPath("$.used").value(0))
                 .andExpect(jsonPath("$.remaining").value(3))
-                .andExpect(jsonPath("$.overCost").value("2000000000000000000000"));
+                .andExpect(jsonPath("$.overCost").value("2000")); // decimals 0 — 2,000 ANT 그대로 (ANT-CHAIN-03)
 
         for (int i = 0; i < 3; i++) {
             perform(signed(request(SAMSUNG, "UP", "8100" + i, 7, List.of()), wallet), UUID.randomUUID().toString())
