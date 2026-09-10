@@ -125,6 +125,19 @@ public class Prediction {
     @Column(name = "settle_price", precision = 14, scale = 2)
     private BigDecimal settlePrice;
 
+    /**
+     * 실제로 판정에 쓴 거래일. settle_date 가 휴장이면 그 이후 첫 거래일이라 둘이 다를 수 있다 (ANT-PRED-04).
+     *
+     * <p>따로 두는 이유는 검산이다. 검증 화면 D-03 ③단계가 판정 종가를 공공데이터포털 원본과 대조하는데,
+     * 그 URL 의 날짜가 휴장일이면 포털이 빈 응답을 준다 — 실제로 쓴 날짜가 있어야 대조가 성립한다.
+     * horizon 30 은 요일이 +2 칸이라 기준일이 목·금이면 만기가 주말이다. 드문 일이 아니다.
+     *
+     * <p>판정은 한 번뿐이라 이 값은 채워진 뒤 변하지 않는다. {@code updated_at}(UpdateTimestamp)과 달리
+     * 나중에 덮이지 않아서, (settled_on, id) 가 판정 순서의 결정적 근거가 된다.
+     */
+    @Column(name = "settled_on")
+    private LocalDate settledOn;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 8)
     private Status status;
@@ -171,5 +184,32 @@ public class Prediction {
         p.settleDate = settleDate;
         p.status = Status.BASE;
         return p;
+    }
+
+    /**
+     * 기준가 확정 BASE → OPEN (ANT-PRED-03). 대상 선별은 호출 쪽이 한다.
+     *
+     * <p>{@code baseDate} 는 건드리지 않는다. 휴장이라 다음 거래일 종가를 썼더라도 등록 때 약속한 날짜는 그대로 둔다 —
+     * settle_date 가 base_date + horizon 이라 여기서 옮기면 이미 사용자에게 나간 만기일까지 밀린다.
+     * 실제로 어느 날 종가를 썼는지는 기준가 쪽에서는 남기지 않는다. 검산 대상은 판정 종가 하나뿐이다.
+     */
+    public void fixBasePrice(BigDecimal basePrice) {
+        this.basePrice = basePrice;
+        this.status = Status.OPEN;
+    }
+
+    /**
+     * 만기 판정 OPEN → HIT/MISS (ANT-PRED-04).
+     *
+     * <p>{@code hit} 를 boolean 으로 받는 이유: Status 를 그대로 받으면 호출 쪽이 BASE·OPEN 을 넣어 상태를 되돌릴 수 있다.
+     * 판정 규칙 자체는 {@code SettlementRules} 한 곳에 있다.
+     *
+     * @param settledOn 실제로 종가를 가져온 거래일. settle_date 와 다를 수 있다
+     */
+    public void settle(BigDecimal settlePrice, LocalDate settledOn, boolean hit, BigDecimal errorRate) {
+        this.settlePrice = settlePrice;
+        this.settledOn = settledOn;
+        this.errorRate = errorRate;
+        this.status = hit ? Status.HIT : Status.MISS;
     }
 }

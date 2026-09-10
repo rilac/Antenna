@@ -30,6 +30,16 @@ public interface DailyQuoteRepository extends JpaRepository<DailyQuote, Long> {
     Optional<LocalDate> findPreviousTradeDate(@Param("date") LocalDate date);
 
     /**
+     * 기준일 <b>이후 첫 거래일</b>의 일봉. 판정 배치(ANT-PRED-03·04)가 기준가·판정 종가를 집는 유일한 경로다.
+     *
+     * <p>날짜를 정확히 맞히지 않고 "그 날짜 이상" 으로 여는 이유: 기준일·만기일이 휴장이거나 그 종목이 거래정지면
+     * 그 날짜에는 행이 없다. 다음 거래일 행을 집으면 공휴일·연휴·거래정지가 한 규칙으로 처리된다.
+     * 아직 수집이 그 날짜에 못 미쳤으면 결과가 비어 배치가 자연히 보류한다 — "시세 없으면 보류" 가 곧 이 쿼리다.
+     */
+    Optional<DailyQuote> findFirstByStock_CodeAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
+            String stockCode, LocalDate from);
+
+    /**
      * 한 영업일의 종가를 종목 묶음으로 한 번에 읽는다. 행마다 단건 조회를 돌리면 N+1 이다.
      *
      * <p>그날 거래가 정지된 종목은 행이 없어 결과에서 빠진다 — 목록에서는 종가가 빈 칸이 된다.
