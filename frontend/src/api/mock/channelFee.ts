@@ -13,10 +13,9 @@
    created_at). 서버가 다르게 내리면 api/channelFee.ts 의 타입만 고치면 된다.
 
    ── 금액은 정수 ANT 다 ──────────────────────────────────
-   다른 목업(subscriptions · channels)은 10^18 문자열을 쓴다. 그쪽 화면이 아직
-   formatFee 로 18자리를 자르기 때문이고, 그 조합 자체가 S15P21A507-225 다.
-   여기서 같은 값을 쓰면 틀린 규약을 하나 더 늘리게 되므로 서버 규약(decimals 0)을
-   따른다.
+   서버 규약(decimals 0)을 따른다. 1 ANT ≈ 1원이라 구독료를 만 원 안팎으로 두고,
+   다른 목업(subscriptions · channels)과 자릿수를 맞췄다 — 화면마다 12 와 12,000 이
+   섞여 보이면 어느 쪽이 맞는지 목업만 보고는 알 수 없다.
 
    세 행을 넣었다. 화면이 서로 다르게 그려야 하는 경우들이다.
      인상 · 인하 · 최초 설정 — 이력 줄의 방향 표시가 갈린다 */
@@ -32,9 +31,9 @@ function delay<T>(value: T): Promise<T> {
 /* 모듈 스코프에 두어 변경 결과가 이 세션 동안 유지된다.
    새로고침하면 되돌아간다 — 목이므로 그게 맞다. */
 const HISTORY: FeeChange[] = [
-  { id: 3, fee: '12', effectiveFrom: '2026-08-20T00:00:00Z', createdAt: '2026-08-20T04:12:00Z' },
-  { id: 2, fee: '15', effectiveFrom: '2026-07-01T00:00:00Z', createdAt: '2026-07-01T09:30:00Z' },
-  { id: 1, fee: '10', effectiveFrom: '2026-06-02T00:00:00Z', createdAt: '2026-06-02T02:05:00Z' },
+  { id: 3, fee: '12000', effectiveFrom: '2026-08-20T00:00:00Z', createdAt: '2026-08-20T04:12:00Z' },
+  { id: 2, fee: '15000', effectiveFrom: '2026-07-01T00:00:00Z', createdAt: '2026-07-01T09:30:00Z' },
+  { id: 1, fee: '10000', effectiveFrom: '2026-06-02T00:00:00Z', createdAt: '2026-06-02T02:05:00Z' },
 ]
 
 export function channelFee(): Promise<ChannelFee> {

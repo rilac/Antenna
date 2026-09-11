@@ -8,9 +8,10 @@ package ssafy.a507.backend.domain.monetize.dto;
  * 않아(imageFileId · linkUrl · days · chainId · nonce) 단가를 바꾸면 화면 금액과 실제 차감액이
  * 달라도 서명은 통과한다. 소각은 되돌릴 수단이 없으므로 단가는 서버가 말해야 한다.
  *
- * <p>{@code pricePerDayWei} 만 문자열이다. ANT 는 decimals 0 이라(ANT-CHAIN-03) {@code "1"} 이
- * 곧 1 ANT 이고 18자리가 아니지만, 금액 필드는 형식을 문자열로 통일한다 — 프론트가 잔액·수수료를
- * 이미 문자열로 받는다. 이름의 wei 도 그 통일에서 온 것이고 10^18 을 곱한 값이 아니다.
+ * <p>{@code pricePerDay} 만 문자열이다. ANT 는 decimals 0 이라(ANT-CHAIN-03) {@code "1000"} 이
+ * 곧 1,000 ANT 이고 18자리가 아니지만, 금액 필드는 형식을 문자열로 통일한다 — 프론트가 잔액·수수료를
+ * 이미 문자열로 받는다. 원래 이름은 {@code pricePerDayWei} 였는데 10^18 을 곱한 값으로 읽히기 딱 좋아서(-225)
+ * 프론트가 붙기 전에 {@code wei} 를 뺐다(ANT-TOKEN-08).
  */
 public record AdPricingResponse(
-        String pricePerDayWei, int minDays, int maxDays, int slotCount) {}
+        String pricePerDay, int minDays, int maxDays, int slotCount) {}

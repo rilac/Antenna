@@ -15,15 +15,15 @@
    타입과 MOCK 한 줄만 바뀌고 이 파일은 손대지 않는다.
 
    ── 금액은 정수 ANT 다 ──────────────────────────────────
-   formatFee(api/channels.ts) 를 쓰지 않는다 — 그 함수는 뒤 18자리를 소수부로 잘라
-   12 ANT 를 "0.0000" 으로 만든다(S15P21A507-225). formatAnt 를 쓴다. */
+   표시는 다른 금액 화면과 같은 formatToken(api/wallet.ts) 을 쓴다 — 천 단위로만 끊는다. */
 import { useCallback, useState } from 'react'
 import {
-  FEE_MAX, fetchChannelFee, formatAnt, formatDay, isValidFee, updateChannelFee,
+  FEE_MAX, fetchChannelFee, formatDay, isValidFee, updateChannelFee,
   type FeeApplied,
 } from '../../api/channelFee'
 import type { ApiError } from '../../api/errors'
 import { useAsync } from '../../api/useAsync'
+import { formatToken } from '../../api/wallet'
 import ErrorState from '../state/ErrorState'
 import { errorText } from '../state/errorText'
 import '../../styles/screens/channel-fee.css'
@@ -106,12 +106,12 @@ export default function ChannelFeeSection() {
                  0 으로 보여주면 무료 채널로 읽힌다 */
               <b className="cf-none">아직 정하지 않았습니다</b>
             ) : (
-              <b className="cf-amount num">{`${formatAnt(current)} ANT`}<span>/ 30일</span></b>
+              <b className="cf-amount num">{`${formatToken(current)} ANT`}<span>/ 30일</span></b>
             )}
             {/* 예정된 변경이 있으면 여기서 말한다. 안 적으면 위 숫자가 최신인 줄 안다 */}
             {pending && (
               <span className="cf-pending">
-                {`${formatDay(pending.effectiveFrom)}부터 ${formatAnt(pending.fee)} ANT 로 바뀝니다`}
+                {`${formatDay(pending.effectiveFrom)}부터 ${formatToken(pending.fee)} ANT 로 바뀝니다`}
               </span>
             )}
           </div>
@@ -119,7 +119,7 @@ export default function ChannelFeeSection() {
           {/* ── 변경 ────────────────────────────────── */}
           {step === 'done' && applied ? (
             <div className="cf-done" role="status">
-              <p className="cf-done-title">{`${formatAnt(applied.fee)} ANT 로 바뀝니다`}</p>
+              <p className="cf-done-title">{`${formatToken(applied.fee)} ANT 로 바뀝니다`}</p>
               {/* 언제부터인지 말하지 않으면 지금 바뀐 줄 안다 */}
               <p className="cf-sub">
                 {`${formatDay(applied.effectiveFrom)}부터 적용됩니다. 지금 구독 중인 사람은 만료까지 옛 가격 그대로입니다.`}
@@ -146,7 +146,7 @@ export default function ChannelFeeSection() {
               {/* 입력 규칙은 누르기 전에 알린다 */}
               <p className={`cf-hint ${draft !== '' && !valid ? 'is-bad' : ''}`}>
                 {draft !== '' && !valid
-                  ? `0 이상 ${formatAnt(String(FEE_MAX))} 이하의 정수만 넣을 수 있습니다`
+                  ? `0 이상 ${formatToken(String(FEE_MAX))} 이하의 정수만 넣을 수 있습니다`
                   : 'ANT 는 소수점이 없어 정수로만 정할 수 있습니다'}
               </p>
 
@@ -155,8 +155,8 @@ export default function ChannelFeeSection() {
                 <div className="cf-confirm">
                   <p className="cf-confirm-title">
                     {latest === null
-                      ? `구독료를 ${formatAnt(draft)} ANT 로 정합니다`
-                      : `${formatAnt(latest)} ANT → ${formatAnt(draft)} ANT 로 바꿉니다`}
+                      ? `구독료를 ${formatToken(draft)} ANT 로 정합니다`
+                      : `${formatToken(latest)} ANT → ${formatToken(draft)} ANT 로 바꿉니다`}
                   </p>
                   <ul className="cf-confirm-list">
                     <li><b>구독자 전원에게 알림이 갑니다.</b> 되돌려도 알림은 취소되지 않습니다.</li>
@@ -208,10 +208,10 @@ export default function ChannelFeeSection() {
                         {/* 아직 시작 전인 행. 지난 변경과 같은 모양으로 두면 이미 적용된 줄 안다 */}
                         {isFuture(h.effectiveFrom) && <em className="cf-soon">예정</em>}
                       </span>
-                      <b className="num">{`${formatAnt(h.fee)} ANT`}</b>
+                      <b className="num">{`${formatToken(h.fee)} ANT`}</b>
                       <span className={`cf-dir is-${dir}`}>
-                        {dir === 'up' ? `↑ ${formatAnt(prev!.fee)} 에서 인상`
-                          : dir === 'down' ? `↓ ${formatAnt(prev!.fee)} 에서 인하`
+                        {dir === 'up' ? `↑ ${formatToken(prev!.fee)} 에서 인상`
+                          : dir === 'down' ? `↓ ${formatToken(prev!.fee)} 에서 인하`
                             : '처음 정함'}
                       </span>
                     </li>

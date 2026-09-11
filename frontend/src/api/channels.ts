@@ -58,7 +58,7 @@ export type MySubscription = {
   expiresAt: string | null
   /** false 면 만료일에 끝난다(E-03 자동 갱신 해지) */
   autoRenew: boolean
-  /** 결제 시점에 박제된 가격(wei 문자열). 채널이 가격을 바꿔도 이 값은 그대로다 */
+  /** 결제 시점에 박제된 가격(정수 ANT 문자열). 채널이 가격을 바꿔도 이 값은 그대로다 */
   paidFee: string | null
 }
 
@@ -78,7 +78,7 @@ export type Channel = {
   interests: string[]
   externalLinks: ExternalLink[]
   /**
-   * 현재 구독료(wei 문자열). 내 구독의 paidFee 와 다를 수 있다.
+   * 현재 구독료(정수 ANT 문자열). 내 구독의 paidFee 와 다를 수 있다.
    *
    * **아직 정하지 않았으면 null 이다.** 채널은 가입과 함께 존재하지만(publisher_fees 의
    * publisher_id 가 users.id 를 직접 가리킨다 — 별도 channels 테이블이 없다) 구독료는
@@ -190,19 +190,9 @@ export function subscribe(userId: string, body: SubscribeBody) {
   })
 }
 
-/* ── 표시 도우미 ─────────────────────────────────────── */
-
-/**
- * wei 문자열을 ANT 로 옮긴다. Number 로 바꾸지 않는 이유 — wei 는 18자리라
- * 2^53 을 쉽게 넘고, 그러면 끝자리가 조용히 뭉개진다.
- */
-export function formatFee(wei: string) {
-  const s = wei.padStart(19, '0')
-  const whole = s.slice(0, -18).replace(/^0+(?=\d)/, '')
-  const frac = s.slice(-18).replace(/0+$/, '')
-  const head = Number(whole).toLocaleString('ko-KR')
-  return frac ? `${head}.${frac.slice(0, 4)}` : head
-}
+/* ── 표시 도우미 ───────────────────────────────────────
+   구독료 표기는 api/wallet.ts 의 formatToken 을 쓴다. 여기 있던 formatFee 는 뒤 18자리를
+   소수부로 잘라 정수 ANT 를 "0.0000" 으로 만들었다(S15P21A507-225) — 금액 표기를 한 곳에 둔다. */
 
 /** 구독 만료일. 남은 날짜가 중요해 날짜까지만 적는다 */
 export function formatExpiry(iso: string) {

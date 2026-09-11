@@ -29,8 +29,8 @@ function delay<T>(value: T): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), LATENCY_MS))
 }
 
-/** 12 ANT. wei 라 18자리다 — 화면이 문자열을 숫자로 바꾸지 않는지 보려고 큰 값을 둔다 */
-const FEE = '12000000000000000000'
+/** 12,000 ANT. 정수 ANT 문자열이다(decimals 0) — 천 단위 구분이 화면에 실제로 보이도록 네 자리 이상으로 둔다 */
+const FEE = '12000'
 
 function base(userId: string, nickname: string): Omit<Channel, 'mySubscription' | 'isMe'> {
   return {
@@ -60,8 +60,8 @@ const CHANNELS: Record<string, Channel> = {
       status: 'ACTIVE',
       expiresAt: '2026-10-02T00:00:00Z',
       autoRenew: true,
-      // 채널은 지금 12 ANT 지만 나는 10 에 결제했다 — 박제 규칙이 화면에 보이는지 확인용
-      paidFee: '10000000000000000000',
+      // 채널은 지금 12,000 ANT 지만 나는 10,000 에 결제했다 — 박제 규칙이 화면에 보이는지 확인용
+      paidFee: '10000',
     },
     isMe: false,
   },

@@ -1,6 +1,7 @@
 package ssafy.a507.backend.domain.chain.dto;
 
 import java.time.Instant;
+import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.domain.chain.entity.Operation;
 
 /**
@@ -21,6 +22,7 @@ public record OperationResponse(
 
     public record Resource(Operation.ResourceType type, Long id) {}
 
+    /** {@code message} 는 코드에 붙은 서버 문구다. DB 의 원문({@code error_message})은 운영자용이라 내리지 않는다(-226). */
     public record Error(String code, String message) {}
 
     public static OperationResponse from(Operation operation) {
@@ -31,7 +33,7 @@ public record OperationResponse(
         Error error =
                 operation.getErrorCode() == null
                         ? null
-                        : new Error(operation.getErrorCode(), operation.getErrorMessage());
+                        : new Error(operation.getErrorCode(), messageOf(operation.getErrorCode()));
 
         return new OperationResponse(
                 operation.getId(),
@@ -42,5 +44,24 @@ public record OperationResponse(
                 error,
                 operation.getCreatedAt(),
                 operation.getSettledAt());
+    }
+
+    /**
+     * 코드 → 사용자 문구. {@code ErrorCode} 이름이면 그 메시지(팀이 이미 API 문구로 쓰는 것), 인덱서 코드면
+     * {@link Operation.ChainFailure} 문구, 그 밖(다른 배포·옛 행)은 서버 오류 문구. 원문을 내리지 않는 이유는
+     * RPC 주소·내부 경로·예외 클래스명이 섞이기 때문이다.
+     */
+    private static String messageOf(String code) {
+        for (ErrorCode c : ErrorCode.values()) {
+            if (c.name().equals(code)) {
+                return c.getMessage();
+            }
+        }
+        for (Operation.ChainFailure f : Operation.ChainFailure.values()) {
+            if (f.name().equals(code)) {
+                return f.message();
+            }
+        }
+        return ErrorCode.INTERNAL_ERROR.getMessage();
     }
 }

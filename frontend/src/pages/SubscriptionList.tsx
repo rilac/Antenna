@@ -23,12 +23,13 @@
    이 화면에서 되돌릴 방법이 없다. 토글처럼 보이게 만들지 않는다. */
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { daysLeft, formatExpiry, formatFee } from '../api/channels'
+import { daysLeft, formatExpiry } from '../api/channels'
 import type { ApiError } from '../api/errors'
 import {
   STATUS_LABEL, cancelRenewal, fetchMySubscriptions, type Subscription,
 } from '../api/subscriptions'
 import { useAsync } from '../api/useAsync'
+import { formatToken } from '../api/wallet'
 import AnchorBadge from '../components/AnchorBadge'
 import EmptyState from '../components/state/EmptyState'
 import ErrorState from '../components/state/ErrorState'
@@ -137,7 +138,7 @@ function Row({ sub, confirming, busy, error, onAsk, onCancelAsk, onConfirm }: Ro
           <dt>구독료</dt>
           {/* 결제 시점 박제값이다. 채널의 현재 가격을 나란히 두지 않는다 —
               두 숫자가 붙으면 어느 쪽이 내가 내는 값인지 흐려진다 */}
-          <dd className="num">{`${formatFee(fee)} ANT`}</dd>
+          <dd className="num">{`${formatToken(fee)} ANT`}</dd>
         </div>
 
         {/* PENDING 은 아직 개시 전이라 만료일이 없다. 빈 칸을 만들지 않고 자리째 뺀다 */}

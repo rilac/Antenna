@@ -15,21 +15,19 @@
    명세서가 준 것은 **경로와 요청 본문까지**다.
      GET  /me/channel/fee  → "200 성공"          (필드 없음)
      PUT  /me/channel/fee  → "200 적용 예정 정보" (필드 없음)
-     PUT  요청 본문        → { fee: string(wei) }  ← 이것만 확정
+     PUT  요청 본문        → { fee: 정수 ANT 문자열 }  ← 이것만 확정
    그래서 응답 타입은 ERD 의 publisher_fees 컬럼에서 그대로 따왔다.
      id · publisher_id · fee numeric(30,0) · effective_from · created_at
    서버가 열릴 때 필드 이름이 다르면 이 파일만 고치면 된다 — 화면은 이 타입만 본다.
 
    ── 단위: 정수 ANT 다. 10^18 이 아니다 ───────────────────
-   명세서 표기는 string(wei) 지만 ANT 는 decimals 0 이다(ANT-CHAIN-03). 서버가
-   PredictionSlotResponse · AdPricingResponse 주석에 "정수 그대로가 최소 단위다,
-   10^18 을 곱하지 않는다" 라고 못 박아 두었다.
+   fee 는 정수 ANT 문자열이다 — ANT 는 decimals 0 이라(ANT-CHAIN-03) "12000" 이 곧
+   12,000 ANT 다. 서버가 PredictionSlotResponse · AdPricingResponse 주석에 "정수 그대로가
+   최소 단위다, 10^18 을 곱하지 않는다" 라고 못 박아 두었다.
 
-   **그래서 이 화면은 api/channels.ts 의 formatFee 를 쓰지 않는다.** 그 함수는 뒤
-   18자리를 소수부로 자르는데, 정수 ANT 를 넣으면 12 ANT 가 "0.0000" 이 된다.
-   E-03 내 구독과 H-01 지갑이 아직 그 함수를 쓰고 목업도 10^18 로 맞춰져 있어
-   지금은 화면이 맞아 보인다 — 그 정리는 S15P21A507-225 가 한다. 새로 쓰는 이 파일은
-   틀린 규약을 따라가지 않는다. */
+   표시는 api/wallet.ts 의 formatToken 을 쓴다. 이 파일에 따로 두었던 formatAnt 는
+   18자리를 자르던 formatFee 를 피하려던 임시 함수라, S15P21A507-225 에서 그 함수와 함께
+   formatToken 하나로 합쳤다. */
 import { api } from './client'
 import * as mock from './mock/channelFee'
 
@@ -88,20 +86,6 @@ export function isValidFee(text: string) {
   if (!/^\d+$/.test(text)) return false
   const n = Number(text)
   return n >= 0 && n <= FEE_MAX
-}
-
-/**
- * 화면 표기. 정수 ANT 를 천 단위로만 끊는다.
- *
- * BigInt 로 받는 것은 numeric(30,0) 이 Number 안전 범위를 넘을 수 있어서다 —
- * 지금 값으로는 안 넘지만, 자릿수를 좁히는 쪽이 나중에 조용히 틀린다.
- */
-export function formatAnt(fee: string) {
-  try {
-    return BigInt(fee).toLocaleString('ko-KR')
-  } catch {
-    return fee
-  }
 }
 
 /** 이력 줄에 쓰는 날짜. 시각까지는 필요 없다 */

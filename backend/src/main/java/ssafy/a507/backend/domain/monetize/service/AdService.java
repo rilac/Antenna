@@ -13,6 +13,7 @@ import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.common.security.SignatureGuard;
 import ssafy.a507.backend.domain.account.entity.User;
 import ssafy.a507.backend.domain.account.repository.UserRepository;
+import ssafy.a507.backend.domain.chain.config.TokenAmountProperties;
 import ssafy.a507.backend.domain.chain.entity.Operation;
 import ssafy.a507.backend.domain.chain.relay.TokenReason;
 import ssafy.a507.backend.domain.chain.repository.TokenLedgerRepository;
@@ -30,7 +31,7 @@ import ssafy.a507.backend.domain.upload.repository.UploadFileRepository;
 /** 스폰서드 배너 (ANT-COMMUNITY-05). 고정 단가 × 기간제 선착순이고 지불은 소각이다. */
 @Service
 @RequiredArgsConstructor
-@EnableConfigurationProperties(AdProperties.class)
+@EnableConfigurationProperties({AdProperties.class, TokenAmountProperties.class})
 public class AdService {
 
     /**
@@ -47,6 +48,8 @@ public class AdService {
     private final OperationService operationService;
     private final SignatureGuard signatureGuard;
     private final AdProperties properties;
+    /** 게재료 단가. 광고 조건(자리 수·기간)과 달리 금액은 토큰 금액표 한 곳에 둔다(ANT-TOKEN-08). */
+    private final TokenAmountProperties amounts;
     private final TokenOperationService tokenOperationService;
     private final TransactionTemplate tx;
 
@@ -125,7 +128,7 @@ public class AdService {
             throw new BusinessException(ErrorCode.AD_SLOT_SOLD_OUT);
         }
 
-        BigInteger price = properties.priceFor(request.days());
+        BigInteger price = amounts.adFor(request.days());
         if (tokenLedgerRepository.balanceOf(userId).compareTo(price) < 0) {
             throw new BusinessException(ErrorCode.INSUFFICIENT_BALANCE);
         }
@@ -158,7 +161,7 @@ public class AdService {
      */
     public AdPricingResponse pricing() {
         return new AdPricingResponse(
-                properties.pricePerDayWei().toString(),
+                amounts.adPerDay().toString(),
                 MIN_DAYS,
                 properties.maxDays(),
                 properties.slotCount());

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.domain.chain.config.ChainProperties;
 import ssafy.a507.backend.domain.chain.config.PredictTokenProperties;
+import ssafy.a507.backend.domain.chain.entity.Operation;
 
 /**
  * 토큰 인덱서 ② (ANT-CHAIN-11). 스케줄러가 5초마다 {@link #poll} 을 부른다.
@@ -151,14 +152,17 @@ public class TokenIndexer {
     private void settleStale(Instant now) {
         for (TokenIndexService.StalePending s : service.findStalePending(now)) {
             if (s.txHash() == null) {
-                service.failOperation(s.operationId(), "SEND_LOST", "전송 주체가 tx 를 남기지 못했다(전송 실패 또는 크래시)");
+                service.failOperation(
+                        s.operationId(), Operation.ChainFailure.SEND_LOST.name(), "전송 주체가 tx 를 남기지 못했다(전송 실패 또는 크래시)");
                 continue;
             }
             Optional<Boolean> receipt = source.receiptStatus(s.txHash());
             if (receipt.isPresent() && !receipt.get()) {
-                service.failOperation(s.operationId(), "REVERTED", "채굴에서 revert — 시뮬레이션 뒤 잔액이 바뀌었다. tx " + s.txHash());
+                service.failOperation(
+                        s.operationId(), Operation.ChainFailure.REVERTED.name(), "채굴에서 revert — 시뮬레이션 뒤 잔액이 바뀌었다. tx " + s.txHash());
             } else if (receipt.isEmpty() && s.createdAt().plus(TokenIndexService.DROPPED_AFTER).isBefore(now)) {
-                service.failOperation(s.operationId(), "TX_DROPPED", "receipt 가 10분 안에 나오지 않았다. tx " + s.txHash());
+                service.failOperation(
+                        s.operationId(), Operation.ChainFailure.TX_DROPPED.name(), "receipt 가 10분 안에 나오지 않았다. tx " + s.txHash());
             }
         }
     }

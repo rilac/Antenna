@@ -15,23 +15,24 @@
    (AdService: "게재 시작을 고를 수 없다"). 그래서 화면도 날짜를 묻지 않고,
    대신 **확정되는 즉시 시작한다**고 알린다 — 안 적으면 언제 걸리는지 모른다.
 
-   비용을 화면이 계산하는 것에 대해
-   어떤 API 도 단가를 내려주지 않는다(api/ads.ts 아래쪽 주석). 제약이 "비용을 명확히
-   보여준다" 라 비워 둘 수 없어 같은 수를 프론트에 적었다. 서버가 값을 바꾸면 화면이
-   거짓을 말하게 되고, 가격이 서명 문자열에 없어 서명으로도 막히지 않는다.
-   조회 경로가 생기면 그 값으로 바꾼다.
+   비용은 서버가 준 단가로만 계산한다
+   GET /ads/pricing 의 pricePerDay · minDays · maxDays · slotCount 를 그대로 쓴다. 가격이
+   서명 문자열에 없어(days 만 들어간다) 서버가 단가를 바꿔도 서명으로는 막히지 않는다 —
+   화면이 상수를 들고 있으면 "1 ANT × 7일" 이라 말하고 7,000 ANT 를 태울 수 있다.
+   그래서 단가를 못 받았으면 금액을 짐작해 그리지 않고 등록 버튼을 잠근다. 소각은 되돌릴 수 없다.
 
    지갑 게이트는 ANT-FE-WALLET-GATE 판단을 따른다
    미설치와 미연동을 여기서 가르지 않는다 — M-01 이 네 갈래를 각각 다르게 안내한다. */
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  LINK_MAX, MAX_DAYS, MIN_DAYS, PRICE_PER_DAY_ANT,
-  createAd, adSigningPayload, isValidLink, priceOf, type AdDraft,
+  LINK_MAX,
+  createAd, adSigningPayload, fetchAdPricing, isValidLink, priceOf, type AdDraft,
 } from '../api/ads'
 import type { ApiError } from '../api/errors'
 import { useOperation } from '../api/operations'
-import { requestNonce } from '../api/wallet'
+import { useAsync } from '../api/useAsync'
+import { formatToken, requestNonce } from '../api/wallet'
 import { useAuth } from '../auth/context'
 import { connectAddress, hasWallet, personalSign } from '../wallet/provider'
 import ImageUploadModal from '../components/upload/ImageUploadModal'
@@ -69,9 +70,15 @@ export default function Ad() {
      effect 안 setState 가 된다(M-03 과 같은 판단). */
   const view: Step = status === 'SUCCEEDED' ? 'done' : step
 
+  /* 단가 · 일수 범위 · 자리 수는 서버에서만 온다. 못 받은 동안 terms 가 null 이라 등록이 잠긴다 */
+  const pricing = useAsync(fetchAdPricing)
+  const terms = pricing.data
+
   const linkOk = isValidLink(linkUrl)
-  const ready = banner !== null && linkOk && days >= MIN_DAYS && days <= MAX_DAYS
-  const price = priceOf(days)
+  const daysOk = terms !== null && days >= terms.minDays && days <= terms.maxDays
+  /* 계산할 수 없으면(소수 일수 등) null 이다. 금액을 모르는 채로 서명시키지 않는다 */
+  const price = terms ? priceOf(terms, days) : null
+  const ready = banner !== null && linkOk && daysOk && price !== null
 
   const onUploaded = useCallback((image: UploadedImage) => {
     setBanner(image)
@@ -174,28 +181,44 @@ export default function Ad() {
               <div className="ad-days">
                 <input
                   type="number" className="ad-input is-num"
-                  value={days} min={MIN_DAYS} max={MAX_DAYS}
+                  value={days} min={terms?.minDays} max={terms?.maxDays}
                   onChange={(e) => setDays(Number(e.target.value))}
                 />
                 <span>일</span>
               </div>
               {/* 시작일 칸이 없는 이유를 적는다. 안 적으면 언제 걸리는지 모른다 */}
               <p className="ad-hint">
-                {`${MIN_DAYS}~${MAX_DAYS}일. 시작일은 고를 수 없고, 결제가 확정되는 즉시 시작합니다.`}
+                {terms
+                  ? `${terms.minDays}~${terms.maxDays}일. 시작일은 고를 수 없고, 결제가 확정되는 즉시 시작합니다.`
+                  : '시작일은 고를 수 없고, 결제가 확정되는 즉시 시작합니다.'}
               </p>
             </section>
 
             {/* ── 비용 (SignConfirm) ───────────────────── */}
             <section className="ad-cost">
-              <div className="ad-cost-line">
-                <span>{`${PRICE_PER_DAY_ANT} ANT × ${days}일`}</span>
-                <b className="num">{`${price} ANT`}</b>
-              </div>
-              {/* 소각이라 되돌릴 수 없다. 서명 전에 분명히 말한다 */}
-              <p className="ad-cost-note">
-                등록하면 <b>{`${price} ANT 가 소각`}</b>됩니다. 되돌릴 수 없습니다.
-                자리가 하나뿐이라 이미 게재 중인 광고가 있으면 등록되지 않습니다.
-              </p>
+              {pricing.error ? (
+                /* 단가를 못 받으면 금액을 짐작해 채우지 않는다. 이유를 말하고 등록을 잠근다 */
+                <ErrorState error={pricing.error} onRetry={pricing.reload} inline />
+              ) : !terms ? (
+                <p className="ad-hint" aria-live="polite">게재 단가를 불러오는 중입니다…</p>
+              ) : (
+                <>
+                  <div className="ad-cost-line">
+                    <span>{`${formatToken(terms.pricePerDay)} ANT × ${days}일`}</span>
+                    <b className="num">{price === null ? '—' : `${formatToken(price)} ANT`}</b>
+                  </div>
+                  {/* 소각이라 되돌릴 수 없다. 서명 전에 분명히 말한다 */}
+                  <p className="ad-cost-note">
+                    {price === null
+                      ? '노출 기간을 정수 일수로 넣으면 금액이 계산됩니다.'
+                      : <>등록하면 <b>{`${formatToken(price)} ANT 가 소각`}</b>됩니다. 되돌릴 수 없습니다.</>}
+                    {' '}
+                    {terms.slotCount === 1
+                      ? '자리가 하나뿐이라 이미 게재 중인 광고가 있으면 등록되지 않습니다.'
+                      : `자리가 ${terms.slotCount}개라 모두 차 있으면 등록되지 않습니다.`}
+                  </p>
+                </>
+              )}
             </section>
 
             {text && (

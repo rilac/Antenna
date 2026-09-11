@@ -73,8 +73,8 @@ class AdControllerTest {
     private static final String PRIVATE_KEY =
             "0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
     private static final String DUMMY_SIGNATURE = "0x" + "0".repeat(130);
-    /** 기본 단가가 1 ANT/일이라 30일치를 덮고도 남는 잔액. ANT 는 decimals 0 이다. */
-    private static final BigInteger RICH = BigInteger.valueOf(1_000);
+    /** 단가(테스트 yaml app.token.amounts.ad-per-day)가 1,000 ANT/일이라 30일치(30,000)를 덮는 잔액. ANT 는 decimals 0 이다. */
+    private static final BigInteger RICH = BigInteger.valueOf(30_000);
 
     @Autowired MockMvc mockMvc;
     @Autowired EntityManager em;
@@ -153,7 +153,7 @@ class AdControllerTest {
         assertThat(relayer.calls()).singleElement().satisfies(c -> {
             assertThat(c.kind()).isEqualTo("burn");
             assertThat(c.from()).isEqualToIgnoringCase(credentials.getAddress());
-            assertThat(c.amount()).isEqualTo(BigInteger.valueOf(7));
+            assertThat(c.amount()).isEqualTo(BigInteger.valueOf(7_000)); // 1,000 ANT/일 × 7일 (금액표 ANT-TOKEN-08)
             assertThat(c.reason()).isEqualTo(TokenReason.AD_PAY);
         });
         Operation op = operations.findById(operationId).orElseThrow();
@@ -255,7 +255,7 @@ class AdControllerTest {
                 "adId");
 
         AdBanner saved = banners.findById(Long.valueOf(adId)).orElseThrow();
-        assertThat(saved.getPriceWei()).isEqualTo(BigInteger.valueOf(7));
+        assertThat(saved.getPriceWei()).isEqualTo(BigInteger.valueOf(7_000)); // 1,000 ANT/일 × 7일
     }
 
     @Test
@@ -366,13 +366,14 @@ class AdControllerTest {
     }
 
     @Test
-    @DisplayName("게재 조건은 app.ads 설정값을 그대로 내린다 — wei 는 문자열이다")
+    @DisplayName("게재 조건은 설정값을 그대로 내린다 — 단가는 토큰 금액표, 금액 필드는 문자열이다")
     void 게재_조건() throws Exception {
         mockMvc.perform(get(URL + "/pricing").with(user(String.valueOf(advertiser.getId()))))
                 .andExpect(status().isOk())
-                // 설정을 넣지 않았으므로 AdProperties 의 기본값 1 ANT/일이다. ANT 는 decimals 0
-                // 이라 10^18 을 곱하지 않고, 금액 필드라 문자열로 내린다.
-                .andExpect(jsonPath("$.pricePerDayWei").value("1"))
+                // 테스트 yaml 의 app.token.amounts.ad-per-day = 1,000 ANT/일. ANT 는 decimals 0
+                // 이라 10^18 을 곱하지 않고, 금액 필드라 문자열로 내린다. 필드 이름에 wei 가 없다(ANT-TOKEN-08).
+                .andExpect(jsonPath("$.pricePerDay").value("1000"))
+                .andExpect(jsonPath("$.pricePerDayWei").doesNotExist())
                 // AdCreateRequest 의 @Min(1) 과 같은 값이어야 한다.
                 .andExpect(jsonPath("$.minDays").value(1))
                 .andExpect(jsonPath("$.maxDays").value(30))

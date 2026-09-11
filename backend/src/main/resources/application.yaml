@@ -101,12 +101,22 @@ app:
     ad-aspect-ratio: 4.0
     ad-aspect-tolerance: 0.05
 
-  # 광고 게재(ANT-COMMUNITY-05). 경매가 아니라 고정 단가 × 기간제 선착순이다.
+  # 토큰 금액표(ANT-TOKEN-08) — TokenAmountProperties. ANT 가 들고 나는 금액은 전부 여기 한 곳이다.
+  # 단위는 정수 ANT(decimals 0, 원화 스테이블코인 가정으로 1 ANT ≈ 1원). 10^18 을 곱하지 않는다.
+  # 환경변수로 받지 않는다 — 금액은 정책이라 모든 환경이 같아야 하고, 바뀌면 git 에 남아야 한다. 바꾸는 법은 이 값 + 배포.
+  # 코드 기본값도 없다: 키를 지우거나 0 이하로 두면 부팅이 멈춘다. 테스트 yaml 에도 같은 블록이 있다(값을 같게).
+  # 시즌 참가비는 여기 없다(seasons 컬럼 — 명세). 백테스트는 무료다.
+  token:
+    amounts:
+      # 지갑 연동 시 1인 1회 mint (TOKEN-07)
+      signup-bonus: 10000
+      # 하루 무료 3건을 넘긴 예측 1건의 소각 (PRED-01)
+      slot-over: 1000
+      # 메인 배너 하루치 게재료 소각 (COMMUNITY-05). 잠정 — 경매형으로 바뀔 수 있다
+      ad-per-day: 1000
+
+  # 광고 게재(ANT-COMMUNITY-05). 경매가 아니라 고정 단가 × 기간제 선착순이다. 단가는 위 token.amounts.ad-per-day.
   ads:
-    # 1 ANT/일. 금액표(D4)가 확정되면 이 값을 바꾼다.
-    # ANT 는 decimals 0 이라(ANT-CHAIN-03) 정수 그대로가 최소 단위다 — 10^18 을 곱하지 않는다.
-    # 이름의 wei 는 금액 필드 형식 통일에서 온 것이고 단위가 wei 라는 뜻이 아니다.
-    price-per-day-wei: ${AD_PRICE_PER_DAY_WEI:1}
     # 메인 배너 자리가 하나다. 자리를 늘리면 이 값만 올린다.
     slot-count: 1
     max-days: 30

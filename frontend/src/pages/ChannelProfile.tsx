@@ -23,12 +23,13 @@ import { useCallback, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   daysLeft, fetchBacktest, fetchChannel, fetchChannelPredictions,
-  formatExpiry, formatFee,
+  formatExpiry,
   type Backtest, type Channel, type ChannelPrediction,
 } from '../api/channels'
 import { phaseOf } from '../api/predictions'
 import { fetchChannelReports, formatDate, type ChannelReportItem } from '../api/reports'
 import { useAsync } from '../api/useAsync'
+import { formatToken } from '../api/wallet'
 import PredictionCard from '../components/prediction/PredictionCard'
 import PredictionNote from '../components/channel/PredictionNote'
 import SubscribeModal from '../components/channel/SubscribeModal'
@@ -194,7 +195,7 @@ export default function ChannelProfile() {
                     <p className="ch-sub-unset">아직 정해지지 않았습니다</p>
                   ) : (
                     <p className="num">
-                      <b>{formatFee(channel.fee)}</b><small>ANT</small>
+                      <b>{formatToken(channel.fee)}</b><small>ANT</small>
                       <em>/ 30일</em>
                     </p>
                   )}
@@ -210,7 +211,7 @@ export default function ChannelProfile() {
                         결제 금액이 달라 보이는 이유를 알 수 없다 */}
                     {sub.paidFee && sub.paidFee !== channel.fee && (
                       <p className="ch-sub-locked-fee">
-                        {`${formatFee(sub.paidFee)} ANT 로 결제한 구독입니다. 만료까지 이 가격입니다.`}
+                        {`${formatToken(sub.paidFee)} ANT 로 결제한 구독입니다. 만료까지 이 가격입니다.`}
                       </p>
                     )}
                     <p className="ch-sub-renew">

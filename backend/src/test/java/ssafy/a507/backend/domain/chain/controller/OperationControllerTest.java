@@ -61,7 +61,7 @@ class OperationControllerTest {
     }
 
     @Test
-    @DisplayName("실패한 작업은 error.code 와 settledAt 이 실린다")
+    @DisplayName("실패한 작업은 error.code 와 settledAt 이 실린다 — message 는 코드에 붙은 서버 문구")
     void 실패_작업_조회() throws Exception {
         operation.markFailed("INSUFFICIENT_BALANCE", "잔액이 부족합니다.");
         em.flush();
@@ -70,7 +70,32 @@ class OperationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("FAILED"))
                 .andExpect(jsonPath("$.error.code").value("INSUFFICIENT_BALANCE"))
+                .andExpect(jsonPath("$.error.message").value("토큰 잔액이 부족합니다."))
                 .andExpect(jsonPath("$.settledAt").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("DB 에 예외 원문이 남아 있어도 응답 message 는 서버 문구다 — RPC 주소·클래스명이 새지 않는다(-226)")
+    void 실패_원문은_응답에_안_나간다() throws Exception {
+        operation.markFailed("INTERNAL_ERROR", "SocketTimeoutException: connect timed out wss://ws.ssafy-blockchain.com");
+        em.flush();
+
+        mockMvc.perform(get(URL + operation.getId()).with(user(String.valueOf(ownerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.error.code").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.error.message").value("서버 오류가 발생했습니다."));
+    }
+
+    @Test
+    @DisplayName("인덱서가 닫은 실패(SEND_LOST)는 그 코드의 문구가 실린다")
+    void 인덱서_실패_문구() throws Exception {
+        operation.markFailed("SEND_LOST", "전송 주체가 tx 를 남기지 못했다(전송 실패 또는 크래시)");
+        em.flush();
+
+        mockMvc.perform(get(URL + operation.getId()).with(user(String.valueOf(ownerId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.error.code").value("SEND_LOST"))
+                .andExpect(jsonPath("$.error.message").value(Operation.ChainFailure.SEND_LOST.message()));
     }
 
     @Test

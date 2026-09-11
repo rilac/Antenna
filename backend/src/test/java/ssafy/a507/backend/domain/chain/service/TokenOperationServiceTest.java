@@ -157,7 +157,7 @@ class TokenOperationServiceTest {
     }
 
     @Test
-    @DisplayName("컨트랙트 거부(서버 버그) → FAILED(에러 이름) + 500 INTERNAL_ERROR")
+    @DisplayName("컨트랙트 거부(서버 버그) → FAILED(INTERNAL_ERROR, 거부 이름은 메시지에) + 500 INTERNAL_ERROR — 요청 응답과 작업 코드가 같다(-226)")
     void 컨트랙트_거부() {
         Long creator = newUser(WALLET_B);
         String opId = accept(newUser(WALLET_A), Operation.Kind.SUBSCRIBE);
@@ -168,7 +168,24 @@ class TokenOperationServiceTest {
                 .extracting(e -> ((BusinessException) e).getErrorCode())
                 .isEqualTo(ErrorCode.INTERNAL_ERROR);
 
-        assertThat(operations.findById(opId).orElseThrow().getErrorCode()).isEqualTo("SelfSubscribe");
+        Operation op = operations.findById(opId).orElseThrow();
+        assertThat(op.getErrorCode()).isEqualTo("INTERNAL_ERROR");
+        assertThat(op.getErrorMessage()).contains("SelfSubscribe");
+    }
+
+    @Test
+    @DisplayName("예상 못 한 예외 → FAILED(INTERNAL_ERROR) — 클래스명은 코드가 아니라 메시지에만, 예외는 그대로 던진다(-226)")
+    void 예상_못한_예외() {
+        String opId = accept(newUser(WALLET_A), Operation.Kind.PREDICTION_BURN);
+        relayer.thenThrow(new IllegalArgumentException("wss://rpc.internal 연결 끊김"));
+
+        assertThatThrownBy(() -> service.dispatchBurn(opId, AMOUNT, TokenReason.SLOT_OVER))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        Operation op = operations.findById(opId).orElseThrow();
+        assertThat(op.getStatus()).isEqualTo(Operation.Status.FAILED);
+        assertThat(op.getErrorCode()).isEqualTo("INTERNAL_ERROR");
+        assertThat(op.getErrorMessage()).startsWith("IllegalArgumentException: ");
     }
 
     @Test
