@@ -83,6 +83,15 @@ public class FakeAnchorRelayer implements AnchorRelayer {
         return this;
     }
 
+    /** 릴레이어가 revert·RPC 장애로 분류하지 못한 예외(라이브러리 내부 오류 등). */
+    public FakeAnchorRelayer thenThrow(RuntimeException e) {
+        script.add(
+                () -> {
+                    throw e;
+                });
+        return this;
+    }
+
     public FakeAnchorRelayer thenUnavailable() {
         script.add(
                 () -> {

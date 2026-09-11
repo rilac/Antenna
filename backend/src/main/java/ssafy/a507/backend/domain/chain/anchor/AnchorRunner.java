@@ -120,7 +120,9 @@ public class AnchorRunner {
                     sleep(props.anchor().retry().delaySeconds());
                 }
             } catch (RuntimeException e) {
-                service.markFailed(p.batchId(), e.getClass().getSimpleName() + ": " + e.getMessage());
+                // last_error 는 GET /anchors/{id} 로 회원에게 나간다 — 클래스명·원문(RPC 주소·내부 경로가 섞인다)은
+                // 로그에만 두고 칸에는 고정 코드만 쓴다(-226). 원인은 바로 아래 스택으로 본다.
+                service.markFailed(p.batchId(), ErrorCode.INTERNAL_ERROR.name());
                 log.error("앵커 배치 #{} 예기치 않은 실패", p.batchId(), e);
                 return;
             }

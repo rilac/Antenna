@@ -264,6 +264,20 @@ class AnchorRunnerTest {
     }
 
     @Test
+    @DisplayName("예상 못 한 예외는 FAILED(INTERNAL_ERROR) — 클래스명·원문은 GET /anchors/{id} 로 나가지 않고 로그에만(-226)")
+    void 예상_못한_예외는_고정_코드() {
+        insertCommit("x", "BASE");
+        relayer.thenThrow(new IllegalArgumentException("wss://rpc.internal 연결 끊김"));
+
+        Long id = runner.run(TODAY).orElseThrow();
+
+        AnchorBatch batch = batches.findById(id).orElseThrow();
+        assertThat(batch.getStatus()).isEqualTo(AnchorBatch.Status.FAILED);
+        assertThat(batch.getLastError()).isEqualTo("INTERNAL_ERROR");
+        assertThat(relayer.calls()).hasSize(1);
+    }
+
+    @Test
     @DisplayName("재시도 단계에서 anchoredAt 조회가 실패하면 그 배치는 이번 실행을 건너뛴다(재전송 안 함)")
     void anchoredAt_장애면_건너뜀() {
         insertCommit("x", "BASE");
