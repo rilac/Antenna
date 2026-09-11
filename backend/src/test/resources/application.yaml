@@ -66,6 +66,14 @@ app:
   cors:
     allowed-origins: http://localhost:5173
 
+  # 토큰 금액표(ANT-TOKEN-08). 이 파일이 main 의 application.yaml 을 가리고 TokenAmountProperties 는 코드 기본값이 없어서,
+  # 여기 없으면 컨텍스트가 안 뜬다. 값은 main 과 같게 둔다.
+  token:
+    amounts:
+      signup-bonus: 10000
+      slot-over: 1000
+      ad-per-day: 1000
+
   # 판정 배치(ANT-PRED-03·04). "-" 는 스프링의 스케줄 비활성 표시다 — 등록은 검증되고 실행만 빠진다.
   # 켜 두면 테스트 중에 배치가 H2 의 픽스처를 전이시켜 다른 테스트가 흔들린다.
   prediction:

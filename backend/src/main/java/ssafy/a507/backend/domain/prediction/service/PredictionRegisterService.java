@@ -10,12 +10,14 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.common.security.SignatureGuard;
 import ssafy.a507.backend.domain.account.entity.User;
+import ssafy.a507.backend.domain.chain.config.TokenAmountProperties;
 import ssafy.a507.backend.domain.market.entity.DailyQuote;
 import ssafy.a507.backend.domain.market.entity.Stock;
 import ssafy.a507.backend.domain.market.repository.DailyQuoteRepository;
@@ -49,6 +51,7 @@ import ssafy.a507.backend.domain.research.repository.ResearchPointRepository;
  * <p>슬롯 초과는 지금 409 로 끝난다(plan §5-①). 소각할 토큰(ANT-CHAIN-03)이 생기면 여기서 202 소각 경로로 갈라진다.
  */
 @Service
+@EnableConfigurationProperties(TokenAmountProperties.class)
 public class PredictionRegisterService {
 
     /** 슬롯·D-day 는 장 기준이라 서버 시간대와 무관하게 KST 로 센다. */
@@ -74,7 +77,8 @@ public class PredictionRegisterService {
     private final SignatureGuard signatureGuard;
     private final PredictionCommitFactory commitFactory;
     private final int freePerDay;
-    private final String overCostWei;
+    /** 슬롯 초과 소각액은 토큰 금액표 한 곳에서 읽는다(ANT-TOKEN-08). */
+    private final TokenAmountProperties amounts;
 
     public PredictionRegisterService(
             EntityManager em,
@@ -88,9 +92,7 @@ public class PredictionRegisterService {
             SignatureGuard signatureGuard,
             PredictionCommitFactory commitFactory,
             @Value("${app.prediction.slot.free-per-day:3}") int freePerDay,
-            // 잠정 2,000 ANT. ANT 는 decimals 0 이라(ANT-CHAIN-03) 정수 그대로가 최소 단위다 — 10^18 을 곱하지 않는다.
-            // 키 이름의 -wei 는 옛 표기. 금액표를 app.token.* 로 모을 때(ANT-TOKEN-08) 이름을 같이 바꾼다.
-            @Value("${app.prediction.slot.over-cost-wei:2000}") String overCostWei) {
+            TokenAmountProperties amounts) {
         this.em = em;
         this.predictions = predictions;
         this.notes = notes;
@@ -102,7 +104,7 @@ public class PredictionRegisterService {
         this.signatureGuard = signatureGuard;
         this.commitFactory = commitFactory;
         this.freePerDay = freePerDay;
-        this.overCostWei = overCostWei;
+        this.amounts = amounts;
     }
 
     /** 등록. 성공하면 예측 id — 멱등 저장소에 이 값만 남기고 응답은 {@link #created} 가 다시 만든다. */
@@ -167,7 +169,7 @@ public class PredictionRegisterService {
     public PredictionSlotResponse slots(Long userId) {
         LocalDate today = LocalDate.now(KST);
         int used = (int) usedToday(userId, today);
-        return new PredictionSlotResponse(today, freePerDay, used, Math.max(0, freePerDay - used), overCostWei);
+        return new PredictionSlotResponse(today, freePerDay, used, Math.max(0, freePerDay - used), amounts.slotOver().toString());
     }
 
     private long usedToday(Long userId, LocalDate today) {
