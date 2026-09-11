@@ -69,10 +69,15 @@ export default function CommitProgressModal({ phase, result, onClose }: Props) {
 
   const settled = phase === 'settled'
   const queued = result?.kind === 'queued'
-  const predictionId = result?.kind === 'created' ? result.data.predictionId : null
+  const predictionId = result?.kind === 'created' ? result.data.id : null
 
-  /* 앵커 상태. 서버가 말해 주기 전까지는 아무것도 주장하지 않는다 */
-  const [anchor, setAnchor] = useState<ProofAnchorStatus | null>(null)
+  /* 앵커 상태. 서버가 말해 주기 전까지는 아무것도 주장하지 않는다.
+
+     이 모달은 phase='signing' 에 뜨고 result 는 그 뒤에 온다 — 그래서 useState 의
+     초기값으로는 201 의 anchorStatus 를 못 잡는다(마운트 때는 아직 null 이다).
+     폴링이 한 바퀴 돌기 전까지는 201 이 준 값을 쓰도록 파생해서 읽는다. */
+  const [polled, setPolled] = useState<ProofAnchorStatus | null>(null)
+  const anchor = polled ?? (result?.kind === 'created' ? result.data.anchorStatus : null)
 
   /* 배치가 묶을 때까지 물어본다. 확정·실패로 끝나면 멈춘다.
      202(소각)는 predictionId 가 아직 없어 폴링할 대상이 없다 — 그쪽은 M-02 몫이다. */
@@ -85,7 +90,7 @@ export default function CommitProgressModal({ phase, result, onClose }: Props) {
       try {
         const p = await fetchAnchorStatus(predictionId)
         if (!alive) return
-        setAnchor(p.anchorStatus)
+        setPolled(p.anchorStatus)
         // 더 기다려도 안 바뀌는 상태면 멈춘다
         if (isAnchorSettling(p.anchorStatus)) timer = window.setTimeout(ask, 5000)
       } catch {

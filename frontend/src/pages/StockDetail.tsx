@@ -18,6 +18,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import InfoTab from '../components/stockDetail/InfoTab'
 import PredictTab from '../components/stockDetail/PredictTab'
+import SettledToday from '../components/stockDetail/SettledToday'
 import { emptyPredictForm, type PredictForm } from '../components/stockDetail/predictForm'
 import { useBlock } from '../api/useBlock'
 import ErrorState from '../components/state/ErrorState'
@@ -110,19 +111,27 @@ export default function StockDetail() {
                     {s?.market && <span className="sd-chip">{MARKET_LABEL[s.market]}</span>}
                     {s?.sector && <span className="sd-chip is-soft">{s.sector}</span>}
 
-                    <button
-                      type="button"
-                      className={watched ? 'sd-watch is-on' : 'sd-watch'}
-                      aria-pressed={watched}
-                      onClick={toggleWatch}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24"
-                           fill={watched ? 'currentColor' : 'none'} stroke="currentColor"
-                           strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
-                        <path d="m12 3.6 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.8l5.9-.9z" />
-                      </svg>
-                      {watched ? '관심 종목' : '관심 담기'}
-                    </button>
+                    {/* 오른쪽 끝 묶음. 오늘 판정 카드와 관심 종목을 한 상자에 넣어
+                        오른쪽으로 민다 — 둘에 각각 margin-left:auto 를 주면 남는
+                        폭을 반씩 나눠 가져 카드가 가운데로 떠 버린다. */}
+                    <div className="sd-ident-right">
+                      {/* 오늘 판정된 예측. 없으면 스스로 아무것도 그리지 않는다 */}
+                      <SettledToday code={code} />
+
+                      <button
+                        type="button"
+                        className={watched ? 'sd-watch is-on' : 'sd-watch'}
+                        aria-pressed={watched}
+                        onClick={toggleWatch}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24"
+                             fill={watched ? 'currentColor' : 'none'} stroke="currentColor"
+                             strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+                          <path d="m12 3.6 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.8l5.9-.9z" />
+                        </svg>
+                        {watched ? '관심 종목' : '관심 담기'}
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
