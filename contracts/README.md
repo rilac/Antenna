@@ -8,9 +8,9 @@
 커밋 해시 목록을 `Anchored` 이벤트로 남긴다. **이벤트가 곧 백업이다** — DB 가 없어도
 체인만 읽어 트리와 증명 경로를 되살릴 수 있다(`scripts/rebuild-from-chain.mjs`).
 
-> **배포본은 환경마다 한 벌이다 (ANT-CHAIN-12).** 같은 SSAFY 체인에 dev(팀원 로컬·Live 테스트)와 prod(운영 서버)
-> 컨트랙트가 따로 있고 키도 따로다. 주소·키 역할·시작 블록 표는 [`deployments/README.md`](./deployments/README.md) 한 곳에 있다.
-> 아래 절의 주소·흔적표는 **dev** 기준이다. 배포 스크립트는 `DEPLOY_ENV=dev|prod` 없이는 돌지 않는다.
+> **SSAFY 체인에는 운영 한 벌만 쓴다 (ANT-CHAIN-12, 2026-09-11 결정).** 로컬 개발은 Hardhat 로컬 체인이다.
+> 주소·키 역할·시작 블록 표는 [`deployments/README.md`](./deployments/README.md) 한 곳에 있다.
+> 아래 절에 나오는 dev 주소·흔적표는 **폐기된 옛 dev 배포본**의 기록이다(역사로 남긴다). 배포 스크립트는 `DEPLOY_ENV` 없이는 돌지 않는다.
 
 ## 명령
 

@@ -1,44 +1,66 @@
-# 배포 기록 — 환경 두 벌 (ANT-CHAIN-12)
+# 배포 기록 — 운영 한 벌 + 로컬 Hardhat (ANT-CHAIN-12)
 
-같은 SSAFY 체인(chainId 31221, `wss://ws.ssafy-blockchain.com`, 가스 0)에 컨트랙트가 **환경마다 한 벌씩** 산다. 키도 환경마다 따로다.
+SSAFY 체인(chainId 31221, `wss://ws.ssafy-blockchain.com`, 가스 0)에는 **운영 한 벌만** 쓴다.
+실서버 테스트도 운영 컨트랙트로 하고, 그대로 서비스한다. 로컬 개발은 **Hardhat 로컬 체인**(chainId 31337)에서 한다.
 
-역할(`ANCHOR_ROLE` · `OPERATOR_ROLE`)은 컨트랙트마다 **특정 주소**에 주어진다. 그래서 한 환경의 키로 다른 환경의 컨트랙트는
-못 움직인다 — 키와 컨트랙트는 한 벌로 움직인다.
+역할(`ANCHOR_ROLE` · `OPERATOR_ROLE`)은 컨트랙트마다 **특정 주소**에 주어진다. 그래서 키와 컨트랙트는 한 벌로 움직이고,
+노트북 키에는 운영 권한을 주지 않는다 — 로컬이 운영 장부를 건드릴 길 자체를 없앤다.
 
-**이 파일이 단일 진실이다.** 주소를 바꾸면 여기와 아래 "넣는 곳" 을 같이 바꾼다.
+**이 파일이 단일 진실이다.** 주소를 바꾸면 여기와 "넣는 곳" 을 같이 바꾼다.
 
-## 두 벌
+> 2026-09-11 오후엔 개발/운영 두 벌이었다. 같은 날 저녁 유저 결정으로 개발 세트를 폐기했다 — 운영 서버를 테스트 코인에 붙이면
+> 로컬 테스트가 운영 장부로 흘러들고, 서버 한 대는 한 세트만 가리키므로 "세트는 하나, 로컬은 체인 밖(Hardhat)" 이 가장 단순하다.
 
-| | dev (개발·테스트) | prod (운영) |
+## 운영 (prod) — SSAFY 체인
+
+| 항목 | 값 | 보관 · 넣는 곳 |
 |---|---|---|
-| 누가 쓰나 | 팀원 로컬 서버 · `*E2ELiveTest` · 데모 스크립트 | master 배포 서버(stock-antenna.com)만 |
-| CommitAnchor v2 | `0x07f8CfE2bc6174D62BE8226E5e8699ffBf0d6D6a` | `0x8fDb4010b120DFf5c2d9b4c990821aeA00331C7e` |
-| └ 배포 블록 | 11186682 (2026-09-04) | 11241834 (2026-09-11) |
-| PredictToken (ANT) | `0xe11d728b157240DCf4a8c831176D248BAFD33077` | `0xEee56721cd2c0383139756c88B6DB06024a412Cb` |
-| └ 배포 블록 | 11233486 (2026-09-10) | 11241835 (2026-09-11) |
-| 관리자 (`DEFAULT_ADMIN_ROLE`, 두 컨트랙트 공통) | `0x22B51fF89E742234A0A107C5E3e8B487D91dDEA1` | `0xed9A22D3c39e5ddf161638b82a18a96134707491` |
-| 릴레이어 = 오퍼레이터 (`ANCHOR_ROLE` · `OPERATOR_ROLE`) | `0xb7f2De5b4821EE386Aeac037b096f28693cA2a47` | `0x55085F3F5568ED3936A734DbaEF179F8045322E3` |
-| 수납 (플랫폼 30%) | `0x893D17a14FA7eC3Ef4249c2AC53B1DD5e1ec7fb3` | `0x1E189420b1Abb9F1ff3A556bd068C5B03b6B17bB` |
-| 인덱서 시작 블록 | 11186682 | 11241834 |
-| 관리자 키 보관 | `backend/.env` `ANCHOR_ADMIN_PRIVATE_KEY` (개발망 편의, 09-04 결정) | 비밀번호 관리자. **서버·저장소에 없다** |
-| 릴레이어 키 보관 | `backend/.env` `RELAYER_PRIVATE_KEY` | GitLab CI/CD 변수 `RELAYER_PRIVATE_KEY` (Masked · Protected) |
-| 수납 키 보관 | `backend/.env` `TOKEN_TREASURY_PRIVATE_KEY` | 비밀번호 관리자 |
-| 주소를 넣는 곳 | 각자 `backend/.env` (`backend/.env.example` 주석 참고) | `.gitlab-ci.yml` 의 `.env` 블록 |
-| 다시 배포 | 된다(가스 0). PredictToken 은 테스트 잔액이 사라지니 알리고 한다 | **스크립트가 거부한다** — 아래 "운영 컨트랙트를 바꿔야 할 때" |
-| 소모된 batchId | 1~4 (`contracts/README.md` 함정 2 표) | 운영 DB `anchor_batches.id` 만 쓴다. 손으로 태우지 않는다 |
+| CommitAnchor | `0x8fDb4010b120DFf5c2d9b4c990821aeA00331C7e` (블록 11241834) | ANT-CHAIN-13 에서 v3 로 교체 예정(한 번도 안 씀) |
+| PredictToken (ANT) | `0xEee56721cd2c0383139756c88B6DB06024a412Cb` (블록 11241835) | **서비스 ANT. 재배포 금지 — 잔액이 여기 산다** |
+| 관리자 (`DEFAULT_ADMIN_ROLE`, 두 컨트랙트 공통) | `0xed9A22D3c39e5ddf161638b82a18a96134707491` | 비밀번호 관리자. 서버·저장소에 없다 |
+| 릴레이어 = 오퍼레이터 (`ANCHOR_ROLE` · `OPERATOR_ROLE`) | `0x55085F3F5568ED3936A734DbaEF179F8045322E3` | GitLab CI/CD 변수 `RELAYER_PRIVATE_KEY` (Masked · Protected) |
+| 수납 (플랫폼 30%) | `0x1E189420b1Abb9F1ff3A556bd068C5B03b6B17bB` | 비밀번호 관리자 |
+| 인덱서 시작 블록 | 11241834 | — |
+| 주소를 넣는 곳 | `.gitlab-ci.yml` 의 `.env` 블록 | — |
+
+- **테스트 흔적은 체인에 영구히 남는다.** 서비스 화면에서 걸러 보여 준다. 서비스 시작 때의 정리 방식(테스트 잔액을 오퍼레이터 `burn` 으로 소각 ·
+  DB 초기화 vs 기준 시점 필터)은 보류다.
+- 체인은 RPC 로 누구나 읽을 수 있다. "안 보여 준다" 는 화면 이야기지 비밀이 아니다. 앵커에는 해시만 올라가 예측 내용은 안 읽힌다.
+
+## 로컬 — Hardhat 로컬 체인
+
+```bash
+cd contracts
+npx hardhat node          # 터미널 1 — chainId 31337, 계정 20개(키가 화면에 찍힌다. 공개된 테스트 키다)
+npm run deploy:local      # 터미널 2 — deployments/local/CommitAnchor.json (signer 0 = 관리자, signer 1 = 릴레이어)
+```
+
+`backend/.env` 에 `CHAIN_RPC_URL=ws://127.0.0.1:8545` · `CHAIN_ID=31337` · `CONTRACT_COMMIT_ANCHOR=<local 주소>` ·
+`RELAYER_PRIVATE_KEY=<hardhat node 가 찍은 Account #1 키>` · `INDEXER_FROM_BLOCK=0`. 노드를 재시작하면 체인이 새로 생기므로 다시 배포한다.
+PredictToken 의 로컬 배포 스크립트는 아직 없다 — 토큰 기능을 로컬에서 돌릴 때 `deploy.js` 에 붙인다.
+
+## 폐기 — 옛 dev 배포본 (2026-09-11 저녁)
+
+| 항목 | 값 |
+|---|---|
+| CommitAnchor v2 | `0x07f8CfE2bc6174D62BE8226E5e8699ffBf0d6D6a` (batchId 1~4 소모) |
+| PredictToken | `0xe11d728b157240DCf4a8c831176D248BAFD33077` (테스트 mint 흔적) |
+| 관리자 · 릴레이어 · 수납 | `0x22B5…DEA1` · `0xb7f2…2a47` · `0x893D…7fb3` |
+
+기록(`dev/*.json`)과 흔적표(`contracts/README.md`)는 역사로 남긴다. 새로 쓰지 않는다 — `DEPLOY_ENV=dev` 배포도 하지 않는다.
 
 ## 폴더
 
 ```
 deployments/
-├── dev/     CommitAnchor.json · PredictToken.json
-├── prod/    CommitAnchor.json · PredictToken.json
-└── local/   CommitAnchor.json   (Hardhat 로컬 노드 — npm run deploy:local)
+├── prod/    CommitAnchor.json · PredictToken.json   ← 운영
+├── local/   CommitAnchor.json                        ← Hardhat (npm run deploy:local)
+└── dev/     CommitAnchor.json · PredictToken.json   ← 폐기(역사)
 ```
 
 - 각 JSON 의 `environment` 필드와 폴더 이름이 같다.
-- 배포 스크립트는 `DEPLOY_ENV=dev|prod` 가 없으면 tx 를 보내기 전에 멈춘다.
-- `prod/` 에 기록이 있으면 `DEPLOY_ENV=prod` 배포도 멈춘다 — 잔액(PredictToken)과 batchId(CommitAnchor)가 그 주소에 묶여 있다.
+- SSAFY 배포 스크립트는 `DEPLOY_ENV` 가 없으면 tx 를 보내기 전에 멈춘다.
+- `prod/` 에 기록이 있으면 `DEPLOY_ENV=prod` 배포도 멈춘다 — 잔액(PredictToken)과 batchId(CommitAnchor v2)가 그 주소에 묶여 있다.
 
 ## 짝이 맞는지 확인하는 법
 
@@ -49,11 +71,7 @@ deployments/
     PredictToken 0xeee5… OPERATOR_ROLE ✓
   ```
   ✗ 가 하나라도 있으면 ERROR 로 뜬다. 부팅은 막지 않는다.
-- **실체인 테스트** — 개발 키가 개발 컨트랙트엔 ✓, 운영 컨트랙트엔 ✗ 인지:
-  ```bash
-  set -a; . backend/.env; set +a
-  cd backend && ./gradlew test --tests '*ChainRoleCheckE2ELiveTest*'
-  ```
+- **실체인 테스트** `ChainRoleCheckE2ELiveTest` — env 의 키·주소 짝이 ✓ 인지(Hardhat 로컬 체인에도 돌릴 수 있다).
 
 ## prod 를 만든 절차 (2026-09-11, 한 번 돌렸다)
 
@@ -73,9 +91,9 @@ DEPLOY_ENV=prod ANCHOR_ADMIN_PRIVATE_KEY=$PROD_ADMIN_PRIVATE_KEY TOKEN_OPERATOR=
 
 | 상황 | 할 일 |
 |---|---|
-| **릴레이어 키가 샜다** | 재배포하지 않는다. prod 관리자 키로 두 컨트랙트에 `revokeRole(옛 주소)` + `grantRole(새 주소)` → GitLab 변수 교체 → 서버 재배포 |
+| **릴레이어 키가 샜다** | 재배포하지 않는다. 운영 관리자 키로 두 컨트랙트에 `revokeRole(옛 주소)` + `grantRole(새 주소)` → GitLab 변수 교체 → 서버 재배포 |
 | **관리자 키가 샜다** | 공격자가 역할을 가져갈 수 있다. 재배포밖에 없다 — 아래 두 줄 |
-| **CommitAnchor 를 바꿔야 한다** | 새 컨트랙트는 batchId 가 비어 있지만 운영 DB 번호는 이어진다 — 충돌은 없다(새 컨트랙트엔 옛 번호가 없다). 옛 앵커는 옛 주소에 남는다(`anchor_batches.contract_address`). `prod/CommitAnchor.json` 을 `prod/archive/` 로 옮긴 뒤 배포 |
+| **CommitAnchor 를 바꿔야 한다** | 옛 앵커는 옛 주소에 남는다(`anchor_batches.contract_address` 가 배치별 주소를 든다). `prod/CommitAnchor.json` 을 `prod/archive/` 로 옮긴 뒤 배포 |
 | **PredictToken 을 바꿔야 한다** | 재배포가 아니라 v2 이관(`contracts/README.md` 함정 5). 잔액이 옛 주소에 산다 |
 
 어느 경우든 이 표 · `.gitlab-ci.yml` · API 명세 §4 를 같이 바꾼다.
