@@ -51,9 +51,9 @@ public record MyPredictionItemResponse(
 
     /**
      * 만기까지 남은 일수. 판정된 건과 만기일이 아직 없는 건(REAL 은 기준가 배치가 채우기 전)은 null 이다 —
-     * 0 으로 채우면 화면이 "오늘 만기" 로 읽는다.
+     * 0 으로 채우면 화면이 "오늘 만기" 로 읽는다. 채널 목록·상세(ANT-PRED-05)가 같은 규칙을 써서 패키지 공개다.
      */
-    private static Integer dday(Prediction p, LocalDate today) {
+    static Integer dday(Prediction p, LocalDate today) {
         if (p.getSettleDate() == null
                 || p.getStatus() == Prediction.Status.HIT
                 || p.getStatus() == Prediction.Status.MISS) {

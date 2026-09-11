@@ -57,7 +57,8 @@ public class MyPredictionQueryService {
         MISS(EnumSet.of(Prediction.Status.MISS)),
         JUDGED(EnumSet.of(Prediction.Status.HIT, Prediction.Status.MISS));
 
-        private final Set<Prediction.Status> statuses;
+        /** 채널 예측 목록(ANT-PRED-05, {@code PredictionViewService})이 같은 어휘를 쓴다 — 그래서 패키지 공개다. */
+        final Set<Prediction.Status> statuses;
 
         StatusFilter(Set<Prediction.Status> statuses) {
             this.statuses = statuses;
