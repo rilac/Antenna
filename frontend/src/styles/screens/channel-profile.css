@@ -61,6 +61,10 @@
 .ch-sub-price b{ font-size:24px; font-weight:800; color:var(--ink); letter-spacing:-.02em; }
 .ch-sub-price small{ font-size:12.5px; font-weight:700; color:var(--body); }
 .ch-sub-price em{ font-style:normal; font-size:12px; color:var(--muted); }
+/* 구독료 미설정. 금액이 아니므로 숫자처럼 크고 굵게 쓰지 않는다 —
+   같은 상태를 E-04(.cf-none)도 이렇게 그린다 */
+.ch-sub-unset{ margin:4px 0 0; font-size:14px; font-weight:600; color:var(--muted); }
+.ch-sub-unset-note{ margin:0; max-width:19em; font-size:12.5px; line-height:1.6; color:var(--muted); text-align:right; }
 
 .ch-sub-state{ text-align:right; }
 .ch-sub-badge{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:11.5px; font-weight:800; }

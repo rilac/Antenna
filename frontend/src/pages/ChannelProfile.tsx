@@ -160,17 +160,31 @@ export default function ChannelProfile() {
             {/* ── 구독 카드 ─────────────────────────────── */}
             {channel.isMe ? (
               <section className="ch-sub is-me">
-                <p>내 채널입니다. 구독료는 설정에서 바꿉니다.</p>
-                <Link className="ch-sub-link" to="/settings">설정으로</Link>
+                {/* 채널은 가입과 함께 있지만 구독료는 정해야 생긴다. 아직이면 그 사실부터
+                    말한다 — "바꿉니다" 라고만 하면 이미 값이 있는 줄 안다(S15P21A507-230) */}
+                <p>
+                  {channel.fee === null
+                    ? '내 채널입니다. 구독료를 아직 정하지 않아 아무도 구독할 수 없습니다.'
+                    : '내 채널입니다. 구독료는 설정에서 바꿉니다.'}
+                </p>
+                <Link className="ch-sub-link" to="/settings">
+                  {channel.fee === null ? '구독료 정하기' : '설정으로'}
+                </Link>
               </section>
             ) : (
               <section className="ch-sub">
                 <div className="ch-sub-price">
                   <span className="ch-sub-label">구독료</span>
-                  <p className="num">
-                    <b>{formatFee(channel.fee)}</b><small>ANT</small>
-                    <em>/ 30일</em>
-                  </p>
+                  {/* 채널은 가입과 함께 존재하지만 구독료는 정해야 생긴다. 그 사이 상태가
+                      fee === null 이다. 0 으로 그리면 무료 채널로 읽힌다(S15P21A507-230). */}
+                  {channel.fee === null ? (
+                    <p className="ch-sub-unset">아직 정해지지 않았습니다</p>
+                  ) : (
+                    <p className="num">
+                      <b>{formatFee(channel.fee)}</b><small>ANT</small>
+                      <em>/ 30일</em>
+                    </p>
+                  )}
                 </div>
 
                 {sub?.status === 'ACTIVE' && sub.expiresAt ? (
@@ -200,6 +214,12 @@ export default function ChannelProfile() {
                       결제가 체인에서 확정되면 구독이 시작됩니다. 완료되면 알림으로 알려 드립니다.
                     </p>
                   </div>
+                ) : channel.fee === null ? (
+                  /* 값이 없는 결제를 시작시키지 않는다. 버튼을 그려 두고 누르면 실패하게
+                     하는 것보다, 왜 지금 구독할 수 없는지 말하는 편이 낫다 */
+                  <p className="ch-sub-unset-note">
+                    이 채널은 아직 구독료를 정하지 않아 구독할 수 없습니다.
+                  </p>
                 ) : (
                   <button type="button" className="ch-sub-cta" onClick={() => setSubscribing(true)}>
                     {sub?.status === 'EXPIRED' ? '다시 구독하기' : '구독하기'}

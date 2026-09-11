@@ -27,8 +27,8 @@ const delay = <T,>(value: T, ms: number) =>
    userId 는 **숫자 문자열**이다. 서버 userId 가 long 이라 'u2' 같은 값을 보내면
    실제 API 가 400 INVALID_REQUEST 를 낸다.
 
-   **작성자 이름을 눌러 채널로 가면 404 다.** 채널 목업이 네 명('1'·'2'·'3'·'9')만
-   알기 때문인데, 그쪽에 알린다. */
+   **작성자 이름을 눌러 채널로 가면 404 다.** 채널 목업이 세 명('1'·'2'·'3')과
+   로그인한 나만 알기 때문인데, 그쪽에 알린다. */
 export const AUTHORS = [
   { userId: '101', nickname: '데이터로보는사람', accuracy: 71.4, subscribed: true },
   { userId: '102', nickname: '반도체존버', accuracy: 58.2, subscribed: false },

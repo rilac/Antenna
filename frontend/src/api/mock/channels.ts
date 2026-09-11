@@ -9,12 +9,15 @@
    값은 지어냈지만 형태는 지어내지 않았다 — Subscription · PublisherFee 엔티티의
    컬럼과 Operation.Kind.SUBSCRIBE 를 그대로 따른다.
 
-   일부러 네 사람을 넣었다. 화면에서 서로 다른 카드를 그려야 하는 경우들이다.
+   일부러 세 사람을 넣었다. 화면에서 서로 다른 카드를 그려야 하는 경우들이다.
      1  미구독   → 구독 CTA · 미판정 예측은 잠금 카드
      2  ACTIVE   → 만료일·자동 갱신 표시 · 예측 전부 열림 · 박제된 옛 가격
      3  PENDING  → "결제 확인 중". ACTIVE 와 같게 그리면 안 되는 상태다
-     9  내 채널  → 구독 카드 대신 설정 안내 · 지표 표본 0 */
+
+   내 채널은 이 표에 없다 — 아래 mine() 이 실제 내 id 로 만든다. */
+import { api } from '../client'
 import { ApiError } from '../errors'
+import type { MeResponse } from '../../auth/session'
 import type {
   Backtest, Channel, ChannelPrediction, ChannelPredictionPage, SubscribeBody,
 } from '../channels'
@@ -67,17 +70,57 @@ const CHANNELS: Record<string, Channel> = {
     mySubscription: { status: 'PENDING', expiresAt: null, autoRenew: true, paidFee: FEE },
     isMe: false,
   },
-  '9': {
-    ...base('9', '안테나'),
-    // 지표 표본이 없는 채널. 0% 로 그리지 않는지 확인용이다
-    stats: { hitRate: null, doneCount: 0, avgError: null },
-    mySubscription: { status: null, expiresAt: null, autoRenew: false, paidFee: null },
-    isMe: true,
-  },
 }
 
-export function channel(userId: string): Promise<Channel> {
-  const found = CHANNELS[userId]
+/* ── 내 채널 ──────────────────────────────────────────────
+   채널은 따로 만드는 것이 아니다. ERD 에 channels 테이블이 없고 publisher_fees 의
+   publisher_id 가 users.id 를 직접 가리킨다 — **가입한 사람은 이미 채널이다.**
+   그래서 서버가 열리면 GET /channels/{내 id} 는 당연히 내 채널을 준다.
+
+   목업은 그렇지 않았다. 고정 id 세 개만 알아서 내 실제 id 가 1~3 중 하나면
+   **남의 채널이 열렸고**(마이페이지의 "내 채널 보기"가 그랬다) 그 밖이면 404 였다.
+   실제 id 를 물어서 그게 나면 내 채널을 만들어 준다.
+
+   /users/me 는 실제로 열려 있는 API 다. 목업이 지어내는 값이 아니다. */
+let mePromise: Promise<MeResponse> | null = null
+
+function fetchMe(): Promise<MeResponse> {
+  /* 실패를 캐시하면 로그인 뒤에도 계속 실패한다 — 거절된 약속은 지우고 다시 묻는다 */
+  mePromise ??= api.get<MeResponse>('/users/me').catch((e: unknown) => {
+    mePromise = null
+    throw e
+  })
+  return mePromise
+}
+
+async function mine(userId: string): Promise<Channel | null> {
+  // 비로그인이면 물을 것이 없다. 그 경우는 그냥 "내가 아니다"로 둔다
+  const me = await fetchMe().catch(() => null)
+  if (!me || String(me.id) !== userId) return null
+
+  return {
+    ...base(userId, me.nickname ?? '나'),
+    bio: me.introduce,
+    /* 구독료를 한 번도 정하지 않은 상태다. **0 으로 두지 않는다** — 무료 채널로
+       읽힌다. E-04 내 채널 구독료(S15P21A507-186)도 같은 판단으로 미설정을
+       "아직 정하지 않았습니다" 로 그린다. 행이 없는 것이 곧 미설정이다. */
+    fee: null,
+    /* /users/me 가 주지 않는 것은 비워 둔다. 지어내면 내 채널만 남과 다른 값을
+       보여주게 되고, 서버가 열렸을 때 무엇이 바뀐 건지 알 수 없다 */
+    interests: [],
+    externalLinks: [],
+    mySubscription: { status: null, expiresAt: null, autoRenew: false, paidFee: null },
+    isMe: true,
+  }
+}
+
+/** 목업 표보다 **내가 먼저다** — 내 id 가 표의 자리와 겹쳐도 남의 채널이 나오지 않는다 */
+async function lookup(userId: string): Promise<Channel | null> {
+  return (await mine(userId)) ?? CHANNELS[userId] ?? null
+}
+
+export async function channel(userId: string): Promise<Channel> {
+  const found = await lookup(userId)
   if (!found) {
     return Promise.reject(
       new ApiError({ code: 'USER_NOT_FOUND', message: 'mock', field: 'userId' }, 404),
@@ -117,19 +160,19 @@ const PENDING: ChannelPrediction[] = [
 /** 잠긴 모양 — 목표가만 빠지고 나머지는 그대로다 */
 const lock = (p: ChannelPrediction): ChannelPrediction => ({ ...p, targetPrice: null, locked: true })
 
-export function predictions(
+export async function predictions(
   userId: string,
   cursor?: string | number | null,
 ): Promise<ChannelPredictionPage> {
-  const found = CHANNELS[userId]
+  const found = await lookup(userId)
   const open = found?.isMe === true || found?.mySubscription.status === 'ACTIVE'
   const items = [...JUDGED, ...(open ? PENDING : PENDING.map(lock))]
   // 목은 한 쪽뿐이다. 커서를 받는 자리만 실제 계약대로 열어 둔다.
   return delay({ items: cursor ? [] : items, nextCursor: null, hasNext: false })
 }
 
-export function backtest(userId: string): Promise<Backtest> {
-  const found = CHANNELS[userId]
+export async function backtest(userId: string): Promise<Backtest> {
+  const found = await lookup(userId)
   // 판정 표본이 없는 채널은 결과를 만들지 않는다 — 0% 로 그리면 "손실 없음" 으로 읽힌다
   if (found?.stats.doneCount === 0) {
     return delay({
