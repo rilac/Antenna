@@ -7,7 +7,8 @@ import { buildLevels, rebuild, ABI as READ_ABI } from './rebuild-from-chain.mjs'
 /**
  * 복구 경로 실체인 E2E (ANT-CHAIN-08, 수용 기준 4).
  *
- *   RELAYER_PRIVATE_KEY=0x… node scripts/demo-recovery.mjs --batch-id N [--leaves 5] [--network ssafy]
+ *   RELAYER_PRIVATE_KEY=0x… node scripts/demo-recovery.mjs --batch-id N [--leaves 5] [--network ssafy] [--env dev]
+ *   dev 전용이다. prod 는 거부한다(운영 batchId 를 태우면 운영 DB 와 충돌한다).
  *
  *   ① 커밋 해시 N건 생성 → 트리 → 릴레이어 키로 anchor(batchId, root, commitHashes)
  *   ② (DB 는 처음부터 없다) rebuild-from-chain 으로 체인만 읽어 재구축 → rootOf · isIncluded 대조
@@ -23,6 +24,8 @@ const argOf = (name, fallback) => {
   return i >= 0 ? args[i + 1] : fallback;
 };
 const NETWORK = argOf('--network', 'ssafy');
+// 배포 기록 폴더(ANT-CHAIN-12). SSAFY 는 dev 가 기본이다.
+const ENVIRONMENT = argOf('--env', process.env.DEPLOY_ENV || (NETWORK === 'ssafy' ? 'dev' : 'local'));
 const BATCH_ID = Number(argOf('--batch-id', '1'));
 const LEAVES = Number(argOf('--leaves', '5'));
 const RPC_URL =
@@ -44,7 +47,13 @@ async function main() {
     console.error('RELAYER_PRIVATE_KEY 가 없다 (앵커 tx 서명용, ANCHOR_ROLE 보유 키).');
     process.exit(1);
   }
-  const dep = JSON.parse(fs.readFileSync(path.resolve(here, '..', 'deployments', `${NETWORK}.json`), 'utf8'));
+  if (ENVIRONMENT === 'prod') {
+    // 데모는 실제로 anchor() 를 보낸다. 운영 컨트랙트의 batchId 는 운영 DB 의 anchor_batches.id 와 1:1 이라,
+    // 여기서 하나를 태우면 운영 서버가 그 번호에 도달하는 날 BATCH_ID_COLLISION 이 난다(README 함정 2).
+    console.error('demo-recovery 는 prod 에서 돌리지 않는다 — 운영 batchId 를 태운다. --env dev 로 돌려라.');
+    process.exit(1);
+  }
+  const dep = JSON.parse(fs.readFileSync(path.resolve(here, '..', 'deployments', ENVIRONMENT, 'CommitAnchor.json'), 'utf8'));
   const provider = new WebSocketProvider(RPC_URL);
   try {
     const wallet = new Wallet(pk, provider);

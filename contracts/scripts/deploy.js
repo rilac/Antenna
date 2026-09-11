@@ -45,6 +45,8 @@ async function main() {
       blockNumber: receipt.blockNumber,
     },
     readArtifact(),
+    // Hardhat 로컬 노드는 재시작마다 체인이 새로 생긴다 — deployments/local/ 에 덮어쓴다.
+    { environment: 'local' },
   );
 }
 

@@ -145,7 +145,7 @@ app:
     # RPC URL 과 컨트랙트 주소가 있어야 돈다 — 릴레이어 키는 필요 없다(읽기 전용).
     indexer:
       cron: ${INDEXER_CRON:*/5 * * * * *}
-      # DB 에 이벤트가 없을 때의 시작 블록. SSAFY 는 컨트랙트 배포 블록(contracts/deployments/ssafy.json)을 넣으면
+      # DB 에 이벤트가 없을 때의 시작 블록. SSAFY 는 컨트랙트 배포 블록(contracts/deployments/<env>/*.json, 운영은 CI)을 넣으면
       # 첫 동기화가 한 회차로 끝난다. 0 이면 제네시스부터 max-block-range 단위로 훑는다.
       from-block: ${INDEXER_FROM_BLOCK:0}
       max-block-range: 10000

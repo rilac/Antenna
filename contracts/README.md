@@ -8,6 +8,10 @@
 커밋 해시 목록을 `Anchored` 이벤트로 남긴다. **이벤트가 곧 백업이다** — DB 가 없어도
 체인만 읽어 트리와 증명 경로를 되살릴 수 있다(`scripts/rebuild-from-chain.mjs`).
 
+> **SSAFY 체인에는 운영 한 벌만 쓴다 (ANT-CHAIN-12, 2026-09-11 결정).** 로컬 개발은 Hardhat 로컬 체인이다.
+> 주소·키 역할·시작 블록 표는 [`deployments/README.md`](./deployments/README.md) 한 곳에 있다.
+> 아래 절에 나오는 dev 주소·흔적표는 **폐기된 옛 dev 배포본**의 기록이다(역사로 남긴다). 배포 스크립트는 `DEPLOY_ENV` 없이는 돌지 않는다.
+
 ## 명령
 
 ```bash
@@ -22,8 +26,8 @@ npm run keygen relayer
 npx hardhat node       # 터미널 1 (chainId 31337)
 npm run deploy:local   # 터미널 2
 
-# SSAFY 네트워크 배포 (chainId 31221) — 관리자 키로 배포, 릴레이어는 주소만
-ANCHOR_ADMIN_PRIVATE_KEY=0x…  ANCHOR_RELAYER=0x…  npm run deploy:ssafy
+# SSAFY 네트워크 배포 (chainId 31221) — 관리자 키로 배포, 릴레이어는 주소만. prod 는 deployments/README.md 절차
+DEPLOY_ENV=dev  ANCHOR_ADMIN_PRIVATE_KEY=0x…  ANCHOR_RELAYER=0x…  npm run deploy:ssafy
 
 # 복구 검증 — 체인만 읽어 batchId 의 트리를 재구축해 rootOf 와 대조
 npm run rebuild -- --batch-id 1 [--out ./bundles]
@@ -31,7 +35,7 @@ npm run rebuild -- --batch-id 1 [--out ./bundles]
 RELAYER_PRIVATE_KEY=0x… npm run demo:recovery -- --batch-id 2 --leaves 5
 ```
 
-배포하면 `deployments/<network>.json`(커밋 대상)에 주소·관리자·릴레이어가 기록되고, ABI 가
+배포하면 `deployments/<env>/CommitAnchor.json`(커밋 대상)에 주소·관리자·릴레이어가 기록되고, ABI 가
 `backend/src/main/resources/abi/CommitAnchor.json` 으로 복사된다.
 주소는 `backend/.env` 의 `CONTRACT_COMMIT_ANCHOR` 에, 릴레이어 키는 `RELAYER_PRIVATE_KEY` 에 손으로 넣는다.
 
@@ -46,12 +50,13 @@ RELAYER_PRIVATE_KEY=0x… npm run demo:recovery -- --batch-id 2 --leaves 5
 `revokeRole` + 새 키 `grantRole` 하면 재배포 없이 끝난다. 관리자 키까지 서버에 있으면
 공격자가 롤을 영구히 가져가 재배포밖에 답이 없다 — 그래서 나눈다.
 
-**지금 상태 (2026-09-04)**: 두 키 모두 `backend/.env` 에 있다(`RELAYER_PRIVATE_KEY` · `ANCHOR_ADMIN_PRIVATE_KEY`).
-개발망(가스 0·자산 0)이라 편의를 택했다. 서버 코드는 관리자 키를 읽지 않는다. 운영 전환 시 관리자 키만 빼서 비밀번호 관리자로.
+**지금 상태**: **dev** 는 두 키 모두 `backend/.env` 에 있다(`RELAYER_PRIVATE_KEY` · `ANCHOR_ADMIN_PRIVATE_KEY`) — 개발망(가스 0·자산 0)이라
+편의를 택했다(2026-09-04). **prod**(2026-09-11, ANT-CHAIN-12)는 키를 새로 만들었다 — 관리자 키는 비밀번호 관리자에만,
+릴레이어 키는 GitLab CI/CD 변수에만 있다. 서버 코드는 어느 환경이든 관리자 키를 읽지 않는다.
 
 ```bash
-# 배포 (관리자 키로 서명, 릴레이어는 주소만)
-ANCHOR_ADMIN_PRIVATE_KEY=$(grep ^ANCHOR_ADMIN_PRIVATE_KEY= ../backend/.env | cut -d= -f2) \
+# dev 배포 (관리자 키로 서명, 릴레이어는 주소만)
+DEPLOY_ENV=dev ANCHOR_ADMIN_PRIVATE_KEY=$(grep ^ANCHOR_ADMIN_PRIVATE_KEY= ../backend/.env | cut -d= -f2) \
 ANCHOR_RELAYER=0xb7f2De5b4821EE386Aeac037b096f28693cA2a47 npm run deploy:ssafy
 ```
 
@@ -79,7 +84,10 @@ docker compose down -v  →  id 시퀀스가 1 로 리셋  →  다음 앵커가
 
 `BatchAlreadyAnchored` 가 갑자기 계속 난다면 컨트랙트 버그가 아니라 십중팔구 이 상황이다.
 
-**⚠️ 현재 SSAFY 배포본(`deployments/ssafy.json`, `0x07f8CfE2…6D6a`)의 소모된 batchId — 여기에 계속 적는다:**
+**prod 배포본(`deployments/prod/CommitAnchor.json`)은 운영 DB 전용이라 이 표가 없다** — 운영 batchId 는 운영 DB 의
+`anchor_batches.id` 만 쓴다. 데모·Live 테스트를 prod 에 돌리지 않는다(`demo-recovery.mjs` 는 prod 를 거부한다).
+
+**⚠️ dev 배포본(`deployments/dev/CommitAnchor.json`, `0x07f8CfE2…6D6a`)의 소모된 batchId — 여기에 계속 적는다:**
 
 | batchId | 누가 | 언제 | 루트(앞 8자) |
 |---|---|---|---|
@@ -94,7 +102,7 @@ docker compose down -v  →  id 시퀀스가 1 로 리셋  →  다음 앵커가
 
 인덱서(ANT-CHAIN-04)는 이 표의 번호를 전부 `Anchored` 이벤트로 받는다. 내 DB 에 없는 번호는 "DB 에 없는 배치" 경고 한 줄로 남고
 `chain_events` 에는 적재된다 — 정상이다. 내 DB 의 배치와 번호는 같은데 루트가 다르면 그 배치를 `BATCH_ID_COLLISION` FAILED 로 바꾼다.
-재배포하면 `INDEXER_FROM_BLOCK` 을 새 배포 블록(`deployments/ssafy.json` 의 `blockNumber`)으로 올려라 — 옛 주소의 이벤트는 주소 필터로 어차피 안 오지만, 첫 동기화가 배포 이전 구간을 헛되이 훑는다.
+재배포하면 `INDEXER_FROM_BLOCK` 을 새 배포 블록(`deployments/<env>/CommitAnchor.json` 의 `blockNumber`)으로 올려라 — 옛 주소의 이벤트는 주소 필터로 어차피 안 오지만, 첫 동기화가 배포 이전 구간을 헛되이 훑는다.
 
 ## 함정 3 — SSAFY 배포는 Hardhat 을 거치지 않는다
 
@@ -125,7 +133,7 @@ Java 테스트와 Solidity 테스트가 같이 읽으므로 CI 에서 먼저 잡
 보유자 자가 소각 `burnSelf`, 그리고 위성 컨트랙트용 `operatorTransfer`(MOVER_ROLE) 뿐이다.
 설계 근거: `.claude/docs-personal/impl/ANT-CHAIN-03/plan.md`.
 
-**SSAFY 배포본 (2026-09-10)** — `deployments/ssafy.PredictToken.json`
+**dev 배포본 (2026-09-10)** — `deployments/dev/PredictToken.json`. 운영은 따로 `deployments/prod/PredictToken.json`(2026-09-11) — 두 벌 표는 `deployments/README.md`.
 
 | 항목 | 값 |
 |---|---|
@@ -142,10 +150,10 @@ Java 테스트와 Solidity 테스트가 같이 읽으므로 CI 에서 먼저 잡
 ```bash
 npm test                                   # CommitAnchor 41 + PredictToken 46
 npm run keygen treasury                    # 수납 주소 키 (출력만 한다)
-ANCHOR_ADMIN_PRIVATE_KEY=0x… TOKEN_OPERATOR=0x… TOKEN_TREASURY=0x… npm run deploy:token:ssafy
+DEPLOY_ENV=dev ANCHOR_ADMIN_PRIVATE_KEY=0x… TOKEN_OPERATOR=0x… TOKEN_TREASURY=0x… npm run deploy:token:ssafy
 ```
 
-배포하면 `deployments/ssafy.PredictToken.json` 과 `backend/src/main/resources/abi/PredictToken.json` 이 갱신된다.
+배포하면 `deployments/<env>/PredictToken.json` 과 `backend/src/main/resources/abi/PredictToken.json` 이 갱신된다.
 주소는 `backend/.env` 의 `CONTRACT_PREDICT_TOKEN` 에 넣는다.
 
 ## 단위 — decimals 0, 1 ANT = 1 원 상당
@@ -177,13 +185,14 @@ CommitAnchor 는 재배포가 공짜였다(과거 앵커는 옛 주소에 남는
 | 토큰 규칙 자체(decimals·이름·전송 규칙·70:30) | **v2 이관**: v1 `Transfer` 로그로 잔액 스냅샷 → v2 에 `mint(…, "MIGRATION")` 일괄 → v1 OPERATOR·MOVER 회수(동결) → `.env`·인덱서 시작 블록·지갑 재등록. 가스 0·사용자 수백 명이라 몇 분짜리다. 스크립트는 필요해질 때 만든다 |
 
 `.env` 의 `CONTRACT_PREDICT_TOKEN` 을 바꾸는 순간 서버가 보는 잔액 원천이 바뀐다. 이관 없이 바꾸지 마라.
+prod 는 이 규칙을 스크립트가 강제한다 — `deployments/prod/PredictToken.json` 이 있으면 `DEPLOY_ENV=prod` 배포가 tx 를 보내기 전에 멈춘다(ANT-CHAIN-12).
 
 ## 함정 6 — `burn` 은 오버로드가 아니다
 
 보유자 자가 소각은 `burnSelf(amount, reason)` 다. `burn` 과 같은 이름으로 두면 ethers 가 `token['burn(uint256,bytes32)']` 처럼
 시그니처 문자열로만 부를 수 있어 프론트·스크립트 호출이 전부 그 꼴이 된다. web3j 도 같은 이름이면 인코딩 시 헷갈린다.
 
-## 팀 공용 배포본에 남긴 흔적 — 여기에 계속 적는다
+## dev 배포본에 남긴 흔적 — 여기에 계속 적는다
 
 가스가 0 이라 tx 는 공짜지만 이벤트는 영원히 남는다. 인덱서 ② 가 붙으면 아래 행이 `token_ledger` 후보로 올라온다(DB 에 없는 지갑이라 경고로 남는 게 정상).
 
