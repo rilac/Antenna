@@ -7,6 +7,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.web3j.abi.FunctionEncoder;
@@ -40,17 +42,18 @@ import ssafy.a507.backend.domain.chain.config.CommitAnchorProperties;
  *
  * <p>시뮬레이션을 먼저 하는 이유: Besu 의 receipt 에는 revert 데이터가 없다. 그냥 보내면
  * status=0 만 남고 <i>왜</i> 실패했는지는 trace 를 떠야 안다. eth_call 은 revert 데이터를
- * 그대로 돌려주므로 {@code BatchAlreadyAnchored}(이미 성공) 와 {@code RootMismatch}(버그) 를
+ * 그대로 돌려주므로 {@code AlreadyAnchored}(이미 성공) 와 {@code RootMismatch}(버그) 를
  * 보내기 전에 가른다. 왕복 하나가 늘지만 실패 tx 를 체인에 안 남긴다.
  *
- * <p>ABI 코드젠을 쓰지 않는다(CHAIN-01 판단 유지). 함수 둘·에러 여섯의 인코딩은 여기서 손으로 하고,
+ * <p>ABI 코드젠을 쓰지 않는다(CHAIN-01 판단 유지). 함수 둘·에러 다섯의 인코딩은 여기서 손으로 하고,
  * 시그니처가 컨트랙트와 같은지는 {@code CommitAnchorConfigTest} 가 ABI 리소스로 고정한다.
+ *
+ * <p>v3(ANT-CHAIN-13): 칸의 키가 머클루트다. {@code anchor(root, leaves)} · {@code anchoredAt(root)} — DB 배치 id 는 체인에 가지 않는다.
  */
 @Slf4j
 @Component
 public class Web3jAnchorRelayer implements AnchorRelayer {
 
-    private static final byte[] ZERO32 = new byte[32];
     private static final long RECEIPT_POLL_MILLIS = 2_000;
     /** estimateGas 가 안 될 때의 상한. 500 리프 로컬 실측 0.9M 의 10배 — 블록 한도가 사실상 무제한이라 넉넉해도 된다. */
     private static final BigInteger GAS_LIMIT_FALLBACK = BigInteger.valueOf(10_000_000L);
@@ -58,13 +61,15 @@ public class Web3jAnchorRelayer implements AnchorRelayer {
     /** custom error 셀렉터 → 이름. 시그니처 문자열의 keccak 앞 4바이트. */
     private static final Map<String, String> ERROR_SELECTORS =
             Map.of(
-                    selector("BatchAlreadyAnchored(uint256)"), "BatchAlreadyAnchored",
-                    selector("InvalidBatchId()"), "InvalidBatchId",
+                    selector("AlreadyAnchored(bytes32)"), "AlreadyAnchored",
                     selector("EmptyRoot()"), "EmptyRoot",
                     selector("EmptyCommitCount()"), "EmptyCommitCount",
                     selector("RootMismatch(bytes32,bytes32)"), "RootMismatch",
                     selector("AccessControlUnauthorizedAccount(address,bytes32)"),
                             "AccessControlUnauthorizedAccount");
+
+    /** Hardhat 이 {@code error.data} 를 객체로 싸서 줄 때 안쪽 revert 데이터. {@link #decodeErrorName} 참고. */
+    private static final Pattern NESTED_REVERT_DATA = Pattern.compile("\"data\"\\s*:\\s*\"(0x[0-9a-fA-F]*)\"");
 
     private final ChainProperties props;
     private final CommitAnchorProperties contract;
@@ -95,15 +100,15 @@ public class Web3jAnchorRelayer implements AnchorRelayer {
     }
 
     @Override
-    public AnchorResult anchor(long batchId, byte[] merkleRoot, List<byte[]> commitHashes) {
+    public AnchorResult anchor(byte[] merkleRoot, List<byte[]> commitHashes) {
         requireEnabled();
-        String data = FunctionEncoder.encode(anchorFunction(batchId, merkleRoot, commitHashes));
+        String data = FunctionEncoder.encode(anchorFunction(merkleRoot, commitHashes));
 
         // ① 시뮬레이션
         Optional<String> revert = withReconnect(() -> simulate(data));
         if (revert.isPresent()) {
             String name = revert.get();
-            if ("BatchAlreadyAnchored".equals(name)) {
+            if ("AlreadyAnchored".equals(name)) {
                 return AnchorResult.alreadyAnchored();
             }
             throw new AnchorRevertException(name);
@@ -117,23 +122,24 @@ public class Web3jAnchorRelayer implements AnchorRelayer {
     }
 
     @Override
-    public byte[] rootOf(long batchId) {
+    public long anchoredAt(byte[] merkleRoot) {
         requireEnabled();
         Function fn =
                 new Function(
-                        "rootOf",
-                        List.of(new Uint256(BigInteger.valueOf(batchId))),
-                        List.of(new TypeReference<Bytes32>() {}));
+                        "anchoredAt",
+                        List.of(new Bytes32(merkleRoot)),
+                        List.of(new TypeReference<Uint256>() {}));
         String data = FunctionEncoder.encode(fn);
         return withReconnect(
                 () -> {
                     EthCall call = ethCall(data);
                     if (call.isReverted() || call.getValue() == null) {
-                        // rootOf 는 revert 하지 않는 함수다. 여기 오면 주소가 틀렸거나 노드가 이상하다.
+                        // anchoredAt 은 revert 하지 않는 함수다. 여기 오면 주소가 틀렸거나 노드가 이상하다.
                         throw new BusinessException(ErrorCode.CHAIN_UNAVAILABLE);
                     }
                     List<Type> out = FunctionReturnDecoder.decode(call.getValue(), fn.getOutputParameters());
-                    return out.isEmpty() ? ZERO32.clone() : ((Bytes32) out.get(0)).getValue();
+                    // 코드가 없는 주소(v2 주소를 잘못 넣은 경우 등)는 빈 응답이 온다 — 0(미앵커)으로 읽힌다.
+                    return out.isEmpty() ? 0L : ((Uint256) out.get(0)).getValue().longValueExact();
                 });
     }
 
@@ -192,8 +198,8 @@ public class Web3jAnchorRelayer implements AnchorRelayer {
                 if (r.isStatusOK()) {
                     return AnchorResult.confirmed(txHash, r.getBlockNumber().longValue());
                 }
-                // 시뮬레이션은 통과했는데 실제 tx 가 revert — 그 사이 같은 batchId 가 박혔거나 상태가 바뀐 것.
-                // 이름을 모르니 호출자는 FAILED 로 두고, 다음 실행의 rootOf 확인이 진실을 가린다.
+                // 시뮬레이션은 통과했는데 실제 tx 가 revert — 그 사이 같은 루트가 박혔거나 상태가 바뀐 것.
+                // 이름을 모르니 호출자는 FAILED 로 두고, 다음 실행의 anchoredAt 확인이 진실을 가린다.
                 throw new AnchorRevertException("Reverted(receipt status 0)");
             }
             try {
@@ -244,17 +250,14 @@ public class Web3jAnchorRelayer implements AnchorRelayer {
         }
     }
 
-    static Function anchorFunction(long batchId, byte[] merkleRoot, List<byte[]> commitHashes) {
+    static Function anchorFunction(byte[] merkleRoot, List<byte[]> commitHashes) {
         List<Bytes32> leaves = new ArrayList<>(commitHashes.size());
         for (byte[] c : commitHashes) {
             leaves.add(new Bytes32(c));
         }
         return new Function(
                 "anchor",
-                List.of(
-                        new Uint256(BigInteger.valueOf(batchId)),
-                        new Bytes32(merkleRoot),
-                        new DynamicArray<>(Bytes32.class, leaves)),
+                List.of(new Bytes32(merkleRoot), new DynamicArray<>(Bytes32.class, leaves)),
                 List.of());
     }
 
@@ -264,12 +267,20 @@ public class Web3jAnchorRelayer implements AnchorRelayer {
      * <p>Besu 는 {@code error.data} 를 JSON 문자열로 주는데 web3j 가 그 값을 따옴표까지 포함한 문자열로
      * 넘긴다({@code "\"0x8e74…\""}). SSAFY 실측(2026-09-04)에서 그대로 잘라 {@code Unknown("0x8e740b5)} 가
      * 나왔다. 따옴표·공백을 벗기고 본다.
+     *
+     * <p>Hardhat 은 한 겹 더 싼다 — {@code error.data = {"message": "...", "data": "0x53ce4ece"}}. web3j 는 그 객체를 JSON
+     * 문자열 그대로 넘기므로 안쪽 {@code data} 를 꺼낸다. 이게 없으면 로컬 Hardhat 에서 {@code AlreadyAnchored}(=성공)가
+     * {@code Unknown(no data)} 로 읽혀 재전송 배치가 FAILED 가 된다(ANT-CHAIN-13 로컬 Live 테스트에서 발견).
      */
     static String decodeErrorName(String revertData) {
         if (revertData == null) {
             return "Unknown(no data)";
         }
         String cleaned = revertData.trim();
+        if (cleaned.startsWith("{")) {
+            Matcher inner = NESTED_REVERT_DATA.matcher(cleaned);
+            cleaned = inner.find() ? inner.group(1) : "";
+        }
         if (cleaned.startsWith("\"") && cleaned.endsWith("\"") && cleaned.length() >= 2) {
             cleaned = cleaned.substring(1, cleaned.length() - 1);
         }

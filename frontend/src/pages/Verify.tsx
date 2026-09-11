@@ -31,7 +31,7 @@ import {
   type Proof, type ProofAnchor,
 } from '../api/proof'
 import { useAsync } from '../api/useAsync'
-import { ZERO_ROOT, foldRoot, readChain, type ChainRead } from '../chain/commitAnchor'
+import { foldRoot, readChain, type ChainRead } from '../chain/commitAnchor'
 import AnchorBadge from '../components/AnchorBadge'
 import CopyHash from '../components/CopyHash'
 import ErrorState from '../components/state/ErrorState'
@@ -157,7 +157,8 @@ function useChainCheck(anchor: ProofAnchor | null, commitHash: string | null) {
         const localRoot = await foldRoot(commitHash, anchor.merkleProof)
         if (mine === gen.current) setState((s) => ({ ...s, localRoot }))
 
-        const chain = await readChain(anchor.contractAddress, anchor.batchId, commitHash, anchor.merkleProof)
+        // 서버가 준 루트가 아니라 내가 접은 루트로 묻는다 — 체인에 박혀 있으면 서버 값을 믿을 필요가 없다(v3, ANT-CHAIN-13)
+        const chain = await readChain(anchor.contractAddress, localRoot, commitHash, anchor.merkleProof)
         if (mine === gen.current) setState((s) => ({ ...s, chain, running: false }))
       } catch (e) {
         if (mine === gen.current) setState((s) => ({ ...s, error: e as ApiError, running: false }))
@@ -323,7 +324,7 @@ export default function Verify() {
             <Step
               no={2}
               title="배치 포함 증명"
-              formula="fold(proof) == rootOf(batchId)"
+              formula="anchoredAt(fold(proof)) > 0"
               verdict={step2Verdict(data, check)}
             >
               <p className="vf-lead">
@@ -372,18 +373,16 @@ export default function Verify() {
                     ) : check.chain ? (
                       <>
                         <CheckLine
-                          verdict={chainVerdict(check.chain, check.localRoot, anchor)}
-                          label={chainLabel(check.chain, check.localRoot, anchor)}
+                          verdict={chainVerdict(check.chain, anchor)}
+                          label={chainLabel(check.chain, anchor)}
                         >
-                          {check.chain.root !== ZERO_ROOT && (
-                            <>체인 값 <CopyHash value={check.chain.root} head={14} tail={10} /></>
-                          )}
+                          {check.chain.anchoredBlock > 0 && `블록 #${check.chain.anchoredBlock}`}
                         </CheckLine>
 
                         {/* ②-4 접기를 내 코드가 아니라 컨트랙트가 한 판정. 내 JS 가 틀려도 이 줄은 옳다.
                             루트가 아직 없으면 isIncluded 는 무조건 false 라 이 줄이 말해 주는 게 없다
                             — 위 줄과 같은 사실을 붉게 한 번 더 적으면 없는 문제를 만든다. */}
-                        {check.chain.root !== ZERO_ROOT && (
+                        {check.chain.anchoredBlock > 0 && (
                           <CheckLine
                             verdict={check.chain.included ? 'pass' : 'fail'}
                             label={check.chain.included
@@ -401,7 +400,7 @@ export default function Verify() {
                       </>
                     ) : (
                       <CheckLine verdict="wait" label="체인에 직접 물어보는 중…">
-                        {`${anchor.contractAddress.slice(0, 10)}… 의 rootOf(${anchor.batchId})`}
+                        {`${anchor.contractAddress.slice(0, 10)}… 의 anchoredAt(루트)`}
                       </CheckLine>
                     )}
                   </ul>
@@ -542,31 +541,31 @@ function step2Verdict(data: Proof, check: Check): Verdict {
      체인이 죽어 있는 동안 서버 자료의 어긋남이 화면에서 사라진다. */
   if (!sameHash(check.localRoot, data.anchor.merkleRoot)) return 'fail'
   if (check.error || check.running || !check.chain) return 'wait'
-  const onChain = chainVerdict(check.chain, check.localRoot, data.anchor)
+  const onChain = chainVerdict(check.chain, data.anchor)
   if (onChain !== 'pass') return onChain
   const agreed = check.chain.included && check.chain.chainId === data.anchor.chainId
   return agreed ? 'pass' : 'fail'
 }
 
 /**
- * 체인이 답한 루트를 어떻게 읽을 것인가.
+ * 체인이 답한 블록 번호를 어떻게 읽을 것인가.
  *
- * 루트가 0 이면 그 배치는 아직 체인에 없다 — 컨트랙트가 revert 대신 0 을 주기로 한 값이라
- * "없다" 이지 "틀리다" 가 아니다. 다만 서버가 CONFIRMED 라고 말해 놓고 체인에 없다면
- * 그건 진짜 어긋남이다. 두 경우를 같은 회색으로 덮으면 후자를 놓친다.
+ * 내가 접은 루트로 물었으므로(v3 — 장부 칸의 키가 루트, ANT-CHAIN-13) 0 이 아니면 그 루트가 체인에 박혀 있다는 뜻이고
+ * 그걸로 통과다 — 비교할 "체인의 루트" 를 따로 읽을 필요가 없다.
+ * 0 이면 그 루트는 체인에 없다. 아직 앵커 전이면 "없다" 이지 "틀리다" 가 아니지만, 서버가 CONFIRMED 라고 말해 놓고
+ * 체인에 없다면(서버의 proof 가 앵커된 트리와 다르다는 뜻이기도 하다) 그건 진짜 어긋남이다.
+ * 두 경우를 같은 회색으로 덮으면 후자를 놓친다.
  */
-function chainVerdict(chain: ChainRead, localRoot: string | null, anchor: ProofAnchor): Verdict {
-  if (chain.root === ZERO_ROOT) return anchor.status === 'CONFIRMED' ? 'fail' : 'wait'
-  return sameHash(chain.root, localRoot) ? 'pass' : 'fail'
+function chainVerdict(chain: ChainRead, anchor: ProofAnchor): Verdict {
+  if (chain.anchoredBlock === 0) return anchor.status === 'CONFIRMED' ? 'fail' : 'wait'
+  return 'pass'
 }
 
-function chainLabel(chain: ChainRead, localRoot: string | null, anchor: ProofAnchor) {
-  if (chain.root === ZERO_ROOT) {
+function chainLabel(chain: ChainRead, anchor: ProofAnchor) {
+  if (chain.anchoredBlock === 0) {
     return anchor.status === 'CONFIRMED'
-      ? `서버는 확정이라는데 체인에는 배치 #${anchor.batchId} 의 루트가 없습니다`
+      ? `서버는 확정이라는데 체인에는 이 루트가 없습니다 (배치 #${anchor.batchId})`
       : `아직 체인에 오르지 않았습니다 (배치 #${anchor.batchId})`
   }
-  return sameHash(chain.root, localRoot)
-    ? `체인이 기억하는 루트와 같습니다 (chainId ${chain.chainId})`
-    : '체인이 기억하는 루트와 다릅니다'
+  return `체인이 이 루트를 기억하고 있습니다 (chainId ${chain.chainId})`
 }

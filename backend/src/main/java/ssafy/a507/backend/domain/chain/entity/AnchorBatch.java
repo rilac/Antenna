@@ -56,7 +56,7 @@ public class AnchorBatch {
     @Column(name = "tx_hash", length = 66)
     private String txHash;
 
-    /** 확정 블록. 확정 전에는 NULL이다. rootOf 로 뒤늦게 확인한 배치는 CONFIRMED 여도 NULL 일 수 있다. */
+    /** 확정 블록. 확정 전에는 NULL이다. anchoredAt 으로 뒤늦게 확인한 배치는 CONFIRMED 여도 NULL 일 수 있다. */
     @Column(name = "block_number")
     private Long blockNumber;
 
@@ -71,7 +71,7 @@ public class AnchorBatch {
     @Column(name = "business_date", nullable = false)
     private LocalDate businessDate;
 
-    /** 앵커한 컨트랙트. 재배포 뒤에도 옛 배치는 옛 주소의 rootOf 로 검증해야 한다. */
+    /** 앵커한 컨트랙트. 재배포 뒤에도 옛 배치는 옛 주소의 장부(anchoredAt)로 검증해야 한다. */
     @Column(name = "contract_address", nullable = false, length = 42)
     private String contractAddress;
 
@@ -81,7 +81,7 @@ public class AnchorBatch {
 
     /**
      * tx 를 보낸 시각. NULL 이면 아직 안 보냈다. "보냈는데 receipt 를 못 받은" 배치를 "안 보낸" 배치와
-     * 가르는 유일한 표지 — 전자는 재전송 전에 rootOf 를 먼저 봐야 한다.
+     * 가르는 유일한 표지 — 전자는 재전송 전에 anchoredAt(루트)을 먼저 봐야 한다.
      */
     @Column(name = "sent_at")
     private Instant sentAt;
@@ -121,7 +121,7 @@ public class AnchorBatch {
         this.status = Status.PENDING;
     }
 
-    /** tx 는 나갔는데 receipt 는 못 받았다. 다음 실행이 rootOf 로 확인한다. */
+    /** tx 는 나갔는데 receipt 는 못 받았다. 다음 실행이 anchoredAt 으로 확인한다. */
     public void markSent(String txHash, Instant now) {
         this.txHash = txHash;
         this.sentAt = now;
@@ -130,7 +130,7 @@ public class AnchorBatch {
     }
 
     /**
-     * 확정. receipt 로 확인했으면 txHash·blockNumber 가 있고, 다음 실행이 rootOf 로만 확인했으면 둘 다 없을 수 있다
+     * 확정. receipt 로 확인했으면 txHash·blockNumber 가 있고, 다음 실행이 anchoredAt 으로만 확인했으면 둘 다 없을 수 있다
      * (그 경우 인덱서 CHAIN-04 가 이벤트에서 채운다).
      */
     public void markConfirmed(String txHash, Long blockNumber, Instant now) {
@@ -153,7 +153,7 @@ public class AnchorBatch {
      *
      * <p>{@link #markConfirmed} 를 쓰지 않는 이유: 그건 릴레이어 경로라 부를 때마다 {@code confirmed_at} 을 지금으로
      * 덮는다. 인덱서는 폴링 지연이 섞인 시각이라 이미 CONFIRMED 인 배치의 확정 시각을 밀어서는 안 된다.
-     * 여기서는 tx·블록은 <b>체인 값으로 항상</b> 맞추고(체인이 진실이다 — rootOf 로만 확인한 배치는 NULL 이었고,
+     * 여기서는 tx·블록은 <b>체인 값으로 항상</b> 맞추고(체인이 진실이다 — anchoredAt 으로만 확인한 배치는 NULL 이었고,
      * receipt 를 못 받은 배치는 옛 tx 해시일 수 있다), 상태는 CONFIRMED 가 아닐 때만 올린다.
      */
     public void confirmFromChain(String txHash, long blockNumber, Instant now) {
@@ -178,7 +178,7 @@ public class AnchorBatch {
         return status == Status.CONFIRMED;
     }
 
-    /** 보낸 적이 있는 배치. 재전송 전에 rootOf 를 먼저 봐야 한다. */
+    /** 보낸 적이 있는 배치. 재전송 전에 anchoredAt(루트)을 먼저 봐야 한다. */
     public boolean wasSent() {
         return sentAt != null;
     }

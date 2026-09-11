@@ -4,17 +4,18 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * 체인만 읽어 앵커 배치를 되살린다 (ANT-CHAIN-08, 수용 기준 4).
+ * 체인만 읽어 앵커 배치를 되살린다 (ANT-CHAIN-08 · v3 ANT-CHAIN-13).
  *
- *   node scripts/rebuild-from-chain.mjs --batch-id N [--address 0x…] [--from-block B] [--network ssafy|localhost] [--env dev|prod]
+ *   node scripts/rebuild-from-chain.mjs --root 0x… [--address 0x…] [--from-block B] [--network ssafy|localhost] [--env prod|local]
+ *   --root:    되살릴 회차의 머클루트(anchor_batches.merkle_root). v3 는 루트가 장부 칸의 키다
  *   --address: 재배포 뒤 옛 배치를 옛 컨트랙트(anchor_batches.contract_address)에서 조회할 때
- *   --env: 배포 기록 폴더. SSAFY 는 dev 가 기본(ANT-CHAIN-12). 읽기 전용이라 prod 도 된다
+ *   --env:     배포 기록 폴더. SSAFY 는 prod(운영 한 벌), localhost 는 local(Hardhat). 읽기 전용이다
  *
  * DB 를 전혀 보지 않는다. 컨트랙트 주소는 deployments/<env>/CommitAnchor.json 에서, 나머지는 전부 체인에서:
- *   ① eth_getLogs(address, Anchored, batchId)  → 커밋 해시 목록(순서 = 리프 순서)
+ *   ① eth_getLogs(address, Anchored, root)     → 커밋 해시 목록(순서 = 리프 순서)
  *   ② 목록으로 트리 재구축                     → root' · 리프별 proof
- *   ③ root' == rootOf(batchId)                  ← 이게 안 맞으면 규격이 어긋난 것이다
- *   ④ 리프마다 isIncluded(batchId, commitHash, proof) == true
+ *   ③ root' == root && anchoredAt(root) > 0    ← 안 맞으면 규격이 어긋난 것이다
+ *   ④ 리프마다 isIncluded(root, commitHash, proof) == true
  *
  * 인덱서(ANT-CHAIN-04)의 참조 구현이다. 인덱서는 ①을 커서 기반 폴링으로 돌리고 ②를 Java MerkleTree 로 한다.
  * 이 스크립트가 만드는 proof 는 ProofBundle v1 과 같은 필드로 --out 에 떨굴 수 있다.
@@ -28,11 +29,11 @@ const argOf = (name, fallback) => {
 };
 
 const NETWORK = argOf('--network', 'ssafy');
-// 배포 기록 폴더(ANT-CHAIN-12). 읽기만 하므로 prod 도 된다 — 운영 배치를 체인만으로 되살려 볼 때 --env prod.
-const ENVIRONMENT = argOf('--env', process.env.DEPLOY_ENV || (NETWORK === 'ssafy' ? 'dev' : 'local'));
+// 배포 기록 폴더(ANT-CHAIN-12). SSAFY 체인엔 운영 한 벌만 쓴다(옛 dev 배포본은 폐기). 로컬은 Hardhat.
+const ENVIRONMENT = argOf('--env', process.env.DEPLOY_ENV || (NETWORK === 'ssafy' ? 'prod' : 'local'));
 // 재배포 뒤 옛 배치는 옛 주소에 있다(anchor_batches.contract_address). 안 주면 현재 배포 주소.
 const ADDRESS = argOf('--address', '');
-const BATCH_ID = Number(argOf('--batch-id', '0'));
+const ROOT = argOf('--root', '');
 const FROM_BLOCK = Number(argOf('--from-block', '0'));
 const OUT_DIR = argOf('--out', '');
 const RPC_URL =
@@ -66,54 +67,52 @@ export function proofOf(levels, leafIndex) {
 }
 
 export const ABI = [
-  'function rootOf(uint256) view returns (bytes32)',
-  'function isIncluded(uint256,bytes32,bytes32[]) view returns (bool)',
-  'event Anchored(uint256 indexed batchId, bytes32 merkleRoot, bytes32[] commitHashes)',
+  'function anchoredAt(bytes32) view returns (uint256)',
+  'function isIncluded(bytes32,bytes32,bytes32[]) view returns (bool)',
+  'event Anchored(bytes32 indexed merkleRoot, bytes32[] commitHashes)',
 ];
 
 /**
- * @returns {{ ok: boolean, root: string, onchainRoot: string, commitHashes: string[], proofs: string[][], txHash: string, blockNumber: number }}
+ * @returns {{ ok: boolean, root: string, anchoredBlock: bigint, commitHashes: string[], proofs: string[][], txHash: string, blockNumber: number }}
  */
-export async function rebuild(provider, address, batchId, fromBlock = 0) {
+export async function rebuild(provider, address, merkleRoot, fromBlock = 0) {
   const c = new Contract(address, ABI, provider);
   const iface = new Interface(ABI);
   const topic = iface.getEvent('Anchored').topicHash;
 
-  // ① 로그. batchId 가 indexed 라 topic 으로 바로 좁힌다.
+  // ① 로그. 루트가 indexed 라 topic 으로 바로 좁힌다.
   const logs = await provider.getLogs({
     address,
     fromBlock,
     toBlock: 'latest',
-    topics: [topic, iface.encodeFilterTopics('Anchored', [batchId])[1]],
+    topics: [topic, merkleRoot],
   });
   if (logs.length === 0) {
-    return { ok: false, reason: `batchId ${batchId} 의 Anchored 로그가 없다 (fromBlock ${fromBlock})` };
+    return { ok: false, reason: `루트 ${merkleRoot} 의 Anchored 로그가 없다 (fromBlock ${fromBlock})` };
   }
-  // 덮어쓰기가 없으므로 로그는 정확히 1건이어야 한다.
+  // 같은 루트는 두 번 박히지 않으므로(AlreadyAnchored) 로그는 정확히 1건이어야 한다.
   const log = logs[0];
   const parsed = iface.parseLog(log);
   const commitHashes = [...parsed.args.commitHashes];
-  const emittedRoot = parsed.args.merkleRoot;
 
   // ② 재구축
   const levels = buildLevels(commitHashes);
   const root = levels[levels.length - 1][0];
   const proofs = commitHashes.map((_, i) => proofOf(levels, i));
 
-  // ③ 체인 루트와 대조
-  const onchainRoot = await c.rootOf(batchId);
+  // ③ 체인 대조
+  const anchoredBlock = await c.anchoredAt(merkleRoot);
 
   // ④ 포함 증명 전건
   let included = 0;
   for (let i = 0; i < commitHashes.length; i++) {
-    if (await c.isIncluded(batchId, commitHashes[i], proofs[i])) included++;
+    if (await c.isIncluded(merkleRoot, commitHashes[i], proofs[i])) included++;
   }
 
   return {
-    ok: root === onchainRoot && emittedRoot === onchainRoot && included === commitHashes.length,
+    ok: root.toLowerCase() === merkleRoot.toLowerCase() && anchoredBlock > 0n && included === commitHashes.length,
     root,
-    emittedRoot,
-    onchainRoot,
+    anchoredBlock,
     commitHashes,
     proofs,
     included,
@@ -123,8 +122,8 @@ export async function rebuild(provider, address, batchId, fromBlock = 0) {
 }
 
 async function main() {
-  if (!BATCH_ID) {
-    console.error('--batch-id N 이 필요하다.');
+  if (!/^0x[0-9a-fA-F]{64}$/.test(ROOT)) {
+    console.error('--root 0x…(64 hex) 가 필요하다 — anchor_batches.merkle_root 값.');
     process.exit(1);
   }
   const dep = JSON.parse(fs.readFileSync(path.resolve(here, '..', 'deployments', ENVIRONMENT, 'CommitAnchor.json'), 'utf8'));
@@ -135,17 +134,16 @@ async function main() {
   }
   const provider = new WebSocketProvider(RPC_URL);
   try {
-    const r = await rebuild(provider, dep.address, BATCH_ID, FROM_BLOCK || dep.blockNumber || 0);
+    const r = await rebuild(provider, dep.address, ROOT, FROM_BLOCK || dep.blockNumber || 0);
     if (!r.ok && r.reason) {
       console.error(r.reason);
       process.exitCode = 1;
       return;
     }
-    console.log(`batchId ${BATCH_ID} @ ${dep.address} (${NETWORK})`);
-    console.log(`  로그      tx ${r.txHash} · block ${r.blockNumber} · 리프 ${r.commitHashes.length}개`);
-    console.log(`  재구축    ${r.root}`);
-    console.log(`  이벤트    ${r.emittedRoot}`);
-    console.log(`  rootOf    ${r.onchainRoot}`);
+    console.log(`root ${ROOT} @ ${dep.address} (${NETWORK}/${ENVIRONMENT})`);
+    console.log(`  로그       tx ${r.txHash} · block ${r.blockNumber} · 리프 ${r.commitHashes.length}개`);
+    console.log(`  재구축     ${r.root}`);
+    console.log(`  anchoredAt 블록 ${r.anchoredBlock}`);
     console.log(`  isIncluded ${r.included}/${r.commitHashes.length}`);
     console.log(r.ok ? '  ✔ 체인만으로 재구축한 트리가 온체인 루트와 일치한다' : '  ✘ 불일치');
 
@@ -157,13 +155,13 @@ async function main() {
           version: 1,
           chainId: dep.chainId,
           contractAddress: dep.address.toLowerCase(),
-          batchId: BATCH_ID,
+          merkleRoot: ROOT.toLowerCase(),
           txHash: r.txHash,
           anchoredAt: new Date(Number(block.timestamp) * 1000).toISOString(),
           commitHash,
           proof: r.proofs[i],
         };
-        fs.writeFileSync(path.join(OUT_DIR, `bundle-batch${BATCH_ID}-leaf${i}.json`), JSON.stringify(bundle, null, 2) + '\n');
+        fs.writeFileSync(path.join(OUT_DIR, `bundle-${ROOT.slice(2, 10)}-leaf${i}.json`), JSON.stringify(bundle, null, 2) + '\n');
       });
       console.log(`  번들 ${r.commitHashes.length}건 → ${OUT_DIR}`);
     }

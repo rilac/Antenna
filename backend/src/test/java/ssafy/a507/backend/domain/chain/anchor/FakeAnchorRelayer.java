@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.web3j.utils.Numeric;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.domain.chain.relay.AnchorRelayer;
@@ -20,7 +21,8 @@ import ssafy.a507.backend.domain.chain.relay.AnchorRevertException;
  * 체인 없이 앵커 배치의 상태 전이를 검증하기 위한 가짜 릴레이어.
  *
  * <p>{@code anchor()} 호출마다 미리 심어 둔 대본(script)을 하나씩 꺼내 실행한다 — 확정·이미 앵커됨·미확정·
- * revert·RPC 장애를 순서대로 흉내 낼 수 있다. 대본이 비면 CONFIRMED. {@code rootOf()} 는 배치별로 심은 값.
+ * revert·RPC 장애를 순서대로 흉내 낼 수 있다. 대본이 비면 CONFIRMED. {@code anchoredAt()} 은 루트별로 심은 블록 번호.
+ * v3(ANT-CHAIN-13)라 칸의 키가 루트다 — 가짜의 장부도 루트로 찾는다.
  */
 public class FakeAnchorRelayer implements AnchorRelayer {
 
@@ -33,26 +35,25 @@ public class FakeAnchorRelayer implements AnchorRelayer {
         }
     }
 
-    public record Call(long batchId, byte[] root, List<byte[]> leaves) {}
+    public record Call(byte[] root, List<byte[]> leaves) {}
 
     private boolean enabled = true;
     private final Deque<Supplier<AnchorResult>> script = new ArrayDeque<>();
-    private final Map<Long, byte[]> roots = new HashMap<>();
+    /** 0x 소문자 루트 → 박힌 블록. */
+    private final Map<String, Long> anchored = new HashMap<>();
     private final List<Call> calls = new ArrayList<>();
-    private int rootOfCalls = 0;
-    private boolean rootOfUnavailable = false;
+    private int anchoredAtCalls = 0;
+    private boolean anchoredAtUnavailable = false;
     private int txSeq = 0;
 
     public void reset() {
         enabled = true;
         script.clear();
-        roots.clear();
+        anchored.clear();
         calls.clear();
-        rootOfCalls = 0;
-        rootOfUnavailable = false;
+        anchoredAtCalls = 0;
+        anchoredAtUnavailable = false;
         txSeq = 0;
-        echoLastAnchor = false;
-        foreignRoot = null;
     }
 
     public void disable() {
@@ -90,38 +91,30 @@ public class FakeAnchorRelayer implements AnchorRelayer {
         return this;
     }
 
-    public void setRoot(long batchId, byte[] root) {
-        roots.put(batchId, root);
+    /** "체인에 이 루트가 이 블록에 박혀 있다". */
+    public void setAnchored(byte[] root, long blockNumber) {
+        anchored.put(key(root), blockNumber);
     }
 
-    /** 배치 id 를 모르는 시나리오용 — 마지막 anchor() 호출의 루트를 rootOf 가 돌려준다("우리 tx 가 실제로 박혔다"). */
-    public void rootOfEchoesLastAnchor() {
-        echoLastAnchor = true;
-    }
-
-    /** 어떤 batchId 를 물어도 이 루트 — "남이 먼저 박아 둔 번호" 시나리오. */
-    public void setForeignRoot(byte[] root) {
-        foreignRoot = root;
-    }
-
-    private boolean echoLastAnchor = false;
-    private byte[] foreignRoot = null;
-
-    public void rootOfUnavailable() {
-        rootOfUnavailable = true;
+    public void anchoredAtUnavailable() {
+        anchoredAtUnavailable = true;
     }
 
     public List<Call> calls() {
         return calls;
     }
 
-    public int rootOfCalls() {
-        return rootOfCalls;
+    public int anchoredAtCalls() {
+        return anchoredAtCalls;
     }
 
     private String nextTx() {
         txSeq++;
         return "0x" + String.format("%064x", txSeq);
+    }
+
+    private static String key(byte[] root) {
+        return Numeric.toHexString(root).toLowerCase();
     }
 
     @Override
@@ -130,24 +123,18 @@ public class FakeAnchorRelayer implements AnchorRelayer {
     }
 
     @Override
-    public AnchorResult anchor(long batchId, byte[] merkleRoot, List<byte[]> commitHashes) {
-        calls.add(new Call(batchId, merkleRoot, commitHashes));
+    public AnchorResult anchor(byte[] merkleRoot, List<byte[]> commitHashes) {
+        calls.add(new Call(merkleRoot, commitHashes));
         Supplier<AnchorResult> next = script.poll();
         return next == null ? AnchorResult.confirmed(nextTx(), 11_000_000L + txSeq) : next.get();
     }
 
     @Override
-    public byte[] rootOf(long batchId) {
-        rootOfCalls++;
-        if (rootOfUnavailable) {
+    public long anchoredAt(byte[] merkleRoot) {
+        anchoredAtCalls++;
+        if (anchoredAtUnavailable) {
             throw new BusinessException(ErrorCode.CHAIN_UNAVAILABLE);
         }
-        if (foreignRoot != null) {
-            return foreignRoot;
-        }
-        if (echoLastAnchor && !calls.isEmpty()) {
-            return calls.get(calls.size() - 1).root();
-        }
-        return roots.getOrDefault(batchId, new byte[32]);
+        return anchored.getOrDefault(key(merkleRoot), 0L);
     }
 }

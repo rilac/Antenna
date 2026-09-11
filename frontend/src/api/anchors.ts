@@ -17,7 +17,7 @@ export type AnchorStatus = (typeof ANCHOR_STATUSES)[number]
  * — PENDING 행에서 이 셋을 그리려 하면 안 된다.
  */
 export type Anchor = {
-  /** 온체인 batchId 와 같은 값이라 숫자다 */
+  /** DB 배치 번호. v3(ANT-CHAIN-13)부터 체인 칸의 키는 merkleRoot 다 — 이 번호는 체인에 가지 않는다 */
   id: number
   /** 이 배치가 묶은 영업일 YYYY-MM-DD */
   businessDate: string

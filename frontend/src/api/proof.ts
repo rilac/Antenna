@@ -49,7 +49,7 @@ export type ProofPayload = {
  * 객체 하나를 비우는 쪽을 서버가 택했다(09-06 결정).
  */
 export type ProofAnchor = {
-  /** 온체인 batchId. rootOf · isIncluded 의 첫 인자다 */
+  /** DB 배치 번호(표시·링크용). v3(ANT-CHAIN-13)부터 체인에는 가지 않는다 — 체인 조회 키는 루트다 */
   batchId: number
   merkleRoot: string
   /** 아래에서 위로 형제 해시. 정렬 결합이라 좌우 정보가 없다 */

@@ -23,6 +23,8 @@ import ssafy.a507.backend.domain.chain.repository.ChainEventRepository;
  *
  * <p>H2 다. append-only 트리거(plpgsql)는 여기서 돌지 않는다 — {@code processed_at} 만 UPDATE 하는지는
  * {@code @DynamicUpdate} 와 PostgreSQL 실기(진행상황.md 체크리스트)로 본다.
+ *
+ * <p>v3(ANT-CHAIN-13): 이벤트의 루트로 배치를 찾는다. v2 의 "번호는 같은데 루트가 다르다(BATCH_ID_COLLISION)" 판정은 사라졌다.
  */
 // 인덱서는 RPC URL + 컨트랙트 주소가 있어야 켜진다. 실제 소켓은 FakeChainLogSource(@Primary) 가 대신하므로 URL 은 아무 값이다.
 // 릴레이어 키는 비어 있어 릴레이어는 꺼진 채다 — 인덱서가 키 없이 도는 것도 검증 대상이다.
@@ -58,16 +60,16 @@ class AnchorIndexerTest {
     // ── 배치 반영 ────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("보냈는데 미확정(PENDING+sent_at)인 배치는 이벤트로 CONFIRMED 되고 tx·블록이 채워진다")
+    @DisplayName("보냈는데 미확정(PENDING+sent_at)인 배치는 이벤트의 루트로 찾아 CONFIRMED 되고 tx·블록이 채워진다")
     void 미확정_배치를_이벤트로_확정() {
         AnchorBatch b = sentBatch(ROOT_A, "0xdead");
-        source.add(FakeLogs.anchored(b.getId(), ROOT_A, 120));
+        source.add(FakeLogs.anchored(ROOT_A, 120));
 
         indexer.poll();
 
         AnchorBatch after = reload(b);
         assertThat(after.getStatus()).isEqualTo(AnchorBatch.Status.CONFIRMED);
-        assertThat(after.getTxHash()).isEqualTo(FakeLogs.keccak("tx-" + b.getId()));
+        assertThat(after.getTxHash()).isEqualTo(FakeLogs.txOf(ROOT_A));
         assertThat(after.getBlockNumber()).isEqualTo(120L);
         assertThat(after.getConfirmedAt()).isNotNull();
         assertThat(after.getLastError()).isNull();
@@ -79,19 +81,19 @@ class AnchorIndexerTest {
         assertThat(e.getBlockNumber()).isEqualTo(120L);
         assertThat(e.getContractAddress()).isEqualTo(FakeLogs.CONTRACT);
         assertThat(e.getProcessedAt()).isNotNull();
-        assertThat(e.getPayload()).contains("\"batchId\":" + b.getId()).contains(ROOT_A).contains(FakeLogs.blockHashOf(120));
+        assertThat(e.getPayload()).contains(ROOT_A).contains(FakeLogs.blockHashOf(120)).doesNotContain("batchId");
         assertThat(indexer.scannedUpTo()).contains(120L);
     }
 
     @Test
     @DisplayName("릴레이어가 이미 CONFIRMED 로 찍은 배치는 confirmed_at 이 그대로다 — 이벤트는 저장만")
     void 이미_확정된_배치는_시각을_건드리지_않는다() {
-        AnchorBatch b = sentBatch(ROOT_A, FakeLogs.keccak("tx-99"));
+        AnchorBatch b = sentBatch(ROOT_A, FakeLogs.txOf(ROOT_A));
         Instant confirmedAt = Instant.parse("2026-09-04T00:05:30Z");
-        reload(b).markConfirmed(FakeLogs.keccak("tx-99"), 120L, confirmedAt); // 관리 엔티티에 찍어야 DB 에 간다
+        reload(b).markConfirmed(FakeLogs.txOf(ROOT_A), 120L, confirmedAt); // 관리 엔티티에 찍어야 DB 에 간다
         em.flush();
         em.clear();
-        source.add(FakeLogs.anchored(b.getId(), ROOT_A, 120));
+        source.add(FakeLogs.anchored(ROOT_A, 120));
 
         indexer.poll();
 
@@ -102,43 +104,42 @@ class AnchorIndexerTest {
     }
 
     @Test
-    @DisplayName("rootOf 로만 확인돼 tx·블록이 NULL 인 CONFIRMED 배치는 이벤트에서 채워진다")
-    void rootOf로_확인된_배치의_참조를_채운다() {
+    @DisplayName("anchoredAt 으로만 확인돼 tx·블록이 NULL 인 CONFIRMED 배치는 이벤트에서 채워진다")
+    void anchoredAt으로_확인된_배치의_참조를_채운다() {
         AnchorBatch b = sentBatch(ROOT_A, "0xold");
         Instant confirmedAt = Instant.parse("2026-09-05T00:05:30Z");
         reload(b).markConfirmed(null, null, confirmedAt); // confirmByRootCheck 와 같다 — 알던 옛 해시는 남는다
         em.flush();
         em.clear();
-        source.add(FakeLogs.anchored(b.getId(), ROOT_A, 130));
+        source.add(FakeLogs.anchored(ROOT_A, 130));
 
         indexer.poll();
 
         AnchorBatch after = reload(b);
-        assertThat(after.getTxHash()).isEqualTo(FakeLogs.keccak("tx-" + b.getId())); // 체인이 진실 — 옛 해시를 덮는다
+        assertThat(after.getTxHash()).isEqualTo(FakeLogs.txOf(ROOT_A)); // 체인이 진실 — 옛 해시를 덮는다
         assertThat(after.getBlockNumber()).isEqualTo(130L);
         assertThat(after.getConfirmedAt()).isEqualTo(confirmedAt);
     }
 
     @Test
-    @DisplayName("이벤트의 루트가 우리 루트와 다르면 BATCH_ID_COLLISION 으로 FAILED — 절대 CONFIRMED 아님")
-    void 루트_불일치는_충돌_실패() {
+    @DisplayName("다른 DB·데모의 앵커(DB 에 없는 루트)는 이벤트만 남기고 우리 배치는 건드리지 않는다 — v2 의 충돌 판정이 없다")
+    void 모르는_루트는_우리_배치와_무관하다() {
         AnchorBatch b = sentBatch(ROOT_A, "0xdead");
-        source.add(FakeLogs.anchored(b.getId(), ROOT_B, 120));
+        source.add(FakeLogs.anchored(ROOT_B, 120)); // 같은 컨트랙트를 쓰는 다른 DB 가 박은 배치
 
         indexer.poll();
 
         AnchorBatch after = reload(b);
-        assertThat(after.getStatus()).isEqualTo(AnchorBatch.Status.FAILED);
-        assertThat(after.getLastError()).startsWith("BATCH_ID_COLLISION");
-        assertThat(after.getConfirmedAt()).isNull();
+        assertThat(after.getStatus()).isEqualTo(AnchorBatch.Status.PENDING);
+        assertThat(after.getLastError()).isNull();
         assertThat(events.count()).isEqualTo(1); // 이벤트는 그래도 남는다
         assertThat(events.findAll().get(0).getProcessedAt()).isNotNull();
     }
 
     @Test
-    @DisplayName("DB 에 없는 batchId 는 이벤트만 저장·처리 완료로 두고 배치는 만들지 않는다")
-    void 모르는_batchId는_이벤트만_남긴다() {
-        source.add(FakeLogs.anchored(777, ROOT_A, 120));
+    @DisplayName("DB 에 배치가 하나도 없어도 이벤트만 저장·처리 완료로 두고 배치는 만들지 않는다")
+    void 배치가_없으면_이벤트만_남긴다() {
+        source.add(FakeLogs.anchored(ROOT_A, 120));
 
         indexer.poll();
 
@@ -148,10 +149,10 @@ class AnchorIndexerTest {
     }
 
     @Test
-    @DisplayName("다른 컨트랙트가 낸 같은 batchId 는 배치를 건드리지 않는다 (재배포 전 배치)")
+    @DisplayName("같은 루트라도 배치의 컨트랙트와 이벤트의 컨트랙트가 다르면 건드리지 않는다 (재배포 전 배치)")
     void 다른_컨트랙트의_이벤트는_무시() {
         AnchorBatch b = sentBatch(ROOT_A, "0xdead", "0x1111111111111111111111111111111111111111");
-        source.add(FakeLogs.anchored(b.getId(), ROOT_B, 120)); // 현재 컨트랙트가 낸 이벤트 — 루트가 달라도 남의 배치다
+        source.add(FakeLogs.anchored(ROOT_A, 120)); // 현재 컨트랙트가 낸 이벤트 — 배치는 옛 컨트랙트 소속
 
         indexer.poll();
 
@@ -167,7 +168,7 @@ class AnchorIndexerTest {
     @DisplayName("같은 로그를 두 회차에 걸쳐 받아도 chain_events 는 한 행이다")
     void 중복_로그는_한_번만() {
         AnchorBatch b = sentBatch(ROOT_A, "0xdead");
-        source.add(FakeLogs.anchored(b.getId(), ROOT_A, 120));
+        source.add(FakeLogs.anchored(ROOT_A, 120));
 
         indexer.poll();
         resetIndexer(); // 재시작 — 메모리 커서가 사라져 DB 커서(120)부터 다시 훑는다
@@ -199,7 +200,7 @@ class AnchorIndexerTest {
     @Test
     @DisplayName("재시작 후 DB 커서(max block_number)가 from-block 보다 크면 그 다음부터 시작한다")
     void 재시작은_DB_커서에서() {
-        source.add(FakeLogs.anchored(777, ROOT_A, 140));
+        source.add(FakeLogs.anchored(ROOT_A, 140));
         indexer.poll();
         source.ranges().clear();
 
@@ -225,9 +226,10 @@ class AnchorIndexerTest {
     // ── 재처리 · 정지 · 장애 ────────────────────────────────────────
 
     @Test
-    @DisplayName("processed_at IS NULL 인 행은 다음 회차가 payload 로 다시 반영한다 (운영자 수동 복구 경로)")
+    @DisplayName("processed_at IS NULL 인 행은 다음 회차가 payload 로 다시 반영한다 — v2 시절 payload(batchId 필드)도 읽힌다")
     void 미처리_행_재처리() {
         AnchorBatch b = sentBatch(ROOT_A, "0xdead");
+        // v2 형식 그대로. 로컬 DB 에 남은 옛 행이 v3 서버에서 역직렬화에 실패하지 않아야 한다(모르는 필드 무시).
         String payload =
                 "{\"batchId\":" + b.getId() + ",\"merkleRoot\":\"" + ROOT_A + "\",\"commitHashes\":[],\"blockHash\":\""
                         + FakeLogs.blockHashOf(120) + "\"}";
@@ -247,7 +249,7 @@ class AnchorIndexerTest {
     @Test
     @DisplayName("마지막 이벤트 블록의 해시가 체인과 다르면 정지 — 이후 회차는 아무것도 묻지 않는다")
     void reorg면_정지() {
-        source.add(FakeLogs.anchored(777, ROOT_A, 120));
+        source.add(FakeLogs.anchored(ROOT_A, 120));
         indexer.poll();
         assertThat(indexer.isHalted()).isFalse();
 
@@ -268,7 +270,7 @@ class AnchorIndexerTest {
     @Test
     @DisplayName("기록한 블록이 체인에 없어도(짧아짐) 정지")
     void 블록이_사라져도_정지() {
-        source.add(FakeLogs.anchored(777, ROOT_A, 120));
+        source.add(FakeLogs.anchored(ROOT_A, 120));
         indexer.poll();
 
         source.overrideBlockHash(120, null);

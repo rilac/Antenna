@@ -21,7 +21,7 @@ import tools.jackson.databind.json.JsonMapper;
  * 첫 tx 를 보낼 때 터지는 것보다 부팅에서 터지는 편이 낫다.
  *
  * <p>web3j 코드젠(래퍼 클래스 생성)을 쓰지 않고 ABI JSON 을 그대로 두는 건 의도한 선택이다.
- * 함수가 {@code anchor} · {@code rootOf} 둘뿐이라 타입 안전으로 얻는 게 적은 반면, 코드젠은
+ * 함수가 {@code anchor} · {@code anchoredAt} 둘뿐이라 타입 안전으로 얻는 게 적은 반면, 코드젠은
  * {@code build.gradle}(팀 전체가 물려 쓰는 파일)을 고치고 빌드를 컨트랙트 컴파일에 묶는다.
  */
 @Component
@@ -32,9 +32,9 @@ public class CommitAnchorAbi {
 
     /**
      * 이 이름들이 없으면 배포된 컨트랙트와 서버가 보는 인터페이스가 어긋난 것이다.
-     * isIncluded 는 v2(ANT-CHAIN-08)에서 생겼다 — v1 ABI 가 남아 있으면 여기서 부팅이 막힌다.
+     * anchoredAt 은 v3(ANT-CHAIN-13 — 칸의 키가 루트)에서 생겼다 — v2 ABI(rootOf)가 남아 있으면 여기서 부팅이 막힌다.
      */
-    private static final List<String> REQUIRED_FUNCTIONS = List.of("anchor", "rootOf", "isIncluded");
+    private static final List<String> REQUIRED_FUNCTIONS = List.of("anchor", "anchoredAt", "isIncluded");
 
     private static final String REQUIRED_EVENT = "Anchored";
 

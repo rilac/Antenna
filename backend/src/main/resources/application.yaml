@@ -134,7 +134,7 @@ app:
     # 월요일까지 무보호로 두면 안 된다. 실행 시각에 anchor_batch_id 가 NULL 인 커밋 전부가 한 배치다.
     anchor:
       cron: ${ANCHOR_CRON:0 5 0 * * *}
-      # receipt 를 이만큼 기다리고 못 받으면 "전송됨·미확정"으로 둔다. 다음 실행이 rootOf 로 확인한다.
+      # receipt 를 이만큼 기다리고 못 받으면 "전송됨·미확정"으로 둔다. 다음 실행이 anchoredAt 으로 확인한다.
       receipt-timeout-seconds: 60
       # RPC 장애일 때만 즉시 재시도. revert 는 다시 보내도 같아서 재시도하지 않는다.
       retry:

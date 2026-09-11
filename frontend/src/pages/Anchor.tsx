@@ -131,7 +131,7 @@ export default function Anchor() {
               </dl>
 
               {/* 실패 사유는 서버가 준 문자열 그대로 보여준다 — 체인 오류 이름이라
-                  옮기면 검색이 안 된다(예: RootMismatch · BATCH_ID_COLLISION) */}
+                  옮기면 검색이 안 된다(예: RootMismatch · CHAIN_UNAVAILABLE) */}
               {anchor.data.status === 'FAILED' && anchor.data.lastError && (
                 <div className="ac-error" role="alert">
                   <b>{`${STATUS_LABEL.FAILED} 사유`}</b>

@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.chain.indexer;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,8 +42,11 @@ public class AnchorIndexService {
      *
      * <p>{@code commitHashes} 를 통째로 넣는 이유: 이 한 행이 배치 하나의 리프 전량이라, {@code prediction_commits}
      * 없이도 proof 를 재구축할 수 있다(CHAIN-08 "체인만으로 복구"를 DB 쪽에서도 지킨다).
+     *
+     * <p>v3(ANT-CHAIN-13)부터 batchId 가 없다. v2 시절 행(로컬 DB 에 남은 것)은 batchId 필드를 들고 있어 무시하고 읽는다.
      */
-    public record Payload(long batchId, String merkleRoot, List<String> commitHashes, String blockHash) {}
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Payload(String merkleRoot, List<String> commitHashes, String blockHash) {}
 
     /** reorg 검사 재료 — 마지막 이벤트의 블록 번호와 그때 기록한 블록 해시. */
     public record LastEvent(long blockNumber, String blockHash) {}
@@ -58,7 +62,7 @@ public class AnchorIndexService {
         if (events.existsByTxHashAndLogIndex(log.txHash(), log.logIndex())) {
             return false;
         }
-        Payload payload = new Payload(log.batchId(), log.merkleRoot(), log.commitHashes(), log.blockHash());
+        Payload payload = new Payload(log.merkleRoot(), log.commitHashes(), log.blockHash());
         ChainEvent event =
                 ChainEvent.record(
                         log.txHash(),
@@ -118,38 +122,31 @@ public class AnchorIndexService {
      * 배치 반영. 이벤트는 이미 저장돼 있고, 여기서는 {@code anchor_batches} 만 만진다.
      *
      * <pre>
-     * DB 에 없는 batchId              → WARN. 다른 배포·데모·테스트가 태운 번호(README 함정 2). 이벤트는 남는다
-     * 배치의 컨트랙트 ≠ 이벤트 컨트랙트 → WARN. 재배포 전 배치와 새 컨트랙트의 같은 번호 — 서로 무관하다
-     * 루트 불일치                     → BATCH_ID_COLLISION FAILED. 남이 우리 번호에 다른 루트를 박았다(CHAIN-02 와 같은 판정)
-     * 루트 일치                       → confirmFromChain(tx, block) — CONFIRMED 였으면 참조만 맞추고 시각은 유지
+     * DB 에 없는 루트                  → WARN. 같은 컨트랙트를 쓰는 다른 DB·데모의 배치다. 이벤트는 남는다
+     * 배치의 컨트랙트 ≠ 이벤트 컨트랙트 → WARN. 재배포 전 배치 — 서로 무관하다
+     * 그 외                           → confirmFromChain(tx, block) — CONFIRMED 였으면 참조만 맞추고 시각은 유지
      * </pre>
+     *
+     * <p>v3(ANT-CHAIN-13)는 루트로 배치를 찾는다({@code merkle_root} UNIQUE). v2 는 batchId 로 찾아서 "번호는 같은데 루트가
+     * 다른" 충돌을 따로 가려야 했지만, 루트로 찾으면 그런 경우가 성립하지 않는다 — 찾았다는 것 자체가 같은 내용이라는 뜻이다.
      */
     private void apply(ChainEvent event, Payload payload, Instant now) {
-        Optional<AnchorBatch> found = batches.findById(payload.batchId());
+        Optional<AnchorBatch> found = batches.findByMerkleRoot(payload.merkleRoot());
         if (found.isEmpty()) {
             log.warn(
-                    "Anchored batchId {} — DB 에 없는 배치. 다른 배포·데모의 번호다(contracts/README.md 함정 2). tx {}",
-                    payload.batchId(),
+                    "Anchored root {} — DB 에 없는 배치. 같은 컨트랙트를 쓰는 다른 DB·데모의 앵커다. tx {}",
+                    payload.merkleRoot(),
                     event.getTxHash());
             return;
         }
         AnchorBatch batch = found.get();
         if (!batch.getContractAddress().equalsIgnoreCase(event.getContractAddress())) {
             log.warn(
-                    "Anchored batchId {} — 이벤트 컨트랙트 {} 가 배치의 컨트랙트 {} 와 다르다. 건드리지 않음",
-                    payload.batchId(),
-                    event.getContractAddress(),
-                    batch.getContractAddress());
-            return;
-        }
-        if (!batch.getMerkleRoot().equalsIgnoreCase(payload.merkleRoot())) {
-            String reason = "BATCH_ID_COLLISION: onchain root " + payload.merkleRoot() + " != ours";
-            batch.markFailed(reason);
-            log.error(
-                    "앵커 배치 #{} — 체인의 루트({})가 우리 루트({})와 다르다. batchId 충돌. DB id 를 건너뛰거나 컨트랙트를 재배포해라",
-                    batch.getId(),
+                    "Anchored root {} — 이벤트 컨트랙트 {} 가 배치 #{} 의 컨트랙트 {} 와 다르다. 건드리지 않음",
                     payload.merkleRoot(),
-                    batch.getMerkleRoot());
+                    event.getContractAddress(),
+                    batch.getId(),
+                    batch.getContractAddress());
             return;
         }
         boolean wasConfirmed = batch.isConfirmed();

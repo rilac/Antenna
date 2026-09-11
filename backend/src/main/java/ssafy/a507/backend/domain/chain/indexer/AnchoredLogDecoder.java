@@ -10,7 +10,6 @@ import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.DynamicArray;
 import org.web3j.abi.datatypes.Event;
 import org.web3j.abi.datatypes.generated.Bytes32;
-import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.protocol.core.methods.response.Log;
 import org.web3j.tx.Contract;
 import org.web3j.utils.Numeric;
@@ -19,18 +18,19 @@ import org.web3j.utils.Numeric;
  * {@code Anchored} 로그를 {@link AnchoredLog} 로 푼다 (ANT-CHAIN-04).
  *
  * <p>ABI 코드젠을 쓰지 않는다(CHAIN-01·05 판단 유지). 이벤트 정의를 여기 한 번 손으로 적고, 시그니처가 배포된
- * 컨트랙트와 같은지는 {@code CommitAnchorConfigTest} 가 ABI 리소스로, 실제 로그와 맞는지는
- * {@code AnchoredLogDecoderTest} 가 SSAFY 체인에서 뜬 원본 로그로 고정한다.
+ * 컨트랙트와 같은지는 {@code CommitAnchorConfigTest} 가 ABI 리소스로, 바이트 배치는 {@code AnchoredLogDecoderTest} 가 고정한다.
+ *
+ * <p>v3(ANT-CHAIN-13): {@code Anchored(bytes32 indexed merkleRoot, bytes32[] commitHashes)} — v2 의 batchId 가 빠지고
+ * 루트가 topics[1] 로 온다. 이벤트 이름이 같아도 시그니처가 달라 topic0 이 다르므로 v2 로그는 필터에 걸리지 않는다.
  */
 public final class AnchoredLogDecoder {
 
-    /** 컨트랙트와 같은 순서·타입. batchId 만 indexed — topics[1] 로 온다. */
+    /** 컨트랙트와 같은 순서·타입. merkleRoot 만 indexed — topics[1] 로 온다. */
     public static final Event ANCHORED =
             new Event(
                     "Anchored",
                     List.of(
-                            new TypeReference<Uint256>(true) {},
-                            new TypeReference<Bytes32>(false) {},
+                            new TypeReference<Bytes32>(true) {},
                             new TypeReference<DynamicArray<Bytes32>>(false) {}));
 
     /** topics[0]. getLogs 필터에 넣는다. */
@@ -47,10 +47,9 @@ public final class AnchoredLogDecoder {
         if (values == null) {
             return Optional.empty();
         }
-        long batchId = ((Uint256) values.getIndexedValues().get(0)).getValue().longValueExact();
-        byte[] root = ((Bytes32) values.getNonIndexedValues().get(0)).getValue();
+        byte[] root = ((Bytes32) values.getIndexedValues().get(0)).getValue();
         @SuppressWarnings("unchecked")
-        List<Bytes32> leaves = ((DynamicArray<Bytes32>) values.getNonIndexedValues().get(1)).getValue();
+        List<Bytes32> leaves = ((DynamicArray<Bytes32>) values.getNonIndexedValues().get(0)).getValue();
         List<String> commitHashes = new ArrayList<>(leaves.size());
         for (Bytes32 leaf : leaves) {
             commitHashes.add(hex(leaf.getValue()));
@@ -62,7 +61,6 @@ public final class AnchoredLogDecoder {
                         log.getBlockNumber().longValueExact(),
                         lower(log.getBlockHash()),
                         lower(log.getAddress()),
-                        batchId,
                         hex(root),
                         List.copyOf(commitHashes)));
     }

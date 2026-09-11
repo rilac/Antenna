@@ -3,8 +3,11 @@
    왜 서버를 통하지 않는가
    서버가 "검증됐습니다" 라고 답해 주면 그건 증명이 아니라 주장이다. 우리 서버를 믿어야
    하기 때문이다. 그래서 ② 는 브라우저가 (1) 서버가 준 proof 를 직접 접어 루트를 복원하고
-   (2) 그 루트를 체인이 기억하는 rootOf(batchId) 와 대조한다. 이 두 값은 우리 서버가
-   개입할 수 없는 곳에서 나온다.
+   (2) 그 루트가 체인에 박혀 있는지 anchoredAt(root) 로 묻는다. 두 값 모두 우리 서버가
+   개입할 수 없는 곳에서 나온다 — 묻는 루트조차 서버가 준 값이 아니라 내가 접은 값이다.
+
+   v3(ANT-CHAIN-13) — 장부 칸의 키가 머클루트다. v2 는 rootOf(batchId) 로 "그 번호 칸의 루트" 를 읽어 비교했지만,
+   이제는 루트 자체가 키라 "이 루트가 박혀 있나(몇 번 블록에)" 를 한 번에 묻는다.
 
    왜 익스플로러가 아니라 RPC 인가
    SSAFY 는 사설 Besu 망이라 공개 익스플로러가 없다. 익스플로러는 RPC 를 대신 읽어 주는
@@ -23,12 +26,9 @@ import { ethers } from './keccak'
 
 /** 장부 컨트랙트에서 검증에 쓰는 두 함수. 둘 다 view — 권한도 가스도 필요 없다. */
 const ABI = [
-  'function rootOf(uint256 batchId) view returns (bytes32)',
-  'function isIncluded(uint256 batchId, bytes32 commitHash, bytes32[] proof) view returns (bool)',
+  'function anchoredAt(bytes32 merkleRoot) view returns (uint256)',
+  'function isIncluded(bytes32 merkleRoot, bytes32 commitHash, bytes32[] proof) view returns (bool)',
 ]
-
-/** 앵커되지 않은 batchId 의 rootOf 응답. 컨트랙트가 revert 대신 0 을 주기로 한 값이다. */
-export const ZERO_ROOT = `0x${'0'.repeat(64)}`
 
 /** RPC 가 답이 없을 때 화면이 영영 "조회 중" 에 머물지 않도록 끊는다. */
 const TIMEOUT_MS = 15_000
@@ -73,21 +73,21 @@ export async function foldRoot(commitHash: string, proof: string[]) {
 export type ChainRead = {
   /** RPC 가 스스로 밝힌 체인. 서버가 말한 chainId 와 다르면 다른 장부를 본 것이다 */
   chainId: number
-  /** rootOf(batchId). 앵커 전이면 ZERO_ROOT */
-  root: string
-  /** isIncluded(batchId, commitHash, proof) — 체인이 직접 접어 낸 판정 */
+  /** anchoredAt(root) — 그 루트가 박힌 블록. 앵커 전이면 0 */
+  anchoredBlock: number
+  /** isIncluded(root, commitHash, proof) — 체인이 직접 접어 낸 판정 */
   included: boolean
 }
 
 /**
- * 배치 하나에 대해 체인에 세 가지를 묻는다. 연결은 한 번만 열고 반드시 닫는다.
+ * 루트 하나에 대해 체인에 세 가지를 묻는다. 연결은 한 번만 열고 반드시 닫는다.
  *
  * contractAddress 를 서버 응답에서 받는 이유 — 컨트랙트를 재배포하면 옛 배치는
  * 옛 주소의 장부에 남는다. 화면에 주소를 박아 두면 재배포 뒤 옛 배치가 검증 불가가 된다.
  */
 export async function readChain(
   contractAddress: string,
-  batchId: number,
+  merkleRoot: string,
   commitHash: string,
   proof: string[],
 ): Promise<ChainRead> {
@@ -104,15 +104,15 @@ export async function readChain(
     provider = new WebSocketProvider(url, undefined, { staticNetwork: true })
     const contract = new Contract(contractAddress, ABI, provider)
 
-    const [chainIdHex, root, included] = await withTimeout(
+    const [chainIdHex, block, included] = await withTimeout(
       Promise.all([
         provider.send('eth_chainId', []) as Promise<string>,
-        contract.rootOf(batchId) as Promise<string>,
-        contract.isIncluded(batchId, commitHash, proof) as Promise<boolean>,
+        contract.anchoredAt(merkleRoot) as Promise<bigint>,
+        contract.isIncluded(merkleRoot, commitHash, proof) as Promise<boolean>,
       ]),
       '체인 조회',
     )
-    return { chainId: Number(chainIdHex), root: root.toLowerCase(), included }
+    return { chainId: Number(chainIdHex), anchoredBlock: Number(block), included }
   } catch (e) {
     if (e instanceof ApiError) throw e
     throw clientError(
