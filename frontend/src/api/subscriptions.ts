@@ -50,7 +50,7 @@ export type Publisher = {
 export type Subscription = {
   id: number
   publisher: Publisher
-  /** wei 문자열. 결제 시점 박제값 */
+  /** 정수 ANT 문자열. 결제 시점 박제값 */
   fee: string
   status: SubscriptionStatus
   /** 개시 +30일. PENDING 은 아직 개시 전이라 null 이다 */

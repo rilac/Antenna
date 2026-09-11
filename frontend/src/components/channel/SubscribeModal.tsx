@@ -25,10 +25,10 @@
    결제는 체인에서 진행 중이고 화면이 붙어 있을 이유가 없다. 닫지 못하게 하면
    3분짜리 대기에 사용자를 묶어 둔다. 서명 중(signing)만 잠근다. */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { formatFee, subscribe, type Channel } from '../../api/channels'
+import { subscribe, type Channel } from '../../api/channels'
 import type { ApiError } from '../../api/errors'
 import { useOperation } from '../../api/operations'
-import { requestNonce, signingPayload } from '../../api/wallet'
+import { formatToken, requestNonce, signingPayload } from '../../api/wallet'
 import { connectAddress, hasWallet, personalSign } from '../../wallet/provider'
 import { useAuth } from '../../auth/context'
 import { errorText } from '../state/errorText'
@@ -121,7 +121,7 @@ export default function SubscribeModal({ channel, onClose, onSubscribed, onNeedW
   /* 구독료 미설정(fee === null) 채널은 E-02 가 구독 버튼 자체를 내주지 않아 여기 닿지
      않는다. 그래도 금액 자리를 빈 문자열로 두지 않는다 — 만약 닿았을 때 "결제 금액"
      칸이 비면 얼마가 빠져나가는지 모르는 채로 서명하게 된다. */
-  const fee = channel.fee === null ? '금액 미정' : `${formatFee(channel.fee)} ANT`
+  const fee = channel.fee === null ? '금액 미정' : `${formatToken(channel.fee)} ANT`
 
   return (
     <div className="sub-backdrop" onClick={close} role="presentation">

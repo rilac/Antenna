@@ -1,7 +1,7 @@
 /* 지갑·토큰 도메인. API 명세서 §지갑·토큰.
 
    GET /wallet          { linked, walletAddress }
-   GET /wallet/balance  { balance(wei), symbol, syncedAt }
+   GET /wallet/balance  { balance(정수 ANT), symbol, syncedAt }
    GET /wallet/ledger   { items: [{ delta, reason, txHash, createdAt }], nextCursor, hasNext }
    POST /wallet/nonce   { scope } → { nonce, chainId }
    POST /wallet/link    { address, signature } → { walletAddress } */
@@ -13,7 +13,7 @@ export type WalletStatus = {
 }
 
 export type WalletBalance = {
-  /** wei 단위 문자열. 18자리라 number 로 받으면 정밀도가 깨진다 */
+  /** 정수 ANT 문자열. 서버가 금액 필드를 문자열로 통일해 내린다 — number 로 좁히지 않는다 */
   balance: string
   symbol: string
   /** 온체인 대사 시각. 잔액 옆에 반드시 함께 보인다 */
@@ -51,29 +51,21 @@ export const REASON_LABEL: Record<LedgerReason, string> = {
   SEASON_REWARD: '대회 보상',
 }
 
-/** 토큰은 18자리 소수를 쓴다. wei 문자열을 사람이 읽는 수량으로 바꾼다. */
-const DECIMALS = 18n
-
-export function formatToken(wei: string, fractionDigits = 2) {
-  let negative = false
-  let raw = wei.trim()
-  if (raw.startsWith('-')) { negative = true; raw = raw.slice(1) }
-  if (!/^\d+$/.test(raw)) return wei // 예상 밖 형식이면 원본을 그대로 둔다
-
-  const base = 10n ** DECIMALS
-  const value = BigInt(raw)
-  const whole = value / base
-  const rest = value % base
-
-  // 소수부를 원하는 자리까지 반올림 없이 자른다 — 잔액을 부풀리지 않는다
-  const cut = rest.toString().padStart(Number(DECIMALS), '0').slice(0, fractionDigits)
-  const trimmed = cut.replace(/0+$/, '')
-
-  const text = trimmed
-    ? `${whole.toLocaleString('ko-KR')}.${trimmed}`
-    : whole.toLocaleString('ko-KR')
-
-  return negative ? `-${text}` : text
+/**
+ * ANT 금액 표기. 잔액 · 원장 증감 · 구독료 · 광고비가 모두 이 함수를 쓴다.
+ *
+ * ANT 는 decimals 0 이다(ANT-CHAIN-03). 서버 금액 필드는 정수 ANT 를 문자열로 싣고
+ * "1000" 이 곧 1,000 ANT 라, 10^18 로 나누지 않고 천 단위로만 끊는다(S15P21A507-225).
+ * BigInt 로 받는 것은 numeric(30,0) 이 Number 안전 범위를 넘을 수 있어서다.
+ *
+ * 음수(원장 차감)는 "-" 가 붙어 나온다. "+" 는 붙이지 않는다 — 획득을 드러낼지는 호출부가 정한다.
+ */
+export function formatToken(amount: string) {
+  const raw = amount.trim()
+  /* 예상 밖 형식이면 원본을 그대로 둔다. BigInt 에 바로 넣으면 '' 를 0 으로, '0x10' 을 16 으로
+     읽어 틀린 금액을 조용히 그린다 */
+  if (!/^-?\d+$/.test(raw)) return amount
+  return BigInt(raw).toLocaleString('ko-KR')
 }
 
 /** KST ISO-8601 을 화면 문구로. 대사 시각·내역 시각에 함께 쓴다. */

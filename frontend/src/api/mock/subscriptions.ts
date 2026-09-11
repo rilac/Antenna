@@ -30,7 +30,7 @@ const ROWS: Subscription[] = [
   {
     id: 1,
     publisher: { userId: '1', nickname: '반도체관측소' },
-    fee: '12000000000000000000',
+    fee: '12000',
     status: 'ACTIVE',
     expiresAt: '2026-10-02T00:00:00Z',
     renewEnabled: true,
@@ -38,8 +38,8 @@ const ROWS: Subscription[] = [
   {
     id: 2,
     publisher: { userId: '2', nickname: '실적읽는사람' },
-    // 10 ANT 로 결제한 구독. 채널이 값을 올려도 이 행은 그대로다(박제)
-    fee: '10000000000000000000',
+    // 10,000 ANT 로 결제한 구독. 채널이 값을 올려도 이 행은 그대로다(박제)
+    fee: '10000',
     status: 'ACTIVE',
     expiresAt: '2026-09-18T00:00:00Z',
     renewEnabled: false,
@@ -47,7 +47,7 @@ const ROWS: Subscription[] = [
   {
     id: 3,
     publisher: { userId: '3', nickname: '차트말고실적' },
-    fee: '12000000000000000000',
+    fee: '12000',
     status: 'PENDING',
     // 아직 개시 전이라 만료일이 없다
     expiresAt: null,
@@ -56,7 +56,7 @@ const ROWS: Subscription[] = [
   {
     id: 4,
     publisher: { userId: '4', nickname: '월간반도체' },
-    fee: '8000000000000000000',
+    fee: '8000',
     status: 'EXPIRED',
     expiresAt: '2026-08-11T00:00:00Z',
     renewEnabled: false,

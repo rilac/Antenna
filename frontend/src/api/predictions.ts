@@ -106,8 +106,9 @@ export type SlotStatus = {
   used: number
   remaining: number
   /**
-   * 슬롯을 넘겨 등록할 때 소각할 금액(wei 문자열). 10²¹ 이 JS number 정밀도를 넘어
-   * 문자열이다 — 숫자로 바꾸지 않는다. ANT-TOKEN-08 확정 전 잠정값이다.
+   * 슬롯을 넘겨 등록할 때 소각할 금액(정수 ANT 문자열). 서버 금액표
+   * app.token.amounts.slot-over(ANT-TOKEN-08)에서 온다. 금액 필드는 문자열로 통일돼 있어
+   * 숫자로 바꾸지 않는다 — 표시는 formatToken(api/wallet.ts) 으로 한다.
    */
   overCost: string
 }
