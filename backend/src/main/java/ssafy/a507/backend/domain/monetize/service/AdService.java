@@ -7,14 +7,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import ssafy.a507.backend.common.error.BusinessException;
 import ssafy.a507.backend.common.error.ErrorCode;
 import ssafy.a507.backend.common.security.SignatureGuard;
 import ssafy.a507.backend.domain.account.entity.User;
 import ssafy.a507.backend.domain.account.repository.UserRepository;
 import ssafy.a507.backend.domain.chain.entity.Operation;
+import ssafy.a507.backend.domain.chain.relay.TokenReason;
 import ssafy.a507.backend.domain.chain.repository.TokenLedgerRepository;
 import ssafy.a507.backend.domain.chain.service.OperationService;
+import ssafy.a507.backend.domain.chain.service.TokenOperationService;
 import ssafy.a507.backend.domain.monetize.dto.AdActiveResponse;
 import ssafy.a507.backend.domain.monetize.dto.AdCreateRequest;
 import ssafy.a507.backend.domain.monetize.dto.AdCreateResponse;
@@ -44,9 +47,38 @@ public class AdService {
     private final OperationService operationService;
     private final SignatureGuard signatureGuard;
     private final AdProperties properties;
+    private final TokenOperationService tokenOperationService;
+    private final TransactionTemplate tx;
 
     /**
-     * 게재 신청. 검증 순서가 <b>기간 → 이미지 → 슬롯 → 잔액 → 서명</b> 인 것은 의도적이다.
+     * 게재 신청 — 접수하고 게재료 소각 tx 를 보낸다. 확정(배너 ACTIVE)은 토큰 인덱서가 {@code Burned} 이벤트를 보고 한다
+     * (ANT-CHAIN-11). 이 메서드는 202 까지다.
+     *
+     * <p><b>트랜잭션을 손으로 나눈다</b> — {@link TokenOperationService} 의 호출자 계약(ANT-CHAIN-12):
+     * ① 체인이 꺼져 있으면 아무것도 쓰기 전에 503 ② 접수(검사 · 서명 · 배너 PENDING · 작업)를 커밋
+     * ③ 트랜잭션 밖에서 소각 전송. DB 커밋이 먼저인 이유는 반대로 하면 "게재료는 탔는데 광고가 없는" 상태가 생기고
+     * 그건 되돌릴 수단이 없어서다. 그래서 이 메서드에는 {@code @Transactional} 이 없다 — 붙이면 ③ 이 거부된다.
+     *
+     * <p>③ 이 실패하면(체인 잔액 부족 409 · RPC 503) 작업은 {@link TokenOperationService} 가 FAILED 로 닫고, 배너는 여기서
+     * REJECTED 로 닫는다. 안 닫으면 거절된 신청이 유예 창({@code pending-grace-minutes}) 동안 자리를 막는다. 인덱서가
+     * 이벤트 없는 실패를 닫을 때 {@link AdBanner#reject()} 를 부르는 것과 같은 규칙이다.
+     */
+    public AdCreateResponse create(Long userId, AdCreateRequest request) {
+        tokenOperationService.requireEnabled();
+        Accepted accepted = tx.execute(status -> accept(userId, request));
+        try {
+            tokenOperationService.dispatchBurn(accepted.operationId(), accepted.price(), TokenReason.AD_PAY);
+        } catch (RuntimeException e) {
+            tx.executeWithoutResult(
+                    status -> adBannerRepository.findById(accepted.adId()).ifPresent(AdBanner::reject));
+            throw e;
+        }
+        // 전송 뒤에도 작업은 PENDING 이다 — tx 해시만 붙었고 확정은 인덱서 몫이다.
+        return new AdCreateResponse(accepted.operationId(), accepted.adId(), Operation.Status.PENDING);
+    }
+
+    /**
+     * 접수. 검증 순서가 <b>기간 → 이미지 → 슬롯 → 잔액 → 서명</b> 인 것은 의도적이다.
      *
      * <p>{@link SignatureGuard#verify} 는 nonce 를 태운다. 서명을 먼저 검증하면 슬롯이 마감돼
      * 409 로 돌려보내는 요청에서도 nonce 가 사라져, 사용자는 지갑에서 다시 서명해야 한다.
@@ -54,9 +86,10 @@ public class AdService {
      *
      * <p>거꾸로 서명 검증은 <b>행을 만들기 직전</b>이어야 한다. 검증 없이 만들면 남의 지갑으로
      * 결제되는 광고를 등록할 수 있다.
+     *
+     * <p>잔액 검사는 원장(token_ledger) 기준의 1차 거름이다. 체인 잔액은 소각 전송의 시뮬레이션이 한 번 더 본다.
      */
-    @Transactional
-    public AdCreateResponse create(Long userId, AdCreateRequest request) {
+    private Accepted accept(Long userId, AdCreateRequest request) {
         if (request.days() > properties.maxDays()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "days");
         }
@@ -116,7 +149,7 @@ public class AdService {
                 operationService.accept(
                         advertiser, Operation.Kind.AD, Operation.ResourceType.AD, banner.getId());
 
-        return new AdCreateResponse(operation.getId(), banner.getId(), operation.getStatus());
+        return new Accepted(operation.getId(), banner.getId(), price);
     }
 
     /**
@@ -140,4 +173,7 @@ public class AdService {
                         .findByStatusAndStartsAtLessThanEqualAndEndsAtAfterOrderByStartsAtAsc(
                                 AdBanner.Status.ACTIVE, now, now));
     }
+
+    /** 접수가 커밋한 것 중 소각 전송에 필요한 셋. */
+    private record Accepted(String operationId, Long adId, BigInteger price) {}
 }
