@@ -1,0 +1,15 @@
+{
+  "contract": "CommitAnchor",
+  "version": 2,
+  "environment": "prod",
+  "network": "ssafy",
+  "chainId": 31221,
+  "address": "0x8fDb4010b120DFf5c2d9b4c990821aeA00331C7e",
+  "deployer": "0xed9A22D3c39e5ddf161638b82a18a96134707491",
+  "admin": "0xed9A22D3c39e5ddf161638b82a18a96134707491",
+  "relayer": "0x55085F3F5568ED3936A734DbaEF179F8045322E3",
+  "txHash": "0x085485dd7f42ae06106063de49b1335e7a2af989be134ed7b500ebea3c902722",
+  "blockNumber": 11241834,
+  "gasUsed": 798061,
+  "deployedAt": "2026-09-11T01:43:55.430Z"
+}

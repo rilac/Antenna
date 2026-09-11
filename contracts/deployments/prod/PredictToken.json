@@ -1,0 +1,20 @@
+{
+  "contract": "PredictToken",
+  "version": 1,
+  "environment": "prod",
+  "network": "ssafy",
+  "chainId": 31221,
+  "address": "0xEee56721cd2c0383139756c88B6DB06024a412Cb",
+  "deployer": "0xed9A22D3c39e5ddf161638b82a18a96134707491",
+  "admin": "0xed9A22D3c39e5ddf161638b82a18a96134707491",
+  "operator": "0x55085F3F5568ED3936A734DbaEF179F8045322E3",
+  "treasury": "0x1E189420b1Abb9F1ff3A556bd068C5B03b6B17bB",
+  "name": "Antenna",
+  "symbol": "ANT",
+  "decimals": 0,
+  "platformShareBps": 3000,
+  "txHash": "0x4cde1e97c529aebcb7e4da9c8e67f6286678bf57b57862c3353cc2d7b0150d56",
+  "blockNumber": 11241835,
+  "gasUsed": 1283089,
+  "deployedAt": "2026-09-11T01:44:05.888Z"
+}
