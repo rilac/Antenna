@@ -85,6 +85,24 @@ class NewsRelevanceServiceTest {
     }
 
     @Test
+    @DisplayName("업종이 있어도 회사 이름 뒤에 붙이지 않는다 — 붙였더니 지주회사(업종 기타금융)의 계열사 기사를 무관으로 버렸다")
+    void 업종을_붙이지_않는다() {
+        em.createNativeQuery("UPDATE stocks SET sector = ? WHERE code = ?")
+                .setParameter(1, "전기·전자")
+                .setParameter(2, DOOSAN)
+                .executeUpdate();
+        em.flush();
+        em.clear();
+        seedNews("n-ball", BALL, "강판당했다");
+        given(gpuAiClient.complete(anyString(), anyString())).willReturn("무관");
+
+        relevanceService.judgeRecent();
+
+        verify(gpuAiClient).complete(
+                NewsRelevanceService.INSTRUCTION, "회사: 두산\n기사: " + BALL + " · 강판당했다");
+    }
+
+    @Test
     @DisplayName("회사 이름과 기사를 함께 물어본다 — 같은 제목도 회사가 다르면 답이 달라진다")
     void 재료() {
         seedNews("n-ball", BALL, "강판당했다");
