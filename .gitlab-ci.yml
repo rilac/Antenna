@@ -61,8 +61,8 @@ deploy-backend:
     # contracts/deployments/README.md). SSAFY 체인엔 이 한 벌뿐이다 — 로컬 개발은 Hardhat 로컬 체인(09-11 결정).
     # 주소 · 시작 블록 · RPC 는 공개값이라 여기 적는다. 비밀은 릴레이어 키 하나 — CI/CD 변수 RELAYER_PRIVATE_KEY
     # (Masked + Protected). 변수가 없으면 빈 값이 넘어가 앵커 전송 · 토큰 전송만 꺼지고 인덱서 둘은 읽기만 한다 —
-    # 기동은 깨지지 않는다. INDEXER_FROM_BLOCK 은 두 운영 배포 블록 중 작은 값(CommitAnchor 11241834 ·
-    # PredictToken 11241835)이다 — 두 인덱서가 같은 값을 쓴다. ANCHOR_CRON · INDEXER_CRON 은 기본값(00:05 · 5초).
+    # 기동은 깨지지 않는다. INDEXER_FROM_BLOCK 은 두 운영 배포 블록 중 작은 값(PredictToken 11241835 ·
+    # CommitAnchor v3 11244276, ANT-CHAIN-13)이다 — 두 인덱서가 같은 값을 쓴다. ANCHOR_CRON · INDEXER_CRON 은 기본값(00:05 · 5초).
     # 운영 컨트랙트를 바꾸면 이 네 줄과 deployments/README.md 를 같이 바꾼다.
     - |
       umask 077
@@ -85,9 +85,9 @@ deploy-backend:
       CORS_ALLOWED_ORIGINS=https://stock-antenna.com
       CHAIN_ID=31221
       CHAIN_RPC_URL=wss://ws.ssafy-blockchain.com
-      CONTRACT_COMMIT_ANCHOR=0x8fDb4010b120DFf5c2d9b4c990821aeA00331C7e
+      CONTRACT_COMMIT_ANCHOR=0x7c661F80EA46Ff7d63ab7F5Bb59d8d66E256DF99
       CONTRACT_PREDICT_TOKEN=0xEee56721cd2c0383139756c88B6DB06024a412Cb
-      INDEXER_FROM_BLOCK=11241834
+      INDEXER_FROM_BLOCK=11241835
       RELAYER_PRIVATE_KEY=$RELAYER_PRIVATE_KEY
       PUBLIC_DATA_SERVICE_KEY=$PUBLIC_DATA_SERVICE_KEY
       KOREAEXIM_AUTH_KEY=$KOREAEXIM_AUTH_KEY

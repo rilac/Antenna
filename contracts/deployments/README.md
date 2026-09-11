@@ -15,12 +15,12 @@ SSAFY 체인(chainId 31221, `wss://ws.ssafy-blockchain.com`, 가스 0)에는 **�
 
 | 항목 | 값 | 보관 · 넣는 곳 |
 |---|---|---|
-| CommitAnchor | `0x8fDb4010b120DFf5c2d9b4c990821aeA00331C7e` (블록 11241834) | ANT-CHAIN-13 에서 v3 로 교체 예정(한 번도 안 씀) |
+| CommitAnchor **v3** | `0x7c661F80EA46Ff7d63ab7F5Bb59d8d66E256DF99` (블록 11244276, 2026-09-11) | 장부 칸의 키 = 머클루트(ANT-CHAIN-13). 옛 v2 `0x8fDb…1C7e` 는 한 번도 안 쓴 채 교체 — 기록은 `prod/archive/CommitAnchor.v2.json` |
 | PredictToken (ANT) | `0xEee56721cd2c0383139756c88B6DB06024a412Cb` (블록 11241835) | **서비스 ANT. 재배포 금지 — 잔액이 여기 산다** |
 | 관리자 (`DEFAULT_ADMIN_ROLE`, 두 컨트랙트 공통) | `0xed9A22D3c39e5ddf161638b82a18a96134707491` | 비밀번호 관리자. 서버·저장소에 없다 |
 | 릴레이어 = 오퍼레이터 (`ANCHOR_ROLE` · `OPERATOR_ROLE`) | `0x55085F3F5568ED3936A734DbaEF179F8045322E3` | GitLab CI/CD 변수 `RELAYER_PRIVATE_KEY` (Masked · Protected) |
 | 수납 (플랫폼 30%) | `0x1E189420b1Abb9F1ff3A556bd068C5B03b6B17bB` | 비밀번호 관리자 |
-| 인덱서 시작 블록 | 11241834 | — |
+| 인덱서 시작 블록 | 11241835 (두 배포 블록 중 작은 값 = PredictToken) | — |
 | 주소를 넣는 곳 | `.gitlab-ci.yml` 의 `.env` 블록 | — |
 
 - **테스트 흔적은 체인에 영구히 남는다.** 서비스 화면에서 걸러 보여 준다. 서비스 시작 때의 정리 방식(테스트 잔액을 오퍼레이터 `burn` 으로 소각 ·
@@ -37,6 +37,8 @@ npm run deploy:local      # 터미널 2 — deployments/local/CommitAnchor.json 
 
 `backend/.env` 에 `CHAIN_RPC_URL=ws://127.0.0.1:8545` · `CHAIN_ID=31337` · `CONTRACT_COMMIT_ANCHOR=<local 주소>` ·
 `RELAYER_PRIVATE_KEY=<hardhat node 가 찍은 Account #1 키>` · `INDEXER_FROM_BLOCK=0`. 노드를 재시작하면 체인이 새로 생기므로 다시 배포한다.
+`hardhat.config.js` 가 base fee 를 0 으로 둔다(`initialBaseFeePerGas: 0`, ANT-CHAIN-13) — 서버는 SSAFY 규칙대로 `gasPrice 0` 으로 서명하므로
+이게 없으면 로컬 노드가 서버 tx 를 전부 거부한다. 노드를 끌 땐 창을 닫거나 Ctrl+C — 셸만 죽이면 node 프로세스가 8545 를 쥔 채 남는다.
 PredictToken 의 로컬 배포 스크립트는 아직 없다 — 토큰 기능을 로컬에서 돌릴 때 `deploy.js` 에 붙인다.
 
 ## 폐기 — 옛 dev 배포본 (2026-09-11 저녁)
@@ -53,21 +55,22 @@ PredictToken 의 로컬 배포 스크립트는 아직 없다 — 토큰 기능�
 
 ```
 deployments/
-├── prod/    CommitAnchor.json · PredictToken.json   ← 운영
+├── prod/    CommitAnchor.json(v3) · PredictToken.json   ← 운영
+│   └── archive/  CommitAnchor.v2.json                 ← 교체된 옛 기록(안 씀)
 ├── local/   CommitAnchor.json                        ← Hardhat (npm run deploy:local)
 └── dev/     CommitAnchor.json · PredictToken.json   ← 폐기(역사)
 ```
 
 - 각 JSON 의 `environment` 필드와 폴더 이름이 같다.
 - SSAFY 배포 스크립트는 `DEPLOY_ENV` 가 없으면 tx 를 보내기 전에 멈춘다.
-- `prod/` 에 기록이 있으면 `DEPLOY_ENV=prod` 배포도 멈춘다 — 잔액(PredictToken)과 batchId(CommitAnchor v2)가 그 주소에 묶여 있다.
+- `prod/` 에 기록이 있으면 `DEPLOY_ENV=prod` 배포도 멈춘다 — 잔액(PredictToken)과 운영 앵커 기록(CommitAnchor)이 그 주소에 묶여 있다.
 
 ## 짝이 맞는지 확인하는 법
 
 - **서버 부팅 로그** (`ChainRoleCheck`) — 키·RPC·주소가 다 있으면 부팅 직후 한 번:
   ```
   체인 환경 확인 — 릴레이어 0x5508…
-    CommitAnchor 0x8fdb… ANCHOR_ROLE ✓
+    CommitAnchor 0x7c66… ANCHOR_ROLE ✓
     PredictToken 0xeee5… OPERATOR_ROLE ✓
   ```
   ✗ 가 하나라도 있으면 ERROR 로 뜬다. 부팅은 막지 않는다.
