@@ -101,5 +101,15 @@ class Web3jTokenRelayerEncodingTest {
         assertThat(Web3jTokenRelayer.decodeErrorName("0xdeadbeef")).isEqualTo("Unknown(0xdeadbeef)");
         // Besu 가 error.data 를 따옴표 포함 문자열로 주는 함정 — 앵커에서 실측
         assertThat(Web3jTokenRelayer.decodeErrorName("\"" + Web3jAnchorRelayer.selector("ZeroAmount()") + "\"")).isEqualTo("ZeroAmount");
+        // Hardhat 은 error.data 를 객체로 한 겹 더 싼다 — 앵커에서 로컬 노드 실측(2026-09-11)
+        assertThat(Web3jTokenRelayer.decodeErrorName(
+                        "{\"message\":\"Error: VM Exception while processing transaction: reverted with custom error 'ZeroAmount()'\","
+                                + "\"data\":\"" + Web3jAnchorRelayer.selector("ZeroAmount()") + "\"}"))
+                .isEqualTo("ZeroAmount");
+        assertThat(Web3jTokenRelayer.decodeErrorName(
+                        "{\"message\":\"x\",\"data\":\""
+                                + Web3jAnchorRelayer.selector("ERC20InsufficientBalance(address,uint256,uint256)") + "00".repeat(96) + "\"}"))
+                .isEqualTo("ERC20InsufficientBalance");
+        assertThat(Web3jTokenRelayer.decodeErrorName("{\"message\":\"no inner data\"}")).isEqualTo("Unknown(no data)");
     }
 }

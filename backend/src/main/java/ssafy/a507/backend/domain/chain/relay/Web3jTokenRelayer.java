@@ -5,6 +5,7 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -59,6 +60,9 @@ public class Web3jTokenRelayer implements TokenRelayer {
                     Web3jAnchorRelayer.selector("ZeroAmount()"), "ZeroAmount",
                     Web3jAnchorRelayer.selector("ZeroAddress()"), "ZeroAddress",
                     Web3jAnchorRelayer.selector("SameAddress()"), "SameAddress");
+
+    /** Hardhat 이 {@code error.data} 를 객체로 싸서 줄 때 안쪽 revert 데이터. {@link #decodeErrorName} 참고. */
+    private static final Pattern NESTED_REVERT_DATA = Pattern.compile("\"data\"\\s*:\\s*\"(0x[0-9a-fA-F]*)\"");
 
     private final PredictTokenProperties token;
     private final ChainConnection connection;
@@ -267,14 +271,19 @@ public class Web3jTokenRelayer implements TokenRelayer {
     }
 
     /**
-     * revert 데이터의 앞 4바이트로 이름을 찾는다. Besu 가 {@code error.data} 를 따옴표 포함 JSON 문자열로 주는 함정은
-     * {@link Web3jAnchorRelayer#decodeErrorName} 과 같다(SSAFY 실측 09-04).
+     * revert 데이터의 앞 4바이트로 이름을 찾는다. Besu 가 {@code error.data} 를 따옴표 포함 JSON 문자열로 주는 함정과
+     * Hardhat 이 객체로 한 겹 더 싸서 주는 함정은 {@link Web3jAnchorRelayer#decodeErrorName} 과 같다(SSAFY 실측 09-04 ·
+     * 로컬 Hardhat 실측 09-11). 후자를 못 읽으면 로컬에서 잔액 부족(409)이 {@code Unknown(no data)} 로 떨어져 500 이 된다.
      */
     static String decodeErrorName(String revertData) {
         if (revertData == null) {
             return "Unknown(no data)";
         }
         String cleaned = revertData.trim();
+        if (cleaned.startsWith("{")) {
+            Matcher inner = NESTED_REVERT_DATA.matcher(cleaned);
+            cleaned = inner.find() ? inner.group(1) : "";
+        }
         if (cleaned.startsWith("\"") && cleaned.endsWith("\"") && cleaned.length() >= 2) {
             cleaned = cleaned.substring(1, cleaned.length() - 1);
         }
