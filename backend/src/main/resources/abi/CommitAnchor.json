@@ -41,12 +41,12 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "batchId",
-          "type": "uint256"
+          "internalType": "bytes32",
+          "name": "merkleRoot",
+          "type": "bytes32"
         }
       ],
-      "name": "BatchAlreadyAnchored",
+      "name": "AlreadyAnchored",
       "type": "error"
     },
     {
@@ -57,11 +57,6 @@
     {
       "inputs": [],
       "name": "EmptyRoot",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "InvalidBatchId",
       "type": "error"
     },
     {
@@ -85,12 +80,6 @@
       "inputs": [
         {
           "indexed": true,
-          "internalType": "uint256",
-          "name": "batchId",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
           "internalType": "bytes32",
           "name": "merkleRoot",
           "type": "bytes32"
@@ -209,11 +198,6 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "batchId",
-          "type": "uint256"
-        },
-        {
           "internalType": "bytes32",
           "name": "merkleRoot",
           "type": "bytes32"
@@ -227,6 +211,25 @@
       "name": "anchor",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "merkleRoot",
+          "type": "bytes32"
+        }
+      ],
+      "name": "anchoredAt",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -293,9 +296,9 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "batchId",
-          "type": "uint256"
+          "internalType": "bytes32",
+          "name": "merkleRoot",
+          "type": "bytes32"
         },
         {
           "internalType": "bytes32",
@@ -353,25 +356,6 @@
       "name": "revokeRole",
       "outputs": [],
       "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "batchId",
-          "type": "uint256"
-        }
-      ],
-      "name": "rootOf",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
       "type": "function"
     },
     {

@@ -30,7 +30,10 @@ public record ProofBundle(
         long chainId,
         /** 이 번들을 대조할 CommitAnchor 주소(0x + 40 hex). 재배포돼도 이 번들은 이 주소를 본다. */
         String contractAddress,
-        /** rootOf 호출 인자 = anchor_batches.id (CHAIN-01 대안 B1). */
+        /**
+         * anchor_batches.id. v2 까지는 rootOf 호출 인자였지만 v3(ANT-CHAIN-13)부터 체인 조회 키는 루트다 — proof 를 접은 값으로
+         * anchoredAt(root) 를 부르므로 검증에 쓰지 않는다. 이미 발급된 번들과 필드 계약을 지키려고 남긴다(참고용 번호).
+         */
         long batchId,
         /** 앵커 tx 해시. 검증에 필수는 아니고 블록 탐색용 참고 정보다. */
         String txHash,

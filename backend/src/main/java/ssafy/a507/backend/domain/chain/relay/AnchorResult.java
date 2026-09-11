@@ -14,9 +14,12 @@ public record AnchorResult(Status status, String txHash, Long blockNumber) {
     public enum Status {
         /** receipt status=1. 배치를 CONFIRMED 로 옮긴다. */
         CONFIRMED,
-        /** 전송 전 시뮬레이션이 BatchAlreadyAnchored 로 막혔다 = 이전 실행이 이미 성공했다. 배치를 CONFIRMED 로 옮긴다. */
+        /**
+         * 전송 전 시뮬레이션이 AlreadyAnchored 로 막혔다 = 같은 루트가 이미 박혀 있다. 배치를 CONFIRMED 로 옮긴다.
+         * v3(ANT-CHAIN-13)는 칸의 키가 루트라 "같은 칸 = 같은 내용" 이다 — 남의 것을 내 것으로 오판할 수 없다.
+         */
         ALREADY_ANCHORED,
-        /** tx 는 나갔는데 receipt 를 제한 시간 안에 못 받았다. PENDING + sent_at 으로 두고 다음 실행이 rootOf 로 확인한다. */
+        /** tx 는 나갔는데 receipt 를 제한 시간 안에 못 받았다. PENDING + sent_at 으로 두고 다음 실행이 anchoredAt 으로 확인한다. */
         SENT_UNCONFIRMED
     }
 

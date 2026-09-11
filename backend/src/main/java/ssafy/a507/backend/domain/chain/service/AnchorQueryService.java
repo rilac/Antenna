@@ -17,7 +17,7 @@ import ssafy.a507.backend.domain.prediction.repository.PredictionCommitRepositor
 /**
  * 앵커 배치 조회 (ANT-CHAIN-06, 화면 D-01·D-02).
  *
- * <p>읽기만 한다. 체인에는 묻지 않는다 — "체인에 정말 박혔나" 는 브라우저가 {@code rootOf(batchId)} 로 직접 대조한다
+ * <p>읽기만 한다. 체인에는 묻지 않는다 — "체인에 정말 박혔나" 는 브라우저가 {@code anchoredAt(root)} 로 직접 대조한다
  * (화면설계서 D-03: 서버가 "검증됨" 이라 말해 주면 그건 증명이 아니다). 여기가 내리는 값은 전부 DB 의 것이고,
  * 릴레이어(CHAIN-05)와 인덱서(CHAIN-04)가 채운 그대로다.
  *

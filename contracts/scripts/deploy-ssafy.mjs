@@ -5,10 +5,10 @@ const require = createRequire(import.meta.url);
 const { readArtifact, emit, requireEnvironment } = require('./emit-artifacts.js');
 
 /**
- * SSAFY 네트워크 배포 (ANT-CHAIN-08, v2).
+ * SSAFY 네트워크 배포 (ANT-CHAIN-08, v3 ANT-CHAIN-13 — 칸의 키가 머클루트).
  *
  *   npx hardhat compile
- *   DEPLOY_ENV=dev|prod  ANCHOR_ADMIN_PRIVATE_KEY=0x…  ANCHOR_RELAYER=0x…  node scripts/deploy-ssafy.mjs
+ *   DEPLOY_ENV=prod  ANCHOR_ADMIN_PRIVATE_KEY=0x…  ANCHOR_RELAYER=0x…  node scripts/deploy-ssafy.mjs
  *
  * ── 환경이 두 벌이다 (ANT-CHAIN-12) ──────────────────────────────────
  * 같은 체인에 dev(팀원 로컬·Live 테스트)와 prod(운영 서버) 컨트랙트가 따로 산다. 관리자 키·릴레이어 주소도
@@ -70,7 +70,7 @@ async function main() {
     const adminWallet = new Wallet(adminKey.startsWith('0x') ? adminKey : `0x${adminKey}`, provider);
     const admin = adminWallet.address;
 
-    console.log(`CommitAnchor v2 배포 → SSAFY ${environment} (chainId ${net.chainId})`);
+    console.log(`CommitAnchor v3 배포 → SSAFY ${environment} (chainId ${net.chainId})`);
     console.log(`  RPC      ${RPC_URL}`);
     console.log(`  관리자   ${admin}  (배포자)`);
     console.log(`  릴레이어 ${relayer}`);

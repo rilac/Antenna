@@ -1,9 +1,14 @@
-# contracts — CommitAnchor v2 (ANT-CHAIN-01 · ANT-CHAIN-08)
+# contracts — CommitAnchor v3 (ANT-CHAIN-01 · ANT-CHAIN-08 · ANT-CHAIN-13)
 
 앤테나의 앵커 컨트랙트. 매일 봉인된 예측 커밋들의 **머클루트 1건**을 체인에 박는다.
 루트가 체인에 올라간 뒤에는 서버가 예측을 고쳐 쓸 수 없다 — 고치면 머클 증명이 깨진다.
 
-**v2(ANT-CHAIN-08)에서 바뀐 것**: 앵커 tx 에 그 배치의 **커밋 해시 전량**을 싣는다.
+**v3(ANT-CHAIN-13)에서 바뀐 것**: 장부 칸의 키가 DB 배치 번호(`batchId`)에서 **머클루트 자체**로 바뀌었다
+(`_anchoredAt[merkleRoot] = block.number`). 체인에 DB 번호가 가지 않으므로 DB 를 초기화하거나 여러 DB 가 한 컨트랙트를
+써도 칸이 부딪히지 않는다 — 옛 함정 2 가 구조적으로 사라졌다. 같은 루트를 다시 보내면 `AlreadyAnchored` 이고 서버는 성공으로 본다
+(같은 루트 = 같은 커밋 목록이라 남의 것을 내 것으로 오판할 수 없다).
+
+**v2(ANT-CHAIN-08)에서 바뀐 것(유지)**: 앵커 tx 에 그 배치의 **커밋 해시 전량**을 싣는다.
 컨트랙트가 그 리프들로 루트를 **다시 계산해 서버가 준 루트와 대조**하고(`RootMismatch`),
 커밋 해시 목록을 `Anchored` 이벤트로 남긴다. **이벤트가 곧 백업이다** — DB 가 없어도
 체인만 읽어 트리와 증명 경로를 되살릴 수 있다(`scripts/rebuild-from-chain.mjs`).
@@ -27,12 +32,12 @@ npx hardhat node       # 터미널 1 (chainId 31337)
 npm run deploy:local   # 터미널 2
 
 # SSAFY 네트워크 배포 (chainId 31221) — 관리자 키로 배포, 릴레이어는 주소만. prod 는 deployments/README.md 절차
-DEPLOY_ENV=dev  ANCHOR_ADMIN_PRIVATE_KEY=0x…  ANCHOR_RELAYER=0x…  npm run deploy:ssafy
+DEPLOY_ENV=prod  ANCHOR_ADMIN_PRIVATE_KEY=0x…  ANCHOR_RELAYER=0x…  npm run deploy:ssafy
 
-# 복구 검증 — 체인만 읽어 batchId 의 트리를 재구축해 rootOf 와 대조
-npm run rebuild -- --batch-id 1 [--out ./bundles]
-# 실체인 E2E — 앵커 → 체인만으로 재구축 → 위조 대조군 → 역할 분리 확인
-RELAYER_PRIVATE_KEY=0x… npm run demo:recovery -- --batch-id 2 --leaves 5
+# 복구 검증 — 체인만 읽어 그 루트의 트리를 재구축해 anchoredAt · isIncluded 와 대조 (읽기 전용, prod 에 돌려도 흔적 없음)
+npm run rebuild -- --root 0x… [--out ./bundles]
+# 실체인 E2E — 앵커 → 체인만으로 재구축 → 위조 대조군 → 역할 분리 확인 (로컬 Hardhat 전용. prod 는 거부한다)
+RELAYER_PRIVATE_KEY=0x… npm run demo:recovery -- --network localhost --leaves 5
 ```
 
 배포하면 `deployments/<env>/CommitAnchor.json`(커밋 대상)에 주소·관리자·릴레이어가 기록되고, ABI 가
@@ -46,7 +51,7 @@ RELAYER_PRIVATE_KEY=0x… npm run demo:recovery -- --batch-id 2 --leaves 5
 | 관리자 | `DEFAULT_ADMIN_ROLE` | `grantRole` / `revokeRole`. **anchor 는 못 한다** | 서버 밖(비밀번호 관리자) |
 | 릴레이어 | `ANCHOR_ROLE` | `anchor` 만. 롤을 나눠 주지 못한다 | `backend/.env` |
 
-릴레이어 키가 새면 피해는 "안 쓴 batchId 에 쓰레기 루트를 올린다"까지다. 관리자 키로
+릴레이어 키가 새면 피해는 "쓰레기 루트를 올린다"까지다(이미 박힌 루트는 못 지운다). 관리자 키로
 `revokeRole` + 새 키 `grantRole` 하면 재배포 없이 끝난다. 관리자 키까지 서버에 있으면
 공격자가 롤을 영구히 가져가 재배포밖에 답이 없다 — 그래서 나눈다.
 
@@ -67,27 +72,23 @@ SSAFY 체인엔 Shanghai 가 도입한 `PUSH0` opcode 가 없다. solc 0.8.20+ �
 에러 메시지도 `missing revert data` 뿐이라 컨트랙트 코드를 의심하게 된다. 코드 문제가 아니다.
 `hardhat.config.js` 의 `evmVersion: 'paris'` 가 그 방어선이다.
 
-## 함정 2 — DB 를 초기화하면 컨트랙트도 새로 배포해야 한다
+## 함정 2 — (v3 에서 해소) DB 를 초기화하면 컨트랙트도 새로 배포해야 했다
 
-온체인 batchId 는 DB 의 `anchor_batches.id` 를 그대로 쓴다(서버가 멱등키로 넘긴다).
-그래서 **DB 수명과 컨트랙트 수명이 묶인다**:
+**v3(ANT-CHAIN-13) 이후로는 해당 없다.** 장부 칸의 키가 머클루트라 DB 번호가 체인에 가지 않는다 —
+DB 를 초기화해도, 여러 DB(로컬·데모·복원 전 운영)가 한 컨트랙트를 써도 칸이 부딪히지 않는다. 컨트랙트 수명과 DB 수명이 풀렸다.
+아래는 v2 시절 기록이다(왜 v3 로 바꿨는지의 근거).
+
+v2 는 온체인 batchId 로 DB 의 `anchor_batches.id` 를 그대로 썼다(서버가 멱등키로 넘겼다). 그래서 **DB 수명과 컨트랙트 수명이 묶였다**:
 
 ```
 docker compose down -v  →  id 시퀀스가 1 로 리셋  →  다음 앵커가 batchId=1 로 나감
                         →  체인엔 이미 batchId=1 이 있음  →  BatchAlreadyAnchored 영구 revert
 ```
 
-| 상황 | 대응 |
-|---|---|
-| 개발 중 DB 초기화 | **컨트랙트를 새로 배포**하고 `CONTRACT_COMMIT_ANCHOR` 교체. 가스가 0 이라 비용 없음 |
-| 운영 DB 복구·이관 | `ALTER TABLE anchor_batches ALTER COLUMN id RESTART WITH <온체인 최대 batchId + 1>` (identity 컬럼이라 `ALTER SEQUENCE` 가 아니다) |
+v2 대응은 "컨트랙트 재배포" 또는 "`ALTER TABLE anchor_batches ALTER COLUMN id RESTART WITH <온체인 최대 + 1>`" 뿐이었다.
+데모·Live 테스트는 여전히 prod 에 돌리지 않는다 — 부딪히진 않지만 운영 장부에 흔적이 영원히 남는다(`demo-recovery.mjs` 는 prod 를 거부한다).
 
-`BatchAlreadyAnchored` 가 갑자기 계속 난다면 컨트랙트 버그가 아니라 십중팔구 이 상황이다.
-
-**prod 배포본(`deployments/prod/CommitAnchor.json`)은 운영 DB 전용이라 이 표가 없다** — 운영 batchId 는 운영 DB 의
-`anchor_batches.id` 만 쓴다. 데모·Live 테스트를 prod 에 돌리지 않는다(`demo-recovery.mjs` 는 prod 를 거부한다).
-
-**⚠️ dev 배포본(`deployments/dev/CommitAnchor.json`, `0x07f8CfE2…6D6a`)의 소모된 batchId — 여기에 계속 적는다:**
+**(역사) 폐기된 dev v2 배포본(`deployments/dev/CommitAnchor.json`, `0x07f8CfE2…6D6a`)의 소모된 batchId:**
 
 | batchId | 누가 | 언제 | 루트(앞 8자) |
 |---|---|---|---|
@@ -96,12 +97,9 @@ docker compose down -v  →  id 시퀀스가 1 로 리셋  →  다음 앵커가
 | 3 | CHAIN-05 Live 테스트(3리프) | 2026-09-04 | `0x95a9ac4e` |
 | 4 | CHAIN-02 PostgreSQL 실기 — 서버 스케줄러가 보낸 첫 배치(2리프) | 2026-09-04 | `0xe44f2a9f` |
 
-서버가 이 컨트랙트에 처음 앵커할 때 DB `anchor_batches` 시퀀스가 위 번호와 겹치면 서버는 체인 루트와 자기 루트를 비교해
-**`BATCH_ID_COLLISION` 으로 FAILED** 처리한다(잘못 확정하진 않는다 — ANT-CHAIN-02). 그래도 그 배치는 사람이 풀어야 한다. 대응은 둘 중 하나 — ① 컨트랙트를 새로 배포하고 `CONTRACT_COMMIT_ANCHOR` 교체(운영 권장, 가스 0)
-② `ALTER TABLE anchor_batches ALTER COLUMN id RESTART WITH <표의 최대 + 1>` (로컬 개발용). 로컬 실기에서 새 번호를 태웠으면 표에 추가한다.
-
-인덱서(ANT-CHAIN-04)는 이 표의 번호를 전부 `Anchored` 이벤트로 받는다. 내 DB 에 없는 번호는 "DB 에 없는 배치" 경고 한 줄로 남고
-`chain_events` 에는 적재된다 — 정상이다. 내 DB 의 배치와 번호는 같은데 루트가 다르면 그 배치를 `BATCH_ID_COLLISION` FAILED 로 바꾼다.
+v2 서버는 이 번호와 겹치면 `BATCH_ID_COLLISION` 으로 FAILED 처리했다. v3 서버·인덱서에는 그 판정이 없다 —
+인덱서는 이벤트의 루트로 `anchor_batches.merkle_root` 를 찾고, 내 DB 에 없는 루트는 "DB 에 없는 루트" 경고 한 줄로 남기고
+`chain_events` 에 적재한다(정상이다).
 재배포하면 `INDEXER_FROM_BLOCK` 을 새 배포 블록(`deployments/<env>/CommitAnchor.json` 의 `blockNumber`)으로 올려라 — 옛 주소의 이벤트는 주소 필터로 어차피 안 오지만, 첫 동기화가 배포 이전 구간을 헛되이 훑는다.
 
 ## 함정 3 — SSAFY 배포는 Hardhat 을 거치지 않는다
@@ -117,13 +115,14 @@ SSAFY 가 공개한 RPC 는 `wss://ws.ssafy-blockchain.com` 웹소켓 하나뿐�
 서버 쪽 규격이나 리프 순서(prediction id 오름차순)가 틀어진 것이다. 픽스처 `test/fixtures/merkle-cross-fixture.json` 을
 Java 테스트와 Solidity 테스트가 같이 읽으므로 CI 에서 먼저 잡혀야 정상이다.
 
-## 설계 요약 (근거: `.claude/docs-personal/impl/ANT-CHAIN-08/plan.md`)
+## 설계 요약 (근거: `.claude/docs-personal/impl/ANT-CHAIN-08/plan.md` · `impl/ANT-CHAIN-13/plan.md`)
 
-- `anchor(batchId, merkleRoot, commitHashes[])` — `ANCHOR_ROLE` 만. 루트 재계산·대조. **덮어쓰기 불가.**
-- `rootOf(batchId)` — 누구나. 미앵커면 `bytes32(0)`.
-- `isIncluded(batchId, commitHash, proof[])` — 누구나. 검증 API·FE 가 `eth_call` 로 쓴다.
-- `Anchored(batchId indexed, merkleRoot, commitHashes[])` — 인덱서 구독 이벤트. 순서 = 리프 순서.
-- batchId 는 서버가 정한다 = 온체인 멱등키. 업그레이더블 프록시 안 씀. 리프는 storage 에 안 둔다.
+- `anchor(merkleRoot, commitHashes[])` — `ANCHOR_ROLE` 만. 루트 재계산·대조(`RootMismatch`). 같은 루트 재전송은 `AlreadyAnchored`. **덮어쓰기 불가.**
+- `anchoredAt(merkleRoot)` — 누구나. 박힌 블록 번호, 미앵커면 `0`. 서버 재시도 판단과 FE 검증이 쓴다.
+- `isIncluded(merkleRoot, commitHash, proof[])` — 누구나. 미앵커 루트면 `false`. FE 가 `eth_call` 로 쓴다.
+- `Anchored(merkleRoot indexed, commitHashes[])` — 인덱서 구독 이벤트. 순서 = 리프 순서.
+- 루트가 곧 온체인 멱등키다 — DB 번호는 체인에 가지 않는다. 업그레이더블 프록시 안 씀. 리프는 storage 에 안 둔다.
+- 커스텀 에러: `AlreadyAnchored(root) · EmptyRoot · EmptyCommitCount · RootMismatch(expected, computed)` + OZ `AccessControlUnauthorizedAccount`.
 
 ---
 

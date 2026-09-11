@@ -39,73 +39,78 @@ class CommitAnchorConfigTest {
     }
 
     @Test
-    @DisplayName("ABI에_anchor_rootOf_isIncluded_Anchored가_모두_있다")
-    void ABI에_anchor_rootOf_isIncluded_Anchored가_모두_있다() {
+    @DisplayName("ABI에_anchor_anchoredAt_isIncluded_Anchored가_모두_있다")
+    void ABI에_anchor_anchoredAt_isIncluded_Anchored가_모두_있다() {
         // 컨트랙트 표면이 바뀌면 여기서 먼저 깨져야 한다.
-        // 릴레이어가 첫 tx 를 보내는 순간에 알게 되면 늦다.
-        assertThat(memberNames("function")).contains("anchor", "rootOf", "isIncluded");
+        // 릴레이어가 첫 tx 를 보내는 순간에 알게 되면 늦다. v2 의 rootOf 가 남아 있으면 v2 ABI 다.
+        assertThat(memberNames("function")).contains("anchor", "anchoredAt", "isIncluded").doesNotContain("rootOf");
         assertThat(memberNames("event")).contains("Anchored");
     }
 
     @Test
-    @DisplayName("anchor는_batchId_merkleRoot_commitHashes배열_3인자다")
-    void anchor는_batchId_merkleRoot_commitHashes배열_3인자다() {
-        // 배포된 컨트랙트가 API 명세 §4.3 v2 정정본과 같은 시그니처인지 못박는다.
-        // v1 은 3번째가 uint256 commitCount 였다. v2(ANT-CHAIN-08)는 bytes32[] commitHashes 다 —
-        // 리프 전량이 tx 에 실려야 체인만으로 복구가 된다. 여기서 uint256 이 나오면 v1 ABI 가 남은 것이다.
+    @DisplayName("anchor는_merkleRoot_commitHashes배열_2인자다_batchId가_없다")
+    void anchor는_merkleRoot_commitHashes배열_2인자다_batchId가_없다() {
+        // v3(ANT-CHAIN-13): 칸의 키가 루트라 DB 배치 id 가 인자에서 빠졌다. 여기서 uint256 이 나오면 v2 ABI 가 남은 것이다.
+        // commitHashes 배열은 v2(ANT-CHAIN-08)부터 그대로 — 리프 전량이 tx 에 실려야 체인만으로 복구가 된다.
         JsonNode anchor = member("function", "anchor");
         assertThat(anchor).isNotNull();
 
         JsonNode inputs = anchor.get("inputs");
-        assertThat(inputs).hasSize(3);
-        assertThat(inputs.get(0).path("type").asText()).isEqualTo("uint256");
-        assertThat(inputs.get(0).path("name").asText()).isEqualTo("batchId");
-        assertThat(inputs.get(1).path("type").asText()).isEqualTo("bytes32");
-        assertThat(inputs.get(2).path("type").asText()).isEqualTo("bytes32[]");
-        assertThat(inputs.get(2).path("name").asText()).isEqualTo("commitHashes");
+        assertThat(inputs).hasSize(2);
+        assertThat(inputs.get(0).path("type").asText()).isEqualTo("bytes32");
+        assertThat(inputs.get(0).path("name").asText()).isEqualTo("merkleRoot");
+        assertThat(inputs.get(1).path("type").asText()).isEqualTo("bytes32[]");
+        assertThat(inputs.get(1).path("name").asText()).isEqualTo("commitHashes");
     }
 
     @Test
-    @DisplayName("Anchored_이벤트는_batchId가_indexed이고_commitHashes배열을_싣는다")
-    void Anchored_이벤트는_batchId가_indexed이고_commitHashes배열을_싣는다() {
-        // 인덱서(ANT-CHAIN-04)가 batchId 로 로그를 필터링하고, commitHashes 로 트리를 재구축한다.
+    @DisplayName("Anchored_이벤트는_merkleRoot가_indexed이고_commitHashes배열을_싣는다")
+    void Anchored_이벤트는_merkleRoot가_indexed이고_commitHashes배열을_싣는다() {
+        // 인덱서가 루트로 로그를 필터링·매칭하고(anchor_batches.merkle_root), commitHashes 로 트리를 재구축한다.
         // indexed 가 빠지면 전체 로그를 받아 직접 걸러야 하고, 배열이 빠지면 복구 경로가 사라진다.
         JsonNode inputs = member("event", "Anchored").get("inputs");
-        assertThat(inputs).hasSize(3);
-        assertThat(inputs.get(0).path("name").asText()).isEqualTo("batchId");
+        assertThat(inputs).hasSize(2);
+        assertThat(inputs.get(0).path("name").asText()).isEqualTo("merkleRoot");
         assertThat(inputs.get(0).path("indexed").asBoolean()).isTrue();
-        assertThat(inputs.get(2).path("name").asText()).isEqualTo("commitHashes");
-        assertThat(inputs.get(2).path("type").asText()).isEqualTo("bytes32[]");
-        assertThat(inputs.get(2).path("indexed").asBoolean()).isFalse(); // indexed 면 해시만 남아 값이 사라진다
+        assertThat(inputs.get(1).path("name").asText()).isEqualTo("commitHashes");
+        assertThat(inputs.get(1).path("type").asText()).isEqualTo("bytes32[]");
+        assertThat(inputs.get(1).path("indexed").asBoolean()).isFalse(); // indexed 면 해시만 남아 값이 사라진다
     }
 
     @Test
-    @DisplayName("isIncluded는_batchId_commitHash_proof배열을_받아_bool을_돌려준다")
-    void isIncluded는_batchId_commitHash_proof배열을_받아_bool을_돌려준다() {
+    @DisplayName("isIncluded는_merkleRoot_commitHash_proof배열을_받아_bool을_돌려준다")
+    void isIncluded는_merkleRoot_commitHash_proof배열을_받아_bool을_돌려준다() {
         // 검증 API(ANT-CHAIN-06)와 FE 가 eth_call 로 쓰는 표면. view 라 상태를 바꾸지 않아야 한다.
         JsonNode fn = member("function", "isIncluded");
         assertThat(fn).isNotNull();
         assertThat(fn.path("stateMutability").asText()).isEqualTo("view");
         JsonNode inputs = fn.get("inputs");
         assertThat(inputs).hasSize(3);
+        assertThat(inputs.get(0).path("type").asText()).isEqualTo("bytes32"); // v3: 첫 인자가 루트
         assertThat(inputs.get(1).path("type").asText()).isEqualTo("bytes32");
         assertThat(inputs.get(2).path("type").asText()).isEqualTo("bytes32[]");
         assertThat(fn.get("outputs").get(0).path("type").asText()).isEqualTo("bool");
     }
 
     @Test
-    @DisplayName("커스텀_에러_5종이_ABI에_들어_있다")
-    void 커스텀_에러_5종이_ABI에_들어_있다() {
+    @DisplayName("anchoredAt은_루트를_받아_블록번호를_돌려주는_view다")
+    void anchoredAt은_루트를_받아_블록번호를_돌려주는_view다() {
+        JsonNode fn = member("function", "anchoredAt");
+        assertThat(fn).isNotNull();
+        assertThat(fn.path("stateMutability").asText()).isEqualTo("view");
+        assertThat(fn.get("inputs").get(0).path("type").asText()).isEqualTo("bytes32");
+        assertThat(fn.get("outputs").get(0).path("type").asText()).isEqualTo("uint256");
+    }
+
+    @Test
+    @DisplayName("커스텀_에러_4종이_ABI에_들어_있다")
+    void 커스텀_에러_4종이_ABI에_들어_있다() {
         // 릴레이어가 revert 사유를 디코딩하려면 ABI 에 에러 정의가 있어야 한다.
         // "리버트했다"가 아니라 "어떤 에러로 리버트했다"를 알아야 재시도 여부가 갈린다 —
-        // BatchAlreadyAnchored 는 재시도하면 안 되고(이미 성공), RootMismatch 는 배치 로직 버그다.
+        // AlreadyAnchored 는 재시도하면 안 되고(이미 성공), RootMismatch 는 배치 로직 버그다.
         assertThat(memberNames("error"))
-                .contains(
-                        "BatchAlreadyAnchored",
-                        "InvalidBatchId",
-                        "EmptyRoot",
-                        "EmptyCommitCount",
-                        "RootMismatch");
+                .contains("AlreadyAnchored", "EmptyRoot", "EmptyCommitCount", "RootMismatch")
+                .doesNotContain("BatchAlreadyAnchored", "InvalidBatchId");
     }
 
     private java.util.List<String> memberNames(String type) {

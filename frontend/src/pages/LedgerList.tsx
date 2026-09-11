@@ -56,7 +56,7 @@ export default function LedgerList() {
               <li key={a.id} className="lg-item">
                 <div className="lg-head">
                   <div className="lg-title">
-                    {/* 배치 번호가 곧 온체인 batchId 다 */}
+                    {/* DB 배치 번호. 체인 조회 키는 루트다(v3, ANT-CHAIN-13) */}
                     <span className="lg-batch num">{`#${a.id}`}</span>
                     <span className="lg-date">{formatBusinessDate(a.businessDate)}</span>
                   </div>

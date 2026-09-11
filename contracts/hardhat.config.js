@@ -26,8 +26,12 @@ module.exports = {
   },
 
   networks: {
-    // 인프로세스 네트워크. `hardhat test` 가 쓴다 — RPC 가 필요 없다.
-    hardhat: { chainId: 31337 },
+    // 인프로세스 네트워크. `hardhat test` 가 쓴다 — RPC 가 필요 없다. `npx hardhat node` 도 이 설정으로 뜬다.
+    //
+    // initialBaseFeePerGas 0 — 서버 TxSender 는 SSAFY 규칙대로 gasPrice 0 으로 서명한다. 기본값(base fee 1 gwei 근처)이면
+    // 로컬 Hardhat 이 "maxFeePerGas (0) is too low" 로 전부 거부해, 로컬 개발(ANT-CHAIN-12 결정: 로컬은 Hardhat)에서
+    // 앵커·토큰 tx 가 한 건도 안 나간다. base fee 를 0 으로 두면 SSAFY 와 같은 "가스 공짜" 체인이 된다(ANT-CHAIN-13 에서 발견).
+    hardhat: { chainId: 31337, initialBaseFeePerGas: 0 },
     // `npx hardhat node` 로 띄운 로컬 체인.
     localhost: { url: 'http://127.0.0.1:8545', chainId: 31337 },
     //

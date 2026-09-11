@@ -102,7 +102,7 @@ function emit(info, artifact, opts = {}) {
     throw new Error('emit 에 environment 가 없다 — 어느 폴더에 기록할지 모른다.');
   }
   const contractName = opts.contractName || DEFAULT_CONTRACT;
-  const version = opts.version ?? 2; // CommitAnchor v2(ANT-CHAIN-08). v1 배포본과 ABI 가 다르다.
+  const version = opts.version ?? 3; // CommitAnchor v3(ANT-CHAIN-13 — 칸의 키가 루트). v2 배포본과 ABI 가 다르다.
   const envVar = opts.envVar || 'CONTRACT_COMMIT_ANCHOR';
 
   const deployPath = deploymentPath(environment, contractName);

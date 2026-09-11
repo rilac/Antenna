@@ -2,7 +2,6 @@ package ssafy.a507.backend.domain.chain.anchor;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +17,7 @@ import ssafy.a507.backend.domain.chain.relay.AnchorRevertException;
  * 일일 앵커 실행 (ANT-CHAIN-02). 스케줄러가 하루 한 번 부른다.
  *
  * <pre>
- * ① 재시도  FAILED · 보냈는데 미확정인 PENDING → rootOf ≠ 0 이면 CONFIRMED, 아니면 같은 id 로 재전송
+ * ① 재시도  FAILED · 보냈는데 미확정인 PENDING → anchoredAt(루트) ≠ 0 이면 CONFIRMED, 아니면 같은 루트로 재전송
  * ② 신규    anchor_batch_id IS NULL 인 커밋 전부 → 배치 하나 → 전송 (0건이면 아무것도 안 함)
  * ③ 리빌    판정(HIT/MISS)이 끝난 커밋의 salt 공개
  * </pre>
@@ -33,8 +32,6 @@ import ssafy.a507.backend.domain.chain.relay.AnchorRevertException;
 @Component
 @RequiredArgsConstructor
 public class AnchorRunner {
-
-    private static final byte[] ZERO32 = new byte[32];
 
     private final AnchorBatchService service;
     private final AnchorRelayer relayer;
@@ -73,22 +70,18 @@ public class AnchorRunner {
 
     private void retry(long batchId) {
         AnchorBatchService.Payload p = service.payloadOf(batchId);
-        // 보낸 적 있는 배치는 체인을 먼저 본다 — 이미 박혀 있으면 재전송이 BatchAlreadyAnchored 로 막히지만,
-        // 그 전에 알 수 있는 걸 굳이 tx 로 확인할 이유가 없다.
+        // 보낸 적 있는 배치는 체인을 먼저 본다 — 이미 박혀 있으면 재전송이 AlreadyAnchored 로 막히지만,
+        // 그 전에 알 수 있는 걸 굳이 tx 로 확인할 이유가 없다. v3 는 칸의 키가 루트라 "박혀 있다 = 우리 내용" 이다
+        // (ANT-CHAIN-13). v2 는 여기서 체인의 루트가 남의 것인지(batchId 충돌) 따로 가려야 했다.
         if (service.wasSent(batchId)) {
             try {
-                byte[] onchain = relayer.rootOf(batchId);
-                if (!Arrays.equals(onchain, ZERO32)) {
-                    if (Arrays.equals(onchain, p.merkleRoot())) {
-                        service.confirmByRootCheck(batchId, Instant.now());
-                        log.info("앵커 배치 #{} — rootOf 확인으로 CONFIRMED", batchId);
-                    } else {
-                        markCollision(batchId, onchain);
-                    }
+                if (relayer.anchoredAt(p.merkleRoot()) > 0) {
+                    service.confirmByRootCheck(batchId, Instant.now());
+                    log.info("앵커 배치 #{} — anchoredAt 확인으로 CONFIRMED", batchId);
                     return;
                 }
             } catch (BusinessException e) {
-                log.warn("앵커 배치 #{} rootOf 조회 실패({}) — 이번 실행은 건너뜀", batchId, e.getErrorCode());
+                log.warn("앵커 배치 #{} anchoredAt 조회 실패({}) — 이번 실행은 건너뜀", batchId, e.getErrorCode());
                 return;
             }
         }
@@ -96,31 +89,13 @@ public class AnchorRunner {
         send(p);
     }
 
-    /**
-     * 체인의 batchId 에 <b>남의 루트</b>가 박혀 있다. 우리가 보낸 적 없는 번호를 다른 배포(데모·테스트)나 다른
-     * DB 가 먼저 썼다는 뜻이다 — contracts/README.md 함정 2. 성공으로 넘기면 남의 루트를 우리 배치로 확정하게 된다.
-     * 재시도해도 같은 결과라 FAILED 로 두고, 운영자가 DB id 를 건너뛰거나 재배포해야 한다.
-     */
-    private void markCollision(long batchId, byte[] onchain) {
-        String reason = "BATCH_ID_COLLISION: onchain root " + hex(onchain) + " != ours";
-        service.markFailed(batchId, reason);
-        log.error("앵커 배치 #{} — batchId 충돌. 체인에 다른 루트가 있다({}). DB id 를 건너뛰거나 컨트랙트를 재배포해라", batchId, hex(onchain));
-    }
-
     private void send(AnchorBatchService.Payload p) {
         int max = Math.max(1, props.anchor().retry().count());
         for (int attempt = 1; attempt <= max; attempt++) {
             service.markSending(p.batchId());
             try {
-                AnchorResult result = relayer.anchor(p.batchId(), p.merkleRoot(), p.commitHashes());
-                if (result.status() == AnchorResult.Status.ALREADY_ANCHORED) {
-                    // "이미 앵커됨" 은 우리 루트일 때만 성공이다. 체인의 루트가 우리 것과 다르면 batchId 충돌.
-                    byte[] onchain = relayer.rootOf(p.batchId());
-                    if (!Arrays.equals(onchain, p.merkleRoot())) {
-                        markCollision(p.batchId(), onchain);
-                        return;
-                    }
-                }
+                // ALREADY_ANCHORED 는 곧 성공이다 — 같은 루트 = 같은 내용(ANT-CHAIN-13).
+                AnchorResult result = relayer.anchor(p.merkleRoot(), p.commitHashes());
                 service.recordResult(p.batchId(), result, Instant.now());
                 log.info(
                         "앵커 배치 #{} → {} tx={} block={}",

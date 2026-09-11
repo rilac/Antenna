@@ -4,32 +4,32 @@ pragma solidity 0.8.28;
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
- * @title CommitAnchor (v2 — ANT-CHAIN-08)
+ * @title CommitAnchor (v3 — ANT-CHAIN-13)
  * @notice 앤테나가 하루에 한 번 봉인한 예측 커밋들의 머클루트를 체인에 박는다.
  *
  * 이 서비스가 "예측 기록은 위변조 불가"라고 말할 수 있는 근거는 전부 이 컨트랙트 하나에 걸려 있다.
  * 루트가 체인에 올라간 뒤에는 서버가 그 회차의 예측을 단 한 글자도 고쳐 쓸 수 없다 —
  * 고치면 리프 해시가 바뀌고, 머클 증명으로 루트를 복원했을 때 체인의 값과 안 맞는다.
  *
- * ── v1(ANT-CHAIN-01)에서 바뀐 것 ───────────────────────────────────────
+ * ── v2(ANT-CHAIN-08)에서 바뀐 것 — 저장 칸의 키 ─────────────────────────
  *
- * v1 은 루트 32바이트만 받았다. 루트는 "무엇이 있었다"의 지문이지 내용이 아니라서,
- * 서버 DB 의 커밋 해시 목록이 사라지면 그 루트로는 아무것도 증명하지 못했다.
- * v2 는 커밋 해시 전량을 인자로 받아
- *   ① 컨트랙트가 그 리프들로 루트를 **다시 계산해 서버가 준 루트와 대조**하고 (RootMismatch)
- *   ② 커밋 해시 목록을 이벤트로 남긴다 — 이벤트가 곧 백업이다. 인덱서가 체인만 다시 읽어
- *      리프 → 트리 → 증명 경로를 재구축할 수 있다.
- * 가스가 0 인 체인이라 "리프 500개를 tx 에 싣는 비용"이라는 v1 때의 반대 근거는 사라졌다.
+ * v2 는 루트를 `_roots[batchId]` 에 적었다. batchId 는 서버 DB 의 anchor_batches.id 였다. 그런데 DB 는
+ * 하나가 아니다(팀원 로컬 · 테스트 · 운영 · 백업에서 복원한 DB). 컨트랙트의 번호 공간은 하나라서 두 DB 가
+ * 같은 번호를 쓰는 순간 "남의 루트가 박힌 칸" 을 만났고(BATCH_ID_COLLISION), DB 를 초기화하면 번호가 1 로
+ * 돌아가 운영도 같은 일을 겪을 수 있었다.
  *
- * ── 여전히 안 하는 것 ─────────────────────────────────────────────────
+ * v3 는 **머클루트 자체를 칸의 키로** 쓴다. 루트는 그 회차 커밋 해시들로 계산한 값이라
+ *   ① 내용이 다르면 칸이 다르다 — DB 가 몇 개든, 몇 번 초기화하든 부딪힐 수 없다
+ *   ② 같은 루트가 두 번 오면 그건 같은 내용이다 — 재전송을 성공으로 봐도 남의 것을 내 것으로 오판하지 않는다
+ * 그래서 서버의 "충돌 판정" 코드가 통째로 사라진다. 서버가 넘기던 batchId 는 인자에서도 빠진다.
  *
- * 1. 업그레이더블 프록시를 쓰지 않는다. 앵커링에서 "관리자가 로직을 바꿀 수 있다"는
- *    기능이 아니라 취약점이다 — 덮어쓰기를 허용하는 로직으로 갈아끼우는 순간 과거 앵커가 무의미해진다.
- * 2. 사용자 서명을 검증하지 않는다. tx 는 서버 릴레이어가 자기 키로 보낸다. 사용자 서명은
- *    예측 등록 시점에 백엔드가 EIP-191 로 검증하고, 그 결과가 커밋 해시에 녹아 리프로 들어간다.
- * 3. 리프를 storage 에 저장하지 않는다. 저장은 루트뿐이다. 포함 증명은 isIncluded() 가
- *    proof 를 접어 확인하고, 리프 목록은 이벤트 로그에서 읽는다. "체인 storage 에는 검증에
- *    꼭 필요한 것만"이라는 v1 원칙은 그대로다.
+ * ── v2 에서 그대로인 것 ─────────────────────────────────────────────
+ *
+ * 1. 커밋 해시 전량을 인자로 받아 컨트랙트가 **루트를 다시 계산해 대조**한다(RootMismatch). 체인에 박힌 루트는
+ *    이벤트에 공개된 목록과 반드시 짝이 맞는다 — DB 가 사라져도 체인만으로 증명을 재구축할 수 있다.
+ * 2. 업그레이더블 프록시를 쓰지 않는다. 앵커링에서 "관리자가 로직을 바꿀 수 있다"는 기능이 아니라 취약점이다.
+ * 3. 사용자 서명을 검증하지 않는다. tx 는 서버 릴레이어가 자기 키로 보낸다.
+ * 4. 리프를 storage 에 저장하지 않는다. 저장은 "이 루트가 몇 번 블록에 박혔나" 하나뿐이다.
  *
  * ── 머클 규격 — 서버(MerkleTree.java)·픽스처 생성기와 바이트 단위로 같아야 한다 ──
  *
@@ -40,35 +40,29 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
  *
  * 리프에 한 겹 더 해시를 얹는 이유: 내부 노드도 32바이트라, 커밋 해시를 그대로 리프로 쓰면
  * 내부 노드를 "내 커밋"이라고 위장한 가짜 포함 증명이 통과한다(2차 프리이미지).
- * 리프 해시는 입력 32B, 내부 노드는 입력 64B 라 두 도메인이 원리적으로 겹칠 수 없다.
  */
 contract CommitAnchor is AccessControl {
     /// 앵커 트랜잭션을 보낼 수 있는 롤. 서버 릴레이어 주소가 갖는다. 관리자는 갖지 않는다.
     bytes32 public constant ANCHOR_ROLE = keccak256("ANCHOR_ROLE");
 
     /**
-     * batchId → 머클루트.
+     * 머클루트 → 그 루트가 박힌 블록 번호. 0 이면 미앵커.
      *
-     * batchId 는 컨트랙트가 자동 증가시키지 않고 서버가 넘긴다 (= anchor_batches.id).
-     *  ① 온체인 멱등키가 생긴다. 릴레이어가 "tx 는 나갔는데 응답을 못 받은" 상태에서 재시도해도
-     *     같은 루트가 두 번 박히지 않는다 — 되돌릴 수 없는 기록이라 재전송 방어가 없으면 못 쓴다.
-     *  ② DB id 와 온체인 batchId 가 같은 번호라, 검증하는 사람에게 "GET /anchors/{id} 의 그 번호를
-     *     체인에서 rootOf 로 직접 조회해 보라"고 말할 수 있다.
+     * 값을 bool 이 아니라 블록 번호로 두는 이유: 검증하는 사람이 "언제 박혔나" 를 이벤트를 뒤지지 않고 한 번에 읽는다.
+     * tx 는 0번 블록(제네시스)에 들어갈 수 없으므로 0 을 "미앵커" 센티널로 쓸 수 있다.
      */
-    mapping(uint256 batchId => bytes32 merkleRoot) private _roots;
+    mapping(bytes32 merkleRoot => uint256 blockNumber) private _anchoredAt;
 
     /**
      * 인덱서(ANT-CHAIN-04)가 구독하는 유일한 이벤트. commitHashes 의 순서가 곧 리프 순서다 —
      * 복구할 때 이 순서 그대로 트리를 다시 만들어야 같은 proof 가 나온다.
-     * batchId 만 indexed 다. 로그 필터로 찾는 키가 이것뿐이다.
+     * merkleRoot 만 indexed 다. 로그 필터로 찾는 키이자 서버 DB(anchor_batches.merkle_root)와 맞추는 키다.
      */
-    event Anchored(uint256 indexed batchId, bytes32 merkleRoot, bytes32[] commitHashes);
+    event Anchored(bytes32 indexed merkleRoot, bytes32[] commitHashes);
 
-    /// 같은 batchId 가 이미 앵커됐다. 릴레이어 재전송이 여기서 막힌다.
-    error BatchAlreadyAnchored(uint256 batchId);
-    /// batchId 가 0. 0 은 "아직 앵커 안 됨" 센티널로 비워 둔다.
-    error InvalidBatchId();
-    /// 서버가 준 머클루트가 0. 체인에 0 루트가 남으면 rootOf 의 "앵커 여부" 판정이 무너진다.
+    /// 같은 루트가 이미 앵커됐다. 같은 내용의 재전송이라 서버는 이것을 성공으로 본다.
+    error AlreadyAnchored(bytes32 merkleRoot);
+    /// 서버가 준 머클루트가 0. 0 은 어떤 칸의 키로도 쓰지 않는다.
     error EmptyRoot();
     /// 커밋 해시가 0 건. 빈 배치는 앵커 대상이 아니다 — 서버가 애초에 tx 를 보내면 안 된다.
     error EmptyCommitCount();
@@ -83,11 +77,8 @@ contract CommitAnchor is AccessControl {
      * @param admin   롤을 부여·회수할 관리자. 서버 밖에 두는 키다. anchor 는 못 한다.
      * @param relayer 앵커 tx 를 보낼 서버 릴레이어. anchor 만 할 수 있고 롤은 못 나눠 준다.
      *
-     * 둘을 생성자에서 분리해 받는 이유: 릴레이어 키는 서버 .env 에 있어 유출면이 넓다.
-     * 그 키가 새도 피해는 "안 쓴 batchId 에 쓰레기 루트를 올린다"까지이고, 관리자 키로
-     * revokeRole + grantRole 하면 재배포 없이 끝난다. 관리자 키까지 같은 키였다면 공격자가
-     * 롤을 영구히 가져가 재배포(새 주소·과거 배치 검증 경로 분기)밖에 답이 없다.
-     * 로컬 개발에서는 같은 주소를 둘 다 넘겨도 된다.
+     * 릴레이어 키가 새도 피해는 "쓰레기 루트를 올린다"까지이고, 관리자 키로 revokeRole + grantRole 하면
+     * 재배포 없이 끝난다. 로컬 개발에서는 같은 주소를 둘 다 넘겨도 된다.
      */
     constructor(address admin, address relayer) {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
@@ -96,64 +87,56 @@ contract CommitAnchor is AccessControl {
 
     /**
      * @notice 한 회차의 머클루트를 체인에 박는다. 매일 1회, 앵커 배치(ANT-CHAIN-02)가 릴레이어로 호출한다.
-     * @param batchId      anchor_batches.id. 서버가 정한다
-     * @param merkleRoot   서버가 계산한 루트. 컨트랙트가 commitHashes 로 다시 계산해 대조한다
+     * @param merkleRoot   서버가 계산한 루트. 컨트랙트가 commitHashes 로 다시 계산해 대조한다. 칸의 키가 된다
      * @param commitHashes 그 회차의 커밋 해시 전량. 순서 = 리프 순서(서버는 prediction id 오름차순)
      *
-     * 검사 순서는 batchId → 루트 0 → 빈 배열 → 중복 → 루트 대조다. 대조를 마지막에 두는 건
+     * 검사 순서는 루트 0 → 빈 배열 → 이미 있음 → 루트 대조다. 대조를 마지막에 두는 건
      * 싼 검사로 걸러질 오류가 RootMismatch 로 위장되면 원인을 엉뚱한 데서 찾게 되기 때문이다.
      * 덮어쓰기가 없다는 게 이 함수의 전부다. 한 번 쓰면 관리자도 못 바꾼다.
      */
-    function anchor(uint256 batchId, bytes32 merkleRoot, bytes32[] calldata commitHashes)
-        external
-        onlyRole(ANCHOR_ROLE)
-    {
-        if (batchId == 0) revert InvalidBatchId();
+    function anchor(bytes32 merkleRoot, bytes32[] calldata commitHashes) external onlyRole(ANCHOR_ROLE) {
         if (merkleRoot == bytes32(0)) revert EmptyRoot();
         if (commitHashes.length == 0) revert EmptyCommitCount();
-        if (_roots[batchId] != bytes32(0)) revert BatchAlreadyAnchored(batchId);
+        if (_anchoredAt[merkleRoot] != 0) revert AlreadyAnchored(merkleRoot);
 
         bytes32 computed = _computeRoot(commitHashes);
         if (computed != merkleRoot) revert RootMismatch(merkleRoot, computed);
 
-        _roots[batchId] = merkleRoot;
-        emit Anchored(batchId, merkleRoot, commitHashes);
+        _anchoredAt[merkleRoot] = block.number;
+        emit Anchored(merkleRoot, commitHashes);
     }
 
     /**
-     * @notice 저장된 머클루트를 읽는다. 권한 제한 없음 — 누구나 검증할 수 있어야 한다.
-     * @return 앵커되지 않은 batchId 면 bytes32(0).
+     * @notice 이 루트가 박힌 블록 번호. 권한 제한 없음 — 누구나 검증할 수 있어야 한다.
+     * @return 앵커되지 않은 루트면 0
      *
-     * 없는 batchId 에 revert 하지 않는 건 의도한 것이다. 검증 화면이 "아직 앵커 전" 상태를
-     * 예외 처리 없이 그대로 표시할 수 있어야 한다. anchor() 가 0 루트를 막아 두므로
-     * "0 이 아니다 == 앵커됐다" 가 빈틈없이 성립한다.
+     * 없는 루트에 revert 하지 않는 건 의도한 것이다. 검증 화면이 "아직 앵커 전" 상태를
+     * 예외 처리 없이 그대로 표시할 수 있어야 한다.
      */
-    function rootOf(uint256 batchId) external view returns (bytes32) {
-        return _roots[batchId];
+    function anchoredAt(bytes32 merkleRoot) external view returns (uint256) {
+        return _anchoredAt[merkleRoot];
     }
 
     /**
-     * @notice 커밋 해시가 그 배치에 포함됐는지 proof 로 확인한다. 권한 제한 없음.
+     * @notice 커밋 해시가 그 루트의 회차에 포함됐는지 proof 로 확인한다. 권한 제한 없음.
+     * @param merkleRoot 확인할 회차의 루트. 앵커되지 않았으면 어떤 proof 로도 false
      * @param commitHash 커밋 해시 원본(리프가 아니다 — 안에서 도메인 분리 해시를 얹는다)
      * @param proof      아래에서 위로, 각 레벨의 형제 해시. 정렬 결합이라 좌우 정보가 필요 없다
-     * @return 앵커되지 않은 batchId 면 항상 false (루트가 0 이라 어떤 proof 도 0 을 만들지 못한다)
      *
-     * FE 검증 화면과 검증 API(ANT-CHAIN-06)가 eth_call 한 번으로 쓴다. 클라이언트마다 머클
-     * 접기를 다시 구현하지 않게 하려는 것이다 — 규격이 이 함수 하나에 고정된다.
+     * FE 검증 화면이 eth_call 한 번으로 쓴다. 클라이언트마다 머클 접기를 다시 구현하지 않게 — 규격이 이 함수에 고정된다.
      */
-    function isIncluded(uint256 batchId, bytes32 commitHash, bytes32[] calldata proof)
+    function isIncluded(bytes32 merkleRoot, bytes32 commitHash, bytes32[] calldata proof)
         external
         view
         returns (bool)
     {
-        bytes32 root = _roots[batchId];
-        if (root == bytes32(0)) return false;
+        if (_anchoredAt[merkleRoot] == 0) return false;
 
         bytes32 node = keccak256(abi.encodePacked(commitHash));
         for (uint256 i = 0; i < proof.length; i++) {
             node = _hashPair(node, proof[i]);
         }
-        return node == root;
+        return node == merkleRoot;
     }
 
     /**

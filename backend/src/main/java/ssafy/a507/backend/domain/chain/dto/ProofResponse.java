@@ -10,8 +10,8 @@ import ssafy.a507.backend.domain.prediction.entity.Prediction;
 /**
  * GET /api/v1/predictions/{id}/proof 200 응답 — 3단계 검산 재료 일체 (ANT-CHAIN-06, 화면 D-03).
  *
- * <p>서버는 검증하지 않는다. ① {@code hash(payload ‖ salt) == commitHash} ② proof 로 루트 복원 → 체인 {@code rootOf(batchId)}
- * 대조 ③ 판정 종가 ↔ 공공데이터 원본, 셋 다 <b>브라우저가 실행</b>한다. 이 응답은 그 계산의 입력값이다.
+ * <p>서버는 검증하지 않는다. ① {@code hash(payload ‖ salt) == commitHash} ② proof 로 루트 복원 → 체인 {@code anchoredAt(root)}
+ * 조회(v3, ANT-CHAIN-13) ③ 판정 종가 ↔ 공공데이터 원본, 셋 다 <b>브라우저가 실행</b>한다. 이 응답은 그 계산의 입력값이다.
  *
  * <p>명세의 평면 필드(merkleProof·merkleRoot·anchorTxHash·anchorBlockNumber)를 {@link Anchor} 하나로 묶었다(09-06 결정).
  * 앵커 전에는 넷이 각각 null 이 아니라 {@code anchor == null} + {@link #anchorStatus} 하나로 "대기" 를 말한다 —
@@ -61,8 +61,8 @@ public record ProofResponse(
 
     /**
      * 배치와 이 커밋의 자리. {@code merkleProof} 는 아래에서 위로 형제 해시(정렬 결합이라 좌우 정보 없음).
-     * {@code batchId · contractAddress · chainId} 가 브라우저 {@code rootOf} 호출의 인자다(결정 F1) — 재배포 뒤에도
-     * 이 배치는 <b>이 주소</b>의 장부에서 찾아야 한다.
+     * {@code contractAddress · chainId} 가 브라우저 체인 조회의 대상이다(결정 F1) — 재배포 뒤에도 이 배치는 <b>이 주소</b>의
+     * 장부에서 찾아야 한다. 조회 키는 브라우저가 proof 를 접은 루트다(v3, ANT-CHAIN-13) — {@code batchId} 는 표시·링크용 DB 번호.
      */
     public record Anchor(
             long batchId,

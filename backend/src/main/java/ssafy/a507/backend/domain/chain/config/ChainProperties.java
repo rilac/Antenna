@@ -30,7 +30,7 @@ public record ChainProperties(long chainId, String rpcUrl, Relayer relayer, Anch
 
     /**
      * @param cron                  매일 00:05 KST 기본. 테스트는 "-" 로 끈다
-     * @param receiptTimeoutSeconds receipt 대기 상한. 넘기면 "전송됨·미확정"으로 두고 다음 실행이 rootOf 로 확인한다
+     * @param receiptTimeoutSeconds receipt 대기 상한. 넘기면 "전송됨·미확정"으로 두고 다음 실행이 anchoredAt 으로 확인한다
      * @param retry                 실행 안 즉시 재시도(RPC 장애만). revert 는 재시도하지 않는다
      */
     public record Anchor(String cron, int receiptTimeoutSeconds, Retry retry) {

@@ -23,7 +23,7 @@ import ssafy.a507.backend.domain.prediction.repository.PredictionCommitRepositor
  *
  * <p>체인 호출은 여기 없다 — {@link AnchorRunner} 가 트랜잭션 <b>밖</b>에서 릴레이어를 부르고, 결과를
  * 이 클래스의 메서드로 다시 기록한다. 체인 전송을 DB 트랜잭션 안에 넣으면 "체인엔 박혔는데 DB 는 롤백"
- * 이 생긴다. 반대 순서("DB 는 PENDING 인데 체인엔 안 감")는 다음 실행이 rootOf 로 복구할 수 있다.
+ * 이 생긴다. 반대 순서("DB 는 PENDING 인데 체인엔 안 감")는 다음 실행이 anchoredAt 으로 복구할 수 있다.
  */
 @Service
 @RequiredArgsConstructor
@@ -100,7 +100,7 @@ public class AnchorBatchService {
         }
     }
 
-    /** 다음 실행이 rootOf 로 "이미 박혀 있다" 를 확인했을 때. tx·블록은 모른다 — 인덱서가 채운다. */
+    /** 다음 실행이 anchoredAt(루트)으로 "이미 박혀 있다" 를 확인했을 때. tx·블록은 모른다 — 인덱서가 채운다. */
     @Transactional
     public void confirmByRootCheck(long batchId, Instant now) {
         batches.findById(batchId).orElseThrow().markConfirmed(null, null, now);
