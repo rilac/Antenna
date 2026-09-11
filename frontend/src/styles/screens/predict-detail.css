@@ -14,8 +14,11 @@
 
 /* ── 머리 ────────────────────────────────────────────────── */
 .prediction-detail-page .pd-head{margin:0 0 16px}
+/* 앱 안에서 왔으면 <button>(히스토리 -1), 링크로 바로 들어왔으면 <a> 다.
+   둘이 같은 모양이어야 해서 버튼의 기본 꾸밈을 지운다. */
 .prediction-detail-page .pd-back{
   display:inline-flex;align-items:center;gap:5px;margin-bottom:6px;
+  padding:0;border:0;background:none;font:inherit;cursor:pointer;
   color:var(--muted);font-size:12.5px;font-weight:600;border-radius:8px;
 }
 .prediction-detail-page .pd-back:hover{color:var(--ink)}

@@ -191,13 +191,11 @@ export default function Layout({ mode, nav, bodyClass, children }: { mode: Mode;
       </header>
 
       <aside className="rail" id="rail">
+        {/* 워드마크 한 장이다. 접힌 레일에서는 왼쪽 끝(개미 마크)만 남기고 잘라 내고,
+            펼치면 글자까지 드러난다 — 메뉴 아이콘이 잘리는 방식과 같다.
+            alt 에 이름을 적었으므로 aria-label 을 따로 두지 않는다. */}
         <Link className="brand" to="/">
-          <svg className="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-            <rect width="40" height="40" rx="11" fill="currentColor" />
-            <path d="M11.5 29.5 20 11.5l8.5 18" stroke="#fff" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M15.8 24.2h8.4" stroke="#fff" strokeWidth="4.2" strokeLinecap="round" />
-          </svg>
-          <span className="brand-name">ANTENA</span>
+          <img className="brand-logo" src="/assets/logo/antenna-wordmark.png" alt="ANTENNA 홈" />
         </Link>
 
         <nav className="modeswitch" aria-label="서비스 선택">

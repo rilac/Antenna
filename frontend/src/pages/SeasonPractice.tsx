@@ -397,7 +397,7 @@ export default function SeasonPractice() {
               {/* 모의투자 캐릭터는 검정 개미다. 더듬이가 이미지 맨 위에 붙어 있어
                   위가 잘리면 바로 티가 난다 — 아래쪽에 붙여 놓는다. */}
               <figure className="pr-ai-art">
-                <img src="/assets/character/black_ant/antena-character-black.png" alt="" aria-hidden="true" />
+                <img src="/assets/character/black_ant/antenna-character-black.png" alt="" aria-hidden="true" />
               </figure>
             </section>
           </div>

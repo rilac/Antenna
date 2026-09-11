@@ -77,8 +77,16 @@ export type Channel = {
   /** 관심 분야(섹터명). 서버가 주는 문자열을 그대로 쓴다 */
   interests: string[]
   externalLinks: ExternalLink[]
-  /** 현재 구독료(wei 문자열). 내 구독의 paidFee 와 다를 수 있다 */
-  fee: string
+  /**
+   * 현재 구독료(wei 문자열). 내 구독의 paidFee 와 다를 수 있다.
+   *
+   * **아직 정하지 않았으면 null 이다.** 채널은 가입과 함께 존재하지만(publisher_fees 의
+   * publisher_id 가 users.id 를 직접 가리킨다 — 별도 channels 테이블이 없다) 구독료는
+   * 정해야 생긴다. 그 사이 상태가 이 null 이다.
+   *
+   * 0 이 아니다. 0 으로 내리면 무료 채널로 읽힌다(E-04 도 같은 판단, S15P21A507-186).
+   */
+  fee: string | null
   stats: ChannelStats
   mySubscription: MySubscription
   /** 내 채널이면 구독 카드 대신 설정 안내를 그린다 */

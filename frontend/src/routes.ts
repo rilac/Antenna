@@ -111,7 +111,11 @@ export const ROUTES: PageMeta[] = [
   { screen: 'E-02', element: ChannelProfile, path: '/channels/:userId', title: '채널 프로필', access: 'user', mode: 'insight', nav: 'market', story: 'ANT-FE-CHANNEL-PROFILE' },
   { screen: 'E-03', element: SubscriptionList, path: '/me/subscriptions', title: '내 구독', access: 'user', mode: 'insight', nav: 'portfolio', story: 'ANT-FE-SUBSCRIPTION-LIST' },
   { screen: 'E-04', element: ChannelFee, path: '/me/channel', title: '내 채널 설정', access: 'user', mode: 'insight', nav: 'portfolio', story: 'ANT-FE-CHANNEL-FEE' },
-  { screen: 'E-05', element: MyPage, path: '/me', title: '마이페이지', access: 'user', mode: 'insight', nav: 'portfolio', bodyClass: 'mypage-page', story: 'ANT-FE-MYPAGE' },
+  /* nav 가 사이드바 어느 키와도 겹치지 않는다 — 마이페이지는 사이드바가 아니라 상단
+     계정 메뉴로 들어오는 화면이라 아무것도 활성이 아닌 것이 맞다. 전에는 'portfolio' 라
+     /me 에 있는데 예측 포트폴리오에 불이 들어왔다.
+     App.tsx 가 `meta.nav ?? 'home'` 으로 기본값을 주므로 비우면 이번엔 홈이 켜진다. */
+  { screen: 'E-05', element: MyPage, path: '/me', title: '마이페이지', access: 'user', mode: 'insight', nav: 'me', bodyClass: 'mypage-page', story: 'ANT-FE-MYPAGE' },
 
   // ── F. 리포트 · 커뮤니티 ─────────────────────────────
   { screen: 'F-01', element: Reports, path: '/reports', title: '리포트 피드', access: 'user', mode: 'insight', nav: 'report', bodyClass: 'reports-page', story: 'ANT-FE-REPORTS' },

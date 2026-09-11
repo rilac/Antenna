@@ -6,11 +6,12 @@
    - 이 화면은 허브다. 스스로 데이터를 많이 만들지 않고 각 화면으로 보낸다.
    - 배지는 획득분만 표시한다. G-09 와 같은 컴포넌트를 쓴다.
    - 두지 않는 것: 핸들(@) · 구독자 수 · 작성 카운트 · 유저 레벨 · 신뢰도 점수 · 친구.
-     /users/me 응답에 없고 사용자 등급 필드 자체가 없다. 배지와 랭킹 티어뿐이다. */
+     /users/me 응답에 없고 사용자 등급 필드 자체가 없다. 배지와 랭킹 티어뿐이다.
+
+   배지 섹션은 내려 두었다(S15P21A507-230) — 아래 해당 자리의 주석에 근거가 있다. */
 import { Link } from 'react-router-dom'
 import { useApiQuery } from '../api/useApiQuery'
-import { platformLabel, type BadgeList as BadgeListResponse, type MyProfile } from '../api/account'
-import BadgeList from '../components/BadgeList'
+import { platformLabel, type MyProfile } from '../api/account'
 import ErrorState from '../components/state/ErrorState'
 import { useAuth } from '../auth/context'
 import '../styles/screens/mypage.css'
@@ -19,7 +20,8 @@ import '../styles/screens/mypage.css'
    커뮤니티 내 글은 GET /posts 에 작성자 필터가 없어(§9.2 F-04) 진입점을 만들 수 없다. */
 const LINKS = [
   { to: '/me/predictions', label: '내 예측', desc: '등록한 예측과 판정 결과', icon: 'chart' },
-  { to: '/me/portfolio', label: '예측 포트폴리오', desc: '누적 성과와 온체인 기록', icon: 'case' },
+  /* 예측 포트폴리오(/me/portfolio)는 여기 두지 않는다 — 사이드바에 늘 떠 있어서
+     같은 화면으로 가는 길이 둘이었다. 사이드바가 정본이다(S15P21A507-230). */
   { to: '/me/subscriptions', label: '내 구독', desc: '구독 중인 채널과 갱신 상태', icon: 'people' },
   { to: '/me/wallet', label: '지갑 · 토큰', desc: 'ANT 잔액과 획득·사용 내역', icon: 'wallet' },
   /* 설계상 커밋 원장(D-01)은 C-04 예측 포트폴리오에서 들어간다. 그 화면이 아직
@@ -33,7 +35,6 @@ const LINKS = [
 
 const ICON: Record<string, React.ReactNode> = {
   chart: <><path d="M3 3v18h18" /><path d="M7 15l4-5 3 3 5-7" /></>,
-  case: <><path d="M3 7h18v13H3z" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /></>,
   people: <><path d="M17 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9.5" cy="7" r="3.5" /><path d="M22 20v-2a4 4 0 0 0-3-3.87" /></>,
   wallet: <><path d="M3 7h15a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><path d="M3 7V6a2 2 0 0 1 2-2h11" /><circle cx="16" cy="13" r="1.4" /></>,
   // 사슬 — 온체인 기록
@@ -44,7 +45,6 @@ const ICON: Record<string, React.ReactNode> = {
 export default function MyPage() {
   const { user } = useAuth()
   const profile = useApiQuery<MyProfile>('/users/me')
-  const badges = useApiQuery<BadgeListResponse>('/users/me/badges')
 
   /* 배열은 여기서 한 번 정규화한다. 백엔드 MeResponse 가 아직 이 필드를
      내려주지 않아 undefined 로 온다 — 아래에서 .length 를 바로 읽으면
@@ -112,29 +112,21 @@ export default function MyPage() {
         )}
 
         {/* ── 배지 ───────────────────────────────────────
+            섹션째 내렸다(S15P21A507-230).
+
             GET /users/me/badges 가 아직 없다. UserBadge 엔티티·리포지토리는 있으나
-            컨트롤러가 안 열렸다.
+            컨트롤러가 안 열렸다. 없는 경로라 500 이 와서, 전에는 ErrorState 대신
+            "배지는 준비 중입니다" 안내를 그려 두고 있었다 — 서버 문제가 아니고 다시
+            시도해도 영영 안 되므로 재시도 안내가 틀린 말이기 때문이다.
 
-            없는 경로라 서버가 500 을 주는데, 그대로 ErrorState 로 그리면
-            "서버에 문제가 생겼습니다 · 잠시 후 다시 시도해 주세요" 가 뜬다.
-            서버 문제가 아니고 다시 시도해도 영영 안 되므로 틀린 안내다.
-            H-03 환경 설정에서 알림 설정을 다룬 것과 같이 "준비 중" 으로 알린다.
+            그래도 화면 한 칸을 계속 "준비 중" 으로 채우는 것보다 비우는 편이 낫다.
+            지금은 API 가 열려도 시즌 성과가 없어 빈 목록이다.
 
-            API 가 열리면 이 분기를 지우고 ErrorState 를 되살린다 — 그때는
-            진짜 서버 오류만 남으므로 재시도 안내가 맞는 말이 된다. */}
-        <section className="mp-block">
-          <h3>배지</h3>
-          {badges.error
-            ? (
-              <p className="mp-pending">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="12" r="9" /><path d="M12 7.5V12l3 1.8" />
-                </svg>
-                배지는 준비 중입니다. 시즌 성과가 쌓이면 여기에 모입니다.
-              </p>
-            )
-            : <BadgeList badges={badges.data?.items ?? []} />}
-        </section>
+            API 가 열리면 되살린다 — 그때는
+              const badges = useApiQuery<BadgeList>('/users/me/badges')
+            와 <BadgeList badges={badges.data?.items ?? []} /> 를 여기에 되돌리고,
+            500 분기 없이 ErrorState 를 그대로 쓰면 된다(진짜 서버 오류만 남는다).
+            컴포넌트 components/BadgeList.tsx 는 G-09 가 계속 쓰고 있어 그대로 있다. */}
 
         {/* ── 활동 진입점 ──────────────────────────────── */}
         <section className="mp-block">

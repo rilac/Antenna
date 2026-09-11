@@ -34,7 +34,7 @@ const CARD_H = 36
 /** 미끄러지는 시간(ms). CSS .st-track 의 transition 과 같아야 한다 */
 const SLIDE = 380
 
-const FALLBACK_FACE = '/assets/character/white_ant/antena-profile.png'
+const FALLBACK_FACE = '/assets/character/white_ant/antenna-profile.png'
 
 const won = (n: number) => n.toLocaleString('ko-KR')
 

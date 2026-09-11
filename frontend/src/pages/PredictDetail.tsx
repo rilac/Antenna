@@ -18,7 +18,7 @@
 
    진행률은 기준가·목표가·전일 종가로 계산한다(targetProgress). 실전 시세는
    전일 종가뿐이라 "현재가" 를 만들지 않고 기준일을 함께 적는다(§7 legal). */
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import AnchorBadge from '../components/AnchorBadge'
 import PredictionStatus from '../components/prediction/PredictionStatus'
 import ErrorState from '../components/state/ErrorState'
@@ -32,6 +32,16 @@ import '../styles/screens/predict-detail.css'
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 const dot = (iso: string) => iso.slice(0, 10).replace(/-/g, '.')
+
+/** 뒤로 표시. 버튼일 때와 링크일 때가 같은 모양이어야 해서 한 군데 둔다 */
+function BackArrow() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 5 8 12l7 7" />
+    </svg>
+  )
+}
 
 /** 목표까지의 진행 막대. 100 을 넘기면(목표 통과) 막대를 가득 채우고 값으로 알린다 */
 function Progress({ value }: { value: number }) {
@@ -58,6 +68,17 @@ export default function PredictDetail() {
   const { id = '' } = useParams<{ id: string }>()
   const q = useBlock(() => getPredictionDetail(id), [id])
   const d = q.data
+
+  /* ── 뒤로 가기 ────────────────────────────────────────
+     이 화면은 내 예측 · 종목 상세 · 랭킹 · 채널 · 피드 여러 곳에서 열린다.
+     보던 자리로 돌려보내는 것이 맞다 — 어디서 왔든 그게 사용자가 기대하는 곳이다.
+
+     다만 -1 이 늘 되는 것은 아니다. 공유 링크로 이 화면이 **첫 화면**이면
+     뒤에 아무것도 없어서 -1 은 이 앱 밖으로 나가거나 아무 일도 하지 않는다.
+     react-router 는 그 첫 항목의 location.key 를 'default' 로 준다. 그때만
+     종목의 예측 목록으로 보낸다 — 누구의 예측이든 항상 맞는 자리다. */
+  const navigate = useNavigate()
+  const cameFromApp = useLocation().key !== 'default'
 
   /* 앵커 상태만은 실제 서버에서 읽는다. GET /predictions/{id}/proof 는 이미 열려
      있고(ANT-CHAIN-06), anchorStatus 하나로 WAITING·PENDING·CONFIRMED·FAILED 를
@@ -123,21 +144,28 @@ export default function PredictDetail() {
     <main className="main">
       <div className="main-inner">
         <header className="pd-head">
-          {/* 이 화면은 내 예측 · 종목 상세 · 랭킹 · 피드 여러 곳에서 열린다. 그래서
-              "내 예측" 으로 되돌리면 남의 예측을 보던 사람을 엉뚱한 곳에 내려놓는다.
-              히스토리(-1)도 링크로 직접 들어온 경우에 아무 일도 하지 않는다.
-              누구의 예측이든 항상 맞는 자리는 그 종목의 예측 목록이다. */}
-          <Link className="pd-back" to={`/stocks/${d.stockCode}?tab=predict`}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M15 5 8 12l7 7" />
-            </svg>
-            {`${stock} 예측`}
-          </Link>
+          {/* 판단 근거는 위 cameFromApp 주석에 있다. 앱 안에서 왔으면 보던 자리로,
+              링크로 바로 들어왔으면 그 종목의 예측 목록으로 보낸다.
+              돌아갈 곳을 모르므로 문구는 "돌아가기" 로 둔다 — 어디로 가는지 모르면서
+              "종목 예측" 이라고 적으면 틀린 말이 된다. */}
+          {cameFromApp ? (
+            <button type="button" className="pd-back" onClick={() => navigate(-1)}>
+              <BackArrow />
+              돌아가기
+            </button>
+          ) : (
+            <Link className="pd-back" to={`/stocks/${d.stockCode}?tab=predict`}>
+              <BackArrow />
+              {`${stock} 예측`}
+            </Link>
+          )}
 
           <div className="pd-title">
             <h1>
-              <Link to={`/stocks/${d.stockCode}`}>{stock}</Link>
+              {/* 종목 상세가 아니라 **그 종목의 예측 목록**으로 간다 — 예측을 보던
+                  사람이 종목명을 누르는 것은 "이 종목에 누가 뭘 걸었나" 를 보려는
+                  것이다. 종목 개요는 거기서 탭 하나 옮기면 된다. */}
+              <Link to={`/stocks/${d.stockCode}?tab=predict`}>{stock}</Link>
             </h1>
             {/* 제목이 코드로 떨어졌으면 코드를 한 번 더 그리지 않는다 */}
             {stock !== d.stockCode && <span className="pd-code num">{d.stockCode}</span>}

@@ -127,14 +127,33 @@ button{border:0;background:none;cursor:pointer}
 
 /* 글자 요소는 접힘 상태에서 감춘다 (잘린 글자가 비치지 않게).
    하단 프로필은 아바타를 남겨야 하므로 여기서 다루지 않는다 — .rail-me 참고. */
-.brand-name,.modeswitch,.nav a span{opacity:0;transition:opacity .14s ease}
-.rail:hover .brand-name,.rail:hover .modeswitch,.rail:hover .nav a span,
-.rail:focus-within .brand-name,.rail:focus-within .modeswitch,
+.modeswitch,.nav a span{opacity:0;transition:opacity .14s ease}
+.rail:hover .modeswitch,.rail:hover .nav a span,
+.rail:focus-within .modeswitch,
 .rail:focus-within .nav a span{opacity:1}
-/* 로고 — 메뉴 아이콘과 왼쪽 끝을 맞춘다 */
-.brand{display:flex;align-items:center;gap:9px;flex:none;padding:0 9px;height:32px}
-.brand-mark{width:24px;height:24px;flex:none;color:var(--brand)}
-.brand-name{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+/* 로고 — 메뉴 아이콘과 왼쪽 끝을 맞춘다.
+   워드마크 한 장을 접힘/펼침에서 나눠 쓴다. 접히면 폭을 좁혀 왼쪽 끝(개미 마크)만
+   남기고, 펼치면 글자까지 드러난다. .rail>* 의 폭 지정보다 뒤에 와야 이긴다. */
+.brand{
+  /* 워드마크 폭 — 펼친 레일을 채운다 */
+  --brand-w:calc(var(--rail-w) - 28px);
+  /* 왼쪽 여백은 **접힌 레일 기준**으로 정한다 — 기본 상태가 접힘이고, 거기서
+     마크가 레일 한가운데 있어야 아래 메뉴 아이콘들과 한 줄로 읽힌다.
+     레일 반폭에서 레일 자체의 padding(8px)과 마크 중심 위치를 뺀다.
+     마크 중심 = 워드마크 폭의 12.13% (원본 2366px 중 52~522 의 가운데 287).
+     펼쳤을 때도 같은 여백을 쓴다. 로고가 3.5px 왼쪽으로 붙지만 접힘이 기본이다. */
+  --brand-pad:calc(var(--rail-mini-w) / 2 - 8px - var(--brand-w) * .1213);
+  /* 접힘 폭 = 왼쪽 여백 + 마크까지. overflow 는 패딩 상자에서 자르므로 오른쪽 패딩은
+     잘라 주지 않는다 — 이 값이 곧 보이는 폭이다.
+     0.2255 는 마크와 글자 사이 빈 구간의 가운데다(마크 522 까지, 글자 544 부터).
+     더 넓히면 "A" 의 왼쪽 획이 비치고, 좁히면 마크가 잘린다. */
+  width:calc(var(--brand-pad) + var(--brand-w) * .2255);
+  display:flex;align-items:center;flex:none;
+  padding:0 0 0 var(--brand-pad);overflow:hidden;transition:width .18s ease;
+}
+.rail:hover .brand,.rail:focus-within .brand{width:calc(var(--rail-w) - 16px)}
+/* max-width 를 풀어 둔다 — 전역 img{max-width:100%} 가 있으면 접힐 때 같이 찌그러진다 */
+.brand-logo{width:var(--brand-w);height:auto;max-width:none;flex:none;display:block}
 
 .nav{display:flex;flex-direction:column;gap:3px}
 .nav a{
@@ -184,8 +203,9 @@ button{border:0;background:none;cursor:pointer}
   }
   .rail:hover,.rail:focus-within{width:var(--rail-w)}
   body.rail-open .rail{transform:none}
-  /* 서랍은 항상 펼친 모습 */
-  .brand-name,.modeswitch,.nav a span{opacity:1}
+  /* 서랍은 항상 펼친 모습 — 로고도 워드마크 전체를 보인다 */
+  .modeswitch,.nav a span{opacity:1}
+  .brand{width:calc(var(--rail-w) - 16px)}
   .topbar{padding:0 16px}
   /* .main 의 padding 은 아래 '메인' 섹션 뒤에서 되돌린다 (shorthand 가 나중에 나온다) */
 }
@@ -199,7 +219,7 @@ button{border:0;background:none;cursor:pointer}
 body.rail-open .rail-backdrop{opacity:1;pointer-events:auto}
 
 @media(prefers-reduced-motion:reduce){
-  .rail,.main,.topbar,.rail-backdrop,.brand-name,.modeswitch,.nav a span,.rail-me,.rail-me span,.rail-me em{transition:none}
+  .rail,.main,.topbar,.rail-backdrop,.brand,.modeswitch,.nav a span,.rail-me,.rail-me span,.rail-me em{transition:none}
 }
 
 /* ── 메인 ─────────────────────────────────────────────── */
