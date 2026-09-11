@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -14,8 +15,10 @@ import ssafy.a507.backend.common.idempotency.IdempotencyStore;
 import ssafy.a507.backend.common.security.CurrentUserProvider;
 import ssafy.a507.backend.domain.prediction.dto.PredictionCreateRequest;
 import ssafy.a507.backend.domain.prediction.dto.PredictionCreateResponse;
+import ssafy.a507.backend.domain.prediction.dto.PredictionDetailResponse;
 import ssafy.a507.backend.domain.prediction.dto.PredictionSlotResponse;
 import ssafy.a507.backend.domain.prediction.service.PredictionRegisterService;
+import ssafy.a507.backend.domain.prediction.service.PredictionViewService;
 
 /** 예측 등록·슬롯 (ANT-PRED-01). 내 예측 목록({@code /me})은 {@code MyPredictionController} — 같은 base path 를 나눠 쓴다. */
 @RestController
@@ -26,6 +29,7 @@ public class PredictionController {
     private static final String CREATE_ENDPOINT = "POST /predictions";
 
     private final PredictionRegisterService registerService;
+    private final PredictionViewService viewService;
     private final IdempotencyStore idempotencyStore;
     private final CurrentUserProvider currentUserProvider;
 
@@ -53,5 +57,14 @@ public class PredictionController {
     @GetMapping("/slots")
     public PredictionSlotResponse slots() {
         return registerService.slots(currentUserProvider.currentUserId());
+    }
+
+    /**
+     * 예측 상세 (ANT-PRED-05). 403 을 쓰지 않는다 — 공개 규칙이 필드 단위다({@link PredictionViewService}).
+     * {@code /slots}·{@code /me} 같은 고정 경로가 이 패턴보다 먼저 잡힌다.
+     */
+    @GetMapping("/{predictionId}")
+    public PredictionDetailResponse detail(@PathVariable long predictionId) {
+        return viewService.detail(predictionId);
     }
 }

@@ -364,7 +364,7 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("미판정(OPEN) 예측은 미구독자에게 잠기고 targetPrice 가 빠진다 — 종목·방향만 남는다")
+    @DisplayName("미판정(OPEN) 예측은 미구독자에게 잠기고 방향·targetPrice 가 빠진다 — 종목만 남는다")
     void 미판정_예측은_미구독자에게_잠긴다() throws Exception {
         insertStock("000660", "SK하이닉스");
         Long predictionId = insertPrediction(authorId, "000660", "UP", "OPEN");
@@ -376,7 +376,8 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.items[0].predictionCard.locked").value(true))
                 .andExpect(jsonPath("$.items[0].predictionCard.stockCode").value("000660"))
                 .andExpect(jsonPath("$.items[0].predictionCard.stockName").value("SK하이닉스"))
-                .andExpect(jsonPath("$.items[0].predictionCard.direction").value("UP"))
+                // 방향도 가린다(ANT-PRED-07 공개 규칙 개정) — 판정 전 방향은 구독으로 사는 판단이다.
+                .andExpect(jsonPath("$.items[0].predictionCard.direction").doesNotExist())
                 .andExpect(jsonPath("$.items[0].predictionCard.targetPrice").doesNotExist());
     }
 
