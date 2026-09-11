@@ -65,12 +65,39 @@
   to  { opacity:1; transform:translateX(-50%) scale(1) }
 }
 
-/* 봉인 순간의 숨. 한 번만 부풀고 만다 — 계속 뛰면 아직 진행 중으로 읽힌다 */
-.bs[data-stage='sealed'] .bs-docked{ animation:bs-seal 350ms ease-out }
+/* 봉인 순간 한 번 부풀고, 그 뒤로는 천천히 숨만 쉰다.
+   앵커 대기는 몇 분씩 이어지므로 여기서 완전히 멎으면 진행이 끊긴 줄로 읽힌다. */
+.bs[data-stage='sealed'] .bs-docked{
+  animation:bs-seal 350ms ease-out, bs-breathe 2.6s ease-in-out 350ms infinite;
+}
 @keyframes bs-seal{
   0%,100%{ transform:translateX(-50%) scale(1) }
   50%    { transform:translateX(-50%) scale(1.06) }
 }
+
+/* 마스코트가 화면 밖으로 나가면 이야기의 주인공은 큐브뿐이다.
+   슬롯 자리에 그대로 두면 오른쪽에 치우쳐 왼쪽이 텅 빈 채로 끝난다 —
+   나가는 동안 가운데로 옮겨 마무리를 정돈한다. */
+.bs[data-rest] .bs-docked,
+.bs[data-rest] .bs-wait,
+.bs[data-rest] .bs-ring,
+.bs[data-rest] .bs-chain,
+.bs[data-rest] .bs-spark{
+  left:calc(var(--bs-x-rest) * 1% + var(--bs-slot-dx) * 1px * var(--s));
+  transition:left 700ms ease;
+}
+
+/* 대기 고리. 두 장을 번갈아 비춘다 — 돌아가는 것이 보이되 재촉하지 않게 느리게. */
+.bs-wait{
+  left:calc(var(--bs-x-slot) * 1% + var(--bs-slot-dx) * 1px * var(--s));
+  width:calc(var(--bs-slot-w) * 1.05px * var(--s));
+  bottom:calc(var(--floor) - 8px);
+  transform:translateX(-50%);
+}
+.bs-wait-a{ animation:bs-wait-a 2.6s ease-in-out infinite }
+.bs-wait-b{ animation:bs-wait-b 2.6s ease-in-out infinite }
+@keyframes bs-wait-a{ 0%,100%{ opacity:.65 } 50%{ opacity:.12 } }
+@keyframes bs-wait-b{ 0%,100%{ opacity:.12 } 50%{ opacity:.65 } }
 
 /* 앵커 확정 장면. 짧게 지나간다 */
 .bs-ring{
@@ -107,4 +134,8 @@
   .bs-mascot{ transition:none }
   .bs-cube, .bs-docked, .bs-ring, .bs-chain, .bs-spark{ animation:none }
   .bs[data-stage='confirmed'] .bs-docked{ animation:none }
+  .bs[data-stage='sealed'] .bs-docked{ animation:none }
+  /* 대기 고리는 지우지 않고 한 장만 은은하게 남긴다 — 움직임만 뺀다 */
+  .bs-wait-a{ animation:none; opacity:.5 }
+  .bs-wait-b{ animation:none; opacity:0 }
 }

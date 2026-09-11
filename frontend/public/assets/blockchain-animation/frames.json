@@ -14,9 +14,7 @@
    "mascot/run-empty-3.webp",
    "mascot/run-empty-4.webp",
    "mascot/run-empty-5.webp",
-   "mascot/run-empty-6.webp",
-   "mascot/run-empty-7.webp",
-   "mascot/run-empty-8.webp"
+   "mascot/run-empty-6.webp"
   ],
   "run-carry": [
    "mascot/run-carry-1.webp",
@@ -24,9 +22,7 @@
    "mascot/run-carry-3.webp",
    "mascot/run-carry-4.webp",
    "mascot/run-carry-5.webp",
-   "mascot/run-carry-6.webp",
-   "mascot/run-carry-7.webp",
-   "mascot/run-carry-8.webp"
+   "mascot/run-carry-6.webp"
   ],
   "pickup": [
    "mascot/pickup-1.webp",
@@ -72,5 +68,15 @@
    "cube/docked-anchored.webp",
    "cube/docked-failed.webp"
   ]
+ },
+ "prop": {
+  "cube": {
+   "dx": 106,
+   "w": 90
+  },
+  "slot": {
+   "dx": 100,
+   "w": 164
+  }
  }
 }

@@ -17,8 +17,6 @@ export const RUN_EMPTY = [
   A + 'mascot/run-empty-4.webp',
   A + 'mascot/run-empty-5.webp',
   A + 'mascot/run-empty-6.webp',
-  A + 'mascot/run-empty-7.webp',
-  A + 'mascot/run-empty-8.webp',
 ]
 export const RUN_CARRY = [
   A + 'mascot/run-carry-1.webp',
@@ -27,8 +25,6 @@ export const RUN_CARRY = [
   A + 'mascot/run-carry-4.webp',
   A + 'mascot/run-carry-5.webp',
   A + 'mascot/run-carry-6.webp',
-  A + 'mascot/run-carry-7.webp',
-  A + 'mascot/run-carry-8.webp',
 ]
 export const PICKUP = [
   A + 'mascot/pickup-1.webp',
@@ -74,6 +70,7 @@ export const DOCKED = {
 export const FX = {
   sparkSmall:  A + 'effect/spark-small.webp',
   sparkBig:    A + 'effect/spark-big.webp',
+  ringIdle:    A + 'effect/ring-idle.webp',
   ringActive:  A + 'effect/ring-active.webp',
   chainIdle:   A + 'effect/chain-idle.webp',
   chainActive: A + 'effect/chain-active.webp',
