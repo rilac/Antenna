@@ -70,6 +70,12 @@ public class FakeTokenRelayer implements TokenRelayer {
         return this;
     }
 
+    /** 릴레이어가 BusinessException·TokenRevertException 으로 못 바꾼 예외(라이브러리 내부 오류 등). */
+    public FakeTokenRelayer thenThrow(RuntimeException e) {
+        script.add(() -> { throw e; });
+        return this;
+    }
+
     public List<Call> calls() {
         return calls;
     }

@@ -63,6 +63,29 @@ public class Operation {
         SEASON_PARTICIPANT
     }
 
+    /**
+     * 인덱서가 이벤트 없는 실패를 닫을 때 쓰는 {@link #errorCode} 3종 (ANT-CHAIN-11). 나머지 어휘는 {@code ErrorCode} 이름이다 —
+     * 전송 주체({@code TokenOperationService})는 요청 응답과 같은 코드를 쓴다(-226). {@code message} 는 사용자에게 보이는 문구다.
+     */
+    public enum ChainFailure {
+        /** tx_hash 없이 10분. 전송 실패, 또는 전송 ~ 기록 사이 크래시 — 후자면 토큰은 실제로 움직였을 수 있어 "차감 안 됨" 이라 말하지 않는다. */
+        SEND_LOST("블록체인 전송을 확인하지 못했습니다."),
+        /** 채굴에서 revert — 시뮬레이션 뒤 잔액이 바뀐 경우. */
+        REVERTED("블록체인에서 처리가 거절됐습니다."),
+        /** receipt 없이 10분. */
+        TX_DROPPED("블록체인이 제시간에 처리하지 않았습니다.");
+
+        private final String message;
+
+        ChainFailure(String message) {
+            this.message = message;
+        }
+
+        public String message() {
+            return message;
+        }
+    }
+
     /** {@code op_} + UUID = 39자. 명세 예시가 {@code op_8f3c…} 라 접두사를 값에 포함한다. */
     @Id
     @Column(length = 40)
@@ -92,10 +115,14 @@ public class Operation {
     @Column(name = "tx_hash", length = 66)
     private String txHash;
 
-    /** FAILED 일 때만. 어휘는 인덱서가 만든다 — 서버가 enum 으로 굳히면 값이 늘 때마다 배포가 필요하다. */
+    /**
+     * FAILED 일 때만. 어휘는 닫혀 있다 — {@code ErrorCode} 이름 + {@link ChainFailure}. 자바 클래스명·컨트랙트 거부 이름은
+     * 쓰지 않는다(-226, 그건 {@link #errorMessage}·로그로). 컬럼을 enum 으로 굳히지 않는 건 두 어휘를 합친 문자열이라서다.
+     */
     @Column(name = "error_code", length = 32)
     private String errorCode;
 
+    /** 운영자용 원문(예외 클래스명 · revert 이름 · tx 해시). 응답에는 안 나간다 — {@code OperationResponse} 가 코드로 문구를 만든다. */
     @Column(name = "error_message", length = 300)
     private String errorMessage;
 

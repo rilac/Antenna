@@ -106,11 +106,16 @@ public class TokenOperationService {
             fail(operationId, e.getErrorCode().name(), e.getMessage());
             throw e;
         } catch (TokenRevertException e) {
-            // 호출자 검증을 뚫고 온 컨트랙트 거부. 다시 보내도 같다 — 500.
-            fail(operationId, e.getErrorName(), e.getMessage());
+            // 호출자 검증을 뚫고 온 컨트랙트 거부(서버 버그). 다시 보내도 같다 — 500.
+            // 작업 코드도 요청 응답과 같은 INTERNAL_ERROR 로 닫는다(-226). 사용자가 대응할 거부(잔액 부족 · 키 권한)는
+            // 릴레이어가 이미 BusinessException 으로 바꿔 위 갈래로 온다 — 여기 오는 이름은 사용자가 알아도 할 게 없다.
+            // 이름(SelfSubscribe 등)은 메시지·로그에 남는다.
+            fail(operationId, ErrorCode.INTERNAL_ERROR.name(), e.getMessage());
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         } catch (RuntimeException e) {
-            fail(operationId, e.getClass().getSimpleName(), e.getMessage());
+            // 예상 못 한 예외. 전역 핸들러가 500 INTERNAL_ERROR 로 내리므로 작업도 같은 코드다 — 클래스명을 코드로 쓰면
+            // NullPointerException 이 M-02 화면에 그대로 뜬다(-226). 클래스명·원문은 메시지·로그에.
+            fail(operationId, ErrorCode.INTERNAL_ERROR.name(), e.getClass().getSimpleName() + ": " + e.getMessage());
             throw e;
         }
 
@@ -155,7 +160,10 @@ public class TokenOperationService {
         return wallet;
     }
 
-    /** FAILED 기록. 예외 메시지는 300자 컬럼에 맞춰 자른다. */
+    /**
+     * FAILED 기록. {@code code} 는 닫힌 어휘({@code ErrorCode} 이름)만 받는다. {@code message} 는 운영자용 원문이라 DB·로그에만 남고
+     * 응답에는 안 나간다 — {@code OperationResponse} 가 코드로 문구를 만든다. 300자 컬럼에 맞춰 자른다.
+     */
     private void fail(String operationId, String code, String message) {
         String trimmed = message == null ? "" : message.length() > 300 ? message.substring(0, 300) : message;
         tx.execute(
