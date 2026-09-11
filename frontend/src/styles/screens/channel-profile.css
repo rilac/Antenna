@@ -83,6 +83,43 @@
 }
 .ch-sub-cta:hover{ background:var(--brand-ink); }
 
+/* 내 채널에서만 뜨는 게이팅 고지. 경고가 아니라 안내다 — 잘못된 것이 없으므로
+   빨강을 쓰지 않고, 목록 위에서 한 줄로 끝낸다 */
+.ch-gate-note{
+  margin:0 0 9px; padding:8px 11px;
+  border:1px solid var(--rule); border-radius:8px; background:var(--surface-2);
+  font-size:12px; line-height:1.6; color:var(--muted);
+}
+
+/* ── 예측 카드 펼치기 ────────────────────────────────
+   카드가 링크가 아니라 펼침 버튼이다. 누를 수 있다는 것이 보여야 해서 커서와
+   호버를 준다 — 다른 화면의 카드는 링크라 이 규칙이 없다. */
+.ch-pred-hit{ cursor:pointer; border-radius:12px; }
+.ch-pred-hit:hover .pc{ border-color:var(--brand-soft); }
+/* 키보드 초점은 카드 전체에 준다. 안쪽에 초점 받을 것이 없다 */
+.ch-pred-hit:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+/* 펼친 카드는 아래 패널과 한 덩어리로 읽혀야 한다 */
+.ch-cards > li.is-open .pc{ border-bottom-left-radius:0; border-bottom-right-radius:0; }
+
+.ch-note{
+  display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+  padding:13px 15px;
+  border:1px solid var(--rule); border-top:0;
+  border-radius:0 0 12px 12px;
+  background:var(--surface-2);
+}
+.ch-note-msg{ margin:0; font-size:12.5px; line-height:1.6; color:var(--muted); }
+/* 잠김은 오류가 아니다 — 빨강을 쓰지 않는다(구독 카드와 같은 규칙) */
+.ch-note-msg.is-locked{ color:var(--body); }
+.ch-note-body{ margin:0; font-size:13px; line-height:1.75; color:var(--ink); white-space:pre-wrap; }
+/* 고른 근거 포인트를 그리는 규칙은 두지 않는다 — 이 자리에 두지 않기로 했다
+   (PredictionNote 머리말). C-03 에서 본다. */
+.ch-note-more{
+  margin-top:2px;
+  font-size:12.5px; font-weight:700; color:var(--brand-ink); text-decoration:none;
+}
+.ch-note-more:hover{ text-decoration:underline; }
+
 /* ── 섹션 공통 ───────────────────────────────────────── */
 .ch-section{ margin-bottom:22px; }
 .ch-section h2{ margin:0 0 10px; font-size:15px; font-weight:800; color:var(--ink); letter-spacing:-.01em; }
