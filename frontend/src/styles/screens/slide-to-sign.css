@@ -1,0 +1,64 @@
+/* 밀어서 등록 — SlideToSign.
+   컨테이너 쿼리 단위(cqw)로 손잡이를 옮긴다. 트랙 폭을 JS 로 읽어 px 로 옮기면
+   창 크기가 바뀔 때마다 다시 재야 하는데, cqw 는 브라우저가 알아서 따라간다. */
+.sts{
+  container-type:inline-size;
+  position:relative;display:flex;align-items:center;
+  /* 폭을 절반만 쓴다. 가운데로 모아 두면 발판이 카드 아래 한가운데 놓인다.
+     cqw 로 손잡이를 옮기므로 폭이 바뀌어도 이동 거리는 알아서 따라간다. */
+  width:50%;height:46px;margin:14px auto 0;padding:4px;
+  border-radius:13px;
+  /* 연보라 — 모의투자 쪽과 같은 --brand-soft(#ece9fd) 다 */
+  background:var(--brand-soft);
+  overflow:hidden;
+  /* 민 만큼 한 톤 진해진다. 바탕보다 옅으면 어디까지 갔는지 오히려 안 보인다 */
+  background-image:linear-gradient(#cdc9f7,#cdc9f7);
+  background-repeat:no-repeat;
+  background-size:calc(var(--sts-at,0) * 100%) 100%;
+  transition:background-size .12s linear;
+}
+
+.sts-label{
+  position:absolute;left:0;right:0;text-align:center;
+  color:var(--ink);font-size:14px;font-weight:750;
+  pointer-events:none;user-select:none;
+}
+
+.sts-knob{
+  position:relative;z-index:1;flex:none;
+  display:grid;place-items:center;width:64px;height:38px;
+  border:0;border-radius:10px;background:var(--brand);color:#fff;
+  cursor:grab;touch-action:none;   /* 세로 스크롤에 끌기를 뺏기지 않는다 */
+  transition:background .14s;
+}
+.sts-knob:active{cursor:grabbing}
+.sts-knob:hover:not(:disabled){background:var(--brand-ink,#4a43e8)}
+.sts-knob:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+
+/* 비활성 — 무엇이 모자란지는 위쪽 안내가 말한다.
+   손잡이는 회색이 아니라 **옅은 보라**다. 회색으로 두면 아예 못 쓰는 자리처럼
+   보이는데, 실제로는 위 항목만 채우면 바로 눌린다. 새 색을 만들지 않고 --brand 를
+   투명도로 눕혔다 — opacity 는 아이콘까지 함께 흐려서 손잡이 안 대비는 그대로다. */
+.sts.is-off{background:var(--brand-softer);background-image:none}
+.sts.is-off .sts-knob{background:var(--brand);opacity:.42;cursor:not-allowed}
+.sts.is-off .sts-label{color:var(--faint)}
+
+/* 서명 진행 중 */
+.sts-busy{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  /* 발판과 같은 폭·자리라야 서명 중에 자리가 안 흔들린다 */
+  width:50%;height:46px;margin:14px auto 0;border-radius:13px;
+  background:var(--brand-soft);color:var(--brand-ink);
+  font-size:14px;font-weight:750;
+}
+.sts-spin{
+  width:15px;height:15px;border-radius:999px;
+  border:2px solid #cdc9f7;border-top-color:var(--brand);
+  animation:sts-spin .8s linear infinite;
+}
+@keyframes sts-spin{ to{ transform:rotate(360deg) } }
+
+@media (prefers-reduced-motion:reduce){
+  .sts{transition:none}
+  .sts-spin{animation:none}
+}

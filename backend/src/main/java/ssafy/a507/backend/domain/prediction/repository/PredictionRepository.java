@@ -1,5 +1,6 @@
 package ssafy.a507.backend.domain.prediction.repository;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -47,6 +48,42 @@ public interface PredictionRepository extends JpaRepository<Prediction, Long> {
     @Query("select p.id from Prediction p where p.track = :track and p.status = :status order by p.id")
     List<Long> findIdsByTrackAndStatus(
             @Param("track") Track track, @Param("status") Prediction.Status status);
+
+    /**
+     * 종목 예측 분포(ANT-PRED-07)의 재료 — 이 종목에 걸린 판정 대기 예측의 <b>목표가만</b> 가져온다.
+     *
+     * <p>엔티티가 아니라 값만 받는 이유: 분포 응답에는 개인이 없어야 한다. 서비스가 id·작성자를 손에 쥐지 않으면
+     * 실수로 응답에 실을 길도 없다. 구간은 서비스가 자른다 — 경계 가격 계산을 SQL 과 자바 두 곳에 두지 않으려고.
+     */
+    @Query("""
+            select p.targetPrice from Prediction p
+             where p.stock.code = :stockCode
+               and p.status in :statuses
+            """)
+    List<BigDecimal> findTargetPricesByStockAndStatusIn(
+            @Param("stockCode") String stockCode,
+            @Param("statuses") Collection<Prediction.Status> statuses);
+
+    /**
+     * 이 종목에서 [from, to) 사이에 판정된 예측 (ANT-PRED-07 "오늘 판정"). 작성자를 같이 끌어온다(N+1 방지).
+     *
+     * <p><b>updated_at 으로 거르는 이유.</b> 판정 배치는 13:30 에 <b>어제</b> 종가로 판정한다 — settled_on 은 어제다.
+     * settled_on = 오늘 로 거르면 영원히 비어 있다. HIT·MISS 로 바뀐 뒤 예측 행을 고치는 코드가 없으므로 판정 건의
+     * updated_at 이 곧 판정 시각이다. <b>판정 뒤 예측 행을 수정하는 기능을 만들면 이 기준이 깨진다.</b>
+     */
+    @Query("""
+            select p from Prediction p
+              join fetch p.user
+             where p.stock.code = :stockCode
+               and p.status in :statuses
+               and p.updatedAt >= :from and p.updatedAt < :to
+             order by p.id
+            """)
+    List<Prediction> findSettledBetween(
+            @Param("stockCode") String stockCode,
+            @Param("statuses") Collection<Prediction.Status> statuses,
+            @Param("from") Instant from,
+            @Param("to") Instant to);
 
     /** 상태별 내 예측 수. 목록 위 요약 칩(total·pending·judged·hitRate)의 재료다. */
     @Query("""

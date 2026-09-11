@@ -5,28 +5,12 @@
 
    변환을 화면 안에 두지 않는 이유 — 네 화면이 조금씩 다르게 옮기게 되고, 그러면
    "게이팅 분기를 화면마다 쓰지 않는다" 는 §7 의 목적이 무너진다. */
-import type { MyPrediction, StockPrediction } from '../../api/predictions'
+import type { MyPrediction } from '../../api/predictions'
 import type { PredictionCardData } from './PredictionCard'
 
-/** B-03 종목 상세의 남의 예측. 종목이 화면 제목이라 카드에 코드를 다시 적지 않는다 */
-export function fromStockPrediction(p: StockPrediction): PredictionCardData {
-  return {
-    id: p.id,
-    stockCode: null,
-    direction: p.direction,
-    status: p.status,
-    locked: p.locked,
-    channelId: p.channelId,
-    author: p.author,
-    accuracy: p.accuracy,
-    targetPrice: p.targetPrice,
-    basePrice: p.basePrice,
-    errorRate: p.errorRate,
-    horizon: p.horizon,
-    dueDate: p.dueDate,
-    to: `/predictions/${p.id}`,
-  }
-}
+/* fromStockPrediction 은 없어졌다(설계 변경 2026-09-10). 종목 상세가 개별 예측을
+   더 이상 보여주지 않고 구간별 인원만 내므로, 옮길 DTO 자체가 사라졌다.
+   남의 예측 카드는 이제 작성자 채널(E-02)에서만 그린다. */
 
 /** C-02 내 예측. 내 것이라 잠금도 작성자 줄도 없다 */
 export function fromMyPrediction(p: MyPrediction): PredictionCardData {

@@ -1,0 +1,90 @@
+/* 오늘 판정된 예측 — 종목 머리의 작은 카드. SettledToday.
+   머리는 sticky 라 자리가 좁다. 한 장 높이만 보이고 나머지는 창 밖에서 기다린다.
+
+   라벨을 두 칸 왼쪽에 세로 가운데로 두는 이유 — 칸 위에 얹으면 머리가 한 줄 더
+   높아지는데, sticky 라 그만큼 본문이 내내 가려진다. */
+
+.stock-detail-page .st{
+  /* 카드 한 장의 높이. 컴포넌트의 CARD_H 와 **같은 값이어야** 세로 이동이 맞는다 */
+  --st-h:36px;
+  flex:none;display:grid;gap:6px;min-width:0;
+}
+.stock-detail-page .st-lane{display:flex;align-items:center;gap:8px;min-width:0}
+
+/* 칸 이름 — 적중·빗나감. 자리가 곧 답이라 카드 안에는 배지를 두지 않는다 */
+.stock-detail-page .st-tag{
+  flex:none;margin:0;display:flex;align-items:center;gap:5px;
+  /* 적중(2자)과 빗나감(3자)의 폭이 달라 그냥 두면 두 칸의 오른쪽 끝이 어긋난다 */
+  width:58px;justify-content:center;height:22px;padding:0 6px;border-radius:999px;
+  font-size:11px;font-weight:750;white-space:nowrap;
+}
+/* 적중은 브랜드 보라, 빗나감은 회색. 초록/빨강을 안 쓰는 이유 —
+   이 화면에서 빨강은 이미 "상승" 이라, 빗나감을 빨갛게 두면 방향으로 읽힌다.
+   글자색은 대비를 보고 골랐다: #4144c9/#ece9fd 는 7.0:1,
+   --body/--surface-2 는 9.0:1 이다(--muted 로 두면 4.1:1 로 기준 미달). */
+.stock-detail-page .st-tag.is-hit{background:var(--brand-soft);color:var(--brand-ink)}
+.stock-detail-page .st-tag.is-miss{background:var(--surface-2);color:var(--body)}
+
+/* 한 장 높이만 보이는 창. 넘치는 장은 잘라 낸다 */
+.stock-detail-page .st-stage{
+  height:var(--st-h);overflow:hidden;
+  /* 폭을 **고정**한다. min-width 로 두면 카드가 닉네임 길이만큼 늘어나
+     위아래 두 칸의 오른쪽 끝이 어긋나고, 넘어갈 때마다 옆 버튼이 좌우로 밀린다 */
+  width:300px;
+}
+.stock-detail-page .st-track{
+  display:flex;flex-direction:column;
+  transition:transform .38s cubic-bezier(.22,.61,.36,1);
+}
+/* 복제본에서 진짜 첫 장으로 소리 없이 돌아가는 한 프레임 */
+.stock-detail-page .st-track.is-snap{transition:none}
+@media (prefers-reduced-motion:reduce){
+  .stock-detail-page .st-track{transition:none}
+}
+
+.stock-detail-page .st-card{
+  flex:none;width:100%;height:var(--st-h);box-sizing:border-box;
+  display:flex;align-items:center;gap:8px;
+  padding:0 11px 0 5px;
+  border:1px solid var(--rule);border-radius:999px;
+  background:var(--surface);
+  text-decoration:none;
+  transition:border-color .14s,background .14s;
+}
+.stock-detail-page .st-card:hover{border-color:#cdc9f7;background:var(--brand-softer)}
+.stock-detail-page .st-card:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+.stock-detail-page .st-face{
+  flex:none;width:26px;height:26px;border-radius:999px;object-fit:cover;
+  background:var(--surface-2);
+}
+
+.stock-detail-page .st-who{
+  min-width:0;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--ink);font-size:12px;font-weight:750;
+}
+
+/* 방향 — 국내 관례대로 상승이 빨강. 낱말이 있으므로 색만으로 전하지 않는다 */
+.stock-detail-page .st-dir{flex:none;font-size:11px;font-weight:750}
+.stock-detail-page .st-dir.is-up{color:var(--up)}
+.stock-detail-page .st-dir.is-down{color:var(--down)}
+
+.stock-detail-page .st-target{
+  flex:none;color:var(--body);font-size:11.5px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+}
+
+/* 오차 — 라벨과 값을 붙여 둔다. 라벨을 한 톤 흐리게 해야 값이 먼저 읽힌다 */
+.stock-detail-page .st-err{
+  flex:none;display:inline-flex;align-items:baseline;gap:3px;font-size:11px;
+}
+.stock-detail-page .st-err i{color:var(--faint);font-style:normal;font-weight:600}
+.stock-detail-page .st-err b{
+  color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums;
+}
+
+/* 좁은 화면에서는 머리에 이만한 자리가 없다. 라벨을 빼고 닉네임을 더 자른다 */
+@media (max-width:1240px){
+  .stock-detail-page .st-stage{width:auto;min-width:0}
+  .stock-detail-page .st-who{max-width:64px}
+}
