@@ -36,7 +36,7 @@ function base(userId: string, nickname: string): Omit<Channel, 'mySubscription' 
   return {
     userId,
     nickname,
-    avatarUrl: '/assets/character/white_ant/antena-profile.png',
+    avatarUrl: '/assets/character/white_ant/antenna-profile.png',
     bio: '반도체·2차전지 중심으로 실적 시즌마다 방향을 겁니다. 근거는 공시와 실적 발표만 씁니다.',
     interests: ['반도체', '2차전지', '자동차'],
     externalLinks: [

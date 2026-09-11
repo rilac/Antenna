@@ -139,11 +139,11 @@ function Hero({ run }: { run: MyRun | null }) {
         )}
       </div>
 
-      {/* 모의투자 캐릭터는 검정 개미다. 인사이트 쪽 캐릭터(antena-character-transparent)
+      {/* 모의투자 캐릭터는 검정 개미다. 인사이트 쪽 캐릭터(antenna-character-transparent)
           와 다른 이미지이며, 모의투자 화면에는 이쪽만 쓴다.
           더듬이가 이미지 맨 위에 붙어 있어 위가 잘리면 바로 티가 난다 —
           카드에 overflow:hidden 을 걸지 않고 높이도 카드 안에 들어가게 잡는다. */}
-      <img className="sh-hero-art" src="/assets/character/black_ant/antena-character-black.png"
+      <img className="sh-hero-art" src="/assets/character/black_ant/antenna-character-black.png"
            alt="" aria-hidden="true" />
 
       <div className="sh-cta">

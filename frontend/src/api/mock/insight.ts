@@ -59,9 +59,9 @@ export const rankings = (limit: number) => delay<{ computedAt: string; items: Ra
    스키마에 문구가 없어(이미지·링크뿐) 장마다 그림만 달라진다. */
 export const activeAds = () => delay<{ items: ActiveAd[] }>({
   items: [
-    { id: 1, imageUrl: '/assets/character/white_ant/antena-character-transparent.png', linkUrl: '/ads/new' },
-    { id: 2, imageUrl: '/assets/character/black_ant/antena-character-black.png', linkUrl: '/ads/new' },
-    { id: 3, imageUrl: '/assets/character/white_ant/antena-profile.png', linkUrl: '/ads/new' },
+    { id: 1, imageUrl: '/assets/character/white_ant/antenna-character-transparent.png', linkUrl: '/ads/new' },
+    { id: 2, imageUrl: '/assets/character/black_ant/antenna-character-black.png', linkUrl: '/ads/new' },
+    { id: 3, imageUrl: '/assets/character/white_ant/antenna-profile.png', linkUrl: '/ads/new' },
   ],
 })
 
