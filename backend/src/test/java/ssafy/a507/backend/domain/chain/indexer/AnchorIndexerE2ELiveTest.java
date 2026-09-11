@@ -27,7 +27,7 @@ import ssafy.a507.backend.domain.chain.relay.ChainConnection;
 @EnabledIfEnvironmentVariable(named = "CONTRACT_COMMIT_ANCHOR", matches = "0x[0-9a-fA-F]{40}")
 class AnchorIndexerE2ELiveTest {
 
-    /** contracts/deployments/ssafy.json 의 blockNumber. */
+    /** contracts/deployments/dev/CommitAnchor.json 의 blockNumber. */
     static final long DEPLOY_BLOCK = 11_186_682L;
 
     private Web3jChainLogSource source() {
