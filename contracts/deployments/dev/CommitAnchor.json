@@ -1,5 +1,6 @@
 {
   "contract": "CommitAnchor",
+  "environment": "dev",
   "version": 2,
   "network": "ssafy",
   "chainId": 31221,

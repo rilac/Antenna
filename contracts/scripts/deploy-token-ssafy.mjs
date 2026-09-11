@@ -2,16 +2,20 @@ import { createRequire } from 'node:module';
 import { WebSocketProvider, Wallet, ContractFactory, Contract, isAddress } from 'ethers';
 
 const require = createRequire(import.meta.url);
-const { readArtifact, emit } = require('./emit-artifacts.js');
+const { readArtifact, emit, requireEnvironment } = require('./emit-artifacts.js');
 
 /**
  * PredictToken(ANT) SSAFY 네트워크 배포 (ANT-CHAIN-03).
  *
  *   npx hardhat compile
- *   ANCHOR_ADMIN_PRIVATE_KEY=0x…  TOKEN_OPERATOR=0x…  TOKEN_TREASURY=0x…  node scripts/deploy-token-ssafy.mjs
+ *   DEPLOY_ENV=dev|prod  ANCHOR_ADMIN_PRIVATE_KEY=0x…  TOKEN_OPERATOR=0x…  TOKEN_TREASURY=0x…  node scripts/deploy-token-ssafy.mjs
+ *
+ * ── 환경 (ANT-CHAIN-12) ───────────────────────────────────────────────
+ * dev 와 prod 가 따로 한 벌씩이다. 아래 세 주소도 **그 환경의 것**을 넣는다(표: deployments/README.md).
+ * prod 기록(deployments/prod/PredictToken.json)이 이미 있으면 tx 를 보내기 전에 멈춘다 — 잔액이 그 주소에 산다.
  *
  * ── 주소 셋 ──────────────────────────────────────────────────────────
- *   관리자   ANCHOR_ADMIN_PRIVATE_KEY 의 주소. 배포 tx 에 서명한다(배포자 = 관리자). CommitAnchor 와 같은 키다 —
+ *   관리자   ANCHOR_ADMIN_PRIVATE_KEY 의 주소. 배포 tx 에 서명한다(배포자 = 관리자). 같은 환경의 CommitAnchor 와 같은 키다 —
  *            키를 늘리지 않는다. 역할 부여·회수와 수납 주소 교체만 할 수 있고 잔액은 못 건드린다.
  *   오퍼레이터 TOKEN_OPERATOR — **주소만** 받는다. 서버 릴레이어 키(backend/.env RELAYER_PRIVATE_KEY)의 주소.
  *            mint · burn · subscribe 를 보낸다. CommitAnchor 의 ANCHOR_ROLE 과 같은 주소를 쓰기로 했다(plan ⑤).
@@ -39,7 +43,7 @@ function requireEnv(name, hint) {
   const v = process.env[name];
   if (!v) {
     console.error(`${name} 가 없다. ${hint}`);
-    console.error('  예) ANCHOR_ADMIN_PRIVATE_KEY=0x… TOKEN_OPERATOR=0x… TOKEN_TREASURY=0x… node scripts/deploy-token-ssafy.mjs');
+    console.error('  예) DEPLOY_ENV=dev ANCHOR_ADMIN_PRIVATE_KEY=0x… TOKEN_OPERATOR=0x… TOKEN_TREASURY=0x… node scripts/deploy-token-ssafy.mjs');
     process.exit(1);
   }
   return v;
@@ -55,6 +59,8 @@ function requireAddress(name, hint) {
 }
 
 async function main() {
+  // tx 를 보내기 전에 환경부터 확정한다. prod 기록이 이미 있으면 여기서 멈춘다 — 잔액이 그 주소에 산다.
+  const environment = requireEnvironment(CONTRACT);
   const artifact = readArtifact(CONTRACT);
   const adminKey = requireEnv('ANCHOR_ADMIN_PRIVATE_KEY', '관리자 키로 배포한다. 셸 환경변수로 넘겨라 — 파일에 적지 마라.');
   const operator = requireAddress('TOKEN_OPERATOR', '오퍼레이터 **주소**(키가 아니다). backend/.env 의 RELAYER_PRIVATE_KEY 에 대응하는 주소.');
@@ -70,7 +76,7 @@ async function main() {
     const adminWallet = new Wallet(adminKey.startsWith('0x') ? adminKey : `0x${adminKey}`, provider);
     const admin = adminWallet.address;
 
-    console.log(`PredictToken(ANT) 배포 → SSAFY (chainId ${net.chainId})`);
+    console.log(`PredictToken(ANT) 배포 → SSAFY ${environment} (chainId ${net.chainId})`);
     console.log(`  RPC        ${RPC_URL}`);
     console.log(`  관리자     ${admin}  (배포자)`);
     console.log(`  오퍼레이터 ${operator}`);
@@ -142,7 +148,7 @@ async function main() {
         gasUsed: Number(receipt.gasUsed),
       },
       artifact,
-      { contractName: CONTRACT, version: 1, envVar: 'CONTRACT_PREDICT_TOKEN' },
+      { environment, contractName: CONTRACT, version: 1, envVar: 'CONTRACT_PREDICT_TOKEN' },
     );
     console.log('  토큰 인덱서(ANT-CHAIN-11) 시작 블록으로 쓸 값:', receipt.blockNumber);
   } finally {

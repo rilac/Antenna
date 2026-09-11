@@ -2,13 +2,19 @@ import { createRequire } from 'node:module';
 import { WebSocketProvider, Wallet, ContractFactory, Contract, isAddress } from 'ethers';
 
 const require = createRequire(import.meta.url);
-const { readArtifact, emit } = require('./emit-artifacts.js');
+const { readArtifact, emit, requireEnvironment } = require('./emit-artifacts.js');
 
 /**
  * SSAFY 네트워크 배포 (ANT-CHAIN-08, v2).
  *
  *   npx hardhat compile
- *   ANCHOR_ADMIN_PRIVATE_KEY=0x…  ANCHOR_RELAYER=0x…  node scripts/deploy-ssafy.mjs
+ *   DEPLOY_ENV=dev|prod  ANCHOR_ADMIN_PRIVATE_KEY=0x…  ANCHOR_RELAYER=0x…  node scripts/deploy-ssafy.mjs
+ *
+ * ── 환경이 두 벌이다 (ANT-CHAIN-12) ──────────────────────────────────
+ * 같은 체인에 dev(팀원 로컬·Live 테스트)와 prod(운영 서버) 컨트랙트가 따로 산다. 관리자 키·릴레이어 주소도
+ * 그 환경의 것을 넣어야 한다 — 역할이 주소에 묶여 있어 다른 환경의 키로는 이 컨트랙트를 못 움직인다.
+ * DEPLOY_ENV 가 없거나, prod 기록(deployments/prod/CommitAnchor.json)이 이미 있으면 tx 를 보내기 전에 멈춘다.
+ * 표는 deployments/README.md.
  *
  * ── 키가 두 개다 ─────────────────────────────────────────────────────
  * 배포 tx 는 **관리자 키**로 서명한다(배포자 = 관리자). 릴레이어는 **주소만** 받는다 —
@@ -36,13 +42,15 @@ function requireEnv(name, hint) {
   const v = process.env[name];
   if (!v) {
     console.error(`${name} 가 없다. ${hint}`);
-    console.error('  예) ANCHOR_ADMIN_PRIVATE_KEY=0x… ANCHOR_RELAYER=0x… node scripts/deploy-ssafy.mjs');
+    console.error('  예) DEPLOY_ENV=dev ANCHOR_ADMIN_PRIVATE_KEY=0x… ANCHOR_RELAYER=0x… node scripts/deploy-ssafy.mjs');
     process.exit(1);
   }
   return v;
 }
 
 async function main() {
+  // tx 를 보내기 전에 환경부터 확정한다. prod 기록이 이미 있으면 여기서 멈춘다.
+  const environment = requireEnvironment('CommitAnchor');
   const artifact = readArtifact();
   const adminKey = requireEnv('ANCHOR_ADMIN_PRIVATE_KEY', '관리자 키로 배포한다. 셸 환경변수로 넘겨라 — 파일에 적지 마라.');
   const relayer = requireEnv('ANCHOR_RELAYER', '릴레이어 **주소**(키가 아니다). backend/.env 의 RELAYER_PRIVATE_KEY 에 대응하는 주소.');
@@ -62,7 +70,7 @@ async function main() {
     const adminWallet = new Wallet(adminKey.startsWith('0x') ? adminKey : `0x${adminKey}`, provider);
     const admin = adminWallet.address;
 
-    console.log(`CommitAnchor v2 배포 → SSAFY (chainId ${net.chainId})`);
+    console.log(`CommitAnchor v2 배포 → SSAFY ${environment} (chainId ${net.chainId})`);
     console.log(`  RPC      ${RPC_URL}`);
     console.log(`  관리자   ${admin}  (배포자)`);
     console.log(`  릴레이어 ${relayer}`);
@@ -102,6 +110,7 @@ async function main() {
         gasUsed: Number(receipt.gasUsed),
       },
       artifact,
+      { environment },
     );
   } finally {
     // destroy 는 waitForDeployment 가 걸어 둔 블록 구독 해지를 취소하며 UNSUPPORTED_OPERATION 을

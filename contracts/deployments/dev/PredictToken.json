@@ -1,5 +1,6 @@
 {
   "contract": "PredictToken",
+  "environment": "dev",
   "version": 1,
   "network": "ssafy",
   "chainId": 31221,
