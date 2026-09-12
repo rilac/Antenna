@@ -37,6 +37,15 @@ type Props = {
 
 type StepState = 'done' | 'busy' | 'wait' | 'fail'
 
+/** 봉인이 그려진 뒤 이 창이 스스로 비켜서기까지(ms).
+ *
+ *  BlockchainScene 이 onSealed 를 부르는 시점부터 장면의 마무리가 2.5초쯤
+ *  더 이어진다 — 받침대가 완성 슬롯으로 바뀌어 무대 가운데로 옮겨 가는 데
+ *  1.6초, 자리 잡는 순간의 반짝임이 0.8초. 3.2초면 마무리를 보자마자 창이
+ *  닫혔다. 5초로 두면 끝난 그림을 잠깐 보고 넘어간다.
+ *  장면의 시간을 바꾸면 이 값도 같이 봐야 한다. */
+const CLOSE_MS = 5000
+
 function Mark({ state }: { state: StepState }) {
   if (state === 'done') {
     return (
@@ -162,7 +171,7 @@ export default function CommitProgressModal({ phase, result, onClose }: Props) {
   const decided = anchor === 'CONFIRMED' || anchor === 'FAILED'
   useEffect(() => {
     if (!sealed || decided) return
-    const t = window.setTimeout(onClose, 3200)
+    const t = window.setTimeout(onClose, CLOSE_MS)
     return () => window.clearTimeout(t)
   }, [sealed, decided, onClose])
 
