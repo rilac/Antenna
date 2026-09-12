@@ -8,7 +8,7 @@
   "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   "admin": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
   "relayer": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-  "txHash": "0xc18c7d2cf64c9dc6f3c8e1e77a8b5dfcff2dabb631b33308b145a81c03391199",
+  "txHash": "0xd043620e010fd060ac198799bd4430ef936ee7de88e236cd86e72674b07505d7",
   "blockNumber": 1,
-  "deployedAt": "2026-09-11T07:11:16.892Z"
+  "deployedAt": "2026-09-12T06:54:51.391Z"
 }
