@@ -1,0 +1,5 @@
+# 로컬 Hardhat 배포 기록은 추적하지 않는다 (ANT-CHAIN-14).
+# npm run deploy:local 이 노드를 띄울 때마다 다시 만들고(주소는 늘 같고 시각·tx 만 바뀐다), 읽는 쪽도
+# 그 뒤에 도는 로컬 스크립트(mint-local · demo-recovery · rebuild-from-chain)뿐이다. 추적하면 배포할 때마다 git 에 변경이 뜬다.
+# 주소는 backend/.env.example 과 deployments/README.md 표에 적혀 있다. prod/ · dev/ 기록은 계속 추적한다.
+local/

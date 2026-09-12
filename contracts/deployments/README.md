@@ -1,15 +1,17 @@
-# 배포 기록 — 운영 한 벌 + 로컬 Hardhat (ANT-CHAIN-12)
+# 배포 기록 — 운영 한 벌 (로컬 서버도 같은 세트) · Hardhat 은 컨트랙트 개발용
 
 SSAFY 체인(chainId 31221, `wss://ws.ssafy-blockchain.com`, 가스 0)에는 **운영 한 벌만** 쓴다.
-실서버 테스트도 운영 컨트랙트로 하고, 그대로 서비스한다. 로컬 개발은 **Hardhat 로컬 체인**(chainId 31337)에서 한다.
+실서버 테스트도, **로컬 서버도** 운영 컨트랙트로 하고 그대로 서비스한다(2026-09-12 결정). Hardhat 로컬 체인은 컨트랙트를 고칠 때만 쓴다.
 
-역할(`ANCHOR_ROLE` · `OPERATOR_ROLE`)은 컨트랙트마다 **특정 주소**에 주어진다. 그래서 키와 컨트랙트는 한 벌로 움직이고,
-노트북 키에는 운영 권한을 주지 않는다 — 로컬이 운영 장부를 건드릴 길 자체를 없앤다.
+역할(`ANCHOR_ROLE` · `OPERATOR_ROLE`)은 컨트랙트마다 **특정 주소**에 주어진다. 그래서 키와 컨트랙트는 한 벌로 움직인다.
+로컬 서버도 운영 릴레이어 키를 쓴다 — 키는 저장소에 두지 않고 팀 내부로만 전달한다.
 
 **이 파일이 단일 진실이다.** 주소를 바꾸면 여기와 "넣는 곳" 을 같이 바꾼다.
 
-> 2026-09-11 오후엔 개발/운영 두 벌이었다. 같은 날 저녁 유저 결정으로 개발 세트를 폐기했다 — 운영 서버를 테스트 코인에 붙이면
-> 로컬 테스트가 운영 장부로 흘러들고, 서버 한 대는 한 세트만 가리키므로 "세트는 하나, 로컬은 체인 밖(Hardhat)" 이 가장 단순하다.
+> 결정 경위. 2026-09-11 오후엔 개발/운영 두 벌이었고, 같은 날 저녁 개발 세트를 폐기해 "세트는 하나, 로컬은 체인 밖(Hardhat)" 으로 갔다.
+> 09-12 에 로컬도 운영 세트를 쓰기로 다시 바꿨다 — Hardhat · 운영 · 옛 dev 세 벌이 머리만 아프고, 어차피 운영넷 테스트를 해야 해서다.
+> 대가: 로컬 테스트 흔적이 운영 장부에 남는다(오픈 때 DB 는 비우고 테스트 ANT 는 오퍼레이터 `burn`). 로컬 서버의 `ANCHOR_CRON` 은 반드시 끈다 —
+> 운영 서버와 같은 키로 00:05 에 겹치면 nonce 가 부딪힌다(`backend/.env.example`).
 
 ## 운영 (prod) — SSAFY 체인
 
@@ -27,19 +29,35 @@ SSAFY 체인(chainId 31221, `wss://ws.ssafy-blockchain.com`, 가스 0)에는 **�
   DB 초기화 vs 기준 시점 필터)은 보류다.
 - 체인은 RPC 로 누구나 읽을 수 있다. "안 보여 준다" 는 화면 이야기지 비밀이 아니다. 앵커에는 해시만 올라가 예측 내용은 안 읽힌다.
 
-## 로컬 — Hardhat 로컬 체인
+## 로컬 Hardhat 체인 — 컨트랙트를 고칠 때만
+
+로컬 **서버**는 위 운영 세트를 쓴다(`backend/.env.example`). 아래는 Solidity 를 고치거나 배포 스크립트를 시험할 때 쓰는 로컬 체인이다.
+서버를 여기에 붙이려면 `backend/.env` 의 체인 줄 여섯 개(RPC · chainId · 두 주소 · 릴레이어 키 · 시작 블록 0)를 아래 표 값으로 잠깐 바꾼다.
 
 ```bash
 cd contracts
-npx hardhat node          # 터미널 1 — chainId 31337, 계정 20개(키가 화면에 찍힌다. 공개된 테스트 키다)
-npm run deploy:local      # 터미널 2 — deployments/local/CommitAnchor.json (signer 0 = 관리자, signer 1 = 릴레이어)
+npx hardhat node                          # 터미널 1 — chainId 31337, 계정 20개(키가 화면에 찍힌다. 공개된 테스트 키다)
+npm run deploy:local                      # 터미널 2 — CommitAnchor v3 + PredictToken → deployments/local/
+MINT_TO=0x내지갑 npm run mint:local        # 잔액이 필요할 때 — 기본 10000 ANT, reason SIGNUP_BONUS, localhost 가 아니면 거부
 ```
 
-`backend/.env` 에 `CHAIN_RPC_URL=ws://127.0.0.1:8545` · `CHAIN_ID=31337` · `CONTRACT_COMMIT_ANCHOR=<local 주소>` ·
-`RELAYER_PRIVATE_KEY=<hardhat node 가 찍은 Account #1 키>` · `INDEXER_FROM_BLOCK=0`. 노드를 재시작하면 체인이 새로 생기므로 다시 배포한다.
-`hardhat.config.js` 가 base fee 를 0 으로 둔다(`initialBaseFeePerGas: 0`, ANT-CHAIN-13) — 서버는 SSAFY 규칙대로 `gasPrice 0` 으로 서명하므로
-이게 없으면 로컬 노드가 서버 tx 를 전부 거부한다. 노드를 끌 땐 창을 닫거나 Ctrl+C — 셸만 죽이면 node 프로세스가 8545 를 쥔 채 남는다.
-PredictToken 의 로컬 배포 스크립트는 아직 없다 — 토큰 기능을 로컬에서 돌릴 때 `deploy.js` 에 붙인다.
+| 역할 | Hardhat 계정 | 주소 |
+|---|---|---|
+| 관리자(배포자) | #0 | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` |
+| 릴레이어 — CommitAnchor `ANCHOR_ROLE` · PredictToken `OPERATOR_ROLE` | #1 | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` |
+| 수납(구독 30%) | #2 | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` |
+| CommitAnchor v3 | #0 nonce 0 | `0x5FbDB2315678afecb367f032d93F642f64180aa3` |
+| PredictToken | #0 nonce 1 | `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512` |
+
+**새 노드에서 배포하면 두 주소가 늘 같다**(ANT-CHAIN-14) — 서버를 붙일 때 주소를 매번 찾지 않아도 된다.
+`deploy.js` 의 배포 순서(CommitAnchor → PredictToken)를 바꾸면 주소가 바뀐다. 릴레이어 #1 의 키는 `npx hardhat node` 가 화면에 찍는다(공개 테스트 키).
+
+- **노드를 재시작하면 체인이 새로 생긴다** — 다시 `deploy:local` 하고, 로컬 DB 의 옛 체인 기록을 비운다. 안 비우면 인덱서가 마지막 이벤트의 블록 해시가
+  체인과 다르다며 **정지**한다(reorg 로 본다). `chain_events` 는 DELETE 가 트리거로 막혀 있지만 `TRUNCATE` 는 행 트리거를 타지 않는다:
+  `docker exec antenna-postgres psql -U antenna -d antenna -c "TRUNCATE chain_events CASCADE"` (참조하는 `token_ledger` 도 같이 비워진다 — 옛 체인 잔액이라 맞다).
+- `hardhat.config.js` 가 base fee 를 0 으로 둔다(`initialBaseFeePerGas: 0`, ANT-CHAIN-13) — 서버는 SSAFY 규칙대로 `gasPrice 0` 으로 서명하므로
+  이게 없으면 로컬 노드가 서버 tx 를 전부 거부한다.
+- 노드를 끌 땐 창을 닫거나 Ctrl+C — 셸만 죽이면 node 프로세스가 8545 를 쥔 채 남는다.
 
 ## 폐기 — 옛 dev 배포본 (2026-09-11 저녁)
 
@@ -57,7 +75,7 @@ PredictToken 의 로컬 배포 스크립트는 아직 없다 — 토큰 기능�
 deployments/
 ├── prod/    CommitAnchor.json(v3) · PredictToken.json   ← 운영
 │   └── archive/  CommitAnchor.v2.json                 ← 교체된 옛 기록(안 씀)
-├── local/   CommitAnchor.json                        ← Hardhat (npm run deploy:local)
+├── local/   CommitAnchor.json · PredictToken.json   ← Hardhat (npm run deploy:local) — 추적 안 함(deployments/.gitignore). 주소는 위 표
 └── dev/     CommitAnchor.json · PredictToken.json   ← 폐기(역사)
 ```
 
