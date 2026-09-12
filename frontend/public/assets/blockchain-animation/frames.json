@@ -1,28 +1,35 @@
 {
  "canvas": {
-  "w": 339,
-  "h": 373
+  "w": 278,
+  "h": 311
  },
  "baseline": {
-  "x": 147,
-  "y": 365
+  "x": 138,
+  "y": 303
+ },
+ "door": 0.582,
+ "pad": {
+  "dx": 34,
+  "w": 173,
+  "top": 69,
+  "foot": 2
  },
  "files": {
-  "run-empty": [
-   "mascot/run-empty-1.webp",
-   "mascot/run-empty-2.webp",
-   "mascot/run-empty-3.webp",
-   "mascot/run-empty-4.webp",
-   "mascot/run-empty-5.webp",
-   "mascot/run-empty-6.webp"
+  "walk-empty": [
+   "mascot/walk-empty-1.webp",
+   "mascot/walk-empty-2.webp",
+   "mascot/walk-empty-3.webp",
+   "mascot/walk-empty-4.webp",
+   "mascot/walk-empty-5.webp",
+   "mascot/walk-empty-6.webp"
   ],
-  "run-carry": [
-   "mascot/run-carry-1.webp",
-   "mascot/run-carry-2.webp",
-   "mascot/run-carry-3.webp",
-   "mascot/run-carry-4.webp",
-   "mascot/run-carry-5.webp",
-   "mascot/run-carry-6.webp"
+  "walk-carry": [
+   "mascot/walk-carry-1.webp",
+   "mascot/walk-carry-2.webp",
+   "mascot/walk-carry-3.webp",
+   "mascot/walk-carry-4.webp",
+   "mascot/walk-carry-5.webp",
+   "mascot/walk-carry-6.webp"
   ],
   "pickup": [
    "mascot/pickup-1.webp",
@@ -36,47 +43,63 @@
    "mascot/place-3.webp",
    "mascot/place-4.webp"
   ],
-  "idle": [
-   "mascot/idle-1.webp",
-   "mascot/idle-2.webp"
-  ],
-  "stand": [
-   "mascot/stand.webp"
-  ],
   "cheer": [
-   "mascot/cheer.webp"
+   "mascot/cheer-1.webp",
+   "mascot/cheer-2.webp",
+   "mascot/cheer-3.webp",
+   "mascot/cheer-4.webp",
+   "mascot/cheer-5.webp",
+   "mascot/cheer-6.webp"
   ],
-  "stride": [
-   "mascot/stride.webp"
+  "pose": [
+   "mascot/pose-1.webp",
+   "mascot/pose-2.webp",
+   "mascot/pose-3.webp",
+   "mascot/pose-4.webp"
+  ],
+  "pose2": [
+   "mascot/pose2-1.webp",
+   "mascot/pose2-2.webp",
+   "mascot/pose2-3.webp",
+   "mascot/pose2-4.webp"
+  ],
+  "place-of": [
+   "scene/building.webp"
+  ],
+  "portal": [
+   "scene/portal-idle.webp",
+   "scene/portal-charge.webp",
+   "scene/portal-done.webp"
   ],
   "cube": [
    "cube/cube-draft.webp",
    "cube/cube-sealed.webp",
    "cube/cube-anchored.webp",
-   "cube/slot-empty.webp"
+   "cube/cube-failed.webp"
   ],
-  "effect": [
+  "fx": [
+   "effect/trail-flat.webp",
+   "effect/trail-arc.webp",
    "effect/spark-small.webp",
    "effect/spark-big.webp",
-   "effect/ring-idle.webp",
-   "effect/ring-active.webp",
-   "effect/chain-idle.webp",
-   "effect/chain-active.webp"
+   "effect/ring.webp",
+   "effect/think.webp"
   ],
-  "docked": [
-   "cube/docked-sealed.webp",
-   "cube/docked-anchored.webp",
-   "cube/docked-failed.webp"
+  "chain": [
+   "effect/chain-1.webp",
+   "effect/chain-2.webp",
+   "effect/chain-3.webp",
+   "effect/chain-4.webp"
+  ],
+  "pad": [
+   "scene/pad.webp"
+  ],
+  "slot": [
+   "scene/slot.webp"
   ]
  },
- "prop": {
-  "cube": {
-   "dx": 106,
-   "w": 90
-  },
-  "slot": {
-   "dx": 100,
-   "w": 164
-  }
+ "slot": {
+  "w": 173,
+  "h": 158
  }
 }
