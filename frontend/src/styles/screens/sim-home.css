@@ -1,159 +1,379 @@
 /* G-01 모의투자 홈 · /sim — [ANT-FE-SEASON-HOME]
-   프로토타입 assets/sim-home.css 를 옮겨온 것이다. 색·서체는 app.css 토큰을 쓰고,
-   프로토타입이 hex 로 박아 둔 값 중 토큰에 대응이 있는 것은 토큰으로 바꿨다.
+   2026-09-12 시안을 따른다. 색·서체는 app.css 토큰을 쓰고, 시안이 hex 로 지정한 값 중
+   토큰에 대응이 있는 것은 토큰으로 바꿨다.
 
-   프로토타입에서 뺀 규칙 두 가지 —
-   1. .sh-kpis(KPI 4종)가 없다. 설계서 §9.2 가 G-01 에서 제외한 항목이라
-      마크업 자체를 만들지 않는다.
-   2. 히어로 배경의 sim-home-banner.png 를 쓰지 않는다. 그 배너에 그려진 캐릭터는
-      인사이트 쪽 흰 개미이고, 모의투자 화면은 검정 개미로 통일한다. 배경은
-      배너 없이 그라데이션만 두고 개미를 별도 이미지로 얹는다. */
+   히어로는 두 칸이다 — 왼쪽이 글과 버튼, 오른쪽이 마스코트와 장식이 떠 있는 무대다.
+   무대만 overflow:hidden 이고 카드(.sh-hero)는 아니다. 카드에 걸면 마스코트 더듬이가
+   잘린다. 반대로 무대에 걸지 않으면 장식이 카드 밖으로 새어 "박스 안에서 떠다니는"
+   그림이 되지 않는다.
+
+   ── 한 화면에 담기 ────────────────────────────────────
+   이 화면은 스크롤 없이 한 화면에 들어가야 한다. 그런데 "한 화면" 의 높이는 표시 배율
+   설정에 따라 크게 달라진다 — 같은 1920×1080 이라도 100% 면 뷰포트가 945px 쯤이고
+   125% 면 756px 쯤이다. 그래서 크기를 고정하지 않고, 높이에 영향을 주는 값을 전부
+   변수로 빼서 뷰포트 높이대로 세 단계로 조인다(파일 끝 @media (max-height:…)).
+   숫자를 고칠 때는 개별 규칙이 아니라 변수를 고친다.
+
+   셸의 .main-inner 여백도 이 화면에서만 줄인다. bodyClass 'sim-home-page'(routes.ts)
+   가 body 에 붙으므로 다른 화면의 여백은 그대로다.
+
+   ── .sim-home 으로 한정한 규칙이 있는 이유 ──────────────
+   G-09 기록(sim-history.css)이 같은 sh- 접두사로 .sh-stats · .sh-stat · .sh-bar ·
+   .sh-rate 를 이미 쓴다. CSS 는 import 되는 순간 전역이라 두 화면을 오간 뒤에는
+   나중에 실린 쪽이 이긴다 — 실제로 /sim/history 를 들렀다 돌아오면 여기 칩 세 개가
+   기록 화면의 4열 그리드를 뒤집어썼다. 겹치는 넷만 이 화면의 래퍼로 감싼다.
+   나머지(.sh-hero · .sh-panel · .sh-run …)는 이 파일에만 있어 그대로 둔다.
+   접두사 자체를 가르는 정리는 두 화면을 같이 손볼 때 한다. */
+
+/* 높이를 만드는 값은 전부 여기 모여 있다. 변수를 body 에 두는 이유는 .main-inner
+   (셸 요소)도 이 값을 읽어야 하기 때문이다 — 변수는 위로 흐르지 않는다. */
+body.sim-home-page{
+  --page-pt:28px;      /* 본문 위 여백 */
+  --page-pb:36px;      /* 본문 아래 여백 */
+  --block-gap:18px;    /* 히어로 ↔ 아래 두 칸 */
+
+  --hero-py:30px;      /* 히어로 위아래 여백 */
+  --hero-px:44px;
+  --title:36px;
+  --lead:16px;
+  --mb-flag:12px;
+  --mb-title:10px;
+  --mb-lead:18px;
+  --mb-prog:16px;
+  --mb-stats:20px;
+  --stat-py:12px;
+  --stat-px:17px;
+  --btn-h:58px;
+
+  --art:300px;         /* 마스코트 폭. 무대 높이와 장식 크기가 여기서 따라온다 */
+
+  --panel-py:22px;
+  --panel-px:26px;
+  --run-py:15px;
+  --run-px:18px;
+  --step-ico:56px;
+}
+
+/* 이 화면에서만 본문 여백을 조인다. 다른 화면은 app.css 의 28/32/64 그대로다. */
+body.sim-home-page .main-inner{padding-top:var(--page-pt);padding-bottom:var(--page-pb)}
 
 /* 본문 폭과 가운데 정렬은 셸의 .main-inner 가 맡는다(app.css). 화면마다 따로
    잡으면 화면끼리 폭이 어긋나므로 여기서는 손대지 않는다.
    word-break:keep-all 은 한글이 단어 중간에서 잘리지 않게 한다. */
 .sim-home{
-  display:flex;flex-direction:column;gap:18px;
+  display:flex;flex-direction:column;gap:var(--block-gap);
   word-break:keep-all;
 }
 
 /* ── 히어로 ─────────────────────────────────────────── */
-/* 왼쪽 글 · 가운데 개미 · 오른쪽 버튼 세 칸이다. 개미 칸은 auto 라
-   좁아지면 먼저 사라지고(아래 미디어쿼리), 글과 버튼만 남는다.
-
-   overflow:hidden 을 걸지 않는다 — 개미 더듬이가 이미지 맨 위 끝에 붙어 있어
-   위쪽이 조금만 잘려도 바로 티가 난다. 배경이 카드 밖으로 새지 않으므로
-   자를 이유도 없다. */
+/* 무대 칸은 minmax 라 좁아지면 먼저 줄고, 1120px 아래에서는 통째로 빠진다. */
 .sh-hero{
   position:relative;
-  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(220px,248px);
-  align-items:center;gap:28px;padding:26px 32px;
-  border:1px solid #e6e5f7;border-radius:22px;
-  background:linear-gradient(115deg,#f4f3fd 0%,#f7f7fe 44%,#eeeefb 100%);
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(400px,1fr);
+  align-items:center;gap:20px;
+  padding:var(--hero-py) 0 var(--hero-py) var(--hero-px);
+  border:1px solid #e4e1fa;border-radius:26px;
+  background:
+    radial-gradient(58% 74% at 76% 24%,rgba(255,255,255,.85),transparent 62%),
+    radial-gradient(46% 62% at 96% 96%,rgba(196,186,255,.45),transparent 70%),
+    linear-gradient(118deg,#f2f0ff 0%,#ebe8fd 44%,#e6e2fc 74%,#f1ecff 100%);
 }
-.sh-hero-copy{min-width:0}
+.sh-hero-copy{position:relative;z-index:1;min-width:0}
+
 .sh-flag{
-  display:inline-block;margin-bottom:10px;padding:5px 13px;border-radius:8px;
-  background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:750;
+  display:inline-block;margin-bottom:var(--mb-flag);padding:6px 14px;border-radius:10px;
+  background:rgba(255,255,255,.82);color:var(--brand);font-size:13px;font-weight:800;
 }
 .sh-title{
-  margin:0 0 8px;color:#141a3c;font-size:32px;font-weight:850;letter-spacing:-.035em;
-  text-wrap:balance;
+  margin:0 0 var(--mb-title);color:#141a3c;font-size:var(--title);font-weight:850;
+  letter-spacing:-.04em;line-height:1.25;text-wrap:balance;
 }
-.sh-lead{margin:0 0 18px;color:#666d90;font-size:15.5px;line-height:1.75;font-weight:600}
+.sh-title em{color:var(--brand);font-style:normal}
+.sh-lead{margin:0 0 var(--mb-lead);color:#6a7093;font-size:var(--lead);line-height:1.65;font-weight:600}
 
-.sh-progress-label{margin:0 0 6px;color:#4a5170;font-size:14px;font-weight:750}
-.sh-progress{display:flex;align-items:center;gap:16px;margin-bottom:16px}
-.sh-bar{flex:1;min-width:0;height:11px;border-radius:999px;background:#e0e0ee;overflow:hidden}
-.sh-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#6f66ec,var(--brand))}
+.sh-progress{display:flex;align-items:center;gap:16px;margin:0 0 var(--mb-prog);max-width:520px}
+.sim-home .sh-bar{flex:1;min-width:0;height:11px;border-radius:999px;background:rgba(255,255,255,.75);overflow:hidden}
+.sim-home .sh-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#8a7bf5,var(--brand))}
 .sh-progress b{flex:none;color:#2a3054;font:800 17px var(--mono)}
 
-.sh-stats{display:flex;flex-wrap:wrap;gap:12px;margin:0}
-.sh-stat{
-  display:flex;align-items:center;gap:12px;margin:0;padding:10px 16px;
-  border:1px solid #e3e2f3;border-radius:14px;background:rgba(255,255,255,.72);
+/* ── 칩 3종 ─────────────────────────────────────────── */
+/* 진행 중이면 내 회차 상태, 아니면 연습이 어떤 것인지를 알린다.
+   값이 응답에 없으면 칩째 빠지므로 두 칸만 남는 경우가 있다(SeasonHome 의 agreed()). */
+.sim-home .sh-stats{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 var(--mb-stats)}
+.sim-home .sh-stat{
+  display:flex;align-items:center;gap:11px;margin:0;
+  padding:var(--stat-py) var(--stat-px);
+  border:1px solid rgba(255,255,255,.9);border-radius:15px;
+  background:rgba(255,255,255,.72);
+  box-shadow:0 6px 18px -12px rgba(60,56,150,.45);
 }
-.sh-stat svg{flex:none;color:#6f66ec}
-.sh-stat dt{margin:0 0 3px;color:#8a90ab;font-size:12.5px;font-weight:700}
-.sh-stat dd{margin:0;color:#1c2245;font-size:16px;font-weight:800;white-space:nowrap}
+.sim-home .sh-stat svg{flex:none;color:var(--brand)}
+.sim-home .sh-stat dt{margin:0 0 3px;color:#8b90ad;font-size:12px;font-weight:750;line-height:1.2}
+.sim-home .sh-stat dd{margin:0;color:#1c2245;font-size:16px;font-weight:850;line-height:1.2;white-space:nowrap}
 
-/* 개미 높이는 폭이 정한다(이미지 1214×1295, 비율 1:1.07). 210px → 225px 이라
-   히어로 안쪽 높이 안에 들어간다. 카드가 이보다 낮아지는 경우(진행 중인 것이
-   없어 진행률·통계가 빠질 때)에는 카드가 개미 높이만큼 늘어난다. */
-.sh-hero-art{
-  display:block;width:210px;height:auto;align-self:end;
-  filter:drop-shadow(0 22px 32px rgba(70,66,229,.22));
-}
-
-.sh-cta{display:flex;flex-direction:column;gap:13px}
+/* ── 히어로 버튼 ────────────────────────────────────── */
+/* 시안은 주 버튼 하나다. "지난 기록 보기" 는 아래 패널의 "전체 보기" 가 맡는다. */
 .sh-btn{
-  display:flex;align-items:center;justify-content:center;gap:11px;height:54px;
-  border-radius:14px;font-size:17px;font-weight:800;letter-spacing:-.02em;
-  transition:background .15s,border-color .15s,transform .06s;
+  display:inline-flex;align-items:center;gap:11px;height:var(--btn-h);padding:0 28px;
+  border-radius:16px;font-size:17px;font-weight:800;letter-spacing:-.025em;
+  transition:filter .15s,transform .06s;
 }
 .sh-btn:active{transform:translateY(1px)}
-.sh-btn.solid{background:var(--brand);color:#fff;box-shadow:0 12px 26px -14px rgba(70,66,229,.65)}
-.sh-btn.solid:hover{background:var(--brand-ink)}
-.sh-btn.ghost{border:1px solid #cdc9f7;color:var(--brand);background:rgba(255,255,255,.6)}
-.sh-btn.ghost:hover{background:#fff;border-color:var(--brand)}
-
-/* ── 하단 3분할 ─────────────────────────────────────── */
-.sh-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
-.sh-panel{
-  display:flex;flex-direction:column;padding:22px 24px;
-  background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow);
+.sh-btn.solid{
+  background:linear-gradient(96deg,#7a63f2 0%,var(--brand) 62%,#4f4ae0 100%);
+  color:#fff;box-shadow:0 18px 32px -14px rgba(84,87,232,.72);
 }
-.sh-panel-head{display:flex;align-items:center;gap:10px;margin:0 0 16px}
+.sh-btn.solid:hover{filter:brightness(1.07)}
+/* 오른쪽 꺾쇠만 살짝 떨어뜨린다 — 재생 아이콘과 글자는 붙어 있어야 한 덩어리로 읽힌다 */
+.sh-btn svg:last-child{margin-left:3px;opacity:.85}
+
+/* ── 무대 ───────────────────────────────────────────── */
+/* align-self:stretch 와 위아래 음수 여백으로 카드 높이를 꽉 채운다. 최소 높이는
+   마스코트 폭에서 바로 구한다 — 그림이 460×611 이라 세로가 폭의 1.33배이고, 여기에
+   아래 여백 8% 를 더하면 1.45배다. 단계마다 따로 적지 않아 어긋날 일이 없다.
+   왼쪽 글이 짧아도 무대가 카드 높이를 잡아 준다. */
+.sh-stage{
+  position:relative;align-self:stretch;
+  margin:calc(var(--hero-py) * -1) 0;min-height:calc(var(--art) * 1.45);
+  border-radius:0 25px 25px 0;overflow:hidden;
+  /* 전부 장식이다. 마우스를 받지 않아야 글자 선택이나 커서가 걸리지 않는다 */
+  pointer-events:none;
+}
+
+.sh-hero-art{
+  position:absolute;left:50%;bottom:8%;z-index:2;
+  display:block;width:var(--art);height:auto;transform:translateX(-50%);
+  filter:drop-shadow(0 26px 34px rgba(70,66,229,.24));
+}
+
+/* ── 떠다니는 장식 ──────────────────────────────────── */
+/* 위치는 무대 기준 % 라 무대가 줄어도 구성이 유지된다. 크기만 마스코트와 함께
+   줄도록 --art 에 비례시킨다. 마크업(DRIFT 배열)은 순서만 정한다.
+
+   alternate 로 왕복시켜 되돌아가는 순간이 없게 한다 — 한 방향으로 돌리면 주기가
+   끝날 때 원위치로 튄다. 주기와 지연을 서로 나누어떨어지지 않게 잡아야 일곱 개가
+   같은 박자로 모이지 않는다.
+
+   흔들림 폭(--dx·--dy·--r0·--r1)의 상한은 무대 경계다. 회전은 이동보다 비싸다 —
+   4도만 돌아도 가로 166px 짜리 말풍선의 외곽이 세로로 11px 커진다. 값을 키울 때는
+   가장자리에 가까운 d1(왼쪽)·d4(위)부터 확인한다. */
+.sh-drift{
+  position:absolute;z-index:1;display:block;height:auto;
+  will-change:transform;
+  animation:sh-float var(--dur) var(--delay) ease-in-out infinite alternate;
+}
+@keyframes sh-float{
+  from{transform:translate3d(0,0,0) rotate(var(--r0))}
+  to{transform:translate3d(var(--dx),var(--dy),0) rotate(var(--r1))}
+}
+
+/* 말풍선 — 마스코트 머리 왼쪽 */
+.sh-drift.d1{
+  top:12%;left:4%;width:calc(var(--art) * .64);z-index:3;
+  --dur:7.3s;--delay:-1.1s;--dx:10px;--dy:-20px;--r0:-2.2deg;--r1:2deg;
+}
+/* BUY — 말풍선 아래, 마스코트 왼쪽 어깨 옆 */
+.sh-drift.d2{
+  top:38%;left:8%;width:calc(var(--art) * .29);
+  --dur:6.1s;--delay:-3.4s;--dx:-12px;--dy:18px;--r0:4deg;--r1:-4deg;
+}
+/* MY MARKET 카드 — 마스코트 오른쪽 어깨 위 */
+.sh-drift.d3{
+  top:16%;left:64%;width:calc(var(--art) * .38);
+  --dur:8.4s;--delay:-5.2s;--dx:15px;--dy:-18px;--r0:-4.5deg;--r1:3.5deg;
+}
+/* 손글씨 — 오른쪽 위 */
+.sh-drift.d4{
+  top:9%;right:3%;width:calc(var(--art) * .54);z-index:3;
+  --dur:9.2s;--delay:-2.3s;--dx:-9px;--dy:-10px;--r0:1.8deg;--r1:-2.6deg;
+}
+/* 화살표 — 손글씨 아래에서 오른쪽 위로.
+   right 를 넉넉히 둔다. 0 이었을 때 촉이 무대 오른쪽 끝과 둥근 모서리에 걸려 잘렸다.
+   흔들림이 오른쪽으로 --dx 만큼 더 가므로 그 폭까지 감안한 여백이다. */
+.sh-drift.d5{
+  top:26%;right:5%;width:calc(var(--art) * .32);
+  --dur:6.8s;--delay:-4.6s;--dx:11px;--dy:-20px;--r0:-3.2deg;--r1:2.6deg;
+}
+/* PRACTICE 캔들 카드 — 오른쪽 아래 */
+.sh-drift.d6{
+  bottom:8%;right:5%;width:calc(var(--art) * .42);z-index:3;
+  --dur:7.9s;--delay:-.8s;--dx:-11px;--dy:-24px;--r0:3.2deg;--r1:-3.6deg;
+}
+/* SELL — 왼쪽 아래. BUY 와 짝을 이룬다 */
+.sh-drift.d7{
+  bottom:13%;left:5%;width:calc(var(--art) * .29);
+  --dur:8.8s;--delay:-6.1s;--dx:12px;--dy:-18px;--r0:-3.5deg;--r1:3deg;
+}
+
+/* 흔들림을 끈다. 위치는 그대로라 장식 구성은 남는다.
+   더 보기 화살표가 도는 것도 같이 끈다 — 방향은 aria-expanded 가 알려 준다. */
+@media (prefers-reduced-motion:reduce){
+  .sh-drift{animation:none}
+  .sh-more svg{transition:none}
+}
+
+/* ── 하단 2분할 ─────────────────────────────────────── */
+/* 왼쪽(기록)이 줄마다 수익률·버튼까지 들어가 더 넓어야 한다.
+
+   align-items 를 건드리지 않아 기본값 stretch 로 둔다 — 전에 start 였고, 그래서 두 칸이
+   각자 내용만큼만 높아져 카드 아래끝이 어긋났다. 늘어난 쪽의 빈 자리는 각 칸의 맨 아래
+   여백(왼쪽은 .sh-runs 의 margin-bottom:auto, 오른쪽은 .sh-tip 의 margin-top:auto)이
+   흡수해, 맨 아래 요소가 두 칸 모두 바닥에 붙는다. */
+.sh-panels{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+.sh-panel{
+  display:flex;flex-direction:column;padding:var(--panel-py) var(--panel-px);
+  background:var(--surface);border:1px solid var(--rule);border-radius:20px;box-shadow:var(--shadow);
+}
+.sh-panel-head{display:flex;align-items:center;gap:10px;margin:0 0 14px}
 .sh-panel-head h2{
-  display:flex;align-items:center;gap:9px;margin:0;
-  color:var(--ink);font-size:19px;font-weight:850;letter-spacing:-.025em;
+  display:flex;align-items:center;gap:10px;margin:0;
+  color:var(--ink);font-size:18.5px;font-weight:850;letter-spacing:-.028em;
 }
 .sh-panel-head h2 svg{color:var(--brand)}
 .sh-panel-head a{margin-left:auto;color:#8a93ad;font-size:13.5px;font-weight:700;white-space:nowrap}
 .sh-panel-head a:hover{color:var(--brand)}
-.sh-panel-foot{
-  display:block;margin-top:16px;padding-top:4px;
-  color:var(--brand);font-size:14px;font-weight:750;text-align:center;
-}
-.sh-panel-foot:hover{color:var(--brand-ink)}
 
 /* 로딩·빈 상태 한 줄. 오류는 공용 ErrorState(state.css)가 그린다. */
-.sh-state{margin:0;padding:18px 0;color:var(--faint);font-size:14px;font-weight:650;text-align:center}
+.sh-state{margin:0;padding:22px 0;color:var(--faint);font-size:14px;font-weight:650;text-align:center}
 
 /* 상태 배지 — 최근 목록 */
-.sh-state-tag{padding:4px 10px;border-radius:7px;font-size:12px;font-weight:750;white-space:nowrap}
+.sh-state-tag{padding:5px 11px;border-radius:9px;font-size:12px;font-weight:800;white-space:nowrap}
 .sh-state-tag.live{background:var(--brand-soft);color:var(--brand)}
-.sh-state-tag.done{background:var(--surface-2);color:#7b8298}
+.sh-state-tag.done{background:var(--brand-softer);color:#6f6bcf}
 
-/* ── 최근 모의투자 ──────────────────────────────────── */
-.sh-runs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+/* ── 최근 연습 기록 ─────────────────────────────────── */
+/* margin-bottom:auto — 카드가 옆 칸 높이에 맞춰 늘어나면 남는 세로를 여기서 먹는다 */
+.sh-runs{list-style:none;margin:0 0 auto;padding:0;display:flex;flex-direction:column;gap:10px}
+/* 배지 · 제목 · 수익률 · 버튼 네 칸. 좁아지면 버튼이 아랫줄로 내려간다(미디어쿼리). */
 .sh-run{
-  display:grid;grid-template-columns:auto minmax(0,1fr);
-  grid-template-areas:"state main" "btn btn";
-  align-items:center;gap:12px;padding:14px 16px;
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;
+  align-items:center;gap:14px;padding:var(--run-py) var(--run-px);
   border:1px solid var(--rule);border-radius:14px;
 }
-.sh-run .sh-state-tag{grid-area:state;align-self:start;margin-top:2px}
-.sh-run-main{grid-area:main;min-width:0}
-.sh-run-main b{display:block;color:#1b2245;font-size:14.5px;font-weight:750;line-height:1.45}
-.sh-run-main small{display:block;margin-top:4px;color:#98a0b6;font:650 12.5px var(--mono)}
+.sh-run-main{min-width:0}
+.sh-run-main b{display:block;color:#1b2245;font-size:15px;font-weight:800;line-height:1.4}
+.sh-run-main small{
+  display:flex;align-items:center;gap:8px;margin-top:4px;
+  color:#98a0b6;font:650 12px var(--mono);
+}
+.sh-dot{width:3px;height:3px;border-radius:50%;background:#c5cbd8}
+
+/* 내 수익률. 벤치마크(시장 수익률)는 응답에 없어 한 칸뿐이다. */
+.sim-home .sh-rate{margin:0;text-align:right;white-space:nowrap}
+.sim-home .sh-rate dt{margin:0 0 3px;color:#98a0b6;font-size:11.5px;font-weight:700}
+.sim-home .sh-rate dd{margin:0;font-size:16.5px;font-weight:850}
+.sim-home .sh-rate dd.up{color:var(--up)}
+.sim-home .sh-rate dd.down{color:var(--down)}
+
+/* 늘 마지막 칸이다. 진행 중인 줄은 수익률(3번 칸)이 없어서, 자동 배치에 맡기면
+   버튼이 한 칸 당겨져 아래 줄 버튼과 세로로 어긋난다. */
 .sh-replay{
-  grid-area:btn;justify-self:end;padding:9px 15px;
-  border:1px solid #cdc9f7;border-radius:10px;
-  color:var(--brand);font-size:13.5px;font-weight:750;white-space:nowrap;
+  grid-column:4;
+  padding:9px 15px;border:1px solid #cdc9f7;border-radius:11px;
+  color:var(--brand);font-size:13px;font-weight:800;white-space:nowrap;
 }
 .sh-replay:hover{background:var(--brand-softer);border-color:var(--brand)}
 
-/* ── 보상 ───────────────────────────────────────────── */
-/* 금액을 쓰지 않는다(§1 규칙 3) — 오른쪽은 규모가 아니라 조건 설명이다. */
-.sh-rewards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.sh-reward{display:flex;align-items:center;gap:13px;padding:12px 0}
-.sh-reward + .sh-reward{border-top:1px solid #f0f2f7}
-.sh-reward b{flex:none;color:#28304f;font-size:15px;font-weight:750}
-.sh-reward em{
-  flex:1;min-width:0;overflow:hidden;
-  color:#79809c;font-style:normal;font-size:13px;font-weight:700;text-align:right;
-  text-overflow:ellipsis;white-space:nowrap;
+/* 더 보기 · 접기. 위의 margin-bottom:auto 덕에 늘 카드 바닥에서 14px 위에 선다. */
+.sh-more{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  width:100%;margin:14px 0 0;padding:10px 0;
+  border:1px solid var(--rule);border-radius:12px;background:transparent;
+  color:#7b8298;font-size:13px;font-weight:750;cursor:pointer;
+  transition:color .15s,border-color .15s,background .15s;
 }
-.sh-hex{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:11px}
-.sh-hex.t-a{background:#e7f0fd;color:#2f6fd0}
-.sh-hex.t-b{background:#e6f7ef;color:#16a06a}
-.sh-hex.t-c{background:#fdf2e3;color:#c98518}
-.sh-note{margin:14px 0 0;color:var(--faint);font-size:12.5px;font-weight:650;line-height:1.6}
+.sh-more:hover{border-color:#cdc9f7;background:var(--brand-softer);color:var(--brand)}
+.sh-more svg{transition:transform .2s}
+.sh-more[aria-expanded="true"] svg{transform:rotate(180deg)}
+
+/* ── 처음이라면 이렇게 시작해요 ─────────────────────── */
+.sh-steps{list-style:none;margin:0 0 14px;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.sh-step{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center}
+/* 칸 사이 꺾쇠. 마크업에 넣지 않는 이유는 읽어 줄 내용이 아니어서다. */
+.sh-step + .sh-step::before{
+  content:'›';position:absolute;left:-8px;top:calc(var(--step-ico) / 2 - 12px);
+  color:#c9cddb;font-size:22px;font-weight:700;line-height:1;
+}
+.sh-step-ico{
+  display:grid;place-items:center;
+  width:var(--step-ico);height:var(--step-ico);margin-bottom:9px;
+  border-radius:18px;background:var(--brand-softer);color:var(--brand);
+}
+.sh-step-no{
+  position:absolute;top:-4px;left:50%;margin-left:calc(var(--step-ico) / 2 - 14px);
+  display:grid;place-items:center;width:20px;height:20px;border-radius:50%;
+  background:var(--brand);color:#fff;font-size:11px;font-weight:800;
+}
+.sh-step b{color:#28304f;font-size:14px;font-weight:800}
+.sh-step em{margin-top:4px;color:#8b92a8;font-style:normal;font-size:12px;font-weight:650;line-height:1.5}
+
+.sh-tip{
+  display:flex;align-items:flex-start;gap:10px;margin:auto 0 0;padding:13px 15px;
+  border-radius:14px;background:var(--brand-softer);
+}
+.sh-tip svg{flex:none;margin-top:1px;color:var(--brand)}
+.sh-tip b{display:block;margin-bottom:3px;color:#3a3f66;font-size:13px;font-weight:800;line-height:1.45}
+.sh-tip span{color:#8288a8;font-size:12px;font-weight:650;line-height:1.5}
 
 /* ── 좁은 화면 ──────────────────────────────────────── */
-@media(max-width:1260px){
-  /* 개미부터 내린다 — 글과 버튼이 먼저다 */
-  .sh-hero{grid-template-columns:minmax(0,1fr) minmax(200px,230px)}
-  .sh-hero-art{display:none}
+@media(max-width:1320px){
+  body.sim-home-page{--title:31px}
+  .sh-hero{grid-template-columns:minmax(0,1fr) minmax(360px,.85fr)}
+}
+@media(max-width:1200px){
+  .sh-drift.d4,.sh-drift.d5{display:none}   /* 오른쪽 위가 먼저 좁아진다 */
+}
+@media(max-width:1120px){
+  /* 무대부터 내린다 — 글과 버튼이 먼저다. 여기서부터는 세로로 쌓여 한 화면에
+     담는다는 전제가 깨지므로 아래 높이 단계도 의미가 없다. */
+  .sh-hero{grid-template-columns:minmax(0,1fr);padding:var(--hero-py) var(--hero-px)}
+  .sh-stage{display:none}
   .sh-panels{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:760px){
-  .sh-hero{grid-template-columns:minmax(0,1fr);padding:22px 20px}
-  .sh-title{font-size:25px}
-  .sh-cta{flex-direction:row}
-  .sh-cta .sh-btn{flex:1}
+  body.sim-home-page{--title:25px;--hero-px:20px;--panel-px:20px}
+  .sh-hero{border-radius:20px}
+  .sh-lead{font-size:15px}
+  .sh-btn{width:100%;justify-content:center}
+  /* 수익률과 버튼을 아랫줄로 내린다 */
+  .sh-run{grid-template-columns:auto minmax(0,1fr) auto;row-gap:12px}
+  .sim-home .sh-rate{grid-column:3}
+  .sh-replay{grid-column:1/-1;justify-self:stretch;text-align:center}
+  .sh-steps{grid-template-columns:1fr;gap:16px}
+  .sh-step + .sh-step::before{display:none}
 }
-@media(max-width:520px){
-  .sh-cta{flex-direction:column}
+
+/* ── 낮은 화면 ──────────────────────────────────────── */
+/* 스크롤 없이 담기 위한 단계다. 기준을 뷰포트 높이로 잡는 이유는 표시 배율마다
+   같은 모니터도 다른 높이로 오기 때문이다 — 1920×1080 이 100% 면 945px 쯤,
+   125% 면 756px 쯤 온다. 값은 변수만 바꾸고 구조는 그대로 둔다. */
+@media (min-width:1121px) and (max-height:900px){
+  body.sim-home-page{
+    --page-pt:20px;--page-pb:24px;--block-gap:14px;
+    --hero-py:22px;--title:30px;--lead:15px;
+    --mb-flag:10px;--mb-title:8px;--mb-lead:14px;--mb-prog:12px;--mb-stats:16px;
+    --stat-py:10px;--stat-px:15px;--btn-h:52px;
+    --art:260px;
+    --panel-py:18px;--panel-px:22px;--run-py:12px;--run-px:16px;--step-ico:50px;
+  }
+}
+@media (min-width:1121px) and (max-height:790px){
+  body.sim-home-page{
+    --page-pt:16px;--page-pb:18px;--block-gap:12px;
+    --hero-py:18px;--title:27px;--lead:14.5px;
+    --mb-lead:12px;--mb-prog:10px;--mb-stats:13px;
+    --stat-py:9px;--stat-px:14px;--btn-h:48px;
+    --art:230px;
+    --panel-py:15px;--panel-px:20px;--run-py:10px;--run-px:14px;--step-ico:44px;
+  }
+}
+@media (min-width:1121px) and (max-height:700px){
+  body.sim-home-page{
+    --page-pt:12px;--page-pb:14px;--block-gap:10px;
+    --hero-py:14px;--title:24px;--lead:14px;
+    --mb-flag:8px;--mb-title:6px;--mb-lead:10px;--mb-prog:8px;--mb-stats:11px;
+    --stat-py:8px;--stat-px:12px;--btn-h:44px;
+    --art:200px;
+    --panel-py:13px;--panel-px:18px;--run-py:9px;--run-px:13px;--step-ico:40px;
+  }
 }
