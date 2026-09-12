@@ -87,6 +87,14 @@ const MAX_LINKS = Math.min(2, CHAIN.length)
 
 /** 마지막 프레임에서 한 박자 머문다. 놓자마자 걸어 나가면 놓는 장면이
  *  스쳐 지나가 "놓았다" 가 안 읽힌다. */
+/** 앞선 동료가 받침대를 비운 뒤 내 개미가 도착하기까지 벌려 둘 간격(ms).
+ *
+ *  850ms 는 걸음 속도로 15.3%(58px)다. 걷는 개미의 몸통은 44px, 환호하는
+ *  개미는 39px 이라 반씩 더해도 42px — 16px 의 여유가 남는다.
+ *  한 주기(8.2초)를 100ms 씩 훑어 다 재 본 값이다: 400ms 면 83곳 중 29곳에서
+ *  닿고, 700ms 부터 0곳이 된다. 출발이 최대 1.6초 늦어지는 값이기도 하다. */
+const PASS_GAP = 850
+
 const PLACE_HOLD = 320
 const PLACE_MS = PLACE.length * MS.place
 const T = {
@@ -187,6 +195,11 @@ export default function BlockchainScene({ phase, anchor, onSealed }: Props) {
   const walkFrame = Math.floor(now / MS.walk)
   const cheerFrame = Math.floor(now / MS.cheer) % CHEER.length
 
+  /** 내 개미가 건물에서 나온 시각(장면 시계). 이 뒤로는 동료가 새로 나오지 않는다 —
+   *  내 개미는 받침대에 서서 끝까지 환호하므로, 뒤따라 온 동료가 같은 자리에
+   *  놓으러 서면 두 마리가 그대로 겹친다. */
+  const soloRef = useRef<number | null>(null)
+
   /** 동료 i 가 자기 한 바퀴에서 어디쯤인지(ms). 아직 안 나왔으면 null.
    *  CSS 애니메이션과 같은 주기·같은 시작점을 쓴다 — 그래야 그림이 바뀌는
    *  순간과 받침대 앞에 서는 순간이 맞는다.
@@ -194,7 +207,24 @@ export default function BlockchainScene({ phase, anchor, onSealed }: Props) {
    *  모달이 뜨는 순간 개미들이 이미 길 한복판에 흩어져 있었다. */
   const at = (i: number) => {
     const t = now - i * HEADWAY
-    return t < 0 ? null : t % CYCLE
+    if (t < 0) return null
+    // 내 개미가 나온 뒤에 시작될 바퀴는 아예 돌지 않는다. 이미 길 위에 있는
+    // 동료는 하던 바퀴를 마치고 무대 밖으로 나간다
+    const solo = soloRef.current
+    if (solo !== null && i * HEADWAY + Math.floor(t / CYCLE) * CYCLE > solo) return null
+    return t % CYCLE
+  }
+
+  /** 지금 길 위에 있는 동료들 중 받침대를 마지막으로 비우는 시각(장면 시계).
+   *  내 개미는 그 뒤에 도착해야 한다. */
+  const lastPadExit = (n0: number) => {
+    let last = -Infinity
+    FOLLOWERS.forEach((_, i) => {
+      const t = n0 - i * HEADWAY
+      if (t < 0) return                       // 아직 한 번도 안 나왔다 — 이제 안 나온다
+      last = Math.max(last, i * HEADWAY + Math.floor(t / CYCLE) * CYCLE + T.in + T.place)
+    })
+    return last
   }
 
   /* 받침대가 완성 슬롯으로 바뀌는 시점은 등록이 끝난 때다. 앵커 확정은
@@ -250,9 +280,16 @@ export default function BlockchainScene({ phase, anchor, onSealed }: Props) {
       while (alive && !startedRef.current) await sleep(120)
       if (!alive) return
 
-      // 커밋 해시 생성으로 넘어갔다. 나와서 받침대까지 걸어간다
-      setHidden(false)
-      await sleep(220); if (!alive) return
+      // 커밋 해시 생성으로 넘어갔다. 나와서 받침대까지 걸어간다.
+      // 다만 앞선 동료가 받침대를 비운 뒤에 도착하도록 출발을 늦춘다 —
+      // 겹쳐서 도착하면 두 마리가 같은 자리에 서고, 내 개미는 거기서 끝까지
+      // 환호하므로 그 겹침이 사라지지 않는다.
+      const n0 = performance.now() - startRef.current
+      soloRef.current = n0
+      const hold = Math.max(0, lastPadExit(n0) + PASS_GAP - (n0 + 220 + T.in))
+      if (hold) { await sleep(hold); if (!alive) return }
+      setHidden(false)                       // 입구에 모습을 드러내고
+      await sleep(220); if (!alive) return   // 한 박자 뒤 걷기 시작한다
       const inMs = ms(X.door, X.stop)
       setMoveMs(inMs); setX(X.stop)
       await sleep(inMs); if (!alive) return
@@ -280,11 +317,10 @@ export default function BlockchainScene({ phase, anchor, onSealed }: Props) {
       // 처음부터 가운데에 두면 그냥 순간이동한다
       await sleep(60); if (!alive) return
       setMoved(true)
-      // 슬롯이 가운데에 자리 잡는 순간에 맞춰 터뜨린다
-      await sleep(1600); if (!alive) return
-      setSpark(FX.sparkBig)
-      await sleep(800); if (!alive) return
-      setSpark(null)
+      /* 슬롯이 자리 잡을 때 큰 반짝임을 터뜨렸었는데, 그 이펙트는 놓는 자리
+         기준으로 놓여 있어서 정작 슬롯이 아니라 그 자리에 남은 개미 위에
+         터졌다. 캐릭터에 굳이 얹을 것이 아니라 빼기로 했다 — 슬롯이 옮겨
+         가며 커지는 것만으로 끝났다는 말은 이미 다 한다. */
     }
     void run()
     return () => { alive = false }
