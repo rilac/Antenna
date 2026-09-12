@@ -70,7 +70,7 @@ MINT_TO=0x내지갑 npm run mint:local        # 잔액이 필요할 때 — 기�
 deployments/
 ├── prod/    CommitAnchor.json(v3) · PredictToken.json   ← 운영
 │   └── archive/  CommitAnchor.v2.json                 ← 교체된 옛 기록(안 씀)
-├── local/   CommitAnchor.json · PredictToken.json   ← Hardhat (npm run deploy:local)
+├── local/   CommitAnchor.json · PredictToken.json   ← Hardhat (npm run deploy:local) — 추적 안 함(deployments/.gitignore). 주소는 위 표
 └── dev/     CommitAnchor.json · PredictToken.json   ← 폐기(역사)
 ```
 
