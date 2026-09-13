@@ -26,7 +26,7 @@ public record GpuAiProperties(
         String promptVersion) {
 
     private static final String DEFAULT_MODEL = "antenna";
-    private static final String DEFAULT_PROMPT_VERSION = "v1";
+    private static final String DEFAULT_PROMPT_VERSION = "v2";
 
     public GpuAiProperties {
         if (apiKey != null) {

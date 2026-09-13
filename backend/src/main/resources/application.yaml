@@ -287,6 +287,7 @@ app:
       # vLLM --served-model-name 값. 모델을 바꿔도 이 이름을 고정하면 설정이 안 바뀐다.
       model: ${AI_GPU_MODEL:antenna}
       # 판정에 남기는 세대 태그. 지시문을 고치면 올린다 — 옛 값 행만 다시 판정된다.
-      prompt-version: ${AI_GPU_PROMPT_VERSION:v1}
+      # v2(2026-09-11): 기부·봉사·성금 같은 사회공헌을 무관으로 적었다(NewsRelevanceService.INSTRUCTION).
+      prompt-version: ${AI_GPU_PROMPT_VERSION:v2}
       # 뉴스 수집(20:00) 한 시간 뒤. 터널을 세우고 나서 "0 0 21 * * *" 로 켠다.
       relevance-cron: ${AI_GPU_RELEVANCE_CRON:-}
