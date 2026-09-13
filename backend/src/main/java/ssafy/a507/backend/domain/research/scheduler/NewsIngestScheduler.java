@@ -1,6 +1,10 @@
 package ssafy.a507.backend.domain.research.scheduler;
 
+import jakarta.annotation.PreDestroy;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import ssafy.a507.backend.domain.research.service.BriefingGenerationService;
@@ -18,6 +22,7 @@ import ssafy.a507.backend.domain.research.service.NewsRelevanceService;
  * 예측 탭에서 요청한 종목만 그 자리에서 만든다({@code ResearchPointService}). 300종목을 매일 미리
  * 만들던 구조가 GMS 토큰을 하루 만에 태웠다. 배치가 부르는 LLM 은 시장 브리핑 하루 1콜뿐이다.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class NewsIngestScheduler {
@@ -25,6 +30,31 @@ public class NewsIngestScheduler {
     private final NewsIngestService newsIngestService;
     private final BriefingGenerationService briefingGenerationService;
     private final NewsRelevanceService newsRelevanceService;
+
+    static final String RELEVANCE_THREAD = "relevance-1";
+
+    /**
+     * 관련도 판정 전용 스레드.
+     *
+     * <p>앱의 {@code @Scheduled} 는 스레드 하나를 나눠 쓴다 — 스케줄러 풀 크기를 따로 정하지 않아
+     * 기본값 1 이다. 판정 한 회차는 기사 3,000건 × 0.8초로 첫날 밤 40분쯤 걸리는데, 그동안 스케줄러
+     * 스레드를 쥐고 있으면 5초마다 도는 체인 인덱서가 통째로 멈춘다. 그래서 판정만 여기로 넘긴다.
+     *
+     * <p><b>풀 크기를 늘리지 않은 이유.</b> 13:00 시세 수집 → 13:30 예측 판정 → 13:35 랭킹이 지금은
+     * 스레드가 하나라 저절로 줄을 선다. 풀을 늘리면 수집이 길어진 날 판정이 어제 시세로 먼저 돈다.
+     * 오래 걸리는 것 하나만 떼어 내면 나머지의 순서는 그대로다.
+     *
+     * <p>수집(20:00) → 판정(21:00) 순서도 지켜진다. 21:00 트리거 자체는 여전히 스케줄러 스레드에서
+     * 돌기 때문에, 수집이 21시를 넘기면 트리거가 수집이 끝날 때까지 기다렸다가 판정을 넘긴다.
+     *
+     * <p>데몬 스레드다 — 재배포로 앱이 내려갈 때 돌던 회차가 JVM 종료를 붙잡지 않는다. 끊긴 회차는
+     * 판정 없는 기사가 그대로 남아 다음 회차가 이어 집는다.
+     */
+    private final ExecutorService relevanceExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, RELEVANCE_THREAD);
+        thread.setDaemon(true);
+        return thread;
+    });
 
     /** 뉴스 수집 — 매일 20:00. 장 마감 뒤 마감 기사까지 담기도록 저녁에 돈다. */
     @Scheduled(cron = "${app.naver-news.cron:0 0 20 * * *}", zone = "Asia/Seoul")
@@ -54,6 +84,23 @@ public class NewsIngestScheduler {
      */
     @Scheduled(cron = "${app.ai.gpu.relevance-cron:-}", zone = "Asia/Seoul")
     public void judgeNewsRelevance() {
-        newsRelevanceService.judgeRecent();
+        relevanceExecutor.execute(this::runRelevance);
+    }
+
+    /**
+     * 전용 스레드에서 도는 한 회차. 예외를 여기서 받아 로그로 남긴다 — 스케줄러가 받아 적어 주던
+     * 것을 이제 아무도 받지 않으므로, 여기서 삼키지 않으면 표준 오류로만 흘러 로그 검색에 안 걸린다.
+     */
+    private void runRelevance() {
+        try {
+            newsRelevanceService.judgeRecent();
+        } catch (RuntimeException e) {
+            log.warn("[SIGNAL] 관련도 판정 회차 실패 — {}", e.getMessage(), e);
+        }
+    }
+
+    @PreDestroy
+    void shutdownRelevance() {
+        relevanceExecutor.shutdownNow();
     }
 }
